@@ -48,6 +48,8 @@ let lastError = null;
 
 let overlayVisible = false;
 let secondaryCandidatesVisible = false;
+/** Side Body Candidates overlay visibility (evidence plane; default on when analyzed). */
+let sideOverlayVisible = true;
 
 /**
  * UI-only Front Body Evidence landmark selection (inspect/select v0).
@@ -237,6 +239,19 @@ export function setSecondaryBodyEvidenceVisible(visible) {
     return;
   }
   secondaryCandidatesVisible = next;
+  notifyBodyEvidenceChange();
+}
+
+export function isSideBodyEvidenceVisible() {
+  return sideOverlayVisible && qaResult != null;
+}
+
+export function setSideBodyEvidenceVisible(visible) {
+  const next = Boolean(visible);
+  if (next === sideOverlayVisible) {
+    return;
+  }
+  sideOverlayVisible = next;
   notifyBodyEvidenceChange();
 }
 
@@ -623,6 +638,7 @@ function resetAnalysisForNewSource() {
   lastError = null;
   overlayVisible = false;
   secondaryCandidatesVisible = false;
+  sideOverlayVisible = false;
   clearBodyEvidenceSelectionSilent();
   notifyBodyEvidenceChange();
 }
@@ -653,6 +669,7 @@ export function analyzeLoadedBodyEvidence() {
     qaResult = null;
     overlayVisible = false;
     secondaryCandidatesVisible = false;
+    sideOverlayVisible = false;
     clearBodyEvidenceSelectionSilent();
     notifyBodyEvidenceChange();
     return { ok: false, error: lastError, result: null };
@@ -663,6 +680,7 @@ export function analyzeLoadedBodyEvidence() {
     lastError = null;
     overlayVisible = getRenderableFrontBodyLandmarks().length > 0;
     secondaryCandidatesVisible = getSecondaryFrontBodyLandmarks().length > 0;
+    sideOverlayVisible = getRenderableSideBodyLandmarks().length > 0;
     // Re-analyze replaces the landmark set — drop any prior inspect selection.
     clearBodyEvidenceSelectionSilent();
     notifyBodyEvidenceChange();
@@ -672,6 +690,7 @@ export function analyzeLoadedBodyEvidence() {
     qaResult = null;
     overlayVisible = false;
     secondaryCandidatesVisible = false;
+    sideOverlayVisible = false;
     clearBodyEvidenceSelectionSilent();
     notifyBodyEvidenceChange();
     return { ok: false, error: lastError, result: null };
@@ -684,6 +703,7 @@ export function clearBodyEvidence() {
   lastError = null;
   overlayVisible = false;
   secondaryCandidatesVisible = false;
+  sideOverlayVisible = false;
   clearBodyEvidenceSelectionSilent();
   notifyBodyEvidenceChange();
 }

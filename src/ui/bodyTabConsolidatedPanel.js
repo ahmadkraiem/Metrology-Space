@@ -280,6 +280,7 @@ function renderBodyEvidenceStatus() {
   const qa = result.qa ?? {};
   const loadedCount = countLoadedFiles(loaded);
   const acceptedCore = formatCount(qa.renderableFrontLandmarks);
+  const sideCandidates = formatCount(qa.sideAcceptedCount);
 
   const loadedChips = [
     renderLoadedIndicator('Front Pose', loaded.frontPose),
@@ -293,8 +294,9 @@ function renderBodyEvidenceStatus() {
     renderSummaryRow('Evidence', renderBadge('Loaded', 'ok')),
     renderTextSummaryRow('Loaded files', `${loadedCount} / 4`),
     `<div class="body-tab-loaded-chips" aria-label="Loaded file indicators">${loadedChips}</div>`,
-    renderTextSummaryRow('Primary / core candidates', `${acceptedCore} / ${CORE_ANCHOR_TOTAL}`),
-    renderTextSummaryRow('Secondary candidates', formatCount(qa.secondaryFrontLandmarks)),
+    renderTextSummaryRow('Front core candidates', `${acceptedCore} / ${CORE_ANCHOR_TOTAL}`),
+    renderTextSummaryRow('Front secondary candidates', formatCount(qa.secondaryFrontLandmarks)),
+    renderTextSummaryRow('Side candidates', sideCandidates),
     renderTextSummaryRow('Ignored / deferred', formatCount(qa.frontIgnoredNonCoreLandmarks)),
     renderTextSummaryRow('Rejected face / head', formatCount(qa.frontRejectedFaceLandmarks)),
     renderTextSummaryRow('Low confidence', formatCount(qa.lowConfidenceLandmarks)),

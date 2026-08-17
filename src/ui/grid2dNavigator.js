@@ -34,9 +34,35 @@ import {
   FIELD_INSET_PX,
   applyPlotAreaCssVars,
   computePlotMetrics,
-  plotPercentFromRatio,
   renderPlotAxisLabels,
 } from './grid2dPlotArea.js';
+import {
+  MODE_PICK,
+  MODE_REGION,
+  BASE_DOMAIN,
+  BASE_STEP,
+  MIN_DETAIL_STEP,
+  MIN_DRAG_PX,
+  applyVisualZoomTransform,
+  applyWheelZoom,
+  classifySplitSelection as classifySplitSelectionShared,
+  clampPanForZoom,
+  cloneBounds,
+  createVisualTransform,
+  dedupePoints,
+  findNearestDisplayPoint,
+  formatAxisReadout,
+  formatRangeValue,
+  generatePointsForBounds,
+  getPointsInsideSelectionRect as getPointsInsideSelectionRectShared,
+  getScreenPointForWorld as getScreenPointForWorldShared,
+  getSelectionBounds,
+  getWrapperLocalPoint as getWrapperLocalPointShared,
+  isInDomain,
+  isTypingTarget as isTypingTargetShared,
+  projectToPercent as projectToPercentShared,
+  worldToPlotPx as worldToPlotPxShared,
+} from './grid2dNavShared.js';
 import {
   grid2dBackBtn,
   grid2dResetBtn,
@@ -57,22 +83,11 @@ import {
 } from './domRefs.js';
 import { updateSceneGraph } from './sceneGraphPanel.js';
 
-const MODE_PICK = 'pick';
-const MODE_REGION = 'region';
-
 /**
  * The 2D field is the cube's Front Surface (X/Y only). Pick, refinement, and
  * the shared front-surface measurement all operate on it. The base step matches
  * the 3D visible surface grid interval (10 cm).
  */
-const BASE_DOMAIN = { hMin: 0, hMax: ROOM_SIZE, vMin: 0, vMax: ROOM_SIZE };
-const BASE_STEP = 10;
-const MIN_DETAIL_STEP = 5;
-const MIN_DRAG_PX = 4;
-const PICK_HIT_RADIUS_PX = 10;
-const MIN_VISUAL_ZOOM = 1;
-const MAX_VISUAL_ZOOM = 8;
-const WHEEL_ZOOM_FACTOR = 1.12;
 
 /**
  * Refinement stack. With a 10 cm base grid there is a single refinement level
@@ -88,7 +103,7 @@ let selectedPoint2d = null;
 let selectedRegionPoints = [];
 /** @type {{ pointA: { x: number, y: number, z: number } | null, pointB: { x: number, y: number, z: number } | null }} */
 let lastFrontSurfaceMeasurement = { pointA: null, pointB: null };
-let visualTransform = { scale: 1, panX: 0, panY: 0 };
+let visualTransform = createVisualTransform();
 /** @type {{ startX: number, startY: number, currentX: number, currentY: number, pointerId: number } | null} */
 let dragSelectState = null;
 /** @type {{ startX: number, startY: number, startPanX: number, startPanY: number, pointerId: number } | null} */
@@ -179,37 +194,6 @@ function getSelectionHint() {
   return 'Click a point or drag a region';
 }
 
-function cloneBounds(bounds) {
-  return {
-    hMin: bounds.hMin,
-    hMax: bounds.hMax,
-    vMin: bounds.vMin,
-    vMax: bounds.vMax,
-  };
-}
-
-function formatRangeValue(value) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
-function formatAxisReadout(axis, value) {
-  return `${axis.toUpperCase()}: ${formatRangeValue(value)} cm`;
-}
-
-function generatePointsForBounds(bounds, step) {
-  const points = [];
-  const hStart = Math.ceil(bounds.hMin / step) * step;
-  const vStart = Math.ceil(bounds.vMin / step) * step;
-
-  for (let h = hStart; h <= bounds.hMax; h += step) {
-    for (let v = vStart; v <= bounds.vMax; v += step) {
-      points.push({ h, v, step });
-    }
-  }
-
-  return points;
-}
-
 function getBasePoints() {
   return generatePointsForBounds(BASE_DOMAIN, BASE_STEP);
 }
@@ -226,36 +210,8 @@ function getRefinedPoints() {
   return points;
 }
 
-function dedupePoints(points) {
-  const pointMap = new Map();
-
-  for (const point of points) {
-    const key = `${point.h},${point.v}`;
-    const existing = pointMap.get(key);
-
-    if (!existing || point.step < existing.step) {
-      pointMap.set(key, point);
-    }
-  }
-
-  return Array.from(pointMap.values());
-}
-
 function getAllDisplayPoints() {
   return dedupePoints([...getBasePoints(), ...getRefinedPoints()]);
-}
-
-function boundsOverlap(a, b) {
-  return !(
-    a.hMax < b.hMin
-    || a.hMin > b.hMax
-    || a.vMax < b.vMin
-    || a.vMin > b.vMax
-  );
-}
-
-function hasRefinementInBounds(bounds) {
-  return refinedRegions.some((region) => boundsOverlap(bounds, region));
 }
 
 function getFieldInnerSize() {
@@ -272,81 +228,24 @@ function getPlotMetrics() {
 }
 
 function worldToPlotPx(h, v) {
-  const { padLeft, padTop, plotW, plotH } = getPlotMetrics();
-  const spanH = BASE_DOMAIN.hMax - BASE_DOMAIN.hMin;
-  const spanV = BASE_DOMAIN.vMax - BASE_DOMAIN.vMin;
-  const u = (h - BASE_DOMAIN.hMin) / spanH;
-  const t = (v - BASE_DOMAIN.vMin) / spanV;
-
-  return {
-    px: padLeft + u * plotW,
-    py: padTop + (1 - t) * plotH,
-  };
+  return worldToPlotPxShared(h, v, getPlotMetrics(), BASE_DOMAIN);
 }
 
 function updatePlotAreaCss() {
   applyPlotAreaCssVars(grid2dFieldEl, getPlotMetrics());
 }
 
-function worldToScreen2d(h, v) {
-  const { width, height } = getFieldInnerSize();
-  const { px, py } = worldToPlotPx(h, v);
-  const cx = width / 2;
-  const cy = height / 2;
-
-  return {
-    x: cx + (px - cx) * visualTransform.scale + visualTransform.panX,
-    y: cy + (py - cy) * visualTransform.scale + visualTransform.panY,
-  };
-}
-
-function getSelectionBounds(points) {
-  if (!points.length) {
-    return null;
-  }
-
-  let hMin = Infinity;
-  let hMax = -Infinity;
-  let vMin = Infinity;
-  let vMax = -Infinity;
-
-  for (const point of points) {
-    hMin = Math.min(hMin, point.h);
-    hMax = Math.max(hMax, point.h);
-    vMin = Math.min(vMin, point.v);
-    vMax = Math.max(vMax, point.v);
-  }
-
-  return { hMin, hMax, vMin, vMax };
-}
-
 function applyVisualZoom() {
-  grid2dFieldEl.style.transform = `translate(${visualTransform.panX}px, ${visualTransform.panY}px) scale(${visualTransform.scale})`;
+  applyVisualZoomTransform(grid2dFieldEl, visualTransform);
 }
 
 function resetVisualZoom() {
-  visualTransform = { scale: 1, panX: 0, panY: 0 };
+  visualTransform = createVisualTransform();
   applyVisualZoom();
 }
 
-function isInDomain(h, v) {
-  return (
-    h >= BASE_DOMAIN.hMin
-    && h <= BASE_DOMAIN.hMax
-    && v >= BASE_DOMAIN.vMin
-    && v <= BASE_DOMAIN.vMax
-  );
-}
-
 function projectToPercent(h, v) {
-  const spanH = BASE_DOMAIN.hMax - BASE_DOMAIN.hMin;
-  const spanV = BASE_DOMAIN.vMax - BASE_DOMAIN.vMin;
-
-  return plotPercentFromRatio(
-    getPlotMetrics(),
-    (h - BASE_DOMAIN.hMin) / spanH,
-    (v - BASE_DOMAIN.vMin) / spanV,
-  );
+  return projectToPercentShared(h, v, getPlotMetrics(), BASE_DOMAIN);
 }
 
 function hideActiveRegionSelectionVisuals() {
@@ -448,81 +347,41 @@ function showStatusMessage(message) {
 }
 
 function getWrapperLocalPoint(clientX, clientY) {
-  const rect = grid2dGridWrapperEl.getBoundingClientRect();
-  return {
-    x: clientX - rect.left,
-    y: clientY - rect.top,
-  };
+  return getWrapperLocalPointShared(grid2dGridWrapperEl, clientX, clientY);
 }
 
 function getScreenPointForWorld(h, v) {
-  const screen = worldToScreen2d(h, v);
-  const wrapperRect = grid2dGridWrapperEl.getBoundingClientRect();
-  return {
-    x: wrapperRect.left + FIELD_INSET_PX + screen.x,
-    y: wrapperRect.top + FIELD_INSET_PX + screen.y,
-  };
+  return getScreenPointForWorldShared(
+    grid2dGridWrapperEl,
+    h,
+    v,
+    getPlotMetrics(),
+    visualTransform,
+    BASE_DOMAIN,
+  );
 }
 
 function getPointAtScreenPosition(clientX, clientY) {
-  const points = getAllDisplayPoints();
-  let nearest = null;
-  let nearestDistance = PICK_HIT_RADIUS_PX;
-
-  for (const point of points) {
-    const screen = getScreenPointForWorld(point.h, point.v);
-    const dx = clientX - screen.x;
-    const dy = clientY - screen.y;
-    const distance = Math.hypot(dx, dy);
-
-    if (distance <= nearestDistance) {
-      nearest = point;
-      nearestDistance = distance;
-    }
-  }
-
-  return nearest;
+  return findNearestDisplayPoint({
+    clientX,
+    clientY,
+    points: getAllDisplayPoints(),
+    wrapperEl: grid2dGridWrapperEl,
+    metrics: getPlotMetrics(),
+    visualTransform,
+    domain: BASE_DOMAIN,
+  });
 }
 
 function getPointsInsideSelectionRect() {
-  if (!dragSelectState) {
-    return [];
-  }
-
-  const start = getWrapperLocalPoint(dragSelectState.startX, dragSelectState.startY);
-  const end = getWrapperLocalPoint(dragSelectState.currentX, dragSelectState.currentY);
-  const left = Math.min(start.x, end.x);
-  const top = Math.min(start.y, end.y);
-  const right = Math.max(start.x, end.x);
-  const bottom = Math.max(start.y, end.y);
-
-  if (right - left < MIN_DRAG_PX && bottom - top < MIN_DRAG_PX) {
-    return [];
-  }
-
-  const rect = {
-    left: grid2dGridWrapperEl.getBoundingClientRect().left + left,
-    top: grid2dGridWrapperEl.getBoundingClientRect().top + top,
-    right: grid2dGridWrapperEl.getBoundingClientRect().left + right,
-    bottom: grid2dGridWrapperEl.getBoundingClientRect().top + bottom,
-  };
-
-  const nextSelection = [];
-
-  for (const point of getAllDisplayPoints()) {
-    const screen = getScreenPointForWorld(point.h, point.v);
-
-    if (
-      screen.x >= rect.left
-      && screen.x <= rect.right
-      && screen.y >= rect.top
-      && screen.y <= rect.bottom
-    ) {
-      nextSelection.push({ h: point.h, v: point.v, step: point.step });
-    }
-  }
-
-  return nextSelection;
+  return getPointsInsideSelectionRectShared({
+    dragSelectState,
+    wrapperEl: grid2dGridWrapperEl,
+    points: getAllDisplayPoints(),
+    metrics: getPlotMetrics(),
+    visualTransform,
+    domain: BASE_DOMAIN,
+  });
 }
 
 function updateSelectionRectUI() {
@@ -635,12 +494,7 @@ function isGrid2dWorkspaceVisible() {
 }
 
 function isTypingTarget(target) {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  const tagName = target.tagName;
-  return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || target.isContentEditable;
+  return isTypingTargetShared(target);
 }
 
 function toggleActive2dMode() {
@@ -683,21 +537,12 @@ function updateLegend() {
  *   action: { step: number, bounds: object } | null }}
  */
 function classifySplitSelection() {
-  if (active2dMode !== MODE_REGION || selectedRegionPoints.length < 2) {
-    return { canSplit: false, message: null, action: null };
-  }
-
-  const bounds = getSelectionBounds(selectedRegionPoints);
-
-  if (hasRefinementInBounds(bounds)) {
-    return { canSplit: false, message: 'Already refined at 5 cm.', action: null };
-  }
-
-  return {
-    canSplit: true,
-    message: null,
-    action: { step: MIN_DETAIL_STEP, bounds },
-  };
+  return classifySplitSelectionShared({
+    activeMode: active2dMode,
+    selectedRegionPoints,
+    refinedRegions,
+    detailStep: MIN_DETAIL_STEP,
+  });
 }
 
 function updateChrome() {
@@ -1009,17 +854,9 @@ function setActive2dMode(mode) {
   refreshGrid2dNavigator();
 }
 
-function clampPanForZoom() {
+function clampPanForZoomLocal() {
   const { width, height } = getFieldInnerSize();
-
-  if (width <= 0 || height <= 0) {
-    return;
-  }
-
-  const maxPanX = ((visualTransform.scale - 1) * width) / 2;
-  const maxPanY = ((visualTransform.scale - 1) * height) / 2;
-  visualTransform.panX = Math.min(Math.max(visualTransform.panX, -maxPanX), maxPanX);
-  visualTransform.panY = Math.min(Math.max(visualTransform.panY, -maxPanY), maxPanY);
+  clampPanForZoom(visualTransform, width, height);
 }
 
 function handleWheelZoom(event) {
@@ -1028,25 +865,19 @@ function handleWheelZoom(event) {
   const local = getWrapperLocalPoint(event.clientX, event.clientY);
   const fieldX = local.x - FIELD_INSET_PX;
   const fieldY = local.y - FIELD_INSET_PX;
-  const factor = event.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
-  const nextScale = Math.min(
-    Math.max(visualTransform.scale * factor, MIN_VISUAL_ZOOM),
-    MAX_VISUAL_ZOOM,
-  );
+  const { width, height } = getFieldInnerSize();
+  const { changed } = applyWheelZoom(visualTransform, {
+    fieldX,
+    fieldY,
+    width,
+    height,
+    zoomIn: event.deltaY < 0,
+  });
 
-  if (nextScale === visualTransform.scale) {
+  if (!changed) {
     return;
   }
 
-  const { width, height } = getFieldInnerSize();
-  const cx = width / 2;
-  const cy = height / 2;
-  const scaleRatio = nextScale / visualTransform.scale;
-
-  visualTransform.panX = fieldX - cx - (fieldX - cx - visualTransform.panX) * scaleRatio;
-  visualTransform.panY = fieldY - cy - (fieldY - cy - visualTransform.panY) * scaleRatio;
-  visualTransform.scale = nextScale;
-  clampPanForZoom();
   applyVisualZoom();
 }
 
@@ -1102,7 +933,7 @@ function setupPointerInteraction() {
     if (panState && event.pointerId === panState.pointerId) {
       visualTransform.panX = panState.startPanX + (event.clientX - panState.startX);
       visualTransform.panY = panState.startPanY + (event.clientY - panState.startY);
-      clampPanForZoom();
+      clampPanForZoomLocal();
       applyVisualZoom();
       hideGrid2dHoverTooltip();
       return;

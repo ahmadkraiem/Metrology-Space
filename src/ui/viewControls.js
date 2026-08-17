@@ -3,6 +3,7 @@ import {
   showAnnotationsCheckbox,
   show3dLatticePointsCheckbox,
   show2dGridPointsCheckbox,
+  showSideGridPointsCheckbox,
   showMeasurementLinesCheckbox,
   showBodyMeasurementPreviewsCheckbox,
 } from './domRefs.js';
@@ -12,6 +13,7 @@ import { setAnnotationsVisible } from '../features/annotations.js';
 import { setMeasurement3dLinesVisible } from '../features/measurement.js';
 import { setBodyMeasurementPreviewVisible } from '../features/bodyMeasurementPreview.js';
 import { setGrid2dPointsVisible } from './grid2dNavigator.js';
+import { setSideGrid2dPointsVisible } from './sideGrid2dNavigator.js';
 import {
   setProjectedAnnotationsVisible,
   setProjectedReferenceMarkersVisible,
@@ -38,6 +40,10 @@ export function setupViewControls(referenceMarkers, volumeGrid, measurement) {
     setGrid2dPointsVisible(show2dGridPointsCheckbox.checked);
   });
 
+  showSideGridPointsCheckbox?.addEventListener('change', () => {
+    setSideGrid2dPointsVisible(showSideGridPointsCheckbox.checked);
+  });
+
   // One flag drives the 3D line/label and the front-surface 2D line/label.
   showMeasurementLinesCheckbox.addEventListener('change', () => {
     setMeasurement3dLinesVisible(measurement, showMeasurementLinesCheckbox.checked);
@@ -54,6 +60,7 @@ export function setupViewControls(referenceMarkers, volumeGrid, measurement) {
   setProjectedAnnotationsVisible(showAnnotationsCheckbox.checked);
   setInternalVolumeGridVisible(volumeGrid, show3dLatticePointsCheckbox.checked);
   setGrid2dPointsVisible(show2dGridPointsCheckbox.checked);
+  setSideGrid2dPointsVisible(showSideGridPointsCheckbox?.checked ?? true);
   setMeasurement3dLinesVisible(measurement, showMeasurementLinesCheckbox.checked);
   setBodyMeasurementPreviewVisible(showBodyMeasurementPreviewsCheckbox?.checked ?? true);
 }

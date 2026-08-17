@@ -1,4 +1,8 @@
 import { onResize as syncSceneResize } from '../core/scene.js';
+import { refreshGrid2dNavigator, hideGrid2dHoverCoordinateTooltip } from './grid2dNavigator.js';
+import { refreshSideGrid2dNavigator } from './sideGrid2dNavigator.js';
+import { hideSideEvidenceTooltip } from './bodyEvidenceOverlaySide2d.js';
+import { refreshBodyGraphWorkspace } from './bodyGraphWorkspace.js';
 import {
   viewportEl,
   workspaceTab3dBtn,
@@ -10,10 +14,8 @@ import {
   workspacePaneBodyGraphEl,
   workspaceSplitDividerEl,
   grid2dGridWrapperEl,
+  sideEvidenceViewportEl,
 } from './domRefs.js';
-import { refreshGrid2dNavigator, hideGrid2dHoverCoordinateTooltip } from './grid2dNavigator.js';
-import { refreshSideEvidenceView, hideSideEvidenceTooltip } from './bodyEvidenceOverlaySide2d.js';
-import { refreshBodyGraphWorkspace } from './bodyGraphWorkspace.js';
 
 export const WORKSPACE_3D = '3d';
 export const WORKSPACE_SPLIT = 'split';
@@ -74,7 +76,7 @@ function handleWorkspaceResize() {
 
   if (currentWorkspace === WORKSPACE_SPLIT) {
     refreshGrid2dNavigator();
-    refreshSideEvidenceView();
+    refreshSideGrid2dNavigator();
   }
 }
 
@@ -98,7 +100,7 @@ export function setWorkspace(mode) {
 
   if (mode === WORKSPACE_SPLIT) {
     refreshGrid2dNavigator();
-    refreshSideEvidenceView();
+    refreshSideGrid2dNavigator();
   } else {
     hideGrid2dHoverCoordinateTooltip();
     hideSideEvidenceTooltip();
@@ -183,6 +185,9 @@ export function setupWorkspaceLayout() {
 
   resizeObserver.observe(workspaceContentEl);
   resizeObserver.observe(grid2dGridWrapperEl);
+  if (sideEvidenceViewportEl) {
+    resizeObserver.observe(sideEvidenceViewportEl);
+  }
 
   window.addEventListener('resize', handleWorkspaceResize);
 }

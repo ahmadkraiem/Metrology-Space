@@ -9,6 +9,7 @@ import { ROOM_SIZE } from '../core/constants.js';
 import { formatLandmarkDisplayName } from '../core/landmarkDisplay.js';
 import {
   ASSUMED_IMAGE_SIZE_PX,
+  clearSideEvidenceSelection,
   getBodyEvidenceScaleInfo,
   getRenderableFrontBodyLandmarks,
   getSecondaryFrontBodyLandmarks,
@@ -273,6 +274,7 @@ function wireMarkerInteraction(marker, landmark) {
   marker.addEventListener('click', (event) => {
     event.stopPropagation();
     event.preventDefault();
+    clearSideEvidenceSelection();
     selectBodyEvidenceLandmark(landmark);
   });
 
@@ -282,6 +284,7 @@ function wireMarkerInteraction(marker, landmark) {
     }
     event.preventDefault();
     event.stopPropagation();
+    clearSideEvidenceSelection();
     selectBodyEvidenceLandmark(landmark);
   });
 }

@@ -1066,34 +1066,27 @@
   color: rgba(167, 243, 252, 0.95);
 }
 
-/* Dashed frame marks the plane as evidence rather than a pickable navigator. */
+/* Solid frame matching Front; cyan accent = evidence (not canonical). */
 .side-evidence-viewport {
-  border-style: dashed;
-  border-color: rgba(34, 211, 238, 0.26);
-  cursor: default;
+  border-style: solid;
+  border-color: rgba(34, 211, 238, 0.22);
+  cursor: crosshair;
+}
+
+.side-evidence-viewport.grid2d-grid-wrapper--panning {
+  cursor: grabbing;
+}
+
+.workspace-2d-toolbar-group--side {
+  flex: 1 1 0;
+}
+
+.side-evidence-inspect .grid2d-selected-readout {
+  margin: 0;
 }
 
 .side-evidence-viewport--empty .side-evidence-field {
   opacity: 0.55;
-}
-
-/* Non-interactive 10 cm reference ruling inside the shared plot rectangle. */
-.side-evidence-field::before {
-  content: '';
-  position: absolute;
-  left: var(--grid2d-plot-left, 12%);
-  top: var(--grid2d-plot-top, 6%);
-  width: var(--grid2d-plot-width, 76%);
-  height: var(--grid2d-plot-height, 76%);
-  pointer-events: none;
-  z-index: 0;
-  background-image: radial-gradient(
-    circle,
-    rgba(103, 232, 249, 0.16) 0.6px,
-    transparent 0.6px
-  );
-  background-size: 5% 5%;
-  background-position: 0 0;
 }
 
 .side-evidence-landmarks {
@@ -1172,12 +1165,21 @@
   z-index: 9;
 }
 
-.side-evidence-viewport:not(.side-evidence-viewport--empty) .side-evidence-empty {
-  display: none;
-}
-
 .side-evidence-tooltip {
   z-index: 20;
+}
+
+.grid2d-measure-line--side {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.85), rgba(103, 232, 249, 0.75));
+}
+
+.grid2d-measure-label--side {
+  color: rgba(167, 243, 252, 0.95);
+  border-color: rgba(34, 211, 238, 0.35);
+}
+
+.body-evidence-candidate-row--side .body-evidence-candidate-coords {
+  color: rgba(103, 232, 249, 0.85);
 }
 
 .grid2d-legend-swatch--side-landmark {

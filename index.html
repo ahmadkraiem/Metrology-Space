@@ -65,25 +65,36 @@
                 </label>
               </div>
               <div class="inspector-subgroup">
+                <h3 class="inspector-subgroup-label">2D Views</h3>
+                <label class="view-control-label" for="show-2d-grid-points">
+                  <input type="checkbox" id="show-2d-grid-points" class="view-control-checkbox" checked />
+                  <span class="view-control-text">Front Grid Points</span>
+                </label>
+                <label class="view-control-label" for="show-side-grid-points">
+                  <input type="checkbox" id="show-side-grid-points" class="view-control-checkbox" checked />
+                  <span class="view-control-text">Side Grid Points</span>
+                </label>
+              </div>
+              <div class="inspector-subgroup">
                 <h3 class="inspector-subgroup-label">Grid / Points</h3>
                 <label class="view-control-label" for="show-3d-lattice-points">
                   <input type="checkbox" id="show-3d-lattice-points" class="view-control-checkbox" checked />
                   <span class="view-control-text">3D Lattice Points</span>
-                </label>
-                <label class="view-control-label" for="show-2d-grid-points">
-                  <input type="checkbox" id="show-2d-grid-points" class="view-control-checkbox" checked />
-                  <span class="view-control-text">2D Grid Points</span>
                 </label>
               </div>
               <div class="inspector-subgroup">
                 <h3 class="inspector-subgroup-label">Evidence</h3>
                 <label class="view-control-label" for="show-body-evidence-overlay">
                   <input type="checkbox" id="show-body-evidence-overlay" class="view-control-checkbox" />
-                  <span class="view-control-text">Body Evidence Overlay</span>
+                  <span class="view-control-text">Front Body Candidates</span>
                 </label>
                 <label class="view-control-label" for="show-secondary-body-candidates">
                   <input type="checkbox" id="show-secondary-body-candidates" class="view-control-checkbox" />
-                  <span class="view-control-text">Secondary Body Candidates</span>
+                  <span class="view-control-text">Secondary Front Candidates</span>
+                </label>
+                <label class="view-control-label" for="show-side-body-candidates">
+                  <input type="checkbox" id="show-side-body-candidates" class="view-control-checkbox" />
+                  <span class="view-control-text">Side Body Candidates</span>
                 </label>
                 <label class="view-control-label" for="show-body-measurement-previews">
                   <input type="checkbox" id="show-body-measurement-previews" class="view-control-checkbox" checked />
@@ -122,15 +133,19 @@
                 </div>
               </div>
               <div class="inspector-subgroup">
-                <h3 class="inspector-subgroup-label">Summary</h3>
+                <h3 class="inspector-subgroup-label">Evidence Summary</h3>
                 <div class="body-evidence-summary" id="body-evidence-summary" aria-live="polite">
                   <div class="body-evidence-summary-card">
-                    <span class="body-evidence-summary-label">Primary / Core</span>
-                    <span class="body-evidence-summary-value" id="body-evidence-overlay-count" title="Front overlay landmarks">0</span>
+                    <span class="body-evidence-summary-label">Front Core</span>
+                    <span class="body-evidence-summary-value" id="body-evidence-overlay-count" title="Front core candidates">0</span>
                   </div>
                   <div class="body-evidence-summary-card">
-                    <span class="body-evidence-summary-label">Secondary</span>
+                    <span class="body-evidence-summary-label">Front Sec.</span>
                     <span class="body-evidence-summary-value" id="body-evidence-secondary-count" title="Secondary front candidates">0</span>
+                  </div>
+                  <div class="body-evidence-summary-card">
+                    <span class="body-evidence-summary-label">Side</span>
+                    <span class="body-evidence-summary-value" id="body-evidence-side-count" title="Side body candidates">0</span>
                   </div>
                   <div class="body-evidence-summary-card">
                     <span class="body-evidence-summary-label">Rejected</span>
@@ -155,32 +170,51 @@
                 </div>
                 <p id="body-evidence-status" class="body-evidence-status" hidden></p>
               </div>
-              <div class="inspector-subgroup">
-                <h3 class="inspector-subgroup-label">Primary / Core Body Landmark Candidates</h3>
-                <div
-                  id="body-evidence-candidates"
-                  class="body-evidence-candidates"
-                  role="listbox"
-                  aria-label="Body landmark candidates"
-                >
-                  <p class="body-evidence-candidates-empty">No front body landmark candidates.</p>
+              <div class="inspector-subgroup" data-collapsible>
+                <h3 class="inspector-subgroup-label">Front Candidates</h3>
+                <div class="inspector-subgroup-body">
+                  <div
+                    id="body-evidence-candidates"
+                    class="body-evidence-candidates"
+                    role="listbox"
+                    aria-label="Front body landmark candidates"
+                  >
+                    <p class="body-evidence-candidates-empty">No front body landmark candidates.</p>
+                  </div>
                 </div>
               </div>
-              <div id="body-evidence-secondary-candidates-group" class="inspector-subgroup">
+              <div id="body-evidence-secondary-candidates-group" class="inspector-subgroup" data-collapsible>
                 <h3 class="inspector-subgroup-label">
-                  Secondary Body Landmark Candidates (<span id="body-evidence-secondary-candidates-count">0</span>)
+                  Secondary Front Candidates (<span id="body-evidence-secondary-candidates-count">0</span>)
                 </h3>
-                <div
-                  id="body-evidence-secondary-candidates"
-                  class="body-evidence-candidates body-evidence-candidates--secondary"
-                  role="listbox"
-                  aria-label="Secondary body landmark candidates"
-                >
-                  <p class="body-evidence-candidates-empty">No secondary body candidates found.</p>
+                <div class="inspector-subgroup-body">
+                  <div
+                    id="body-evidence-secondary-candidates"
+                    class="body-evidence-candidates body-evidence-candidates--secondary"
+                    role="listbox"
+                    aria-label="Secondary front body landmark candidates"
+                  >
+                    <p class="body-evidence-candidates-empty">No secondary body candidates found.</p>
+                  </div>
+                </div>
+              </div>
+              <div id="body-evidence-side-candidates-group" class="inspector-subgroup" data-collapsible>
+                <h3 class="inspector-subgroup-label">
+                  Side Candidates (<span id="body-evidence-side-candidates-count">0</span>)
+                </h3>
+                <div class="inspector-subgroup-body">
+                  <div
+                    id="body-evidence-side-candidates"
+                    class="body-evidence-candidates body-evidence-candidates--side"
+                    role="listbox"
+                    aria-label="Side body landmark candidates"
+                  >
+                    <p class="body-evidence-candidates-empty">No side body landmark candidates.</p>
+                  </div>
                 </div>
               </div>
               <div class="inspector-subgroup">
-                <h3 class="inspector-subgroup-label">Current Selected Body Landmark</h3>
+                <h3 class="inspector-subgroup-label">Current Evidence Selection</h3>
                 <div class="body-evidence-inspect-card">
                   <div id="body-evidence-selected" class="body-evidence-selected" aria-live="polite">
                     <p class="body-evidence-selected-empty">No body landmark selected.</p>
@@ -338,45 +372,61 @@
                 </div>
               </div>
 
-              <aside id="side-evidence-pane" class="workspace-2d-pane workspace-2d-pane--side" aria-label="Side Evidence">
+              <aside id="side-evidence-pane" class="workspace-2d-pane workspace-2d-pane--side" aria-label="Side Evidence Navigator">
                 <header class="grid2d-nav-header">
                   <div class="grid2d-nav-heading">
                     <h3 class="grid2d-nav-title grid2d-nav-title--side">Side</h3>
-                    <p class="grid2d-nav-view-mode">Side Evidence Plane · U / Y</p>
-                    <p class="grid2d-helper">Inspect only · no picking or measurement</p>
+                    <p class="grid2d-nav-view-mode">Side Evidence Navigator · U / Y</p>
+                    <p class="grid2d-helper">Control: mode · Scroll: zoom · Right-drag: pan</p>
                   </div>
                 </header>
                 <div class="grid2d-nav-body">
                   <div class="grid2d-readout">
                     <p class="grid2d-status-row">
-                      <span class="grid2d-view-readout">Evidence plane</span>
+                      <span id="side-evidence-view-readout" class="grid2d-view-readout">Step 10 cm</span>
                       <span class="grid2d-status-sep" aria-hidden="true">·</span>
-                      <span id="side-evidence-count-readout" class="grid2d-mode-readout">Landmarks 0</span>
+                      <span id="side-evidence-mode-readout" class="grid2d-mode-readout">Mode: Pick Point</span>
                     </p>
                     <div class="grid2d-selection-block grid2d-selection-block--empty">
-                      <p class="grid2d-readout-heading grid2d-readout-heading--selection">Inspected</p>
+                      <p class="grid2d-readout-heading grid2d-readout-heading--selection">Selection</p>
                       <div id="side-evidence-inspect" class="side-evidence-inspect" aria-live="polite">
-                        <p class="grid2d-selected-readout grid2d-selected-readout--empty">Click a Side landmark to inspect</p>
+                        <p class="grid2d-selected-readout grid2d-selected-readout--empty">Click a point or drag a region</p>
                       </div>
+                      <p id="side-evidence-status-message" class="grid2d-status-message" hidden></p>
                     </div>
                   </div>
-                  <div id="side-evidence-viewport" class="grid2d-grid-wrapper side-evidence-viewport side-evidence-viewport--empty">
+                  <div id="side-evidence-viewport" class="grid2d-grid-wrapper side-evidence-viewport grid2d-grid-wrapper--pick" tabindex="0">
                     <div id="side-evidence-field" class="grid2d-field side-evidence-field">
-                      <!-- Future layers: source image · segmentation · alignment guides -->
                       <div id="side-evidence-axis-labels" class="grid2d-axis-labels" aria-hidden="true"></div>
+                      <div id="side-evidence-lattice-points" class="grid2d-lattice-points"></div>
                       <div id="side-evidence-landmarks" class="side-evidence-landmarks"></div>
+                      <div id="side-evidence-selected-region" class="grid2d-selected-region" hidden></div>
                     </div>
+                    <div id="side-evidence-selection-rect" class="grid2d-selection-rect" hidden></div>
+                    <div id="side-evidence-hover-tooltip" class="hover-coordinate-tooltip" hidden></div>
                     <div id="side-evidence-tooltip" class="hover-coordinate-tooltip grid2d-projection-tooltip side-evidence-tooltip" hidden></div>
-                    <p id="side-evidence-empty" class="side-evidence-empty">No side pose landmarks yet — load Side Pose JSON and Analyze.</p>
+                    <p id="side-evidence-empty" class="side-evidence-empty" hidden>No side pose landmarks yet — load Side Pose JSON and Analyze.</p>
                   </div>
-                  <ul class="grid2d-legend" aria-label="Side evidence legend">
-                    <li class="grid2d-legend-item">
+                  <ul id="side-evidence-legend" class="grid2d-legend" aria-label="Side navigator legend">
+                    <li class="grid2d-legend-item" data-legend-type="lattice">
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--lattice"></span>
+                      <span class="grid2d-legend-label">Sample</span>
+                    </li>
+                    <li class="grid2d-legend-item" data-legend-type="selected" hidden>
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--selected"></span>
+                      <span class="grid2d-legend-label">Selected</span>
+                    </li>
+                    <li class="grid2d-legend-item" data-legend-type="measure-a" hidden>
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--measure-a"></span>
+                      <span class="grid2d-legend-label">Point A</span>
+                    </li>
+                    <li class="grid2d-legend-item" data-legend-type="measure-b" hidden>
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--measure-b"></span>
+                      <span class="grid2d-legend-label">Point B</span>
+                    </li>
+                    <li class="grid2d-legend-item" data-legend-type="landmark">
                       <span class="grid2d-legend-swatch grid2d-legend-swatch--side-landmark"></span>
                       <span class="grid2d-legend-label">Side landmark</span>
-                    </li>
-                    <li class="grid2d-legend-item">
-                      <span class="grid2d-legend-swatch grid2d-legend-swatch--side-inspected"></span>
-                      <span class="grid2d-legend-label">Inspected</span>
                     </li>
                   </ul>
                 </div>
@@ -388,13 +438,18 @@
                 <div class="workspace-2d-toolbar-actions">
                   <button type="button" id="grid2d-back" class="panel-button panel-button--compact" disabled>Back</button>
                   <button type="button" id="grid2d-reset" class="panel-button panel-button--compact">Reset</button>
-                  <button type="button" id="grid2d-split" class="panel-button panel-button--compact" disabled>Split Selection</button>
+                  <button type="button" id="grid2d-split" class="panel-button panel-button--compact" disabled>Split</button>
                 </div>
               </div>
               <div class="workspace-2d-toolbar-group workspace-2d-toolbar-group--side">
                 <span class="workspace-2d-toolbar-label">Side</span>
                 <div class="workspace-2d-toolbar-actions">
-                  <button type="button" id="side-evidence-clear-selection" class="panel-button panel-button--compact" disabled>Clear Inspection</button>
+                  <button type="button" id="side-grid-back" class="panel-button panel-button--compact" disabled>Back</button>
+                  <button type="button" id="side-grid-reset" class="panel-button panel-button--compact">Reset</button>
+                  <button type="button" id="side-grid-split" class="panel-button panel-button--compact" disabled>Split</button>
+                  <button type="button" id="side-grid-clear-a" class="panel-button panel-button--compact" disabled>Clear A</button>
+                  <button type="button" id="side-grid-clear-b" class="panel-button panel-button--compact" disabled>Clear B</button>
+                  <button type="button" id="side-grid-clear-measure" class="panel-button panel-button--compact" disabled>Clear Meas.</button>
                 </div>
               </div>
             </div>
