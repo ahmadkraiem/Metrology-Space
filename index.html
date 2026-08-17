@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>REVacity Metrology Space</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app-layout">
+      <header id="top-header">
+        <div class="header-brand">
+          <div class="header-eyebrow">REVacity</div>
+          <h1 class="header-title">Metrology Space</h1>
+          <p class="header-subtitle">Volumetric Coordinate Intelligence</p>
+        </div>
+        <div class="header-status">
+          <span class="status-badge status-badge--active">
+            <span class="status-dot"></span>
+            ACTIVE GRID
+          </span>
+          <span class="status-badge status-badge--points">68,921 POINTS</span>
+        </div>
+      </header>
+
+      <aside id="left-sidebar" data-workflow="measurement">
+        <div class="sidebar-title">Metrology Inspector</div>
+        <div class="sidebar-scroll">
+          <section id="mode-panel" class="inspector-section inspector-section--mode" data-collapsible>
+            <h2 class="section-title">Workflow</h2>
+            <div class="section-body">
+              <div class="mode-toggle" role="group" aria-label="Inspector workflow">
+                <button type="button" id="mode-inspect-measure" class="mode-toggle-btn mode-toggle-btn--active">Inspect &amp; Measure</button>
+                <button type="button" id="mode-annotate" class="mode-toggle-btn">Annotate</button>
+                <button type="button" id="workflow-body-evidence" class="mode-toggle-btn mode-toggle-btn--wide">Body Evidence</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-controls-panel" class="inspector-section inspector-section--view-controls" data-collapsible>
+            <h2 class="section-title">View Controls</h2>
+            <div class="section-body view-controls">
+              <div class="inspector-subgroup">
+                <h3 class="inspector-subgroup-label">Reference</h3>
+                <label class="view-control-label" for="show-origin-center">
+                  <input type="checkbox" id="show-origin-center" class="view-control-checkbox" checked />
+                  <span class="view-control-text">Origin / Center</span>
+                </label>
+              </div>
+              <div class="inspector-subgroup">
+                <h3 class="inspector-subgroup-label">Scene Overlays</h3>
+                <label class="view-control-label" for="show-annotations">
+                  <input type="checkbox" id="show-annotations" class="view-control-checkbox" checked />
+                  <span class="view-control-text">Annotations</span>
+                </label>
+                <label class="view-control-label" for="show-measurement-lines">
+                  <input type="checkbox" id="show-measurement-lines" class="view-control-checkbox" checked />
+                  <span class="view-control-text">Measurement Lines</span>
+                </label>
+              </div>
+              <div class="inspector-subgroup">
+                <h3 class="inspector-subgroup-label">Grid / Points</h3>
+                <label class="view-control-label" for="show-3d-lattice-points">
+                  <input type="checkbox" id="show-3d-lattice-points" class="view-control-checkbox" checked />
+                  <span class="view-control-text">3D Lattice Points</span>
+                </label>
+                <label class="view-control-label" for="show-2d-grid-points">
+                  <input type="checkbox" id="show-2d-grid-points" class="view-control-checkbox" checked />
+                  <span class="view-control-text">2D Grid Points</span>
+                </label>
+              </div>
+              <div class="inspector-subgroup">
+                <h3 class="inspector-subgroup-label">Evidence</h3>
+                <label class="view-control-label" for="show-body-evidence-overlay">
+                  <input type="checkbox" id="show-body-evidence-overlay" class="view-control-checkbox" />
+                  <span class="view-control-text">Body Evidence Overlay</span>
+                </label>
+                <label class="view-control-label" for="show-secondary-body-candidates">
+                  <input type="checkbox" id="show-secondary-body-candidates" class="view-control-checkbox" />
+                  <span class="view-control-text">Secondary Body Candidates</span>
+                </label>
+                <label class="view-control-label" for="show-body-measurement-previews">
+                  <input type="checkbox" id="show-body-measurement-previews" class="view-control-checkbox" checked />
+                  <span class="view-control-text">Body Measurement Previews</span>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section id="body-evidence-panel" class="inspector-section inspector-section--body-evidence" data-collapsible>
+            <h2 class="section-title">Body Evidence</h2>
+            <div class="section-body body-evidence">
+              <div class="inspector-subgroup" data-collapsible>
+                <h3 class="inspector-subgroup-label">Import Files</h3>
+                <div class="inspector-subgroup-body">
+                  <div class="inspector-subgroup-actions">
+                    <label for="load-front-pose-json" class="panel-button scene-import-label">Load Front Pose JSON</label>
+                    <input type="file" id="load-front-pose-json" accept=".json,application/json" hidden />
+                    <label for="load-side-pose-json" class="panel-button scene-import-label">Load Side Pose JSON</label>
+                    <input type="file" id="load-side-pose-json" accept=".json,application/json" hidden />
+                    <label for="load-front-seg-json" class="panel-button scene-import-label">Load Front Seg JSON</label>
+                    <input type="file" id="load-front-seg-json" accept=".json,application/json" hidden />
+                    <label for="load-side-seg-json" class="panel-button scene-import-label">Load Side Seg JSON</label>
+                    <input type="file" id="load-side-seg-json" accept=".json,application/json" hidden />
+                  </div>
+                </div>
+              </div>
+              <div class="inspector-subgroup" data-collapsible>
+                <h3 class="inspector-subgroup-label">Actions</h3>
+                <div class="inspector-subgroup-body">
+                  <div class="inspector-subgroup-actions">
+                    <button type="button" id="analyze-body-evidence" class="panel-button">Analyze Body Evidence</button>
+                    <button type="button" id="download-body-evidence-json" class="panel-button" disabled aria-disabled="true">Download Body Evidence JSON</button>
+                    <button type="button" id="clear-body-evidence" class="panel-button panel-button--compact">Clear Body Evidence</button>
+                  </div>
+                </div>
+              </div>
+              <div class="inspector-subgroup">
+                <h3 class="inspector-subgroup-label">Summary</h3>
+                <div class="body-evidence-summary" id="body-evidence-summary" aria-live="polite">
+                  <div class="body-evidence-summary-card">
+                    <span class="body-evidence-summary-label">Primary / Core</span>
+                    <span class="body-evidence-summary-value" id="body-evidence-overlay-count" title="Front overlay landmarks">0</span>
+                  </div>
+                  <div class="body-evidence-summary-card">
+                    <span class="body-evidence-summary-label">Secondary</span>
+                    <span class="body-evidence-summary-value" id="body-evidence-secondary-count" title="Secondary front candidates">0</span>
+                  </div>
+                  <div class="body-evidence-summary-card">
+                    <span class="body-evidence-summary-label">Rejected</span>
+                    <span class="body-evidence-summary-value" id="body-evidence-rejected-count" title="Rejected front face/head landmarks">0</span>
+                  </div>
+                  <div class="body-evidence-summary-card">
+                    <span class="body-evidence-summary-label">Ignored</span>
+                    <span class="body-evidence-summary-value" id="body-evidence-ignored-count" title="Ignored front non-core landmarks">0</span>
+                  </div>
+                  <div class="body-evidence-summary-card">
+                    <span class="body-evidence-summary-label">Status</span>
+                    <span class="body-evidence-summary-value" id="body-evidence-analysis-status" title="Analysis status">not analyzed</span>
+                  </div>
+                  <div class="body-evidence-summary-card body-evidence-summary-card--wide">
+                    <span class="body-evidence-summary-label">Scale</span>
+                    <span class="body-evidence-summary-value" id="body-evidence-overlay-scale" title="Scale status">—</span>
+                  </div>
+                  <div class="body-evidence-summary-card body-evidence-summary-card--wide">
+                    <span class="body-evidence-summary-label">Source</span>
+                    <span class="body-evidence-summary-value" id="body-evidence-source-summary" title="Evidence source">—</span>
+                  </div>
+                </div>
+                <p id="body-evidence-status" class="body-evidence-status" hidden></p>
+              </div>
+              <div class="inspector-subgroup">
+                <h3 class="inspector-subgroup-label">Primary / Core Body Landmark Candidates</h3>
+                <div
+                  id="body-evidence-candidates"
+                  class="body-evidence-candidates"
+                  role="listbox"
+                  aria-label="Body landmark candidates"
+                >
+                  <p class="body-evidence-candidates-empty">No front body landmark candidates.</p>
+                </div>
+              </div>
+              <div id="body-evidence-secondary-candidates-group" class="inspector-subgroup">
+                <h3 class="inspector-subgroup-label">
+                  Secondary Body Landmark Candidates (<span id="body-evidence-secondary-candidates-count">0</span>)
+                </h3>
+                <div
+                  id="body-evidence-secondary-candidates"
+                  class="body-evidence-candidates body-evidence-candidates--secondary"
+                  role="listbox"
+                  aria-label="Secondary body landmark candidates"
+                >
+                  <p class="body-evidence-candidates-empty">No secondary body candidates found.</p>
+                </div>
+              </div>
+              <div class="inspector-subgroup">
+                <h3 class="inspector-subgroup-label">Current Selected Body Landmark</h3>
+                <div class="body-evidence-inspect-card">
+                  <div id="body-evidence-selected" class="body-evidence-selected" aria-live="polite">
+                    <p class="body-evidence-selected-empty">No body landmark selected.</p>
+                  </div>
+                  <div class="body-evidence-inspect-actions">
+                    <button type="button" id="promote-selected-body-landmark" class="panel-button panel-button--compact body-evidence-inspect-promote" disabled aria-disabled="true">Promote Selected Landmark</button>
+                    <button type="button" id="clear-body-landmark-selection" class="panel-button panel-button--compact body-evidence-inspect-clear" disabled aria-disabled="true">Clear Selection</button>
+                  </div>
+                  <p id="body-evidence-promote-status" class="body-evidence-promote-status" hidden></p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="selection-panel" class="inspector-section" data-collapsible hidden>
+            <h2 class="section-title">Selected Point</h2>
+            <div class="section-body">
+              <div class="info-row"><span class="info-label">X</span><span class="info-value info-value--data"><span id="selected-x">—</span> cm</span></div>
+              <div class="info-row"><span class="info-label">Y</span><span class="info-value info-value--data"><span id="selected-y">—</span> cm</span></div>
+              <div class="info-row"><span class="info-label">Z</span><span class="info-value info-value--data"><span id="selected-z">—</span> cm</span></div>
+              <div id="annotation-add-controls" class="annotation-add" hidden>
+                <label class="annotation-field">
+                  <span class="annotation-field-label">Annotation Type</span>
+                  <select id="annotation-type-select" class="annotation-select">
+                    <option value="custom" selected>Custom</option>
+                    <option value="reference_point">Reference Point</option>
+                    <option value="body_landmark">Body Landmark</option>
+                    <option value="garment_landmark">Garment Landmark</option>
+                    <option value="measurement_point">Measurement Point</option>
+                  </select>
+                </label>
+                <label class="annotation-field">
+                  <span class="annotation-field-label">Landmark Preset</span>
+                  <select id="annotation-preset-select" class="annotation-select"></select>
+                </label>
+                <label class="annotation-field">
+                  <span class="annotation-field-label">Name</span>
+                  <input
+                    type="text"
+                    id="annotation-name-input"
+                    class="annotation-input"
+                    placeholder="Annotation name"
+                    maxlength="64"
+                  />
+                </label>
+                <p class="annotation-helper-text">Select a volumetric point, choose type/preset, then add an annotation.</p>
+                <p id="annotation-validation-message" class="annotation-validation-message" hidden></p>
+                <button type="button" id="add-annotation" class="panel-button">Add Annotation</button>
+              </div>
+              <button type="button" id="clear-selection" class="panel-button">Clear Selection</button>
+            </div>
+          </section>
+
+          <section id="measurement-panel" class="inspector-section" data-collapsible hidden>
+            <h2 class="section-title">Distance Measurement</h2>
+            <div class="section-body">
+              <div class="info-row measurement-point-row">
+                <span class="info-label measurement-point-label">Point A</span>
+                <span class="info-value info-value--data measurement-point-value" id="point-a-coords">—</span>
+              </div>
+              <div class="info-row measurement-point-row">
+                <span class="info-label measurement-point-label">Point B</span>
+                <span class="info-value info-value--data measurement-point-value" id="point-b-coords">—</span>
+              </div>
+              <div class="info-row info-row--highlight">
+                <span class="info-label">Distance</span>
+                <span class="info-value info-value--measure"><span id="measurement-distance">—</span> cm</span>
+              </div>
+              <div class="measurement-actions">
+                <button type="button" id="clear-point-a" class="panel-button panel-button--compact">Clear Point A</button>
+                <button type="button" id="clear-point-b" class="panel-button panel-button--compact">Clear Point B</button>
+              </div>
+              <button type="button" id="clear-measurement" class="panel-button">Clear Measurement</button>
+              <p class="inspector-helper-text">Click two points in 3D or on the Front Surface grid to measure distance in cm.</p>
+            </div>
+          </section>
+        </div>
+      </aside>
+
+      <main id="viewport" data-workspace-mode="3d">
+        <div id="workspace-tabs" class="workspace-tabs" role="tablist" aria-label="Workspace">
+          <button type="button" id="workspace-tab-3d" class="workspace-tab-btn workspace-tab-btn--active" role="tab" aria-selected="true" data-workspace="3d">3D Space</button>
+          <button type="button" id="workspace-tab-split" class="workspace-tab-btn" role="tab" aria-selected="false" data-workspace="split">2D Workspace</button>
+        </div>
+        <div id="workspace-content" class="workspace-content">
+          <div id="workspace-pane-3d" class="workspace-pane workspace-pane--3d">
+            <div id="canvas-container"></div>
+            <div id="hover-coordinate-tooltip" class="hover-coordinate-tooltip" hidden></div>
+          </div>
+          <div id="workspace-split-divider" class="workspace-split-divider" role="separator" aria-orientation="vertical" aria-label="Resize 3D and 2D panes" hidden></div>
+          <section id="grid2d-navigator-panel" class="grid2d-navigator-panel workspace-pane workspace-pane--2d">
+            <header class="grid2d-nav-header">
+              <div class="grid2d-nav-heading">
+                <h3 class="grid2d-nav-title">2D Grid Navigator</h3>
+                <p id="grid2d-nav-view-mode" class="grid2d-nav-view-mode">Front Surface — X / Y</p>
+                <p class="grid2d-helper">Control: mode · Scroll: zoom · Right-drag: pan</p>
+              </div>
+            </header>
+              <div class="grid2d-nav-body">
+              <div class="grid2d-readout">
+                <p class="grid2d-status-row">
+                  <span id="grid2d-view-readout" class="grid2d-view-readout">Step 10 cm</span>
+                  <span class="grid2d-status-sep" aria-hidden="true">·</span>
+                  <span id="grid2d-mode-readout" class="grid2d-mode-readout">Mode: Pick Point</span>
+                </p>
+                <div class="grid2d-selection-block grid2d-selection-block--empty">
+                  <p class="grid2d-readout-heading grid2d-readout-heading--selection">Selection</p>
+                  <p id="grid2d-selected-readout" class="grid2d-selected-readout grid2d-selected-readout--empty">Click a point or drag a region</p>
+                  <p id="grid2d-status-message" class="grid2d-status-message" hidden></p>
+                </div>
+              </div>
+              <div id="grid2d-grid-wrapper" class="grid2d-grid-wrapper grid2d-grid-wrapper--pick">
+                <div id="grid2d-field" class="grid2d-field">
+                  <div id="grid2d-axis-labels" class="grid2d-axis-labels" aria-hidden="true"></div>
+                  <div id="grid2d-lattice-points" class="grid2d-lattice-points"></div>
+                  <div id="grid2d-markers" class="grid2d-markers"></div>
+                  <div id="grid2d-body-measurement-previews" class="grid2d-body-measurement-previews" aria-hidden="true"></div>
+                  <div id="grid2d-body-evidence-markers" class="grid2d-body-evidence-markers" hidden></div>
+                  <div id="grid2d-selected-region" class="grid2d-selected-region" hidden></div>
+                </div>
+                <div id="grid2d-selection-rect" class="grid2d-selection-rect" hidden></div>
+                <div id="grid2d-hover-tooltip" class="hover-coordinate-tooltip" hidden></div>
+                <div id="grid2d-projection-tooltip" class="hover-coordinate-tooltip grid2d-projection-tooltip" hidden></div>
+                <div id="grid2d-body-evidence-tooltip" class="hover-coordinate-tooltip grid2d-projection-tooltip" hidden></div>
+              </div>
+              <ul id="grid2d-legend" class="grid2d-legend" aria-label="2D marker legend">
+                <li class="grid2d-legend-item" data-legend-type="lattice">
+                  <span class="grid2d-legend-swatch grid2d-legend-swatch--lattice"></span>
+                  <span class="grid2d-legend-label">Sample</span>
+                </li>
+                <li class="grid2d-legend-item" data-legend-type="selected" hidden>
+                  <span class="grid2d-legend-swatch grid2d-legend-swatch--selected"></span>
+                  <span class="grid2d-legend-label">Selected</span>
+                </li>
+                <li class="grid2d-legend-item" data-legend-type="measure-a" hidden>
+                  <span class="grid2d-legend-swatch grid2d-legend-swatch--measure-a"></span>
+                  <span class="grid2d-legend-label">Point A</span>
+                </li>
+                <li class="grid2d-legend-item" data-legend-type="measure-b" hidden>
+                  <span class="grid2d-legend-swatch grid2d-legend-swatch--measure-b"></span>
+                  <span class="grid2d-legend-label">Point B</span>
+                </li>
+                <li class="grid2d-legend-item" data-legend-type="ref">
+                  <span class="grid2d-legend-swatch grid2d-legend-swatch--ref"></span>
+                  <span class="grid2d-legend-label">Ref</span>
+                </li>
+                <li class="grid2d-legend-item" data-legend-type="annotation" hidden>
+                  <span class="grid2d-legend-swatch grid2d-legend-swatch--annotation"></span>
+                  <span class="grid2d-legend-label">Annotation</span>
+                </li>
+              </ul>
+              <div class="grid2d-nav-actions">
+                <button type="button" id="grid2d-back" class="panel-button panel-button--compact" disabled>Back</button>
+                <button type="button" id="grid2d-reset" class="panel-button panel-button--compact">Reset</button>
+                <button type="button" id="grid2d-split" class="panel-button panel-button--compact" disabled>Split Selection</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <aside id="right-sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-title">Session Data</div>
+          <p class="sidebar-subtitle">Saved measurements and annotations</p>
+        </div>
+        <div id="session-tabs" class="session-tabs" role="tablist" aria-label="Session Data">
+          <button type="button" id="session-tab-history" class="session-tab-btn session-tab-btn--active" role="tab" aria-selected="true" data-tab="history" title="History" aria-label="History">Hist</button>
+          <button type="button" id="session-tab-annotations" class="session-tab-btn" role="tab" aria-selected="false" data-tab="annotations" title="Annotations" aria-label="Annotations">Annos</button>
+          <button type="button" id="session-tab-body" class="session-tab-btn" role="tab" aria-selected="false" data-tab="body" title="Body Evidence" aria-label="Body Evidence">Body</button>
+          <button type="button" id="session-tab-graph" class="session-tab-btn" role="tab" aria-selected="false" data-tab="graph">Graph</button>
+          <button type="button" id="session-tab-files" class="session-tab-btn" role="tab" aria-selected="false" data-tab="files">Files</button>
+        </div>
+        <div class="sidebar-scroll session-tab-content">
+          <div id="tab-panel-history" class="session-tab-panel" role="tabpanel">
+            <section id="history-panel" class="inspector-section">
+              <div class="section-body">
+                <p id="history-empty" class="session-empty-state">No completed measurements yet.</p>
+                <div id="history-list"></div>
+                <div class="history-clear-actions">
+                  <button type="button" id="clear-history" class="panel-button">Clear History</button>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div id="tab-panel-annotations" class="session-tab-panel tab-panel-hidden" role="tabpanel">
+            <section id="annotations-panel" class="inspector-section">
+              <div class="section-body">
+                <p id="annotations-empty" class="session-empty-state">No annotations yet.</p>
+                <div id="annotation-list"></div>
+              </div>
+            </section>
+          </div>
+
+          <div id="tab-panel-body" class="session-tab-panel tab-panel-hidden" role="tabpanel">
+            <section id="body-evidence-status-panel" class="inspector-section">
+              <div class="section-body">
+                <h3 class="body-tab-section-title">Body Evidence Status</h3>
+                <div id="session-body-evidence-status" class="session-body-evidence-status" aria-live="polite">
+                  <p class="session-empty-state">No body evidence analyzed.</p>
+                </div>
+              </div>
+            </section>
+            <section id="promoted-body-anchors-panel" class="inspector-section">
+              <div class="section-body">
+                <h3 class="body-tab-section-title">Promoted Body Anchors</h3>
+                <p id="promoted-body-anchors-count" class="promoted-body-anchors-count" aria-live="polite">Total: 0</p>
+                <p id="promoted-body-anchors-empty" class="session-empty-state">No promoted body anchors yet.</p>
+                <div id="promoted-body-anchors-list" class="promoted-body-anchors-list" aria-live="polite"></div>
+              </div>
+            </section>
+            <section id="body-measurement-readiness-panel" class="inspector-section">
+              <div class="section-body">
+                <h3 class="body-tab-section-title">Body Measurement Readiness</h3>
+                <div id="body-measurement-readiness" class="body-measurement-readiness" aria-live="polite"></div>
+              </div>
+            </section>
+          </div>
+
+          <div id="tab-panel-graph" class="session-tab-panel tab-panel-hidden" role="tabpanel">
+            <section id="scene-graph-panel" class="inspector-section">
+              <div class="section-body">
+                <div id="scene-graph-tree" class="scene-graph-tree"></div>
+              </div>
+            </section>
+          </div>
+
+          <div id="tab-panel-files" class="session-tab-panel tab-panel-hidden" role="tabpanel">
+            <section id="export-import-panel" class="inspector-section">
+              <div class="section-body">
+                <button type="button" id="export-scene-json" class="panel-button">Export Scene JSON</button>
+                <label for="load-scene-json" class="panel-button scene-import-label">Load Scene JSON</label>
+                <input type="file" id="load-scene-json" accept=".json,application/json" hidden />
+                <p id="scene-import-status" class="scene-import-status" hidden></p>
+              </div>
+            </section>
+          </div>
+        </div>
+      </aside>
+
+      <footer id="bottom-status-bar">
+        <div class="status-group">
+          <span class="status-item status-chip"><span class="status-key">Room</span> 200×200×200 cm</span>
+          <span class="status-divider"></span>
+          <span class="status-item status-chip"><span class="status-key">Unit</span> 1 cm</span>
+          <span class="status-divider"></span>
+          <span class="status-item status-chip"><span class="status-key">Grid</span> 10 cm</span>
+          <span class="status-divider"></span>
+          <span class="status-item status-chip"><span class="status-key">Sampling</span> 5 cm</span>
+          <span class="status-divider"></span>
+          <span class="status-item"><span class="status-key">Mode</span> <span id="status-mode-value">Inspect &amp; Measure</span></span>
+        </div>
+        <span class="status-hint" id="status-hint">Hover a point, click two points to measure distance</span>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

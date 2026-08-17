@@ -1,0 +1,11 @@
+export const ROOM_SIZE = 200;
+export const GRID_UNIT = 10;
+export const INTERNAL_SAMPLE_UNIT = 5;
+export const INTERNAL_POINT_COUNT = 68921;
+export const INTERNAL_LOD_COARSE = 20;
+export const INTERNAL_LOD_MEDIUM = 10;
+export const LOD_FAR = 420;
+export const LOD_MID = 280;
+export const LOD_NEAR = 190;
+export const LABEL_STEP = 20;
+export const HOVER_TOOLTIP_OFFSET = 18;

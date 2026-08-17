@@ -1,0 +1,1037 @@
+/**
+ * Body Evidence Adapter (v0)
+ * Parses body-processing JSON into a normalized QA schema.
+ * Conceptual/mock evidence only — not trusted ground truth.
+ * Does not touch scene, measurement, annotation, or export state.
+ */
+
+export const BODY_EVIDENCE_VERSION = 'body-evidence-v0';
+export const BODY_EVIDENCE_SOURCE_FORMAT = 'body-processing-json-v0';
+export const LOW_CONFIDENCE_THRESHOLD = 0.5;
+
+const FACE_HEAD_TERMS = [
+  'nose',
+  'eye',
+  'iris',
+  'pupil',
+  'ear',
+  'mouth',
+  'jaw',
+  'chin',
+  'eyebrow',
+  'face',
+  'hair',
+  'head',
+  'head_top',
+  'lips',
+  'upper_lip',
+  'lower_lip',
+  'concha',
+  'helix',
+];
+
+/**
+ * Secondary Body Landmark Candidates v0 — explicit allowlist.
+ *
+ * Chosen for metrology usefulness, not because a model happens to emit them:
+ * acromion refines the shoulder reference; heel / big toe / small toe support
+ * future foot stance, ground contact, and body alignment work.
+ *
+ * Hand, finger, thumb, and dense/unstable model-specific points are
+ * deliberately excluded — they stay ignored/deferred QA only in v0.
+ */
+export const SECONDARY_FRONT_BODY_ANCHORS = Object.freeze([
+  'left_acromion',
+  'right_acromion',
+  'left_heel',
+  'right_heel',
+  'left_big_toe',
+  'right_big_toe',
+  'left_small_toe',
+  'right_small_toe',
+]);
+
+const SECONDARY_FRONT_BODY_ANCHOR_SET = new Set(SECONDARY_FRONT_BODY_ANCHORS);
+
+/**
+ * Hand / finger detail vocabulary. Deferred in v0: too detailed and unstable
+ * for Body Graph preparation, so it never reaches the secondary candidate list.
+ */
+const DEFERRED_HAND_DETAIL_TERMS = [
+  'hand',
+  'palm',
+  'thumb',
+  'finger',
+  'forefinger',
+  'index',
+  'middle',
+  'ring',
+  'pinky',
+  'knuckle',
+  'mcp',
+  'pip',
+  'dip',
+];
+
+/** Foot detail vocabulary outside the secondary allowlist (e.g. `foot_index`). */
+const DEFERRED_FOOT_DETAIL_TERMS = ['foot', 'toe', 'heel'];
+
+const FACE_SEG_TERMS = [
+  'face',
+  'hair',
+  'lip',
+  'mouth',
+  'eye',
+  'nose',
+  'ear',
+];
+
+/**
+ * Positive whitelist of the core front body anchors that may be shown as
+ * Body Evidence candidates, rendered on the Front Surface overlay, and
+ * promoted. Anything outside this set (dense face/ear/hand/extra pose points
+ * such as concha, helix, pinky, index, etc.) is parsed/QA-counted only and is
+ * never rendered or promotable.
+ */
+export const CORE_FRONT_BODY_ANCHORS = Object.freeze([
+  'neck',
+  'left_shoulder',
+  'right_shoulder',
+  'left_elbow',
+  'right_elbow',
+  'left_wrist',
+  'right_wrist',
+  'left_hip',
+  'right_hip',
+  'left_knee',
+  'right_knee',
+  'left_ankle',
+  'right_ankle',
+]);
+
+const CORE_FRONT_BODY_ANCHOR_SET = new Set(CORE_FRONT_BODY_ANCHORS);
+
+/** Side-bearing base names used to resolve left/right prefix or suffix forms. */
+const CORE_SIDE_BASE_NAMES = 'shoulder|elbow|wrist|hip|knee|ankle';
+
+/** Secondary allowlist base names that also carry a left/right side. */
+const SECONDARY_SIDE_BASE_NAMES = 'acromion|heel|big_toe|small_toe';
+
+const SIDE_BASE_NAMES = `${CORE_SIDE_BASE_NAMES}|${SECONDARY_SIDE_BASE_NAMES}`;
+
+/**
+ * Normalize a landmark name for whitelist matching:
+ * - coerce to string, trim, lowercase
+ * - replace runs of spaces / hyphens with a single underscore
+ * - collapse repeated underscores and strip leading/trailing underscores
+ * - map short side prefixes (`l_`, `r_`) to `left_` / `right_` when the
+ *   remainder is a core or secondary-allowlist side base name
+ * - map suffix side forms (`shoulder_left`, `wrist_r`) to `left_shoulder` etc.
+ *
+ * @param {unknown} name
+ * @returns {string}
+ */
+export function normalizeLandmarkName(name) {
+  let normalized = String(name ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  if (!normalized) {
+    return '';
+  }
+
+  normalized = normalized
+    .replace(new RegExp(`^l_(?=(?:${SIDE_BASE_NAMES})$)`), 'left_')
+    .replace(new RegExp(`^r_(?=(?:${SIDE_BASE_NAMES})$)`), 'right_');
+
+  const suffixMatch = normalized.match(
+    new RegExp(`^(${SIDE_BASE_NAMES})_(left|right|l|r)$`),
+  );
+  if (suffixMatch) {
+    const base = suffixMatch[1];
+    const rawSide = suffixMatch[2];
+    const side = rawSide === 'l' ? 'left' : rawSide === 'r' ? 'right' : rawSide;
+    normalized = `${side}_${base}`;
+  }
+
+  return normalized;
+}
+
+/**
+ * True only when the normalized landmark name is one of the core 13 front body
+ * anchors. This is the single positive gate for core overlay / primary
+ * Body Landmark Candidates (unchanged).
+ *
+ * @param {unknown} name
+ * @returns {boolean}
+ */
+export function isCoreFrontBodyAnchor(name) {
+  return CORE_FRONT_BODY_ANCHOR_SET.has(normalizeLandmarkName(name));
+}
+
+function toLower(value) {
+  return typeof value === 'string' ? value.toLowerCase() : '';
+}
+
+function nameIncludesTerm(name, terms) {
+  const lower = toLower(name);
+  if (!lower) {
+    return false;
+  }
+  return terms.some((term) => lower.includes(term));
+}
+
+/**
+ * Tokenize a normalized landmark id into underscore-separated parts.
+ * @param {string} normalized
+ * @returns {string[]}
+ */
+function landmarkNameTokens(normalized) {
+  return normalized.split('_').filter(Boolean);
+}
+
+/**
+ * True when `term` appears as a whole token in the normalized landmark name
+ * (e.g. `left_hand` matches `hand`; `handle` does not).
+ * @param {string} normalized
+ * @param {string} term
+ * @returns {boolean}
+ */
+function nameHasBodyTermToken(normalized, term) {
+  if (!normalized || !term) {
+    return false;
+  }
+  if (normalized === term) {
+    return true;
+  }
+  const tokens = landmarkNameTokens(normalized);
+  const termTokens = landmarkNameTokens(term);
+  if (termTokens.length === 1) {
+    return tokens.includes(term);
+  }
+  // Multi-token terms (reserved for future) — contiguous subsequence match.
+  if (termTokens.length > tokens.length) {
+    return false;
+  }
+  for (let i = 0; i <= tokens.length - termTokens.length; i += 1) {
+    let match = true;
+    for (let j = 0; j < termTokens.length; j += 1) {
+      if (tokens[i + j] !== termTokens[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Unstable / dense model point names that must never surface as secondary
+ * candidates even if they somehow overlap body vocabulary.
+ * @param {string} normalized
+ * @returns {boolean}
+ */
+function isNoisyModelSpecificLandmarkName(normalized) {
+  if (!normalized) {
+    return true;
+  }
+  if (/^(landmark|point|kp|keypoint|contour|silhouette)(_\d+)?$/.test(normalized)) {
+    return true;
+  }
+  if (/^(contour|silhouette|dense)_\d+$/.test(normalized)) {
+    return true;
+  }
+  return false;
+}
+
+/** Explicit reject-face/head helper for Secondary Body Landmark Candidates v0. */
+export function isRejectedFaceHeadLandmark(name) {
+  return nameIncludesTerm(name, FACE_HEAD_TERMS);
+}
+
+/**
+ * Secondary Body Landmark Candidates v0: an exact allowlist match only.
+ * A landmark is never secondary just because the model outputs it — it must be
+ * one of `SECONDARY_FRONT_BODY_ANCHORS`. Side-pose sources are excluded by
+ * callers (front accepted landmarks only).
+ *
+ * @param {unknown} name
+ * @returns {boolean}
+ */
+export function isSecondaryBodyAnchorCandidate(name) {
+  const normalized = normalizeLandmarkName(name);
+  if (!normalized || isCoreFrontBodyAnchor(normalized) || isRejectedFaceHeadLandmark(normalized)) {
+    return false;
+  }
+  return SECONDARY_FRONT_BODY_ANCHOR_SET.has(normalized);
+}
+
+/**
+ * Body-looking landmarks that are neither core 13 nor secondary-allowlisted:
+ * hand/finger detail, dense contours, unstable model extras, and any unknown
+ * body-ish name. Deferred means QA-countable but never listed, rendered, or
+ * promotable in v0. Face/head names are rejected instead of deferred.
+ *
+ * @param {unknown} name
+ * @returns {boolean}
+ */
+export function isDeferredBodyLandmark(name) {
+  const normalized = normalizeLandmarkName(name);
+  if (isRejectedFaceHeadLandmark(normalized)) {
+    return false;
+  }
+  return !isCoreFrontBodyAnchor(normalized)
+    && !SECONDARY_FRONT_BODY_ANCHOR_SET.has(normalized);
+}
+
+function tokensIncludeSideView(normalized) {
+  const tokens = landmarkNameTokens(normalized);
+  return tokens.includes('side') && !tokens.includes('inside');
+}
+
+function isSideViewLandmarkName(normalized) {
+  return normalized.startsWith('side_')
+    || normalized.endsWith('_side')
+    || tokensIncludeSideView(normalized);
+}
+
+/**
+ * Token match that tolerates numbered joint suffixes (`thumb1`, `finger4`),
+ * which models commonly emit for dense hand chains.
+ * @param {string} normalized
+ * @param {string} term
+ */
+function nameHasDeferredTermToken(normalized, term) {
+  if (nameHasBodyTermToken(normalized, term)) {
+    return true;
+  }
+  const numbered = new RegExp(`^${term}\\d+$`);
+  return landmarkNameTokens(normalized).some((token) => numbered.test(token));
+}
+
+function isHandDetailLandmarkName(normalized) {
+  return DEFERRED_HAND_DETAIL_TERMS.some((term) => nameHasDeferredTermToken(normalized, term));
+}
+
+/** Why a landmark is deferred — QA labelling only, never a promote path. */
+function deferredLandmarkReason(normalized) {
+  if (isSideViewLandmarkName(normalized)) {
+    return 'side-landmark';
+  }
+  if (DEFERRED_FOOT_DETAIL_TERMS.some((term) => nameHasDeferredTermToken(normalized, term))) {
+    return 'deferred-foot-detail';
+  }
+  if (isHandDetailLandmarkName(normalized)) {
+    return 'deferred-hand-detail';
+  }
+  if (isNoisyModelSpecificLandmarkName(normalized)) {
+    return 'deferred-unstable-extra';
+  }
+  return 'not-in-secondary-allowlist';
+}
+
+/**
+ * Classify a pose landmark name for Body Evidence candidate use.
+ * The view boundary is enforced by callers; this helper classifies names only.
+ *
+ * @param {unknown} name
+ * @returns {{
+ *   classification: 'core'|'secondary'|'rejected-face-head'|'ignored-non-core',
+ *   reason: 'core-13'|'secondary-allowlist'|'face-head-term'|'side-landmark'
+ *     |'deferred-foot-detail'|'deferred-hand-detail'|'deferred-unstable-extra'
+ *     |'not-in-secondary-allowlist',
+ * }}
+ */
+export function classifyBodyLandmarkCandidate(name) {
+  if (isCoreFrontBodyAnchor(name)) {
+    return { classification: 'core', reason: 'core-13' };
+  }
+  if (isRejectedFaceHeadLandmark(name)) {
+    return { classification: 'rejected-face-head', reason: 'face-head-term' };
+  }
+
+  const normalized = normalizeLandmarkName(name);
+  if (SECONDARY_FRONT_BODY_ANCHOR_SET.has(normalized)) {
+    return { classification: 'secondary', reason: 'secondary-allowlist' };
+  }
+  return {
+    classification: 'ignored-non-core',
+    reason: deferredLandmarkReason(normalized),
+  };
+}
+
+export function isRejectedSegmentationClass(name) {
+  return nameIncludesTerm(name, FACE_SEG_TERMS);
+}
+
+function asFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function unwrapPayload(data) {
+  if (!data || typeof data !== 'object') {
+    return data;
+  }
+  if (data.pose && typeof data.pose === 'object') {
+    return data.pose;
+  }
+  if (data.data && typeof data.data === 'object') {
+    return data.data;
+  }
+  if (data.result && typeof data.result === 'object') {
+    return data.result;
+  }
+  return data;
+}
+
+function getInstanceList(data) {
+  const candidates = [
+    data.instances,
+    data.people,
+    data.persons,
+    data.predictions,
+    data.detections,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length > 0) {
+      return candidate.filter((entry) => entry && typeof entry === 'object');
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Read landmarks from a single container (top-level payload or one instance).
+ * `fallbackNames` supplies names when the container only has parallel arrays.
+ */
+function landmarksFromContainer(container, fallbackNames) {
+  if (!container || typeof container !== 'object') {
+    return [];
+  }
+
+  // Shape 1: keypoints_named — array of { id, name, x, y, score } or object map
+  if (container.keypoints_named != null) {
+    const named = landmarksFromKeypointsNamed(container.keypoints_named);
+    if (named.length > 0) {
+      return named;
+    }
+  }
+
+  // Shape 2: keypoint_names + keypoints (+ keypoint_scores)
+  const names = Array.isArray(container.keypoint_names)
+    ? container.keypoint_names
+    : fallbackNames;
+  if (Array.isArray(names) && Array.isArray(container.keypoints)) {
+    return landmarksFromParallelArrays(
+      names,
+      container.keypoints,
+      container.keypoint_scores ?? container.scores,
+    );
+  }
+
+  // Shape 3: landmarks / keypoints arrays of objects
+  const landmarkArrays = [
+    container.landmarks,
+    container.keypoints,
+    container.pose_landmarks,
+    container.body_landmarks,
+  ];
+
+  for (const arr of landmarkArrays) {
+    if (Array.isArray(arr) && arr.length > 0 && isLandmarkLikeObject(arr[0])) {
+      return landmarksFromObjectArray(arr);
+    }
+  }
+
+  // Parallel arrays under alternate keys
+  const altNames = container.landmark_names ?? container.names ?? fallbackNames;
+  const altPoints = container.landmark_points ?? container.points;
+  const altScores = container.landmark_scores ?? container.scores;
+  if (Array.isArray(altNames) && Array.isArray(altPoints)) {
+    return landmarksFromParallelArrays(altNames, altPoints, altScores);
+  }
+
+  return [];
+}
+
+/**
+ * Normalize keypoints from flexible pose JSON shapes into
+ * [{ name, x, y, score }].
+ *
+ * Supports top-level payloads and instance-based payloads
+ * (`instances[0].keypoints_named`, etc.). Names declared at the top level are
+ * reused when an instance only carries parallel keypoint arrays.
+ */
+export function extractPoseLandmarks(raw) {
+  const data = unwrapPayload(raw);
+  if (!data || typeof data !== 'object') {
+    return [];
+  }
+
+  const fallbackNames = [data.keypoint_names, data.landmark_names, data.names]
+    .find((value) => Array.isArray(value) && value.length > 0) ?? null;
+
+  for (const instance of getInstanceList(data)) {
+    const landmarks = landmarksFromContainer(instance, fallbackNames);
+    if (landmarks.length > 0) {
+      return landmarks;
+    }
+  }
+
+  return landmarksFromContainer(data, fallbackNames);
+}
+
+function isLandmarkLikeObject(item) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    return false;
+  }
+  return (
+    'name' in item
+    || 'label' in item
+    || 'x' in item
+    || 'y' in item
+    || Array.isArray(item.position)
+    || Array.isArray(item.xy)
+  );
+}
+
+function landmarksFromKeypointsNamed(named) {
+  if (Array.isArray(named)) {
+    return landmarksFromObjectArray(named);
+  }
+  if (!named || typeof named !== 'object') {
+    return [];
+  }
+
+  return Object.entries(named).map(([name, value]) => {
+    if (Array.isArray(value)) {
+      return {
+        name,
+        x: asFiniteNumber(value[0]),
+        y: asFiniteNumber(value[1]),
+        score: asFiniteNumber(value[2]),
+      };
+    }
+    if (value && typeof value === 'object') {
+      return {
+        name: value.name ?? value.label ?? name,
+        x: asFiniteNumber(value.x ?? value[0]),
+        y: asFiniteNumber(value.y ?? value[1]),
+        score: asFiniteNumber(value.score ?? value.confidence ?? value[2]),
+      };
+    }
+    return { name, x: null, y: null, score: null };
+  });
+}
+
+function landmarksFromObjectArray(arr) {
+  return arr.map((item, index) => {
+    if (Array.isArray(item)) {
+      return {
+        name: `landmark_${index}`,
+        x: asFiniteNumber(item[0]),
+        y: asFiniteNumber(item[1]),
+        score: asFiniteNumber(item[2]),
+      };
+    }
+    const position = item.position ?? item.xy ?? item.point;
+    let x = asFiniteNumber(item.x);
+    let y = asFiniteNumber(item.y);
+    if (Array.isArray(position)) {
+      x = asFiniteNumber(position[0]);
+      y = asFiniteNumber(position[1]);
+    } else if (position && typeof position === 'object') {
+      x = asFiniteNumber(position.x);
+      y = asFiniteNumber(position.y);
+    }
+    return {
+      name: item.name ?? item.label ?? item.id ?? `landmark_${index}`,
+      x,
+      y,
+      score: asFiniteNumber(item.score ?? item.confidence ?? item.visibility),
+    };
+  });
+}
+
+function landmarksFromParallelArrays(names, keypoints, scores) {
+  const count = Math.min(names.length, keypoints.length);
+  const result = [];
+  for (let i = 0; i < count; i += 1) {
+    const point = keypoints[i];
+    let x = null;
+    let y = null;
+    if (Array.isArray(point)) {
+      x = asFiniteNumber(point[0]);
+      y = asFiniteNumber(point[1]);
+    } else if (point && typeof point === 'object') {
+      x = asFiniteNumber(point.x);
+      y = asFiniteNumber(point.y);
+    }
+    const scoreFromParallel = Array.isArray(scores) ? asFiniteNumber(scores[i]) : null;
+    const scoreFromPoint = Array.isArray(point) ? asFiniteNumber(point[2]) : null;
+    result.push({
+      name: String(names[i] ?? `landmark_${i}`),
+      x,
+      y,
+      score: scoreFromParallel ?? scoreFromPoint,
+    });
+  }
+  return result;
+}
+
+/**
+ * Split normalized pose landmarks into body-only QA counts.
+ * Face/head landmarks are rejected; low-confidence body landmarks are counted
+ * for QA and kept in `acceptedLandmarks` (the overlay skips them when drawing).
+ * Non-core accepted landmarks are further split into secondary candidates vs
+ * ignored/non-core (QA-only).
+ *
+ * @param {Array<{ name: string, x: number|null, y: number|null, score: number|null }>} landmarks
+ * @returns {{
+ *   total: number,
+ *   accepted: number,
+ *   rejectedFace: number,
+ *   lowConfidence: number,
+ *   coreFront: number,
+ *   secondary: number,
+ *   ignoredNonCore: number,
+ *   acceptedLandmarks: Array<{
+ *     name: string,
+ *     imageX: number|null,
+ *     imageY: number|null,
+ *     score: number|null,
+ *     lowConfidence: boolean,
+ *     coreFront: boolean,
+ *     secondary: boolean,
+ *   }>,
+ * }}
+ */
+export function classifyPoseLandmarks(landmarks) {
+  const list = Array.isArray(landmarks) ? landmarks : [];
+  const acceptedLandmarks = [];
+  const rejectedLandmarks = [];
+  const ignoredLandmarks = [];
+  let rejectedFace = 0;
+  let lowConfidence = 0;
+  let coreFront = 0;
+  let secondary = 0;
+  let ignoredNonCore = 0;
+
+  for (const landmark of list) {
+    const name = String(landmark?.name ?? '');
+    const candidateClass = classifyBodyLandmarkCandidate(name);
+
+    if (candidateClass.classification === 'rejected-face-head') {
+      rejectedFace += 1;
+      rejectedLandmarks.push({
+        name,
+        reason: candidateClass.reason,
+      });
+      continue;
+    }
+
+    const score = asFiniteNumber(landmark?.score);
+    const isLowConfidence = score !== null && score < LOW_CONFIDENCE_THRESHOLD;
+    if (isLowConfidence) {
+      lowConfidence += 1;
+    }
+
+    const isCoreFront = candidateClass.classification === 'core';
+    const isSecondary = candidateClass.classification === 'secondary';
+    if (isCoreFront) {
+      coreFront += 1;
+    } else if (isSecondary) {
+      secondary += 1;
+    } else {
+      ignoredNonCore += 1;
+      ignoredLandmarks.push({
+        name,
+        reason: candidateClass.reason,
+      });
+    }
+
+    acceptedLandmarks.push({
+      name,
+      imageX: asFiniteNumber(landmark?.x),
+      imageY: asFiniteNumber(landmark?.y),
+      score,
+      lowConfidence: isLowConfidence,
+      coreFront: isCoreFront,
+      secondary: isSecondary,
+    });
+  }
+
+  return {
+    total: list.length,
+    accepted: acceptedLandmarks.length,
+    rejectedFace,
+    lowConfidence,
+    coreFront,
+    secondary,
+    ignoredNonCore,
+    rejectedLandmarks,
+    ignoredLandmarks,
+    acceptedLandmarks,
+  };
+}
+
+function classNameFromEntry(entry) {
+  if (typeof entry === 'string') {
+    return entry;
+  }
+  if (entry && typeof entry === 'object') {
+    return String(entry.name ?? entry.label ?? entry.class ?? entry.id ?? '');
+  }
+  return String(entry ?? '');
+}
+
+function readClassNames(data) {
+  const candidates = [
+    data.class_names,
+    data.classNames,
+    data.classes,
+    data.segmentation_classes,
+    data.seg_classes,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length > 0) {
+      return candidate.map(classNameFromEntry).filter(Boolean);
+    }
+  }
+
+  if (data.class_counts && typeof data.class_counts === 'object' && !Array.isArray(data.class_counts)) {
+    return Object.keys(data.class_counts);
+  }
+  if (data.classCounts && typeof data.classCounts === 'object' && !Array.isArray(data.classCounts)) {
+    return Object.keys(data.classCounts);
+  }
+  if (data.masks && typeof data.masks === 'object' && !Array.isArray(data.masks)) {
+    return Object.keys(data.masks);
+  }
+  if (data.segmentation && typeof data.segmentation === 'object' && !Array.isArray(data.segmentation)) {
+    if (Array.isArray(data.segmentation.class_names)) {
+      return data.segmentation.class_names.map(classNameFromEntry).filter(Boolean);
+    }
+    return Object.keys(data.segmentation).filter((key) => key !== 'mask' && key !== 'data');
+  }
+
+  return [];
+}
+
+/**
+ * Pixel counts per class. Uses the source `class_counts` map verbatim when
+ * present; never derives counts from class-name occurrences.
+ */
+function readClassCounts(data) {
+  const maps = [data.class_counts, data.classCounts, data.pixel_counts, data.pixelCounts];
+
+  for (const map of maps) {
+    if (map && typeof map === 'object' && !Array.isArray(map)) {
+      const counts = {};
+      for (const [name, value] of Object.entries(map)) {
+        const count = asFiniteNumber(value);
+        if (count !== null) {
+          counts[name] = count;
+        }
+      }
+      if (Object.keys(counts).length > 0) {
+        return counts;
+      }
+    }
+  }
+
+  // Array-of-objects form: [{ name, count }]
+  const arrays = [data.class_names, data.classes, data.segmentation_classes];
+  for (const arr of arrays) {
+    if (Array.isArray(arr) && arr.some((entry) => entry && typeof entry === 'object')) {
+      const counts = {};
+      for (const entry of arr) {
+        if (!entry || typeof entry !== 'object') {
+          continue;
+        }
+        const name = classNameFromEntry(entry);
+        const count = asFiniteNumber(entry.count ?? entry.pixels ?? entry.pixel_count);
+        if (name && count !== null) {
+          counts[name] = count;
+        }
+      }
+      if (Object.keys(counts).length > 0) {
+        return counts;
+      }
+    }
+  }
+
+  return {};
+}
+
+/**
+ * Label metadata only — mask payloads (`base64`, `data`) are never carried
+ * into normalized body evidence.
+ */
+function readLabelMetadata(data) {
+  const candidates = [data.labels, data.label, data.mask, data.segmentation?.labels];
+
+  for (const candidate of candidates) {
+    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+      const shape = Array.isArray(candidate.shape)
+        ? candidate.shape.map((value) => asFiniteNumber(value)).filter((value) => value !== null)
+        : null;
+      const dtype = typeof candidate.dtype === 'string' ? candidate.dtype : null;
+      if ((shape && shape.length > 0) || dtype) {
+        return {
+          labelShape: shape && shape.length > 0 ? shape : null,
+          labelDtype: dtype,
+        };
+      }
+    }
+  }
+
+  return { labelShape: null, labelDtype: null };
+}
+
+/**
+ * Normalize a segmentation payload into class names, pixel counts, and label
+ * metadata. Base64 mask data is intentionally dropped.
+ */
+export function extractSegmentation(raw) {
+  const data = unwrapPayload(raw);
+  if (!data || typeof data !== 'object') {
+    return {
+      classNames: [], classCounts: {}, labelShape: null, labelDtype: null,
+    };
+  }
+
+  return {
+    classNames: readClassNames(data),
+    classCounts: readClassCounts(data),
+    ...readLabelMetadata(data),
+  };
+}
+
+/**
+ * Split normalized segmentation classes into body classes and rejected
+ * face/head classes. Masks are never rendered — counts and label metadata only.
+ *
+ * @param {{
+ *   classNames?: string[],
+ *   classCounts?: Record<string, number>,
+ *   labelShape?: number[]|null,
+ *   labelDtype?: string|null,
+ * }} segmentation
+ */
+export function classifySegmentation(segmentation) {
+  const names = Array.isArray(segmentation?.classNames) ? segmentation.classNames : [];
+  const sourceCounts = segmentation?.classCounts ?? {};
+
+  const classNames = [];
+  const rejectedClasses = [];
+  const classCounts = {};
+
+  for (const entry of names) {
+    const name = String(entry ?? '');
+    if (!name) {
+      continue;
+    }
+
+    if (isRejectedSegmentationClass(name)) {
+      rejectedClasses.push(name);
+      continue;
+    }
+
+    classNames.push(name);
+    const count = asFiniteNumber(sourceCounts[name]);
+    if (count !== null) {
+      classCounts[name] = count;
+    }
+  }
+
+  return {
+    classNames,
+    classCounts,
+    rejectedClasses,
+    labelShape: segmentation?.labelShape ?? null,
+    labelDtype: segmentation?.labelDtype ?? null,
+  };
+}
+
+/**
+ * Fixed Body Evidence Import v0 scale assumptions.
+ * Body-processing output is normalized by convention; Result / Scale JSON is not imported.
+ * heightCm is postponed / not used in v0 (future user input).
+ */
+export const BODY_EVIDENCE_V0_SCALE = Object.freeze({
+  canvasSize: 2000,
+  imageWidth: 2000,
+  imageHeight: 2000,
+  pixelsPerCm: 10,
+  heightCm: null,
+  status: 'fixed',
+  source: 'body-evidence-v0-fixed',
+  sourceLabel: 'fixed Body Evidence v0 assumption',
+});
+
+export const SCALE_STATUS_FIXED = BODY_EVIDENCE_V0_SCALE.status;
+
+/** Build the normalized scale object attached to every Body Evidence v0 analyze result. */
+export function createFixedBodyEvidenceScale() {
+  return {
+    status: BODY_EVIDENCE_V0_SCALE.status,
+    source: BODY_EVIDENCE_V0_SCALE.source,
+    imageWidth: BODY_EVIDENCE_V0_SCALE.imageWidth,
+    imageHeight: BODY_EVIDENCE_V0_SCALE.imageHeight,
+    canvasSize: BODY_EVIDENCE_V0_SCALE.canvasSize,
+    pixelsPerCm: BODY_EVIDENCE_V0_SCALE.pixelsPerCm,
+    heightCm: null,
+    targetBodyHeightPx: null,
+    paste: {
+      front: null,
+      side: null,
+    },
+    files: {
+      frontAligned: null,
+      sideAligned: null,
+    },
+  };
+}
+
+function emptyViewPose() {
+  return {
+    total: 0,
+    accepted: 0,
+    rejectedFace: 0,
+    lowConfidence: 0,
+    coreFront: 0,
+    secondary: 0,
+    ignoredNonCore: 0,
+    rejectedLandmarks: [],
+    ignoredLandmarks: [],
+    acceptedLandmarks: [],
+  };
+}
+
+function emptyViewSeg() {
+  return {
+    classNames: [],
+    classCounts: {},
+    rejectedClasses: [],
+    labelShape: null,
+    labelDtype: null,
+  };
+}
+
+/** Sum per-class pixel counts across views. */
+function aggregateClassCounts(views) {
+  const totals = {};
+  for (const view of views) {
+    for (const [name, count] of Object.entries(view.classCounts ?? {})) {
+      totals[name] = (totals[name] ?? 0) + count;
+    }
+  }
+  return totals;
+}
+
+/**
+ * Build the normalized body-evidence QA result from loaded source payloads.
+ * Scale is always the fixed Body Evidence v0 assumption (no Result JSON).
+ * @param {{
+ *   frontPose?: object|null,
+ *   sidePose?: object|null,
+ *   frontSeg?: object|null,
+ *   sideSeg?: object|null,
+ * }} sources
+ */
+export function analyzeBodyEvidence(sources = {}) {
+  const {
+    frontPose = null,
+    sidePose = null,
+    frontSeg = null,
+    sideSeg = null,
+  } = sources;
+
+  const frontLandmarks = frontPose ? extractPoseLandmarks(frontPose) : [];
+  const sideLandmarks = sidePose ? extractPoseLandmarks(sidePose) : [];
+
+  const frontPoseStats = frontPose ? classifyPoseLandmarks(frontLandmarks) : emptyViewPose();
+  const sidePoseStats = sidePose ? classifyPoseLandmarks(sideLandmarks) : emptyViewPose();
+  const frontSegStats = frontSeg ? classifySegmentation(extractSegmentation(frontSeg)) : emptyViewSeg();
+  const sideSegStats = sideSeg ? classifySegmentation(extractSegmentation(sideSeg)) : emptyViewSeg();
+
+  const scale = createFixedBodyEvidenceScale();
+
+  const allClassNames = [...new Set([...frontSegStats.classNames, ...sideSegStats.classNames])];
+  const allRejectedClasses = [...new Set([
+    ...frontSegStats.rejectedClasses,
+    ...sideSegStats.rejectedClasses,
+  ])];
+
+  const notes = [
+    'Body evidence is conceptual/mock data for QA only.',
+    'Face/head landmarks and segmentation classes are rejected from body counts.',
+    'Low-confidence body landmarks (score < 0.5) are counted but not rendered in v0.',
+    'Only the core 13 front body anchors are overlay-rendered as primary candidates.',
+    `Secondary candidates are limited to the v0 allowlist: ${SECONDARY_FRONT_BODY_ANCHORS.join(', ')}.`,
+    'Hand/finger/thumb detail, dense contours, and unstable model extras are deferred QA-only in v0.',
+    `Scale uses fixed Body Evidence v0 assumption (${BODY_EVIDENCE_V0_SCALE.pixelsPerCm} px/cm, ${BODY_EVIDENCE_V0_SCALE.canvasSize}×${BODY_EVIDENCE_V0_SCALE.canvasSize} canvas).`,
+    'heightCm is postponed / not used in v0.',
+  ];
+
+  return {
+    version: BODY_EVIDENCE_VERSION,
+    sourceFormat: BODY_EVIDENCE_SOURCE_FORMAT,
+    isMockData: true,
+    confidenceLevel: 'conceptual',
+    scale,
+    scaleDetected: false,
+    scaleStatus: scale.status,
+    views: {
+      front: {
+        pose: frontPoseStats,
+        segmentation: frontSegStats,
+      },
+      side: {
+        pose: sidePoseStats,
+        segmentation: sideSegStats,
+      },
+    },
+    qa: {
+      totalLandmarks: frontPoseStats.total + sidePoseStats.total,
+      acceptedBodyLandmarks: frontPoseStats.accepted + sidePoseStats.accepted,
+      rejectedFaceLandmarks: frontPoseStats.rejectedFace + sidePoseStats.rejectedFace,
+      lowConfidenceLandmarks: frontPoseStats.lowConfidence + sidePoseStats.lowConfidence,
+      frontAcceptedCount: frontPoseStats.accepted,
+      sideAcceptedCount: sidePoseStats.accepted,
+      frontTotalLandmarks: frontPoseStats.total,
+      renderableFrontLandmarks: frontPoseStats.coreFront,
+      secondaryFrontLandmarks: frontPoseStats.secondary,
+      frontRejectedFaceLandmarks: frontPoseStats.rejectedFace,
+      frontIgnoredNonCoreLandmarks: frontPoseStats.ignoredNonCore,
+      secondaryFrontLandmarkNames: frontPoseStats.acceptedLandmarks
+        .filter((landmark) => landmark.secondary)
+        .map((landmark) => landmark.name),
+      secondaryAllowlist: [...SECONDARY_FRONT_BODY_ANCHORS],
+      ignoredFrontLandmarks: frontPoseStats.ignoredLandmarks.map((landmark) => ({ ...landmark })),
+      rejectedFrontLandmarks: frontPoseStats.rejectedLandmarks.map((landmark) => ({ ...landmark })),
+      ignoredNonCoreLandmarks: frontPoseStats.ignoredNonCore + sidePoseStats.ignoredNonCore,
+      segmentationClassCount: allClassNames.length,
+      rejectedSegmentationClasses: allRejectedClasses,
+      classNames: allClassNames,
+      classCounts: aggregateClassCounts([frontSegStats, sideSegStats]),
+      notes,
+    },
+    loaded: {
+      frontPose: Boolean(frontPose),
+      sidePose: Boolean(sidePose),
+      frontSeg: Boolean(frontSeg),
+      sideSeg: Boolean(sideSeg),
+    },
+  };
+}

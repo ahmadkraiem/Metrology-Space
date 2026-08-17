@@ -1,0 +1,1094 @@
+.annotation-marker-label {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(6, 4, 14, 0.78);
+  border: 1px solid rgba(159, 122, 234, 0.28);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(167, 243, 252, 0.82);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.hover-coordinate-tooltip,
+#hover-coordinate-tooltip {
+  position: absolute;
+  z-index: 5;
+  padding: 5px 8px;
+  background: rgba(6, 4, 14, 0.84);
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1.55;
+  letter-spacing: 0.03em;
+  color: rgba(103, 232, 249, 0.88);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+#grid2d-hover-tooltip {
+  z-index: 8;
+}
+
+.hover-coordinate-tooltip[hidden],
+#hover-coordinate-tooltip[hidden],
+#grid2d-hover-tooltip[hidden] {
+  display: none;
+}
+
+/* ── Bottom status bar ── */
+
+#bottom-status-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 16px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border-top: 1px solid var(--glass-border);
+  font-size: 10px;
+  color: var(--text-secondary);
+  user-select: none;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.status-group {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+.status-item {
+  white-space: nowrap;
+}
+
+.status-chip {
+  letter-spacing: 0.01em;
+}
+
+.status-key {
+  margin-right: 5px;
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.status-divider {
+  width: 1px;
+  height: 12px;
+  margin: 0 12px;
+  background: rgba(147, 51, 234, 0.25);
+}
+
+.status-hint {
+  flex-shrink: 0;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Three.js CSS2D overlays (unchanged behavior, updated palette) ── */
+
+.axis-label {
+  color: #b8c8d8;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  user-select: none;
+}
+
+.axis-label--x {
+  color: #ff6b6b;
+}
+
+.axis-label--y {
+  color: #6bff8a;
+}
+
+.axis-label--z {
+  color: #6babff;
+}
+
+.measurement-distance-label {
+  color: var(--cyan-data);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 8px rgba(103, 232, 249, 0.35), 0 0 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.ref-marker-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.ref-marker-label--origin {
+  color: rgba(184, 232, 248, 0.82);
+}
+
+.ref-marker-label--center {
+  color: rgba(192, 132, 252, 0.82);
+}
+
+/* ── 2D Grid Navigator (workspace pane) ── */
+
+.grid2d-navigator-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 8px 10px 10px;
+  background: rgba(6, 4, 14, 0.92);
+  border-left: 1px solid rgba(147, 51, 234, 0.14);
+  pointer-events: auto;
+  user-select: none;
+}
+
+#viewport[data-workspace-mode='2d'] .grid2d-navigator-panel {
+  border-left: none;
+}
+
+.grid2d-nav-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+
+.grid2d-nav-heading {
+  min-width: 0;
+}
+
+.grid2d-nav-title {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--purple-bright);
+  line-height: 1.15;
+}
+
+.grid2d-nav-view-mode {
+  margin-top: 1px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.grid2d-helper {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.25;
+}
+
+.grid2d-nav-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 5px;
+  min-height: 0;
+}
+
+.grid2d-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(103, 232, 249, 0.14);
+}
+
+.grid2d-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 5px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+}
+
+.grid2d-status-sep {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.grid2d-readout-heading {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/*
+ * Height is reserved so appearing/disappearing selection, measurement, and
+ * status text never reflows the readout block and rescales the grid below it.
+ * Taller content scrolls inside this block instead.
+ */
+.grid2d-selection-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 0 0 auto;
+  height: var(--grid2d-selection-block-height, 58px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+.grid2d-measure-marker {
+  position: absolute;
+  width: var(--grid2d-point-emphasis, 6px);
+  height: var(--grid2d-point-emphasis, 6px);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 6;
+  border: var(--grid2d-border, 1px) solid rgba(255, 255, 255, 0.45);
+}
+
+.grid2d-measure-marker--a {
+  background: #ffa45c;
+  border: var(--grid2d-border, 1px) solid rgba(255, 220, 170, 0.85);
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(255, 164, 92, 0.28),
+    0 0 var(--grid2d-glow, 3px) rgba(255, 164, 92, 0.35);
+}
+
+.grid2d-measure-marker--b {
+  background: #e879f9;
+  border: var(--grid2d-border, 1px) solid rgba(255, 200, 245, 0.85);
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(232, 121, 249, 0.28),
+    0 0 var(--grid2d-glow, 3px) rgba(232, 121, 249, 0.35);
+}
+
+/* A shared point placed off the front face (via a 3D click) reads as dimmed. */
+.grid2d-measure-marker--off-surface {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.grid2d-measure-line {
+  position: absolute;
+  height: 1px;
+  background: rgba(184, 220, 240, 0.72);
+  transform-origin: 0 50%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.grid2d-measure-label {
+  position: absolute;
+  transform: translate(-50%, -125%);
+  pointer-events: none;
+  z-index: 7;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.02em;
+  color: rgba(215, 240, 255, 0.92);
+  background: rgba(8, 12, 20, 0.78);
+  border: 1px solid rgba(184, 220, 240, 0.28);
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.grid2d-lattice-point--measure-a,
+.grid2d-lattice-point--measure-b {
+  z-index: 5;
+}
+
+.grid2d-lattice-point--measure-a {
+  background: #ffa45c;
+  border-color: rgba(255, 220, 170, 0.85);
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(255, 164, 92, 0.28),
+    0 0 var(--grid2d-glow, 3px) rgba(255, 164, 92, 0.3);
+}
+
+.grid2d-lattice-point--measure-b {
+  background: #e879f9;
+  border-color: rgba(255, 200, 245, 0.85);
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(232, 121, 249, 0.28),
+    0 0 var(--grid2d-glow, 3px) rgba(232, 121, 249, 0.3);
+}
+
+.grid2d-readout-heading--selection {
+  margin-top: 2px;
+  padding-top: 3px;
+  border-top: 1px solid rgba(103, 232, 249, 0.1);
+}
+
+.grid2d-view-readout,
+.grid2d-mode-readout,
+.grid2d-selected-readout,
+.grid2d-status-message {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.grid2d-view-readout {
+  color: var(--cyan-data);
+}
+
+.grid2d-mode-readout {
+  color: var(--text-secondary);
+}
+
+.grid2d-selected-readout {
+  color: #ffa726;
+  font-weight: 600;
+}
+
+.grid2d-selected-readout--empty {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.25;
+}
+
+.grid2d-selection-block--empty .grid2d-selected-readout--empty {
+  padding-top: 0;
+}
+
+.grid2d-status-message {
+  margin-top: 2px;
+  color: var(--purple-bright);
+  font-size: 7px;
+  font-style: italic;
+}
+
+.grid2d-grid-wrapper {
+  position: relative;
+  flex: 1;
+  min-height: 160px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  border: 1px solid rgba(103, 232, 249, 0.28);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(6, 8, 14, 0.9);
+  box-shadow:
+    inset 0 0 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(147, 51, 234, 0.08);
+  aspect-ratio: 1;
+  align-self: center;
+  max-height: 100%;
+  touch-action: none;
+  outline: none;
+}
+
+.grid2d-grid-wrapper--pick {
+  cursor: default;
+}
+
+.grid2d-grid-wrapper--region {
+  cursor: crosshair;
+}
+
+.grid2d-grid-wrapper--panning {
+  cursor: grabbing;
+}
+
+.grid2d-grid-wrapper--selecting {
+  cursor: crosshair;
+}
+
+.grid2d-field {
+  position: absolute;
+  inset: 3px;
+  transform-origin: center center;
+  will-change: transform;
+  z-index: 1;
+}
+
+.grid2d-field::after {
+  content: '';
+  position: absolute;
+  left: var(--grid2d-plot-left, 12%);
+  top: var(--grid2d-plot-top, 12%);
+  width: var(--grid2d-plot-width, 76%);
+  height: var(--grid2d-plot-height, 76%);
+  border: 1px solid rgba(103, 232, 249, 0.1);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.grid2d-selection-rect {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  border: 1px solid rgba(192, 132, 252, 0.85);
+  border-radius: 3px;
+  background: rgba(147, 51, 234, 0.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(103, 232, 249, 0.25),
+    0 0 12px rgba(147, 51, 234, 0.25);
+}
+
+.grid2d-selected-region {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  border: 1px dashed rgba(255, 167, 38, 0.7);
+  border-radius: 3px;
+  background: rgba(255, 167, 38, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 167, 38, 0.18);
+}
+
+.grid2d-selected-region.grid2d-selected-region--active {
+  display: block;
+}
+
+.grid2d-grid-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(
+    circle,
+    rgba(103, 232, 249, 0.04) 0.5px,
+    transparent 0.5px
+  );
+  background-size: 14px 14px;
+}
+
+.grid2d-lattice-points {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.grid2d-lattice-point {
+  position: absolute;
+  width: var(--grid2d-point-base, 5px);
+  height: var(--grid2d-point-base, 5px);
+  padding: 0;
+  margin: 0;
+  border: var(--grid2d-border, 1px) solid rgba(103, 232, 249, 0.35);
+  border-radius: 50%;
+  background: rgba(103, 232, 249, 0.42);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    width 0.12s ease,
+    height 0.12s ease;
+}
+
+.grid2d-lattice-point--selected,
+.grid2d-lattice-point--picked,
+.grid2d-lattice-point--measure-a,
+.grid2d-lattice-point--measure-b {
+  width: var(--grid2d-point-emphasis, 6px);
+  height: var(--grid2d-point-emphasis, 6px);
+}
+
+.grid2d-lattice-point--selected {
+  background: #ffa726;
+  border-color: rgba(255, 220, 170, 0.85);
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(255, 167, 38, 0.28),
+    0 0 var(--grid2d-glow, 3px) rgba(255, 167, 38, 0.38);
+  z-index: 3;
+}
+
+.grid2d-lattice-point--refined {
+  background: rgba(103, 232, 249, 0.34);
+  border-color: rgba(103, 232, 249, 0.3);
+}
+
+.grid2d-lattice-point--fine {
+  background: rgba(103, 232, 249, 0.28);
+  border-color: rgba(103, 232, 249, 0.24);
+}
+
+.grid2d-lattice-point--picked {
+  background: #ffb74d;
+  border-color: #ffa726;
+  z-index: 4;
+}
+
+.grid2d-lattice-point--refined.grid2d-lattice-point--picked,
+.grid2d-lattice-point--fine.grid2d-lattice-point--picked {
+  background: #ffb74d;
+  border-color: #ffa726;
+}
+
+.grid2d-grid-wrapper--pick .grid2d-lattice-point {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.grid2d-grid-wrapper--pick .grid2d-lattice-point:not(.grid2d-lattice-point--picked):hover {
+  width: var(--grid2d-point-hover, 6px);
+  height: var(--grid2d-point-hover, 6px);
+  background: rgba(103, 232, 249, 0.52);
+  border-color: rgba(103, 232, 249, 0.42);
+  box-shadow: 0 0 var(--grid2d-glow, 3px) rgba(103, 232, 249, 0.22);
+  z-index: 2;
+}
+
+.grid2d-grid-wrapper--pick .grid2d-lattice-point--picked:hover {
+  background: #ffb74d;
+  border-color: #ffa726;
+  z-index: 4;
+}
+
+/* Above .grid2d-body-evidence-markers: the layer z-index is what decides
+   hit-testing between the two sibling stacking contexts, so promoted body
+   landmarks stay hoverable where they coincide with their evidence marker. */
+.grid2d-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.grid2d-projection-marker {
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 6;
+  transition:
+    width 0.1s ease,
+    height 0.1s ease,
+    box-shadow 0.1s ease,
+    border-color 0.1s ease;
+}
+
+.grid2d-projection-marker:hover,
+.grid2d-projection-marker:focus-visible {
+  width: var(--grid2d-point-emphasis, 6px);
+  height: var(--grid2d-point-emphasis, 6px);
+  z-index: 7;
+}
+
+.grid2d-projection-marker:focus-visible {
+  outline: 1px solid rgba(103, 232, 249, 0.7);
+  outline-offset: 1px;
+}
+
+.grid2d-projection-tooltip {
+  z-index: 12;
+  max-width: 220px;
+  line-height: 1.4;
+  font-size: 8px;
+  padding: 4px 6px;
+}
+
+.projection-annotation-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.projection-annotation-tooltip-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 6px;
+  align-items: baseline;
+}
+
+.projection-annotation-tooltip-label {
+  color: rgba(196, 181, 253, 0.72);
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.projection-annotation-tooltip-value {
+  color: rgba(241, 245, 249, 0.95);
+  font-size: 8px;
+  word-break: break-word;
+}
+
+.grid2d-marker {
+  position: absolute;
+  width: var(--grid2d-point-base, 5px);
+  height: var(--grid2d-point-base, 5px);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: var(--grid2d-border, 1px) solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 0 var(--grid2d-glow, 2px) rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+/* Projection markers must remain hoverable; .grid2d-marker defaults to none. */
+.grid2d-marker.grid2d-projection-marker {
+  pointer-events: auto;
+}
+
+/* Keep annotation projections above Body Evidence markers so promoted
+   landmarks can show annotation XYZ tooltips when markers coincide. */
+.grid2d-projection-marker--annotation-hit,
+.grid2d-marker.grid2d-marker--annotation.grid2d-projection-marker {
+  z-index: 10;
+}
+
+.grid2d-projection-marker--annotation-hit:hover,
+.grid2d-projection-marker--annotation-hit:focus-visible,
+.grid2d-marker.grid2d-marker--annotation.grid2d-projection-marker:hover,
+.grid2d-marker.grid2d-marker--annotation.grid2d-projection-marker:focus-visible {
+  z-index: 11;
+}
+
+.grid2d-marker--origin {
+  width: var(--grid2d-point-base, 4px);
+  height: var(--grid2d-point-base, 4px);
+  background: rgba(184, 232, 248, 0.92);
+  border-color: rgba(220, 245, 255, 0.75);
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(0, 0, 0, 0.45),
+    0 0 var(--grid2d-glow, 2px) rgba(184, 232, 248, 0.28);
+}
+
+.grid2d-marker--center {
+  width: var(--grid2d-point-base, 4px);
+  height: var(--grid2d-point-base, 4px);
+  background: rgba(192, 132, 252, 0.92);
+  border-color: rgba(230, 200, 255, 0.75);
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(0, 0, 0, 0.45),
+    0 0 var(--grid2d-glow, 2px) rgba(192, 132, 252, 0.28);
+}
+
+.grid2d-marker--annotation {
+  border-radius: 1px;
+  background: rgba(52, 211, 153, 0.88);
+  border-color: rgba(167, 243, 208, 0.7);
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(0, 0, 0, 0.4),
+    0 0 var(--grid2d-glow, 2px) rgba(52, 211, 153, 0.32);
+}
+
+.grid2d-projection-marker.grid2d-marker--origin:hover,
+.grid2d-projection-marker.grid2d-marker--center:hover {
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(0, 0, 0, 0.45),
+    0 0 calc(var(--grid2d-glow, 3px) * 1.15) rgba(184, 232, 248, 0.42);
+}
+
+.grid2d-projection-marker.grid2d-marker--center:hover {
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(0, 0, 0, 0.45),
+    0 0 calc(var(--grid2d-glow, 3px) * 1.15) rgba(192, 132, 252, 0.42);
+}
+
+.grid2d-projection-marker.grid2d-marker--annotation:hover {
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(0, 0, 0, 0.4),
+    0 0 calc(var(--grid2d-glow, 3px) * 1.15) rgba(52, 211, 153, 0.45);
+}
+
+.grid2d-projection-marker--linked-active {
+  outline: 1px solid rgba(103, 232, 249, 0.9);
+  outline-offset: 1px;
+  box-shadow:
+    0 0 0 calc(var(--grid2d-halo, 1px) + 1px) rgba(103, 232, 249, 0.45);
+}
+
+/* ── Body measurement preview lines (visual only) ── */
+
+.grid2d-body-measurement-previews {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.grid2d-body-measurement-preview-line {
+  position: absolute;
+  height: 1px;
+  background: rgba(103, 232, 249, 0.62);
+  transform-origin: 0 50%;
+  pointer-events: none;
+  z-index: 4;
+  box-shadow: 0 0 4px rgba(103, 232, 249, 0.25);
+}
+
+/* ── Body Evidence Front Surface overlay (visual only) ── */
+
+.grid2d-body-evidence-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* Rotated amber square keeps evidence distinct from lattice, ref, annotation,
+   and measurement markers. */
+.grid2d-body-evidence-marker {
+  position: absolute;
+  width: var(--grid2d-point-base, 5px);
+  height: var(--grid2d-point-base, 5px);
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: rgba(250, 204, 21, 0.9);
+  border: var(--grid2d-border, 1px) solid rgba(254, 240, 138, 0.85);
+  border-radius: 1px;
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(0, 0, 0, 0.5),
+    0 0 var(--grid2d-glow, 2px) rgba(250, 204, 21, 0.35);
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 7;
+  transition: width 0.1s ease, height 0.1s ease, box-shadow 0.1s ease;
+}
+
+.grid2d-body-evidence-marker--secondary {
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(192, 132, 252, 0.92);
+  border-color: rgba(216, 180, 254, 0.9);
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(0, 0, 0, 0.5),
+    0 0 var(--grid2d-glow, 2px) rgba(192, 132, 252, 0.42);
+}
+
+.grid2d-body-evidence-marker:hover,
+.grid2d-body-evidence-marker:focus-visible {
+  width: var(--grid2d-point-emphasis, 6px);
+  height: var(--grid2d-point-emphasis, 6px);
+  box-shadow:
+    0 0 0 var(--grid2d-halo, 1px) rgba(0, 0, 0, 0.5),
+    0 0 calc(var(--grid2d-glow, 3px) * 1.2) rgba(250, 204, 21, 0.5);
+  z-index: 8;
+}
+
+.grid2d-body-evidence-marker:focus-visible {
+  outline: 1px solid rgba(250, 204, 21, 0.8);
+  outline-offset: 1px;
+}
+
+/* Selection emphasis stays inside the marker footprint: bright center core plus
+   an inner cyan stroke, no outer halo or expanded outline. */
+.grid2d-body-evidence-marker--active,
+.grid2d-body-evidence-marker--active:hover,
+.grid2d-body-evidence-marker--active:focus-visible {
+  width: var(--grid2d-point-emphasis, 6px);
+  height: var(--grid2d-point-emphasis, 6px);
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 255, 255, 0.98) 0 30%,
+      rgba(253, 224, 71, 1) 32% 100%
+    );
+  border-color: rgba(34, 211, 238, 0.95);
+  box-shadow:
+    inset 0 0 0 var(--grid2d-border, 1px) rgba(34, 211, 238, 0.85),
+    0 0 0 var(--grid2d-halo, 1px) rgba(0, 0, 0, 0.55);
+  z-index: 9;
+}
+
+.grid2d-body-evidence-marker--secondary.grid2d-body-evidence-marker--active,
+.grid2d-body-evidence-marker--secondary.grid2d-body-evidence-marker--active:hover,
+.grid2d-body-evidence-marker--secondary.grid2d-body-evidence-marker--active:focus-visible {
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 255, 255, 0.98) 0 30%,
+      rgba(192, 132, 252, 1) 32% 100%
+    );
+}
+
+#grid2d-body-evidence-tooltip.grid2d-body-evidence-tooltip,
+.grid2d-body-evidence-tooltip {
+  z-index: 13;
+  min-width: 168px;
+  max-width: min(240px, calc(100% - 12px));
+  padding: 7px 9px;
+  white-space: normal;
+  letter-spacing: 0.01em;
+  line-height: 1.45;
+  font-size: 9px;
+}
+
+.body-evidence-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.body-evidence-tooltip-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.body-evidence-tooltip-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.9);
+  line-height: 1.4;
+}
+
+.body-evidence-tooltip-value {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.45;
+  color: rgba(167, 243, 252, 0.95);
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.grid2d-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 3px 6px;
+  list-style: none;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(147, 51, 234, 0.12);
+  align-items: center;
+}
+
+.grid2d-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.grid2d-legend-item[hidden] {
+  display: none;
+}
+
+.grid2d-legend-item--dimmed {
+  opacity: 0.38;
+}
+
+.grid2d-legend-item--dimmed .grid2d-legend-label {
+  color: var(--text-muted);
+}
+
+.grid2d-legend-swatch {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.grid2d-legend-swatch--lattice {
+  background: rgba(103, 232, 249, 0.55);
+  border-color: rgba(103, 232, 249, 0.45);
+}
+
+.grid2d-legend-swatch--selected {
+  width: 8px;
+  height: 8px;
+  background: #ffa726;
+  border-color: rgba(255, 200, 140, 0.75);
+}
+
+.grid2d-legend-swatch--measure-a {
+  width: 8px;
+  height: 8px;
+  background: #ffa45c;
+  border-color: rgba(255, 200, 150, 0.7);
+}
+
+.grid2d-legend-swatch--measure-b {
+  width: 8px;
+  height: 8px;
+  background: #e879f9;
+  border-color: rgba(255, 200, 245, 0.75);
+}
+
+/* One swatch stands for both reference markers: Origin and Center. */
+.grid2d-legend-swatch--ref {
+  background: rgba(184, 232, 248, 0.95);
+  box-shadow: inset -3px 0 0 rgba(192, 132, 252, 0.95);
+}
+
+.grid2d-legend-swatch--annotation {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(52, 211, 153, 0.98);
+  border-color: rgba(167, 243, 208, 0.7);
+}
+
+.grid2d-legend-label {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.grid2d-nav-actions {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 0;
+}
+
+.grid2d-nav-actions .panel-button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 4px 6px;
+  font-size: 7px;
+  letter-spacing: 0.06em;
+  pointer-events: auto;
+}
+
+.grid2d-nav-actions .panel-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 2D axis labels (reserved gutters, below point layer) ── */
+
+.grid2d-axis-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.grid2d-axis-dir {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: var(--text-muted);
+  opacity: 0.82;
+  text-shadow:
+    0 0 6px rgba(0, 0, 0, 0.95),
+    0 0 10px rgba(6, 8, 14, 0.85);
+}
+
+.grid2d-axis-dir--vertical {
+  left: var(--grid2d-gutter-left-half, 4%);
+  top: calc(var(--grid2d-plot-top, 6%) + var(--grid2d-plot-height, 76%) / 2);
+  transform: translate(-50%, -50%);
+}
+
+.grid2d-axis-dir--horizontal {
+  left: calc(var(--grid2d-plot-left, 12%) + var(--grid2d-plot-width, 76%) / 2);
+  top: var(--grid2d-gutter-bottom-mid, 96%);
+  transform: translate(-50%, -50%);
+}
+
+.grid2d-axis-dir--x {
+  color: rgba(255, 120, 120, 0.52);
+}
+
+.grid2d-axis-dir--y {
+  color: rgba(100, 210, 130, 0.52);
+}
+
+.grid2d-axis-tick {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 6px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  line-height: 1;
+  opacity: 0.65;
+  text-shadow:
+    0 0 5px rgba(0, 0, 0, 0.95),
+    0 0 8px rgba(6, 8, 14, 0.8);
+}
+
+.grid2d-axis-tick--h-min {
+  left: var(--grid2d-plot-left, 12%);
+  top: var(--grid2d-gutter-bottom-mid, 96%);
+  transform: translate(-50%, -50%);
+}
+
+.grid2d-axis-tick--h-max {
+  left: calc(var(--grid2d-plot-left, 12%) + var(--grid2d-plot-width, 76%));
+  top: var(--grid2d-gutter-bottom-mid, 96%);
+  transform: translate(-50%, -50%);
+}
+
+.grid2d-axis-tick--v-min {
+  left: var(--grid2d-gutter-left-half, 4%);
+  top: var(--grid2d-plot-bottom, 90%);
+  transform: translate(-50%, -50%);
+}
+
+.grid2d-axis-tick--v-max {
+  left: var(--grid2d-gutter-left-half, 4%);
+  top: var(--grid2d-plot-top, 6%);
+  transform: translate(-50%, -50%);
+}
