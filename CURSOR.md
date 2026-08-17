@@ -273,7 +273,8 @@ Promoted body landmarks can be used as **normal A/B measurement targets**. This 
 - Does **not** change Body Measurement Readiness calculations
 - Does **not** make unpromoted primary or secondary candidates measurable
 - Does **not** write Body Measurement Preview distances or unpromoted secondary candidates into measurement history
-- Does **not** implement Body Graph or latent space
+- Does **not** implement Body Graph Workspace behavior (Body Graph is a separate accepted feature — see **Current Body Graph Features**)
+- Does **not** implement latent space
 
 ### Distance Measurement panel layout (named body landmarks)
 
@@ -562,7 +563,7 @@ Imported body evidence is **conceptual / mock evidence** for now — not trusted
 - Scene Graph (Body Evidence itself is not listed; promoted annotations are)
 - Scene State export/import (Body Evidence itself is **not** included)
 
-Body Evidence is **not** promoted to Body Graph. Review Status is **not** implemented. Latent space is **not** implemented.
+Body Evidence raw state is **not** written into Body Graph. Body Graph Contract v0 / Workspace v0 derive only from promoted `body_landmark` annotations (see **Current Body Graph Features**). Review Status is **not** implemented. Latent space is **not** implemented.
 
 ### Supported files (Import v0)
 
@@ -758,7 +759,7 @@ Only these accepted front landmarks are primary/core candidates, Body Evidence O
 
 ### Session Data → Body tab
 
-**Body Tab Consolidation v0** is the current visible layout. It is a UI / information-architecture cleanup only: underlying Body Evidence, promotion, annotation, audit, reference-level, and measurement-line logic remains behaviorally unchanged. No Scene State JSON schema changes. No Body Graph. No latent space.
+**Body Tab Consolidation v0** is the current visible layout. It is a UI / information-architecture cleanup only: underlying Body Evidence, promotion, annotation, audit, reference-level, and measurement-line logic remains behaviorally unchanged. No Scene State JSON schema changes. Body Graph is a separate accepted workspace feature (not part of this Body tab). Latent space is **not** implemented.
 
 Owned by:
 
@@ -1187,7 +1188,7 @@ Preview lines refresh when:
 - Do **not** change annotation data structure
 - Do **not** change promote behavior
 - Do **not** change Scene State JSON export/import schema
-- Do **not** implement Body Graph
+- Do **not** merge Measurement Line Preview Overlay with Body Graph Workspace
 - Do **not** implement latent space
 - Do **not** overlay distance labels on preview lines — distances stay in Body Measurement Readiness only
 - Preview overlay rendering is **separate** from normal A/B measurement line rendering
@@ -1284,8 +1285,9 @@ Owned by `src/features/bodyEvidence.js` (`promoteSelectedBodyEvidenceLandmark`) 
 - Raw Body Evidence state (sources / QA / overlay / selection) is **not** included in Scene State export/import
 - Unpromoted secondary candidates remain out of Scene State until promoted
 - Duplicate promotion is prevented (same `body_landmark` name already present → blocked with status feedback)
-- Promote does **not** create Body Graph nodes
-- Promoting a secondary candidate does **not** add it to Body Measurement Readiness or Measurement Preview Lines rows (those remain core-pair based)
+- Promote does **not** write separate Body Graph persistence — it creates a normal annotation; Body Graph Contract v0 rebuilds at runtime from promoted annotations
+- Promoting a Core 13 landmark makes that landmark available as a Body Graph v0 node when the graph rebuilds
+- Promoting a secondary candidate does **not** add it to Body Graph v0 topology, Body Measurement Readiness, or Measurement Preview Lines rows (those remain core-based)
 
 ### Landmark display naming / hover
 
@@ -1306,6 +1308,7 @@ Owned by `src/features/bodyEvidence.js` (`promoteSelectedBodyEvidenceLandmark`) 
 - Anatomical Measurement Lines does not add schema fields (distances are display-only readiness previews)
 - Measurement Line Preview Overlay v0 does not add schema fields (visual-only Ready lines; no distance labels on overlays)
 - Body Tab Consolidation v0 does not change Scene State JSON export/import schema
+- Body Graph Contract v0 / Workspace v0 do **not** add Scene State fields — there is no `bodyGraph` export key; after import, the runtime graph reconstructs from restored annotations
 
 ### Ownership boundary
 
@@ -1330,9 +1333,11 @@ Owned by `src/features/bodyEvidence.js` (`promoteSelectedBodyEvidenceLandmark`) 
 | Body Tab Consolidation | Implemented (UI/IA cleanup only; Status counts + Promoted Anchors table + Readiness; Advanced Evidence Details for long lists) |
 | Distance Measurement panel layout | Implemented (UI-only stacked name + coords for long body landmark names; no schema/math change) |
 | Result / Scale JSON | Not imported / not used |
-| Body Graph | Not implemented |
+| Body Graph Contract v0 | Implemented — runtime topology from promoted Core 13 `body_landmark` annotations (`src/features/bodyGraph.js`) |
+| Body Graph Workspace v0 | Implemented — dedicated read-only workspace tab (`src/ui/bodyGraphWorkspace.js`) |
 | Review Status | Not implemented |
 | Side landmark rendering | Not implemented |
+| Side Evidence v0 | Not implemented (next proposed milestone after accepted Body Graph) |
 | Segmentation mask rendering | Not implemented |
 | Latent space | Not implemented |
 
@@ -1344,6 +1349,278 @@ After the secondary-candidate and body-landmark measurement updates, recent body
 - Cleanup did **not** change user-facing behavior
 - `main.js` remains a thin orchestrator
 - Historical / superseded panel stubs and internal compute helpers that are still used (or intentionally retained) remain documented in `PROJECT_STRUCTURE.md`
+
+---
+
+## Current Body Graph Features
+
+**Body Graph Contract v0** and **Body Graph Workspace v0** (including accepted visual polish) are the current accepted Body Graph state.
+
+### Body Graph Contract v0
+
+Owned by:
+
+- Runtime contract / builder: `src/features/bodyGraph.js` (`BODY_GRAPH_V0_NODES`, `BODY_GRAPH_V0_EDGES`, `buildBodyGraph`)
+- Tests: `src/features/bodyGraph.test.js`
+
+The runtime Body Graph is derived **only** from existing promoted annotations where `annotation.type === "body_landmark"`.
+
+- The annotation collection remains the **canonical source of truth**
+- There is **no** separate persistent Body Graph state
+- Raw Body Evidence and unpromoted candidates are **not** read
+- Secondary promoted `body_landmark` annotations remain normal annotations and valid Body Landmark Measurement Picking targets, but are **outside** Body Graph v0 topology
+
+#### Core 13 node contract
+
+Body Graph v0 includes **only** these Core 13 landmark ids (reuses the existing Core Front Body Anchor name contract safely via `CORE_FRONT_BODY_ANCHORS` / `BODY_GRAPH_V0_NODES`):
+
+```text
+neck
+
+left_shoulder
+right_shoulder
+
+left_elbow
+right_elbow
+
+left_wrist
+right_wrist
+
+left_hip
+right_hip
+
+left_knee
+right_knee
+
+left_ankle
+right_ankle
+```
+
+Rules:
+
+- A node is present only when a promoted `body_landmark` annotation with that exact normalized name exists
+- Node position comes from the annotation's stored `{ x, y, z }` coordinate (`point` in runtime annotation objects)
+- Missing nodes are **not** fabricated
+- Coordinates are **not** inferred
+
+#### Structural edge contract
+
+Body Graph v0 defines these **13 deterministic structural topology edges** (`BODY_GRAPH_V0_EDGES`):
+
+```text
+neck -> left_shoulder
+neck -> right_shoulder
+
+left_shoulder -> left_elbow
+left_elbow -> left_wrist
+
+right_shoulder -> right_elbow
+right_elbow -> right_wrist
+
+left_shoulder -> left_hip
+right_shoulder -> right_hip
+
+left_hip -> right_hip
+
+left_hip -> left_knee
+left_knee -> left_ankle
+
+right_hip -> right_knee
+right_knee -> right_ankle
+```
+
+These are structural topology relationships only. They are **separate** from Body Measurement Readiness spans such as Shoulder Width, Elbow Span, Wrist Span, Hip Width, Knee Span, and Ankle Span.
+
+#### Runtime graph shape
+
+`buildBodyGraph(annotations)` returns a runtime representation conceptually shaped as:
+
+```js
+{
+  nodes: [
+    {
+      id,
+      annotationId,
+      position: { x, y, z }
+    }
+  ],
+
+  missingNodes: [],
+
+  edges: [
+    {
+      id,
+      from,
+      to,
+      status: "Ready" | "Missing",
+      missingEndpoints: [],
+      fromPoint,
+      toPoint
+    }
+  ],
+
+  summary: {
+    expectedNodes,
+    presentNodes,
+    missingNodes,
+    totalEdges,
+    readyEdges,
+    missingEdges
+  }
+}
+```
+
+This is **runtime structure only** — not a Scene State JSON schema and not persisted.
+
+#### Missing-anchor behavior
+
+- Partial Core graphs are valid
+- Present nodes remain present
+- Incomplete edges become `status: "Missing"`
+- Missing endpoints are reported in `missingEndpoints`
+- Existing endpoint coordinates may still be available on Ready or partially-present edges
+- No coordinates are inferred
+- Incomplete graphs do **not** throw
+
+### Body Graph Workspace v0
+
+Owned by:
+
+- Workspace UI: `src/ui/bodyGraphWorkspace.js` (`setupBodyGraphWorkspace`, `refreshBodyGraphWorkspace`)
+- Workspace tab / pane switching: `src/ui/workspaceLayout.js` (`WORKSPACE_BODY_GRAPH`, `data-workspace-mode='body-graph'`)
+- Markup: `#workspace-tab-body-graph`, `#body-graph-workspace` in `index.html`
+- Styles: Body Graph classes in `src/styles/components.css`; pane visibility in `src/styles/layout.css`
+
+Top-level workspace tabs are:
+
+1. **3D Space**
+2. **2D Workspace**
+3. **Body Graph**
+
+Body Graph Workspace is a dedicated **read-only semantic / anatomical topology view**. It does **not** replace or modify the Session Data **Scene Graph** (right sidebar Graph tab).
+
+#### Rendering approach
+
+Lightweight browser-native rendering only:
+
+- Deterministic anatomical HTML/CSS node layout
+- SVG structural edges
+- No graph library
+- Graph placement is **semantic / topological**, not based on physical scene X/Y/Z position
+- Stored coordinates are displayed as node metadata only
+
+#### Node states
+
+All **13 expected Core nodes** are shown.
+
+| State | Visual | Content |
+|-------|--------|---------|
+| **Present** | Active / stronger (restrained cyan accent; no excessive glow) | Readable landmark display name + stored `X · Y · Z cm` |
+| **Missing** | Muted / quieter | Landmark display name + `Missing` (no fabricated coordinates) |
+
+#### Edge states
+
+| State | Visual | Meaning |
+|-------|--------|---------|
+| **Ready** (`edge.status === "Ready"`) | Solid, visually stronger | Structural connection exists because both endpoints are present |
+| **Missing** (`edge.status === "Missing"`) | Dashed, lower opacity | Schema / topology preview only — does **not** imply inferred geometry or measurement |
+
+#### Summary
+
+Compact workspace header summary:
+
+```text
+Nodes {present}/13 · Edges {ready}/13
+```
+
+No additional body metrics, legends, toolbars, or readiness panels are added in this workspace.
+
+#### Read-only behavior
+
+Body Graph Workspace v0 does **not** support:
+
+- Node dragging
+- Coordinate editing
+- Graph editing / relationship editing
+- Creating or deleting annotations
+- Landmark promotion
+- A/B measurement picking
+- Measurement history creation
+
+Hover styling, if any, is visual-only.
+
+#### Refresh
+
+The workspace rebuilds from:
+
+```js
+buildBodyGraph(getAnnotations())
+```
+
+It refreshes via the existing annotation change subscription (`subscribeAnnotationsChange`) and also when the Body Graph workspace is opened. Relevant updates include:
+
+- Promoted Core body landmark added
+- Annotation deleted
+- Scene State import restoring promoted `body_landmark` annotations
+- Opening the Body Graph workspace
+
+No polling is used.
+
+#### Accepted visual polish
+
+Current accepted visual state:
+
+- Topology is centered and more compact within the graph stage
+- Deterministic percentage-based anatomical layout remains responsive
+- Present nodes have stronger but restrained emphasis
+- Missing nodes are visually quieter
+- Ready edges are solid and more visible
+- Missing edges are dashed / faded
+- Node-card heights and spacing are normalized
+- Landmark names are primary; coordinates / `Missing` are secondary
+- Graph header remains compact so the stage stays dominant
+
+### Important separation
+
+Body Graph v0 is **separate** from:
+
+- Body Evidence raw state
+- Body Measurement Readiness
+- Body Measurement Preview Lines
+- Normal A/B measurements
+- Measurement History
+- Session Data Scene Graph
+- Scene State persistence
+
+Body Graph is derived from promoted canonical annotations only.
+
+### Export / import (Body Graph)
+
+- Body Graph is **not** serialized into Scene State JSON
+- No `bodyGraph` field exists in export
+- Body Graph has **no** persistent graph schema
+- Promoted `body_landmark` annotations continue to export/import as normal annotations
+- After import, the runtime Body Graph reconstructs itself from restored annotations
+- 2D UI-only state remains outside Scene State as before
+
+### Not implemented / future Body Graph-adjacent work
+
+Still outside current Body Graph v0:
+
+- 3D Body Graph overlay
+- Front 2D Body Graph overlay
+- Secondary landmarks in graph topology
+- Side Evidence graph nodes
+- Front-Side Alignment
+- Segmentation regions
+- Body surface
+- Depth / Z inference
+- Circumference inference
+- Latent space / latent conditioning
+- Embeddings
+- Learned or inferred graph relationships
+
+**Next proposed milestone after this accepted state:** `Side Evidence v0` (not implemented).
 
 ---
 
@@ -1424,6 +1701,8 @@ Non-clickable rows include Scene Root fields, history/annotation totals, distanc
 - Uses **local browser time** (same moment as `metadata.exportedAtLocal`, with dashes instead of spaces/colons).
 
 Export includes `metadata`, `sceneScale`, `appMode`, `referenceMarkers`, `activeMeasurement`, `measurementHistory`, and `annotations`.
+
+Body Evidence raw state, Body Graph runtime structure, and 2D UI-only navigator state are **not** exported. There is **no** `bodyGraph` field.
 
 #### Exported JSON structure
 
@@ -1552,7 +1831,7 @@ Type normalization is handled in `restoreAnnotations()` via `normalizeAnnotation
 
 ## Current 2D Workspace and Grid Navigator
 
-The central viewport supports a **workspace layer** with two tabs. The **2D Grid Navigator** is the cube's **Front Surface** interaction plane (X/Y only). 2D clicks create/update the **same shared measurement** used by the 3D scene — there is no independent 2D measurement state. Projected Origin/Center and annotation markers remain a read-only navigation layer (see § Current 2D/3D Projection Linking). The 2D panel appears **only inside the 2D Workspace beside the 3D pane** — it is **not** a standalone full-screen workspace, **not** a floating panel, and **not** inside the right Session Data tabs.
+The central viewport supports a **workspace layer** with three tabs: **3D Space**, **2D Workspace**, and **Body Graph**. The **2D Grid Navigator** is the cube's **Front Surface** interaction plane (X/Y only). 2D clicks create/update the **same shared measurement** used by the 3D scene — there is no independent 2D measurement state. Projected Origin/Center and annotation markers remain a read-only navigation layer (see § Current 2D/3D Projection Linking). The 2D panel appears **only inside the 2D Workspace beside the 3D pane** — it is **not** a standalone full-screen workspace, **not** a floating panel, and **not** inside the right Session Data tabs. Body Graph is a separate dedicated read-only topology workspace (see **Current Body Graph Features**).
 
 ### Workspace tabs
 
@@ -1560,14 +1839,15 @@ The center viewport (`#viewport`) includes workspace tabs (`#workspace-tabs`) an
 
 | Tab | Button | Behavior |
 |-----|--------|----------|
-| **3D Space** | `#workspace-tab-3d` | Default on load. Shows the 3D metrology scene only (`#workspace-pane-3d` → `#canvas-container`); 2D pane and split divider hidden. |
-| **2D Workspace** | `#workspace-tab-split` | Shows the combined workspace: the 3D scene pane and the Front Surface 2D Grid Navigator pane (`#grid2d-navigator-panel`) side-by-side with a draggable `#workspace-split-divider`. Minimum pane width 200 px; default split ratio favors the 3D pane slightly (~57% 3D / ~43% 2D). |
+| **3D Space** | `#workspace-tab-3d` | Default on load. Shows the 3D metrology scene only (`#workspace-pane-3d` → `#canvas-container`); 2D pane, Body Graph pane, and split divider hidden. Mode: `3d`. |
+| **2D Workspace** | `#workspace-tab-split` | Shows the combined workspace: the 3D scene pane and the Front Surface 2D Grid Navigator pane (`#grid2d-navigator-panel`) side-by-side with a draggable `#workspace-split-divider`. Minimum pane width 200 px; default split ratio favors the 3D pane slightly (~57% 3D / ~43% 2D). Body Graph pane hidden. Mode: `split`. |
+| **Body Graph** | `#workspace-tab-body-graph` | Shows the dedicated Body Graph Workspace pane (`#body-graph-workspace`) only — read-only Core 13 topology diagram. 3D pane, 2D pane, and split divider hidden. Mode: `body-graph`. |
 
-There is **no standalone 2D Space tab**. Top View and Side View are **removed** — Front Surface — X/Y is the only active 2D workspace. The former **Split View** tab was renamed to **2D Workspace** (button id `#workspace-tab-split`, layout mode `split`). The 2D Workspace is also the intended foundation for a future front-facing body workspace (no body model exists yet).
+There is **no standalone 2D Space tab**. Top View and Side View are **removed** — Front Surface — X/Y is the only active 2D workspace. The former **Split View** tab was renamed to **2D Workspace** (button id `#workspace-tab-split`, layout mode `split`). The 2D Workspace remains the intended foundation for a future front-facing body workspace (no body model exists yet). Body Graph Workspace v0 is the accepted Core topology view and does **not** replace Scene Graph.
 
-Workspace switching is **UI/layout-only** — it must **not** mutate scene or session state (measurements, annotations, history, app mode, export data). Switching to 2D Workspace triggers a 2D redraw and 3D renderer resize only.
+Workspace switching is **UI/layout-only** — it must **not** mutate scene or session state (measurements, annotations, history, app mode, export data). Switching to 2D Workspace triggers a 2D redraw and 3D renderer resize only. Switching to Body Graph refreshes the diagram from `buildBodyGraph(getAnnotations())` without clearing session data.
 
-Owned by `src/ui/workspaceLayout.js` (`setupWorkspaceLayout`, `setWorkspace`, `getWorkspace`).
+Owned by `src/ui/workspaceLayout.js` (`setupWorkspaceLayout`, `setWorkspace`, `getWorkspace`; modes `WORKSPACE_3D` / `WORKSPACE_SPLIT` / `WORKSPACE_BODY_GRAPH`). Body Graph pane rendering is owned by `src/ui/bodyGraphWorkspace.js`.
 
 ### 2D Grid Navigator identity
 
@@ -1734,7 +2014,8 @@ Owned by `src/ui/grid2dMarkerSizing.js`. Base sizes by step: 20 cm→5 px, 10 cm
 - Result / Scale JSON is not imported; `heightCm` is postponed / unused
 - Body Landmark Candidates / overlay / Summary Landmarks count are restricted to the core 13 front whitelist (not all non-face parsed landmarks)
 - Side landmark rendering and segmentation mask rendering are **not** implemented
-- Body Graph, Review Status, and latent space are **not** implemented
+- **Body Graph Contract v0** and **Body Graph Workspace v0** are implemented (runtime topology from promoted Core 13 annotations + dedicated read-only workspace tab)
+- Review Status and latent space are **not** implemented
 - Landmark UI names use Title Case display labels; internal ids may remain snake_case
 - Annotation 2D hover must not duplicate XYZ and equivalent projection coordinates
 
@@ -1744,7 +2025,7 @@ Owned by `src/ui/grid2dMarkerSizing.js`. Base sizes by step: 20 cm→5 px, 10 cm
 
 ## 8. Current UI State
 
-The UI uses a **REVacity-style** dark cosmic / neural command-center layout — black glassmorphism panels, deep purple and magenta accents, subtle cyan for measurement data. Typography: **Syne** (display) and **JetBrains Mono** (data). The center viewport hosts workspace tabs and either the 3D canvas, the 2D Grid Navigator, or both; chrome surrounds it on three sides.
+The UI uses a **REVacity-style** dark cosmic / neural command-center layout — black glassmorphism panels, deep purple and magenta accents, subtle cyan for measurement data. Typography: **Syne** (display) and **JetBrains Mono** (data). The center viewport hosts workspace tabs and either the 3D canvas, the 2D Grid Navigator (combined with 3D), or the Body Graph Workspace; chrome surrounds it on three sides.
 
 Layout is a CSS grid (`#app-layout`): top header, left sidebar, center viewport, right sidebar, bottom status bar.
 
@@ -1814,17 +2095,20 @@ The center viewport is no longer a single canvas container. It contains workspac
 
 | Element | ID | Role |
 |---------|-----|------|
-| Workspace tabs | `#workspace-tabs` | **3D Space** / **2D Workspace** (default: 3D Space) |
-| Workspace content | `#workspace-content` | Flex container for 3D pane, split divider, and 2D pane |
+| Workspace tabs | `#workspace-tabs` | **3D Space** / **2D Workspace** / **Body Graph** (default: 3D Space) |
+| Workspace content | `#workspace-content` | Flex container for 3D pane, split divider, 2D pane, and Body Graph pane |
 | 3D workspace pane | `#workspace-pane-3d` | Contains `#canvas-container` (Three.js WebGL + CSS2D renderers) and `#hover-coordinate-tooltip` |
 | Split divider | `#workspace-split-divider` | Draggable vertical divider (2D Workspace only; hidden otherwise) |
 | 2D workspace pane | `#grid2d-navigator-panel` | Compact **Front Surface** Grid Navigator (title/subtitle, status row, selection details, grid, legend, Back/Reset/Split); shown only inside 2D Workspace beside the 3D pane — not a duplicate measurement control panel |
+| Body Graph workspace pane | `#body-graph-workspace` | Dedicated read-only Body Graph Workspace v0 (summary + anatomical topology stage); shown only in Body Graph tab |
 
 
 - **3D canvas** lives in `#workspace-pane-3d` → `#canvas-container`.
 - **2D Grid Navigator** lives in `#grid2d-navigator-panel` — not in the left sidebar and not in the right Session Data tabs.
+- **Body Graph Workspace** lives in `#body-graph-workspace` — separate from Session Data Scene Graph.
 - **3D Space** shows the 3D metrology scene only.
 - **2D Workspace** displays the 3D pane and 2D Grid Navigator pane side-by-side with a resizable divider. There is no standalone 2D Space tab.
+- **Body Graph** shows the Core 13 topology diagram only.
 - Fills the space between sidebars and above the status bar.
 
 ### Right sidebar — Session Data (`#right-sidebar`)
@@ -1895,7 +2179,7 @@ Empty-state visibility within a tab uses `hidden` on `#history-empty` and `#anno
 
 - Contains **Export / Import** panel only (`#export-import-panel`).
 - **Export Scene JSON** (`#export-scene-json`), **Load Scene JSON** (`#load-scene-json`), import error message (`#scene-import-status`).
-- Export and import behavior is unchanged for Scene State; Body Evidence raw state remains excluded; promoted `body_landmark` annotations import/export as normal annotations; 2D UI-only state remains outside export/import.
+- Export and import behavior is unchanged for Scene State; Body Evidence raw state remains excluded; promoted `body_landmark` annotations import/export as normal annotations; Body Graph is **not** serialized (no `bodyGraph` field); after import the runtime Body Graph reconstructs from restored annotations; 2D UI-only state remains outside export/import.
 
 Tab content scrolls within `.sidebar-scroll.session-tab-content` when needed. **Clear History**, **Delete**, **Export Scene JSON**, **Load Scene JSON**, Scene Graph group toggles, and clickable Scene Graph rows are interactive. The Agent Tools placeholder has been removed.
 
@@ -2009,6 +2293,7 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Do not move 2D back to a floating overlay**
 - **Do not put 2D inside Session Data tabs**
 - **Do not break workspace tab switching or 2D Workspace resizing**
+- **Do not break Body Graph Workspace tab switching** — Body Graph must remain a dedicated read-only topology workspace that rebuilds from `buildBodyGraph(getAnnotations())` without clearing session data
 - **Do not re-add a standalone 2D Space tab** — 2D appears only inside 2D Workspace beside the 3D pane
 - **Do not merge Body Evidence itself into Scene State JSON** — Body Evidence sources/QA/overlay/selection stay out of Scene State; only manually promoted `body_landmark` annotations are normal Scene State annotations
 - **Do not auto-promote Body Evidence landmarks** — Promote is manual only via **Promote Selected Landmark**
@@ -2037,7 +2322,7 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Do not write Anatomical Measurement Lines / Body Measurement Readiness distances** into annotations, measurement history, or Scene State export
 - **Do not let Anatomical Measurement Lines read raw Body Evidence, unpromoted candidates (primary or secondary), rejected/ignored landmarks, side landmarks, or segmentation**
 - **Do not document Anatomical Measurement Lines Ready distances as final certified body measurements** — they are preview/debug/readiness values only; Body Evidence remains conceptual/mock-quality
-- **Do not treat Measurement Line Preview Overlay as normal A/B measurement** — visual-only Ready lines; not history; not saved into annotations; not exported; no Scene State schema change; no Body Graph; no latent space
+- **Do not treat Measurement Line Preview Overlay as normal A/B measurement** — visual-only Ready lines; not history; not saved into annotations; not exported; no Scene State schema change; not Body Graph; no latent space
 - **Do not let Measurement Line Preview Overlay use raw Body Evidence, unpromoted candidates (primary or secondary), rejected/ignored landmarks, side landmarks, or segmentation**
 - **Do not overlay distance labels on Measurement Line Preview Overlay lines** in 3D or 2D
 - **Do not let Body Measurement Previews affect A/B Measurement Lines, annotation markers, Body Evidence Overlay, Secondary Body Candidates, readiness math, or export/import**
@@ -2065,8 +2350,10 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Do not add a large outer halo/glow** to selected Body Evidence markers — keep internal emphasis only (`.grid2d-body-evidence-marker--active`)
 - **Do not break Front Surface Body Evidence mapping** — `spaceX = imageX / pixelsPerCm`, `spaceY = (canvasSize - imageY) / pixelsPerCm`
 - **Do not render side landmarks or segmentation masks** unless explicitly requested
-- **Do not promote Body Evidence to Body Graph** unless explicitly requested
-- **Do not document Review Status, Body Graph, or latent space as implemented**
+- **Do not auto-promote Body Evidence raw candidates into Body Graph** — Body Graph derives only from promoted `body_landmark` annotations
+- **Do not serialize Body Graph into Scene State JSON** — no `bodyGraph` field; reconstruct from restored annotations after import
+- **Do not document Review Status or latent space as implemented**
+- **Do not document Side Evidence v0 as implemented** — next proposed milestone only
 - **Do not include raw image blobs or segmentation label base64** in diagnostic Body Evidence JSON download — keep `labelShape` / `labelDtype` only for seg label metadata
 - **Do not implement latent space** unless explicitly requested
 - **Do not reintroduce Room Dimensions as a large left-sidebar consumer** without explicit instruction
@@ -2081,7 +2368,7 @@ When modifying this project, preserve the following unless explicitly instructed
 
 | File | Purpose |
 |------|---------|
-| `src/main.js` | Thin app orchestrator: scene assembly (incl. body measurement preview group), interaction/UI/export/import setup, Front Surface + Body Evidence + Measurement Line Preview Overlay + consolidated Body tab + workflow/collapsible sections init, resize, animation loop |
+| `src/main.js` | Thin app orchestrator: scene assembly (incl. body measurement preview group), interaction/UI/export/import setup, Front Surface + Body Evidence + Measurement Line Preview Overlay + consolidated Body tab + Body Graph Workspace + workflow/collapsible sections init, resize, animation loop |
 | `src/core/constants.js` | Shared scale, grid, LOD, and tooltip constants |
 | `src/core/frontSurface.js` | Front Surface depth, 2D↔3D mapping helpers (`frontSurfaceTo3d`, `frontSurfaceFrom3d`, `isOnFrontSurface`, readout formatting) |
 | `src/core/annotationTypes.js` | Allowed annotation node types, landmark preset mappings, normalize/fallback, display labels |
@@ -2100,18 +2387,20 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/projectionLinking.js` | Read-only Front Surface projection of Origin/Center/annotations into `#grid2d-markers`; View Controls sync; annotation hover without duplicate projection coords |
 | `src/features/bodyEvidence.js` | Body Evidence state store, analyze/clear, primary + secondary overlay visibility, fixed v0 display-scale resolution, inspect/select, core-front + secondary-front getters, manual Promote (core or secondary), Body Anchor Audit helper (`buildBodyAnchorAudit`), diagnostic JSON download |
 | `src/features/bodyEvidenceAdapter.js` | Body-only parse/normalize/QA adapter; landmark classification (face/head rejection, ignored/deferred, core-13 primary whitelist, Secondary Body Landmark Candidates v0 allowlist); fixed Body Evidence v0 scale assumptions; conceptual/mock evidence |
+| `src/features/bodyGraph.js` | Body Graph Contract v0 — deterministic runtime graph derivation (`buildBodyGraph`) from promoted Core 13 `body_landmark` annotations; no persistence / no Scene State schema |
+| `src/features/bodyGraph.test.js` | Body Graph Contract v0 unit tests |
 | `src/features/bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute (`buildMeasurementReferenceLevels`) — read-only level organization + optional paired spans from `body_landmark` annotations (internal; separate panel not shown by default) |
 | `src/features/bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute (`buildAnatomicalMeasurementLines`) — read-only candidate lines + Ready/Missing distances from `body_landmark` annotations |
 | `src/features/bodyMeasurementPreview.js` | Measurement Line Preview Overlay v0 — visual-only Ready anatomical preview lines in 3D + Front 2D; separate from A/B measurement rendering; no distance labels on lines |
 | `src/features/annotations.js` | Annotation CRUD (incl. programmatic promote path), 3D visuals, visibility, export/import restore; body_landmark pick helpers for Body Landmark Measurement Picking v0 |
-| `src/features/sceneExport.js` | Scene State JSON export (canonical shared measurement history; no 2D UI-only fields; no Body Evidence) |
+| `src/features/sceneExport.js` | Scene State JSON export (canonical shared measurement history; no 2D UI-only fields; no Body Evidence; no Body Graph field) |
 | `src/features/sceneImport.js` | Scene State JSON import validation and restore |
 | `src/features/sceneGraphHighlight.js` | Temporary Scene Graph 3D highlight overlays |
 | `src/interactions/raycast.js` | Shared raycaster, volume point resolution, `resolveBodyLandmarkMeasurementPoint` |
 | `src/interactions/picking.js` | Mode-aware click picking (Inspect: promoted `body_landmark` priority then lattice; Annotate: select only) |
 | `src/interactions/pointerEvents.js` | Canvas pointer wiring and left-panel clear/history/annotation buttons |
 | `src/interactions/hover.js` | Hover highlight and tooltip coordination |
-| `src/ui/domRefs.js` | Cached DOM references (incl. Secondary Body Candidates checkbox + secondary candidate list refs) |
+| `src/ui/domRefs.js` | Cached DOM references (incl. Secondary Body Candidates checkbox + secondary candidate list refs + Body Graph workspace refs) |
 | `src/ui/inspectorWorkflow.js` | Left inspector workflow switching (measurement / annotation / body-evidence); UI-only |
 | `src/ui/grid2dNavigator.js` | Front Surface Grid Navigator: 10 cm lattice, Pick/Region, simplified Split, shared measurement overlay, projected markers, Body Evidence overlay redraw hook, Body Measurement Preview 2D redraw hook |
 | `src/ui/grid2dMarkerSizing.js` | Relative 2D marker sizing helpers |
@@ -2121,8 +2410,9 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/ui/bodyEvidenceQaPanel.js` | Historical stub — superseded by `bodyTabConsolidatedPanel.js` (not wired from `main.js`; intentionally retained) |
 | `src/ui/bodyMeasurementLevelsPanel.js` | Historical stub — Measurement Reference Levels display folded into Body Measurement Readiness (not wired from `main.js`; intentionally retained) |
 | `src/ui/bodyMeasurementLinesPanel.js` | Historical stub — Anatomical Measurement Lines display folded into Body Measurement Readiness (not wired from `main.js`; intentionally retained) |
+| `src/ui/bodyGraphWorkspace.js` | Body Graph Workspace v0 — read-only Core 13 topology diagram (`setupBodyGraphWorkspace`, `refreshBodyGraphWorkspace`); rebuilds via `buildBodyGraph(getAnnotations())` |
 | `src/ui/collapsibleSections.js` | Left Metrology Inspector collapsible section/subgroup headers (UI-only) |
-| `src/ui/workspaceLayout.js` | Workspace tabs and combined 3D+2D layout |
+| `src/ui/workspaceLayout.js` | Workspace tabs (3D Space / 2D Workspace / Body Graph) and combined 3D+2D layout |
 | `src/ui/appModeControls.js` | Mode switch UI, workflow sync, and cleanup |
 | `src/ui/annotationControls.js` | Landmark Preset dropdown wiring |
 | `src/ui/hoverTooltip.js` | Screen-space hover coordinate tooltip |
@@ -2133,11 +2423,11 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/ui/viewControls.js` | View Controls checkbox wiring (3D + projected 2D + shared measurement lines + Body Measurement Previews; Body Evidence Overlay + Secondary Body Candidates wired via Body Evidence panel) |
 | `src/ui/selectionPanel.js` | Selected Point panel helper |
 | `src/styles/variables.css` | Design tokens |
-| `src/styles/layout.css` | App grid and workspace layout |
-| `src/styles/components.css` | Inspector (workflows, subgroups, collapsible headers, Body Evidence primary/secondary candidates, Body Status / Advanced Details / Promoted Body Anchors / Readiness, stacked measurement-point name/coords), tabs, history, annotations, Scene Graph |
+| `src/styles/layout.css` | App grid and workspace layout (incl. Body Graph pane visibility via `data-workspace-mode='body-graph'`) |
+| `src/styles/components.css` | Inspector (workflows, subgroups, collapsible headers, Body Evidence primary/secondary candidates, Body Status / Advanced Details / Promoted Body Anchors / Readiness, stacked measurement-point name/coords), tabs, history, annotations, Scene Graph, Body Graph Workspace styles |
 | `src/styles/overlays.css` | Tooltips, status bar, CSS2D labels, Front Surface grid UI + measurement overlay + projected markers + Body Measurement Preview lines + Body Evidence overlay markers (primary + secondary; active = internal emphasis only, no large outer halo) |
 | `src/style.css` | Stylesheet entry (`@import` chain) |
-| `index.html` | UI shell including Front Surface 2D pane markup (incl. `#grid2d-body-measurement-previews`), Workflow switch, View Controls (incl. Secondary Body Candidates + Body Measurement Previews), Body Evidence panel (primary + secondary candidates), Body tab (Status / Promoted Body Anchors / Body Measurement Readiness), collapsible left sections |
+| `index.html` | UI shell including Front Surface 2D pane markup (incl. `#grid2d-body-measurement-previews`), Body Graph workspace pane (`#body-graph-workspace`), Workflow switch, View Controls (incl. Secondary Body Candidates + Body Measurement Previews), Body Evidence panel (primary + secondary candidates), Body tab (Status / Promoted Body Anchors / Body Measurement Readiness), collapsible left sections |
 | `package.json` | Vite + Three.js dependencies |
 
 ### Run commands

@@ -22,8 +22,8 @@ latent-space/
 │   ├── style.css           # Stylesheet entry; @import chain only (Phase 8)
 │   ├── styles/
 │   │   ├── variables.css   # Design tokens, reset, base page background
-│   │   ├── layout.css      # App grid, header, sidebars, viewport/workspace panes, combined 2D Workspace (3D+2D) layout incl. default ~57% 3D split
-│   │   ├── components.css  # Inspector sections (subgroups, collapsible headers, workflow switch, Body Evidence panel incl. primary/secondary candidates/selected/promote, Body Tab Consolidation: Status counts + Advanced Details + Promoted Body Anchors table + Body Measurement Readiness, stacked Distance Measurement point name/coords), View Controls, Session Data tabs, workspace tabs, buttons, history, annotations, Scene Graph
+│   │   ├── layout.css      # App grid, header, sidebars, viewport/workspace panes, 3D / 2D Workspace / Body Graph modes (incl. default ~57% 3D split)
+│   │   ├── components.css  # Inspector sections (subgroups, collapsible headers, workflow switch, Body Evidence panel incl. primary/secondary candidates/selected/promote, Body Tab Consolidation: Status counts + Advanced Details + Promoted Body Anchors table + Body Measurement Readiness, stacked Distance Measurement point name/coords), View Controls, Session Data tabs, workspace tabs, Body Graph Workspace styles, buttons, history, annotations, Scene Graph
 │   │   └── overlays.css    # Hover tooltip, passive status bar, CSS2D label classes, Front Surface 2D Grid Navigator UI, shared measurement overlay, projected markers, Body Measurement Preview lines, Body Evidence overlay markers (primary + secondary; active = internal emphasis only), relative marker sizing vars
 │   ├── core/
 │   │   ├── constants.js    # Scale, grid, LOD, and tooltip constants
@@ -45,6 +45,8 @@ latent-space/
 │   │   ├── bodyMeasurementLevels.js # Measurement Reference Levels v0 compute (buildMeasurementReferenceLevels) — internal; useful info folded into Body Measurement Readiness
 │   │   ├── bodyMeasurementLines.js # Anatomical Measurement Lines v0 compute (buildAnatomicalMeasurementLines) — read-only candidate lines + Ready/Missing distances from body_landmark annotations
 │   │   ├── bodyMeasurementPreview.js # Measurement Line Preview Overlay v0 — visual-only Ready anatomical preview lines (3D group + Front 2D layer); separate from A/B measurement rendering; no distance labels
+│   │   ├── bodyGraph.js # Body Graph Contract v0 — deterministic runtime topology from promoted Core 13 body_landmark annotations (buildBodyGraph); no persistence / no Scene State schema
+│   │   ├── bodyGraph.test.js # Body Graph Contract v0 unit tests
 │   │   ├── sceneExport.js  # Scene State JSON export build, timestamp formatting, download
 │   │   ├── sceneImport.js  # Scene State JSON import validation, restore orchestration, error handling
 │   │   ├── sceneGraphHighlight.js # Temporary Scene Graph 3D highlight overlays
@@ -72,11 +74,12 @@ latent-space/
 │       ├── bodyMeasurementLevelsPanel.js # Historical stub — Levels display folded into Body Measurement Readiness (not wired from main.js; intentionally retained)
 │       ├── bodyMeasurementLinesPanel.js # Historical stub — Lines display folded into Body Measurement Readiness (not wired from main.js; intentionally retained)
 │       ├── bodyEvidenceOverlay2d.js # Front Surface Body Evidence overlay markers (core 13 primary + secondary allowlist when visible) + hover tooltip + inspect/select active state (image→cm mapping)
+│       ├── bodyGraphWorkspace.js # Body Graph Workspace v0 — read-only Core 13 topology diagram; rebuilds via buildBodyGraph(getAnnotations())
 │       ├── collapsibleSections.js # Left Metrology Inspector collapsible section/subgroup headers (UI-only; no data reset)
-│       ├── domRefs.js      # Cached DOM references for panels, buttons, lists, mode/workflow controls, View Controls, Body Evidence, Session Body tab, workspace, grid2d, tooltip
+│       ├── domRefs.js      # Cached DOM references for panels, buttons, lists, mode/workflow controls, View Controls, Body Evidence, Session Body tab, workspace (incl. Body Graph), grid2d, tooltip
 │       ├── grid2dNavigator.js # Front Surface 2D Grid Navigator (X/Y only, shared measurement overlay, Pick/Region, simplified Split, setGrid2dPointsVisible, Body Measurement Preview 2D redraw)
 │       ├── grid2dMarkerSizing.js # Relative 2D marker sizing helpers
-│       ├── workspaceLayout.js # Workspace tabs (3D Space / 2D Workspace), combined 3D+2D layout (~57% default 3D split), split divider, layout resize sync
+│       ├── workspaceLayout.js # Workspace tabs (3D Space / 2D Workspace / Body Graph), combined 3D+2D layout (~57% default 3D split), split divider, layout resize sync
 │       ├── hoverTooltip.js # Screen-space hover coordinate tooltip
 │       ├── measurementPanel.js # Distance Measurement panel and shared Measurement History list rendering (stacked body-landmark name + coords on active A/B)
 │       ├── sceneGraphPanel.js # Read-only Scene Graph tree in Graph tab (shared Active Measurement; no 2D Workspace State card)
@@ -101,9 +104,9 @@ Extracted source subdirectories: `src/core/` (Phases 1, 3), `src/ui/` (Phases 2,
 
 | Aspect | Detail |
 |--------|--------|
-| **Purpose** | Static HTML shell for the REVacity command-center layout; workflow switch, workspace tabs, 3D pane, 2D Grid Navigator panel, split divider, `#grid2d-*` markup, Body Evidence panel (primary + secondary candidates), View Controls Evidence checkboxes (incl. Secondary Body Candidates), Session Data Body tab (Body Evidence Status + Promoted Body Anchors + Body Measurement Readiness), collapsible left inspector section markers |
+| **Purpose** | Static HTML shell for the REVacity command-center layout; workflow switch, workspace tabs (3D Space / 2D Workspace / Body Graph), 3D pane, 2D Grid Navigator panel, Body Graph workspace pane, split divider, `#grid2d-*` markup, Body Evidence panel (primary + secondary candidates), View Controls Evidence checkboxes (incl. Secondary Body Candidates), Session Data Body tab (Body Evidence Status + Promoted Body Anchors + Body Measurement Readiness), collapsible left inspector section markers |
 | **Logic type** | Markup only — no inline scripts except module entry |
-| **Features depending on it** | All UI panels, workspace layout, viewport containers, hover tooltip element, font loading, Body Evidence workflow / consolidated Body tab markup, left section collapse headers |
+| **Features depending on it** | All UI panels, workspace layout, viewport containers, hover tooltip element, font loading, Body Evidence workflow / consolidated Body tab markup, Body Graph workspace markup, left section collapse headers |
 | **Mixed responsibilities?** | No — pure structure; behavior lives in modules via `main.js` |
 
 ### `package.json`
@@ -128,8 +131,8 @@ Extracted source subdirectories: `src/core/` (Phases 1, 3), `src/ui/` (Phases 2,
 
 | Aspect | Detail |
 |--------|--------|
-| **Purpose** | Thin application orchestrator — imports modules, initializes scene objects, assembles the scene (including `graphHighlightGroup`), calls `setupPointInteraction`, `setupInspectorWorkflow`, `setupAppModeControls`, `setupAnnotationControls`, `setupViewControls`, `setupSceneExport`, `setupSceneImport`, `setupSceneGraphPanel`, `setupSessionTabs`, `setupFrontSurfaceMeasurement(measurement)`, `setupGrid2dNavigator`, `setupProjectionLinking(refreshGrid2dNavigator)`, `setupBodyEvidenceOverlay2d`, `setupBodyEvidencePanel`, `setupBodyTabConsolidatedPanel`, `initCollapsibleSections`, and `setupWorkspaceLayout`, runs the animation loop |
-| **Logic type** | Module imports, Three.js scene graph assembly (`scene.add(...)`), setup calls for interaction, UI, export/import, Scene Graph, Session Data tabs, Front Surface measurement bridge, 2D navigator, projection linking, Body Evidence (panel + consolidated Body tab + overlay), inspector workflow, collapsible sections, and workspace layout; resize listener registration, `animate()` loop |
+| **Purpose** | Thin application orchestrator — imports modules, initializes scene objects, assembles the scene (including `graphHighlightGroup`), calls `setupPointInteraction`, `setupInspectorWorkflow`, `setupAppModeControls`, `setupAnnotationControls`, `setupViewControls`, `setupSceneExport`, `setupSceneImport`, `setupSceneGraphPanel`, `setupSessionTabs`, `setupFrontSurfaceMeasurement(measurement)`, `setupGrid2dNavigator`, `setupProjectionLinking(refreshGrid2dNavigator)`, `setupBodyEvidenceOverlay2d`, `setupBodyEvidencePanel`, `setupBodyTabConsolidatedPanel`, `initCollapsibleSections`, `setupBodyGraphWorkspace`, and `setupWorkspaceLayout`, runs the animation loop |
+| **Logic type** | Module imports, Three.js scene graph assembly (`scene.add(...)`), setup calls for interaction, UI, export/import, Scene Graph, Session Data tabs, Front Surface measurement bridge, 2D navigator, projection linking, Body Evidence (panel + consolidated Body tab + overlay), Body Graph Workspace, inspector workflow, collapsible sections, and workspace layout; resize listener registration, `animate()` loop |
 | **Features depending on it** | Sole Vite entry point; wires all runtime modules together |
 | **Mixed responsibilities?** | **No** — feature logic lives in dedicated modules; this file retains orchestration only |
 
@@ -324,13 +327,31 @@ Extracted source subdirectories: `src/core/` (Phases 1, 3), `src/ui/` (Phases 2,
 | **Features depending on it** | `main.js` (scene group + setup); View Controls **Body Measurement Previews** via `ui/viewControls.js`; Front Surface redraw via `ui/grid2dNavigator.js` |
 | **Mixed responsibilities?** | No — visual overlay only; **separate from normal A/B measurement rendering** in `measurement.js`; no distance labels; not history / annotations / export / Body Graph / latent space |
 
+### `src/features/bodyGraph.js`
+
+| Aspect | Detail |
+|--------|--------|
+| **Purpose** | Body Graph Contract v0 — deterministic runtime Core 13 topology derived from promoted `body_landmark` annotations |
+| **Logic type** | Pure compute (`BODY_GRAPH_V0_NODES`, `BODY_GRAPH_V0_EDGES`, `buildBodyGraph`); reuses Core Front Body Anchor name contract + `normalizeLandmarkName`; Present/Missing nodes and Ready/Missing structural edges; no Body Evidence state reads; no persistence; no Scene State schema |
+| **Features depending on it** | `ui/bodyGraphWorkspace.js` (read-only topology diagram); unit tests in `bodyGraph.test.js` |
+| **Mixed responsibilities?** | No — runtime symbolic contract only; separate from Body Measurement Readiness spans, preview lines, Scene Graph, and latent space |
+
+### `src/features/bodyGraph.test.js`
+
+| Aspect | Detail |
+|--------|--------|
+| **Purpose** | Unit tests for Body Graph Contract v0 (empty / partial / full Core coverage, secondary landmark exclusion, name normalization) |
+| **Logic type** | `node:test` assertions over `buildBodyGraph` |
+| **Features depending on it** | Development / CI verification only |
+| **Mixed responsibilities?** | No |
+
 ### `src/features/annotations.js`
 
 | Aspect | Detail |
 |--------|--------|
 | **Purpose** | Point annotation session state, 3D-anchored annotation visuals, CSS2D labels, 3D visibility toggle, add/delete logic, disposal helpers, body-landmark measurement pick helpers |
 | **Logic type** | Three.js group/CSS2D factories (`createAnnotationVisual` — stores `userData.annotationId` on groups), module-scoped state (`annotations`, `annotationIdCounter`, `annotationsGroup`, `annotationsVisible`), `setAnnotationsVisible()`, `setAnnotationsChangeHandler()`, CRUD handlers (`addAnnotation`, `deleteAnnotation`, `tryAddAnnotationFromSelection`, `addAnnotationFromPoint` for Body Evidence promote), Body Landmark Measurement Picking helpers (`isBodyLandmarkAnnotation`, `getBodyLandmarkAnnotationTargets`, `findAnnotationByMarkerObject`, `measurementPointFromBodyLandmark`), read-only export getter (`getAnnotations` — includes `id`, `name`, `type`, `position`), import restore handler (`restoreAnnotations` — clears existing annotations and recreates 3D markers and CSS2D labels with stable ids; reapplies current Show Annotations visibility; normalizes `type` via `normalizeAnnotationType()` with `custom` default/fallback), calls `resetAnnotationControls()` after add and via `clearAnnotationInput()` on mode switch, calls `clearGraphHighlight()` on annotation delete, disposal helpers (`removeAnnotationLabelElements`, `disposeAnnotationGroup`) |
-| **Features depending on it** | Add Annotation (Annotate mode only), Body Evidence Promote Selected Landmark, Body Landmark Measurement Picking v0 (via raycast/picking + projection linking), Delete per entry, annotation list, View Controls **Show Annotations** checkbox via `ui/viewControls.js`, **3D→2D projection linking** (via change handler), Session Data Body tab Promoted Body Anchors / Body Measurement Readiness (via `subscribeAnnotationsChange`), Scene State JSON export and import; imports `getSelectedPoint` from `features/selection.js`, `isAnnotateMode` from `features/appMode.js`, `hoverState` from `interactions/hover.js`, `normalizeAnnotationType` from `core/annotationTypes.js`, `resetAnnotationControls` from `ui/annotationControls.js`, `renderAnnotationList` from `ui/annotationPanel.js`, `annotationNameInput` and `annotationTypeSelect` from `ui/domRefs.js` |
+| **Features depending on it** | Add Annotation (Annotate mode only), Body Evidence Promote Selected Landmark, Body Landmark Measurement Picking v0 (via raycast/picking + projection linking), Delete per entry, annotation list, View Controls **Show Annotations** checkbox via `ui/viewControls.js`, **3D→2D projection linking** (via change handler), Session Data Body tab Promoted Body Anchors / Body Measurement Readiness (via `subscribeAnnotationsChange`), Body Graph Workspace refresh (via `subscribeAnnotationsChange`), Scene State JSON export and import; imports `getSelectedPoint` from `features/selection.js`, `isAnnotateMode` from `features/appMode.js`, `hoverState` from `interactions/hover.js`, `normalizeAnnotationType` from `core/annotationTypes.js`, `resetAnnotationControls` from `ui/annotationControls.js`, `renderAnnotationList` from `ui/annotationPanel.js`, `annotationNameInput` and `annotationTypeSelect` from `ui/domRefs.js` |
 | **Mixed responsibilities?** | No — still annotation ownership; pick helpers expose targets for existing A/B measurement, not a parallel measurement system |
 
 Saved annotations store `id`, `name`, `type`, and `position`. Landmark presets are naming helpers only — the final `name` comes from the Annotation Name input; preset is not stored or exported separately.
@@ -413,7 +434,7 @@ Allowed annotation node types: `custom`, `reference_point`, `body_landmark`, `ga
 
 | Aspect | Detail |
 |--------|--------|
-| **Purpose** | Cached `document.getElementById` references for app panels, buttons, lists, tooltip, workspace tabs/panes/divider, `#grid2d-*` elements, workflow controls, and Body Evidence controls |
+| **Purpose** | Cached `document.getElementById` references for app panels, buttons, lists, tooltip, workspace tabs/panes/divider (incl. Body Graph), `#grid2d-*` elements, workflow controls, and Body Evidence controls |
 | **Logic type** | DOM element exports only (queried once at module load) |
 | **Features depending on it** | All sidebar panels, measurement controls, annotation/history lists, mode/workflow switch, View Controls checkboxes (including Body Evidence Overlay and Body Measurement Previews), Body Evidence load/analyze/download/clear/candidates/selected/promote elements, Body tab Status + Promoted Body Anchors + Body Measurement Readiness elements, Session Data tab buttons/panels, workspace layout, 2D Grid Navigator (incl. `#grid2d-body-measurement-previews`), export/import controls, Scene Graph tree, canvas container, hover tooltip element |
 | **Mixed responsibilities?** | No |
@@ -481,7 +502,7 @@ Allowed annotation node types: `custom`, `reference_point`, `body_landmark`, `ga
 | **Purpose** | Front Surface overlay for core 13 primary Body Evidence anchors plus Secondary Body Landmark Candidates v0 when secondary visibility is on; inspect/select highlight |
 | **Logic type** | `setupBodyEvidenceOverlay2d(refreshGrid2dNavigator)`, image→Front Surface cm mapping (`mapImagePointToFrontSurface`: `spaceX = imageX / pixelsPerCm`, `spaceY = (canvasSize - imageY) / pixelsPerCm`), marker render into `#grid2d-body-evidence-markers` from core-front landmarks and optionally secondary allowlist landmarks (`getSecondaryCandidateLandmarks`), hover tooltip with landmark + fixed v0 scale source/status (`#grid2d-body-evidence-tooltip`), click/keyboard → `selectBodyEvidenceLandmark()` with `.grid2d-body-evidence-marker--active` (internal emphasis only; no large outer halo; secondary markers use `.grid2d-body-evidence-marker--secondary`); markers do not set measurement A/B; empty grid clicks still advance shared measurement |
 | **Features depending on it** | 2D Workspace Front Surface evidence markers; View Controls Body Evidence Overlay + Secondary Body Candidates; Selected Body Landmark card / candidate sync; fixed Body Evidence v0 scale (`10` px/cm, `2000` canvas) |
-| **Not implemented** | Side landmark rendering; segmentation mask rendering; Body Graph; Result / Scale JSON |
+| **Not implemented** | Side landmark rendering; segmentation mask rendering; Result / Scale JSON |
 | **Mixed responsibilities?** | No — overlay / select visuals only |
 
 ### `src/ui/inspectorWorkflow.js`
@@ -511,15 +532,24 @@ Allowed annotation node types: `custom`, `reference_point`, `body_landmark`, `ga
 | **Features depending on it** | Lattice render, Front Surface measurement overlay, projected markers |
 | **Mixed responsibilities?** | No |
 
+### `src/ui/bodyGraphWorkspace.js`
+
+| Aspect | Detail |
+|--------|--------|
+| **Purpose** | Body Graph Workspace v0 — dedicated read-only Core 13 anatomical topology diagram for the Body Graph workspace tab |
+| **Logic type** | `setupBodyGraphWorkspace()`, `refreshBodyGraphWorkspace()`; HTML node cards + SVG structural edges; deterministic percentage-based diagram layout; Present/Missing node and Ready/Missing edge styling; summary `Nodes {present}/13 · Edges {ready}/13`; rebuilds via `buildBodyGraph(getAnnotations())`; refreshes on `subscribeAnnotationsChange` and when the tab opens |
+| **Features depending on it** | `#body-graph-workspace` pane; wired from `main.js`; refreshed by `workspaceLayout.js` on Body Graph tab activation |
+| **Mixed responsibilities?** | No — UI/read-only visualization only; does not edit annotations, measurements, Body Evidence, Scene Graph, or export/import; not Body Measurement Readiness / preview lines |
+
 ### `src/ui/workspaceLayout.js`
 
 | Aspect | Detail |
 |--------|--------|
-| **Purpose** | Workspace tab switching and combined 3D+2D layout for the central viewport (two tabs: **3D Space** and **2D Workspace**) |
-| **Logic type** | `setupWorkspaceLayout()`, `setWorkspace()`, `getWorkspace()`; workspace tab handlers; split divider drag; `ResizeObserver`; calls `syncSceneResize()` and `refreshGrid2dNavigator()` on layout changes. Modes: `WORKSPACE_3D` (3D only) and `WORKSPACE_SPLIT` (combined 3D + 2D pane, `data-workspace-mode='split'`) |
+| **Purpose** | Workspace tab switching and central viewport layout for **3D Space**, **2D Workspace**, and **Body Graph** |
+| **Logic type** | `setupWorkspaceLayout()`, `setWorkspace()`, `getWorkspace()`; workspace tab handlers; split divider drag; `ResizeObserver`; calls `syncSceneResize()` and `refreshGrid2dNavigator()` on layout changes; refreshes Body Graph on Body Graph tab activation. Modes: `WORKSPACE_3D` (`3d`), `WORKSPACE_SPLIT` (`split`), `WORKSPACE_BODY_GRAPH` (`body-graph`) |
 | **Owns** | `currentWorkspace`; `splitRatio` (default ~0.57 / 57% for the 3D pane); `dividerDragActive`; `#viewport[data-workspace-mode]`; pane flex widths in the combined 2D Workspace |
-| **Features depending on it** | Workspace tabs (`#workspace-tab-3d`, `#workspace-tab-split`); **3D Space** (3D scene only) and **2D Workspace** (3D pane + 2D Grid Navigator pane + draggable divider; default split favors 3D slightly) layouts; 3D renderer sizing when pane resizes. The standalone 2D Space tab was removed |
-| **Coupling** | Layout-only — does not read or mutate 3D session state |
+| **Features depending on it** | Workspace tabs (`#workspace-tab-3d`, `#workspace-tab-split`, `#workspace-tab-body-graph`); **3D Space**, **2D Workspace** (3D + 2D Grid Navigator + divider), and **Body Graph** layouts; 3D renderer sizing when pane resizes. The standalone 2D Space tab was removed |
+| **Coupling** | Layout-only — does not read or mutate 3D session state; Body Graph rebuild remains annotation-derived |
 | **Mixed responsibilities?** | No — UI/layout coordinator only |
 
 ### `src/ui/hoverTooltip.js`
@@ -634,18 +664,18 @@ Allowed annotation node types: `custom`, `reference_point`, `body_landmark`, `ga
 
 | Aspect | Detail |
 |--------|--------|
-| **Purpose** | REVacity app grid shell, header, sidebars (left Metrology Inspector, right Session Data with header/subtitle), viewport/workspace layout (panes, split divider, default ~57% 3D split sizing, `data-workspace-mode` visibility) |
-| **Logic type** | Presentation only (`#app-layout`, `#top-header`, `#left-sidebar`, `#right-sidebar`, `#viewport`, `#workspace-content`, `.workspace-pane--3d`, `.workspace-pane--2d`, `.workspace-split-divider`, `#canvas-container`) |
-| **Features depending on it** | Five-region grid layout, sidebar scroll areas, workspace pane visibility (3D Space / 2D Workspace via `data-workspace-mode`), combined 2D Workspace split sizing (slightly more default width for the 3D pane), canvas container sizing |
+| **Purpose** | REVacity app grid shell, header, sidebars (left Metrology Inspector, right Session Data with header/subtitle), viewport/workspace layout (panes, split divider, default ~57% 3D split sizing, `data-workspace-mode` visibility for 3D / split / body-graph) |
+| **Logic type** | Presentation only (`#app-layout`, `#top-header`, `#left-sidebar`, `#right-sidebar`, `#viewport`, `#workspace-content`, `.workspace-pane--3d`, `.workspace-pane--2d`, `.workspace-pane--body-graph`, `.workspace-split-divider`, `#canvas-container`) |
+| **Features depending on it** | Five-region grid layout, sidebar scroll areas, workspace pane visibility (3D Space / 2D Workspace / Body Graph via `data-workspace-mode`), combined 2D Workspace split sizing (slightly more default width for the 3D pane), canvas container sizing |
 | **Mixed responsibilities?** | No |
 
 ### `src/styles/components.css`
 
 | Aspect | Detail |
 |--------|--------|
-| **Purpose** | Inspector sections (incl. subgroups, collapsible headers, Body Evidence panel with Summary / Primary + Secondary Candidates / Selected Landmark / Promote, Body Tab Consolidation styles for Status counts / Advanced Evidence Details / Promoted Body Anchors table / Body Measurement Readiness, stacked Distance Measurement point name/coords), workflow switch (`.mode-toggle`), View Controls checkboxes, Session Data tab bar (compact Hist / Annos / Body / Graph / Files), workspace tabs (`.workspace-tabs`, `.workspace-tab-btn`), hidden 2D mode panel (Control-key toggle), buttons, history/annotation lists (including annotation type and landmark preset dropdowns, type labels), Export / Import, Scene Graph (typed annotation rows/badges), clickable Scene Graph row styles, empty states for Session Data tabs |
-| **Logic type** | Presentation only (`.inspector-section`, `.inspector-subgroup`, `.section-title--collapsible`, `.is-collapsed`, `.body-evidence-*`, `.body-evidence-candidates--secondary`, `.measurement-point-name`, `.measurement-point-coords`, `.promoted-body-anchors-*`, `.body-anchor-audit*`, `.measurement-reference-level*`, `.workspace-tabs`, `.workspace-tab-btn`, `.grid2d-mode-panel` [hidden], `.session-tabs`, `.session-tab-btn`, `.tab-panel-hidden`, `.session-empty-state`, `.scene-graph-row--clickable`, `#history-list`, `#annotation-list`, `.annotation-select`, `.mode-toggle`, `.panel-button`, etc.) |
-| **Features depending on it** | Metrology Inspector panels, Body Evidence workflow UI (primary + secondary), consolidated Body tab (Status / Advanced Details / Promoted Body Anchors / Readiness), Distance Measurement named-point layout, collapsible sections/subgroups, Session Data tabbed sidebar, workspace tab bar, lists, Clear/action buttons |
+| **Purpose** | Inspector sections (incl. subgroups, collapsible headers, Body Evidence panel with Summary / Primary + Secondary Candidates / Selected Landmark / Promote, Body Tab Consolidation styles for Status counts / Advanced Evidence Details / Promoted Body Anchors table / Body Measurement Readiness, stacked Distance Measurement point name/coords), workflow switch (`.mode-toggle`), View Controls checkboxes, Session Data tab bar (compact Hist / Annos / Body / Graph / Files), workspace tabs (`.workspace-tabs`, `.workspace-tab-btn`), Body Graph Workspace styles (`.body-graph-*`), hidden 2D mode panel (Control-key toggle), buttons, history/annotation lists (including annotation type and landmark preset dropdowns, type labels), Export / Import, Scene Graph (typed annotation rows/badges), clickable Scene Graph row styles, empty states for Session Data tabs |
+| **Logic type** | Presentation only (`.inspector-section`, `.inspector-subgroup`, `.section-title--collapsible`, `.is-collapsed`, `.body-evidence-*`, `.body-evidence-candidates--secondary`, `.measurement-point-name`, `.measurement-point-coords`, `.promoted-body-anchors-*`, `.body-anchor-audit*`, `.measurement-reference-level*`, `.workspace-tabs`, `.workspace-tab-btn`, `.body-graph-*`, `.grid2d-mode-panel` [hidden], `.session-tabs`, `.session-tab-btn`, `.tab-panel-hidden`, `.session-empty-state`, `.scene-graph-row--clickable`, `#history-list`, `#annotation-list`, `.annotation-select`, `.mode-toggle`, `.panel-button`, etc.) |
+| **Features depending on it** | Metrology Inspector panels, Body Evidence workflow UI (primary + secondary), consolidated Body tab (Status / Advanced Details / Promoted Body Anchors / Readiness), Distance Measurement named-point layout, collapsible sections/subgroups, Session Data tabbed sidebar, workspace tab bar, Body Graph Workspace, lists, Clear/action buttons |
 | **Mixed responsibilities?** | No |
 
 ### `src/styles/overlays.css`
@@ -677,14 +707,14 @@ Allowed annotation node types: `custom`, `reference_point`, `body_landmark`, `ga
 
 ## 3. `src/main.js` Breakdown
 
-`main.js` is a thin orchestrator. All feature logic lives in dedicated modules. Front Surface, Body Evidence, inspector workflow, and collapsible inspector UI are wired as self-contained setup calls.
+`main.js` is a thin orchestrator. All feature logic lives in dedicated modules. Front Surface, Body Evidence, Body Graph Workspace, inspector workflow, and collapsible inspector UI are wired as self-contained setup calls.
 
 | Feature area | Key functions / code | Notes |
 |--------------|-------------------|-------|
 | **Core / metrology / feature / interaction imports** | `core/`, `metrology/`, `features/`, `interactions/` | Scene, lattice, measurement, annotations, picking/hover |
-| **UI imports** | mode/annotation controls, inspector workflow, Scene Graph/tabs, View Controls, Body Evidence panel/consolidated Body tab/overlay, collapsible sections, grid2d, workspace layout, export/import | Left/right inspector + 2D workspace |
+| **UI imports** | mode/annotation controls, inspector workflow, Scene Graph/tabs, View Controls, Body Evidence panel/consolidated Body tab/overlay, Body Graph Workspace, collapsible sections, grid2d, workspace layout, export/import | Left/right inspector + workspace panes |
 | **Scene assembly** | `scene.add(...)` | Metrology + feature objects including `graphHighlightGroup` and `bodyMeasurementPreviewGroup` |
-| **Interaction / UI setup** | `setupPointInteraction` → `setupInspectorWorkflow` → mode/annotation → export/import → Scene Graph/tabs → Front Surface measurement → grid2d → projection linking → Body Measurement Preview → View Controls → Body Evidence overlay/panel → `setupBodyTabConsolidatedPanel` → `initCollapsibleSections` → workspace layout | Body Measurement Preview before View Controls; Body Evidence + consolidated Body tab and collapsible sections after View Controls |
+| **Interaction / UI setup** | `setupPointInteraction` → `setupInspectorWorkflow` → mode/annotation → export/import → Scene Graph/tabs → Front Surface measurement → grid2d → projection linking → Body Measurement Preview → View Controls → Body Evidence overlay/panel → `setupBodyTabConsolidatedPanel` → `initCollapsibleSections` → `setupBodyGraphWorkspace` → workspace layout | Body Measurement Preview before View Controls; Body Evidence + consolidated Body tab and collapsible sections after View Controls; Body Graph before workspace layout |
 | **Resize / animate** | `onResize`, `animate()` | LOD update + WebGL + CSS2D render |
 
 Additional owners beyond the earlier modular split:
@@ -697,13 +727,15 @@ Additional owners beyond the earlier modular split:
 | Anatomical Measurement Lines compute | `features/bodyMeasurementLines.js` |
 | Measurement Line Preview Overlay (visual Ready lines; separate from A/B) | `features/bodyMeasurementPreview.js` |
 | Measurement Reference Levels compute (internal; separate panel not shown by default) | `features/bodyMeasurementLevels.js` |
+| Body Graph Contract v0 | `features/bodyGraph.js` (+ `bodyGraph.test.js`) |
+| Body Graph Workspace v0 | `ui/bodyGraphWorkspace.js` |
 | Historical Body tab panel stubs (not wired) | `ui/bodyEvidenceQaPanel.js`, `ui/bodyMeasurementLevelsPanel.js`, `ui/bodyMeasurementLinesPanel.js` |
 | Body Evidence Front Surface overlay | `ui/bodyEvidenceOverlay2d.js` |
 | Inspector workflow switching | `ui/inspectorWorkflow.js` |
 | Left inspector collapsible sections | `ui/collapsibleSections.js` |
 | Landmark display naming | `core/landmarkDisplay.js` |
 
-**Initialization flow:** imports → feature factories → scene assembly (incl. body measurement preview group) → `setupPointInteraction()` → `setupInspectorWorkflow()` → `setupAppModeControls()` → `setupAnnotationControls()` → `setupSceneExport()` → `setupSceneImport()` → `setupSceneGraphPanel()` → `setupSessionTabs()` → `setupFrontSurfaceMeasurement(measurement)` → `setupGrid2dNavigator()` → `setupProjectionLinking(refreshGrid2dNavigator)` → `setupBodyMeasurementPreview(refreshGrid2dNavigator)` → `setupViewControls(...)` → `setupBodyEvidenceOverlay2d(refreshGrid2dNavigator)` → `setupBodyEvidencePanel()` → `setupBodyTabConsolidatedPanel()` → `initCollapsibleSections()` → `setupWorkspaceLayout()` → resize listener → `animate()`.
+**Initialization flow:** imports → feature factories → scene assembly (incl. body measurement preview group) → `setupPointInteraction()` → `setupInspectorWorkflow()` → `setupAppModeControls()` → `setupAnnotationControls()` → `setupSceneExport()` → `setupSceneImport()` → `setupSceneGraphPanel()` → `setupSessionTabs()` → `setupFrontSurfaceMeasurement(measurement)` → `setupGrid2dNavigator()` → `setupProjectionLinking(refreshGrid2dNavigator)` → `setupBodyMeasurementPreview(refreshGrid2dNavigator)` → `setupViewControls(...)` → `setupBodyEvidenceOverlay2d(refreshGrid2dNavigator)` → `setupBodyEvidencePanel()` → `setupBodyTabConsolidatedPanel()` → `initCollapsibleSections()` → `setupBodyGraphWorkspace()` → `setupWorkspaceLayout()` → resize listener → `animate()`.
 
 ## 4. Stylesheet Breakdown
 
@@ -729,7 +761,7 @@ Additional owners beyond the earlier modular split:
 | **`#app-layout`** | CSS grid shell: header, sidebars, viewport, footer |
 | **Top header** | Brand, title, status badges, pulse dot |
 | **Sidebars** | Left Metrology Inspector (workflow switch, View Controls, Body Evidence, mode/workflow-specific panels, collapsible sections/subgroups), right Session Data (header/subtitle, compact tabs, scroll area) |
-| **Viewport / workspace** | `#viewport`, `#workspace-tabs`, `#workspace-content`, workspace panes, split divider, `#canvas-container` |
+| **Viewport / workspace** | `#viewport`, `#workspace-tabs`, `#workspace-content`, workspace panes (3D / 2D / Body Graph), split divider, `#canvas-container`; `data-workspace-mode` visibility |
 
 ### `src/styles/components.css`
 
@@ -743,7 +775,8 @@ Additional owners beyond the earlier modular split:
 | **History** | `#history-list`, `.history-item` cards in History tab |
 | **Annotations** | Annotation Type dropdown, Landmark Preset dropdown, Annotation Name input, and Add Annotation in left Selected Point panel (Annotate workflow); `#annotation-list` in Annotations tab (type labels per card), delete buttons, shared `.annotation-select` dropdown styling |
 | **Session Data tabs** | `.session-tabs`, `.session-tab-btn`, `.tab-panel-hidden`, `.session-empty-state` (compact Hist / Annos / Body / Graph / Files) |
-| **Workspace tabs** | `.workspace-tabs`, `.workspace-tab-btn` in center viewport |
+| **Workspace tabs** | `.workspace-tabs`, `.workspace-tab-btn` in center viewport (3D Space / 2D Workspace / Body Graph) |
+| **Body Graph Workspace** | `.body-graph-workspace`, `.body-graph-header`, `.body-graph-summary`, `.body-graph-stage`, `.body-graph-edge--ready` / `--missing`, `.body-graph-node--present` / `--missing` |
 | **2D mode panel (hidden)** | `.grid2d-mode-panel` — Control-key toggle; buttons in HTML not wired in JS |
 | **Scene Graph** | `#scene-graph-panel`, `#scene-graph-tree`, `.scene-graph-group`, `.scene-graph-row--clickable` in Graph tab |
 | **Export / Import** | `#export-import-panel`, `#export-scene-json`, `#load-scene-json`, `#scene-import-status` in Files tab |
@@ -789,12 +822,14 @@ Room Dimensions (`#info-panel`) is no longer present as a left-sidebar consumer.
 
 ### Center viewport (`#viewport`)
 
-- **Workspace tabs** (`#workspace-tabs`): only two tabs — **3D Space** (default) and **2D Workspace** (`#workspace-tab-split`). No standalone 2D Space tab.
+- **Workspace tabs** (`#workspace-tabs`): three tabs — **3D Space** (default), **2D Workspace** (`#workspace-tab-split`), and **Body Graph** (`#workspace-tab-body-graph`). No standalone 2D Space tab.
 - **Workspace content** (`#workspace-content`): flex container for panes and divider
 - **3D pane** (`#workspace-pane-3d`): `#canvas-container` — WebGL canvas and CSS2D label renderer appended here by JS; `#hover-coordinate-tooltip` screen-space overlay
 - **Split divider** (`#workspace-split-divider`): draggable vertical separator (2D Workspace only)
 - **2D pane** (`#grid2d-navigator-panel`): Front Surface Grid Navigator markup — title/subtitle (`Front Surface — X / Y`), compact status row, selection details, `#grid2d-markers` (projected Origin/Center/annotations), `#grid2d-body-measurement-previews` (Body Measurement Preview lines), `#grid2d-body-evidence-markers` (Body Evidence front overlay), `#grid2d-projection-tooltip`, `#grid2d-body-evidence-tooltip`, `#grid2d-grid-wrapper`, legend, Back/Reset/Split actions; shown only inside 2D Workspace beside the 3D pane (no Top/Side toggles, no duplicate measurement clear panel)
+- **Body Graph pane** (`#body-graph-workspace`): Body Graph Workspace v0 markup — compact summary (`Nodes {present}/13 · Edges {ready}/13`) + stage (`#body-graph-edges` SVG + `#body-graph-nodes`); shown only in Body Graph tab
 - 2D is **not** in the left sidebar or right Session Data tabs
+- Body Graph Workspace is **not** the Session Data Scene Graph
 
 ### Right sidebar — Session Data (`#right-sidebar`)
 
@@ -826,7 +861,7 @@ Room Dimensions (`#info-panel`) is no longer present as a left-sidebar consumer.
 ### Modular architecture (post-refactor)
 
 - The former **`src/main.js` monolith** has been split across dedicated modules under `src/core/`, `src/metrology/`, `src/interactions/`, `src/features/`, `src/ui/`, and `src/styles/`.
-- **`src/main.js`** is a thin orchestrator: imports modules, assembles the scene (including `graphHighlightGroup`), calls setup for interaction, inspector workflow, mode/annotation UI, View Controls, Scene export/import, Scene Graph/tabs, Front Surface measurement/navigator/projection linking, Body Evidence overlay/panel, consolidated Body tab, collapsible sections, and workspace layout, registers resize, and runs the animation loop.
+- **`src/main.js`** is a thin orchestrator: imports modules, assembles the scene (including `graphHighlightGroup`), calls setup for interaction, inspector workflow, mode/annotation UI, View Controls, Scene export/import, Scene Graph/tabs, Front Surface measurement/navigator/projection linking, Body Evidence overlay/panel, consolidated Body tab, Body Graph Workspace, collapsible sections, and workspace layout, registers resize, and runs the animation loop.
 - Picking, raycasting, and pointer event wiring live in `src/interactions/raycast.js`, `picking.js`, and `pointerEvents.js` (Phase 9).
 
 ### UI DOM mixed with Three.js
@@ -972,7 +1007,7 @@ Room Dimensions (`#info-panel`) is no longer present as a left-sidebar consumer.
 | **Point annotations** | `features/annotations.js` + `ui/annotationControls.js` + `ui/annotationPanel.js` + `ui/viewControls.js` + `core/annotationTypes.js` + `core/landmarkDisplay.js` | `#annotation-type-select`, `#annotation-preset-select`, `#annotation-name-input`, `#add-annotation` (left, Annotate only); `#show-annotations` in `#view-controls-panel`; Annotations tab: `#annotations-panel`, `#annotations-empty`, `#annotation-list` (name + type labels) | `annotations[]` (`id`, `name`, `type`, `position`), `annotationIdCounter`, `annotationsGroup`, `annotationsVisible` in `features/annotations.js` | Per-annotation THREE.Group (purple box + CSS2D label; visual unchanged by type/preset); landmark presets help fill `name` but do not change coordinates; Body Evidence Promote uses `addAnnotationFromPoint` |
 | **Scene Graph** | `ui/sceneGraphPanel.js` + `features/sceneGraphHighlight.js` | Graph tab: `#scene-graph-panel`, `#scene-graph-tree`, clickable `.scene-graph-row--clickable` rows (typed annotation nodes; Title Case display names) | Reads via `buildSceneState()`; highlight timer in `sceneGraphHighlight.js` | Read-only tree visualization with annotation type display; clickable rows call highlight helpers; compact rows; collapsed-by-default large groups; temporary markers/lines |
 | **Scene Graph temporary highlighting** | `features/sceneGraphHighlight.js` | Clickable rows in `#scene-graph-panel` | `graphHighlightGroup`, auto-clear timer | Temporary markers and lines; visual-only graph-to-3D preview; does not mutate session data |
-| **Scene State export** | `features/sceneExport.js` | Files tab: `#export-scene-json` (`#export-import-panel`) | Reads app mode, `measurement` object, **3D** measurement history, annotations (`name`, `type`, `position`; preset not exported); **no Body Evidence / no 2D UI-only fields** | — (downloadable JSON file with typed annotations, including promoted body landmarks) |
+| **Scene State export** | `features/sceneExport.js` | Files tab: `#export-scene-json` (`#export-import-panel`) | Reads app mode, `measurement` object, **3D** measurement history, annotations (`name`, `type`, `position`; preset not exported); **no Body Evidence / no Body Graph field / no 2D UI-only fields** | — (downloadable JSON file with typed annotations, including promoted body landmarks) |
 | **Scene State import** | `features/sceneImport.js` | Files tab: Load Scene JSON (`#load-scene-json`) and import error message (`#scene-import-status`) | Writes through module-owned restore functions in `measurement.js`, `annotations.js` (restores `name` and `type`; missing `type` → `custom`; preset state not restored), and `applyImportedMode()` in `appModeControls.js`; does not restore Body Evidence | Restored A/B markers, measurement line/label, annotation markers/labels with name/type; updates all tabs in background |
 | **Session Data tabs** | `ui/sessionTabs.js` | `#session-tabs`, tab buttons, `#tab-panel-history`, `#tab-panel-annotations`, `#tab-panel-body`, `#tab-panel-graph`, `#tab-panel-files` | Active tab UI state only | — (switches visible right-sidebar panel without modifying scene/app state) |
 | **View Controls** | `ui/viewControls.js` + `ui/bodyEvidencePanel.js` (Body Evidence Overlay + Secondary Body Candidates checkboxes) + reference/annotation/volume/measurement/projection/grid2d/bodyMeasurementPreview modules | `#view-controls-panel` grouped checkboxes (incl. `#show-secondary-body-candidates`, `#show-body-measurement-previews`) | Visibility flags in owning modules | Toggles Origin/Center (3D + projected 2D), annotations (3D + projected 2D), 3D lattice, 2D grid points, shared A/B measurement lines/labels, Body Evidence Overlay (primary/core), Secondary Body Candidates (unpromoted secondary only), Body Measurement Previews (Ready anatomical preview lines only; independent from A/B Measurement Lines) |
@@ -982,7 +1017,9 @@ Room Dimensions (`#info-panel`) is no longer present as a left-sidebar consumer.
 | **Measurement Reference Levels** | `features/bodyMeasurementLevels.js` | Internal compute; separate panel not shown by default after consolidation | `buildMeasurementReferenceLevels` over `body_landmark` annotations only; optional paired spans via `calculateDistance` | Read-only QA/organization helper; useful info folded into Body Measurement Readiness; spans display-only; not Body Graph / measurement generation / latent space |
 | **Body Tab Consolidation** | `ui/bodyTabConsolidatedPanel.js` | `#body-evidence-status-panel`, `#promoted-body-anchors-panel`, `#body-measurement-readiness-panel` | Reuses QA + audit + lines compute; no schema change | UI/IA cleanup only; compact Status counts; Advanced Evidence Details collapsed by default with readable name lists |
 | **Collapsible inspector sections** | `ui/collapsibleSections.js` | Left `#left-sidebar` sections/subgroups with `data-collapsible` (incl. Import Files / Actions) | CSS class `is-collapsed` only | UI-only; does not reset session/evidence data; not exported |
-| **Workspace layout** | `ui/workspaceLayout.js` | `#workspace-tabs`, panes, divider | `currentWorkspace`, `splitRatio` (~0.57), `dividerDragActive` | Layout only |
+| **Workspace layout** | `ui/workspaceLayout.js` | `#workspace-tabs`, panes (3D / 2D / Body Graph), divider | `currentWorkspace`, `splitRatio` (~0.57), `dividerDragActive` | Layout only |
+| **Body Graph Workspace** | `ui/bodyGraphWorkspace.js` | `#body-graph-workspace` | Rebuilds from `buildBodyGraph(getAnnotations())` | UI/read-only |
+| **Body Graph Contract** | `features/bodyGraph.js` | Runtime only | Derived Core 13 topology; no persistence | Pure compute |
 | **2D Grid Navigator** | `ui/grid2dNavigator.js` + `features/frontSurfaceMeasurement.js` + `features/projectionLinking.js` + `ui/bodyEvidenceOverlay2d.js` + `features/bodyMeasurementPreview.js` + `ui/grid2dMarkerSizing.js` | `#grid2d-*` Front Surface pane (no Top/Side, no duplicate clear/readout panel); incl. `#grid2d-body-measurement-previews` | Navigator UI-only state in `grid2dNavigator.js` | Front Surface grid, shared measurement overlay, projected Origin/Center/annotations, optional Body Evidence front overlay, optional Body Measurement Preview lines |
 | **UI layout (REVacity)** | `index.html` + `styles/` (via `style.css` entry) | `#app-layout`, header, left Metrology Inspector, center workspace viewport, right Session Data, footer | — | — |
 | **Orbit / camera** | `core/scene.js` (imported by `main.js`) | — | `controls`, `camera` | — |
@@ -1001,16 +1038,16 @@ Room Dimensions (`#info-panel`) is no longer present as a left-sidebar consumer.
 | **`metrology/`** | Room shell, surface grid, internal lattice, LOD, axes, reference markers |
 | **`interactions/`** | Raycasting, picking, pointer events, hover pipeline |
 | **`features/`** | Selection, shared measurement, Front Surface measurement bridge, Front Surface projection linking, Body Evidence store/adapter (incl. manual Promote), Anatomical Measurement Lines compute, Measurement Line Preview Overlay, Measurement Reference Levels compute, annotations, app mode, Scene State export/import, Scene Graph highlighting, linked selection |
-| **`ui/`** | DOM refs, panel updates, list rendering, hover tooltip, app mode controls, inspector workflow, annotation controls, View Controls (incl. Body Measurement Previews), Body Evidence panel/consolidated Body tab/overlay, collapsible sections, Scene Graph panel, Session Data tabs, Front Surface Grid Navigator, marker sizing, workspace layout |
-| **`main.js`** | Thin orchestrator including Front Surface, Body Measurement Preview, Body Evidence, consolidated Body tab, workflow, and collapsible-section setup calls, animation loop |
+| **`ui/`** | DOM refs, panel updates, list rendering, hover tooltip, app mode controls, inspector workflow, annotation controls, View Controls (incl. Body Measurement Previews), Body Evidence panel/consolidated Body tab/overlay, Body Graph Workspace, collapsible sections, Scene Graph panel, Session Data tabs, Front Surface Grid Navigator, marker sizing, workspace layout |
+| **`main.js`** | Thin orchestrator including Front Surface, Body Measurement Preview, Body Evidence, consolidated Body tab, Body Graph Workspace, workflow, and collapsible-section setup calls, animation loop |
 
 ### Completed CSS splits
 
 | File | Owns |
 |------|------|
 | **`styles/variables.css`** | `:root` tokens, reset, base page background |
-| **`styles/layout.css`** | `#app-layout`, grid, header, sidebars, viewport/workspace panes, split divider, default ~57% 3D split sizing |
-| **`styles/components.css`** | Inspector sections (subgroups, collapsible headers, Body Evidence workflow primary/secondary candidates + Body Tab Consolidation Status / Advanced Details / Promoted Body Anchors table / Body Measurement Readiness), stacked Distance Measurement point name/coords, workflow switch, View Controls, Session Data tabs, workspace tabs, history, annotations, Scene Graph, Export / Import, buttons |
+| **`styles/layout.css`** | `#app-layout`, grid, header, sidebars, viewport/workspace panes (incl. Body Graph), split divider, default ~57% 3D split sizing |
+| **`styles/components.css`** | Inspector sections (subgroups, collapsible headers, Body Evidence workflow primary/secondary candidates + Body Tab Consolidation Status / Advanced Details / Promoted Body Anchors table / Body Measurement Readiness), stacked Distance Measurement point name/coords, workflow switch, View Controls, Session Data tabs, workspace tabs, Body Graph Workspace, history, annotations, Scene Graph, Export / Import, buttons |
 | **`styles/overlays.css`** | Hover tooltip, status bar, CSS2D label classes, Front Surface Grid Navigator UI, shared measurement overlay, projected markers, Body Measurement Preview lines, Body Evidence overlay markers (primary + secondary; active = internal emphasis only), relative marker sizing CSS vars |
 | **`style.css`** | `@import` entry chain only |
 
@@ -1039,13 +1076,15 @@ Room Dimensions (`#info-panel`) is no longer present as a left-sidebar consumer.
 - `src/features/bodyMeasurementLevels.js` isolates Measurement Reference Levels v0 compute (optional paired spans; not saved/exported; separate panel not shown by default after consolidation).
 - `src/features/bodyMeasurementLines.js` isolates Anatomical Measurement Lines v0 compute (Ready/Missing candidate distances; display-only in Readiness; not Body Graph / normal A/B / latent space).
 - `src/features/bodyMeasurementPreview.js` isolates Measurement Line Preview Overlay v0 (visual-only Ready lines in 3D + Front 2D; separate from A/B measurement rendering; no distance labels on lines).
+- `src/features/bodyGraph.js` isolates Body Graph Contract v0 (runtime Core 13 topology from promoted annotations; tested by `bodyGraph.test.js`).
 - `src/ui/bodyEvidencePanel.js` + `bodyTabConsolidatedPanel.js` + `bodyEvidenceOverlay2d.js` isolate Body Evidence workflow UI (primary + secondary candidates), consolidated Body tab (Status counts + Advanced Details + Promoted Anchors + Readiness), and Front Surface overlay (core primary + secondary when visible; candidate/select sync; no A/B from evidence markers).
+- `src/ui/bodyGraphWorkspace.js` isolates Body Graph Workspace v0 (dedicated read-only topology diagram).
 - `src/ui/bodyEvidenceQaPanel.js`, `bodyMeasurementLevelsPanel.js`, and `bodyMeasurementLinesPanel.js` remain as intentionally retained historical stubs (not wired from `main.js`).
 - `src/ui/inspectorWorkflow.js` isolates left inspector workflow switching.
 - `src/ui/collapsibleSections.js` isolates left inspector collapse including Import Files / Actions subgroups (UI-only).
 - **`src/ui/grid2dNavigator.js`** isolates the Front Surface Grid Navigator (10 cm base grid, simplified Split, shared measurement overlay, Body Measurement Preview 2D redraw).
-- **`src/ui/workspaceLayout.js`** isolates workspace tab switching and split-pane layout.
+- **`src/ui/workspaceLayout.js`** isolates workspace tab switching (3D Space / 2D Workspace / Body Graph) and split-pane layout.
 
 ---
 
-*Last audited against the codebase and `CURSOR.md` behavioral contract after the accepted Secondary Body Landmark Candidates v0, Secondary Body Candidates visibility, Body Landmark Measurement Picking v0, Distance Measurement panel layout fix, Body tab Advanced Evidence Details cleanup, and related body-workflow cleanup (plus Measurement Line Preview Overlay v0, Anatomical Measurement Lines v0, Body Tab Consolidation v0, Body Evidence Import v0 fixed-scale, core-13 primary whitelist, Promoted Body Anchors Summary v0, Body Anchor Coordinate Audit v0, and Measurement Reference Levels v0). Top/Side 2D views and independent native 2D measurement remain removed. Result / Scale JSON is not imported. Side landmark rendering, segmentation mask rendering, Body Graph, Review Status, and latent space are not implemented.*
+*Last audited against the codebase and `CURSOR.md` behavioral contract after the accepted Body Graph Contract v0, Body Graph Workspace v0 (incl. visual polish), Secondary Body Landmark Candidates v0, Secondary Body Candidates visibility, Body Landmark Measurement Picking v0, Distance Measurement panel layout fix, Body tab Advanced Evidence Details cleanup, and related body-workflow cleanup (plus Measurement Line Preview Overlay v0, Anatomical Measurement Lines v0, Body Tab Consolidation v0, Body Evidence Import v0 fixed-scale, core-13 primary whitelist, Promoted Body Anchors Summary v0, Body Anchor Coordinate Audit v0, and Measurement Reference Levels v0). Top/Side 2D views and independent native 2D measurement remain removed. Result / Scale JSON is not imported. Side landmark rendering, Side Evidence v0, segmentation mask rendering, Review Status, and latent space are not implemented.*
