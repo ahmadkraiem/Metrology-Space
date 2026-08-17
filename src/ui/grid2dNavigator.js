@@ -31,6 +31,13 @@ import {
 } from './bodyEvidenceOverlay2d.js';
 import { renderBodyMeasurementPreview2d } from '../features/bodyMeasurementPreview.js';
 import {
+  FIELD_INSET_PX,
+  applyPlotAreaCssVars,
+  computePlotMetrics,
+  plotPercentFromRatio,
+  renderPlotAxisLabels,
+} from './grid2dPlotArea.js';
+import {
   grid2dBackBtn,
   grid2dResetBtn,
   grid2dSplitBtn,
@@ -61,11 +68,6 @@ const MODE_REGION = 'region';
 const BASE_DOMAIN = { hMin: 0, hMax: ROOM_SIZE, vMin: 0, vMax: ROOM_SIZE };
 const BASE_STEP = 10;
 const MIN_DETAIL_STEP = 5;
-const FIELD_INSET_PX = 3;
-const AXIS_GUTTER_LEFT_PX = 26;
-const AXIS_GUTTER_BOTTOM_PX = 22;
-const PLOT_MARGIN_TOP_PX = 14;
-const PLOT_MARGIN_RIGHT_PX = 10;
 const MIN_DRAG_PX = 4;
 const PICK_HIT_RADIUS_PX = 10;
 const MIN_VISUAL_ZOOM = 1;
@@ -263,15 +265,10 @@ function getFieldInnerSize() {
 }
 
 function getPlotMetrics() {
-  const { width, height } = getFieldInnerSize();
-  const padLeft = Math.min(AXIS_GUTTER_LEFT_PX, Math.max(0, width / 2 - 1));
-  const padBottom = Math.min(AXIS_GUTTER_BOTTOM_PX, Math.max(0, height / 2 - 1));
-  const padTop = Math.min(PLOT_MARGIN_TOP_PX, Math.max(0, height / 2 - 1));
-  const padRight = Math.min(PLOT_MARGIN_RIGHT_PX, Math.max(0, width / 2 - 1));
-  const plotW = Math.max(1, width - padLeft - padRight);
-  const plotH = Math.max(1, height - padTop - padBottom);
-
-  return { width, height, padLeft, padTop, padRight, padBottom, plotW, plotH };
+  return computePlotMetrics(
+    grid2dGridWrapperEl.clientWidth,
+    grid2dGridWrapperEl.clientHeight,
+  );
 }
 
 function worldToPlotPx(h, v) {
@@ -288,30 +285,7 @@ function worldToPlotPx(h, v) {
 }
 
 function updatePlotAreaCss() {
-  const {
-    width,
-    height,
-    padLeft,
-    padTop,
-    padBottom,
-    plotW,
-    plotH,
-  } = getPlotMetrics();
-
-  if (width <= 0 || height <= 0) {
-    return;
-  }
-
-  grid2dFieldEl.style.setProperty('--grid2d-plot-left', `${(padLeft / width) * 100}%`);
-  grid2dFieldEl.style.setProperty('--grid2d-plot-top', `${(padTop / height) * 100}%`);
-  grid2dFieldEl.style.setProperty('--grid2d-plot-width', `${(plotW / width) * 100}%`);
-  grid2dFieldEl.style.setProperty('--grid2d-plot-height', `${(plotH / height) * 100}%`);
-  grid2dFieldEl.style.setProperty('--grid2d-plot-bottom', `${((padTop + plotH) / height) * 100}%`);
-  grid2dFieldEl.style.setProperty('--grid2d-gutter-left-half', `${(padLeft / 2 / width) * 100}%`);
-  grid2dFieldEl.style.setProperty(
-    '--grid2d-gutter-bottom-mid',
-    `${((padTop + plotH + padBottom / 2) / height) * 100}%`,
-  );
+  applyPlotAreaCssVars(grid2dFieldEl, getPlotMetrics());
 }
 
 function worldToScreen2d(h, v) {
@@ -365,16 +339,14 @@ function isInDomain(h, v) {
 }
 
 function projectToPercent(h, v) {
-  const { width, height, padLeft, padTop, plotW, plotH } = getPlotMetrics();
   const spanH = BASE_DOMAIN.hMax - BASE_DOMAIN.hMin;
   const spanV = BASE_DOMAIN.vMax - BASE_DOMAIN.vMin;
-  const u = (h - BASE_DOMAIN.hMin) / spanH;
-  const t = (v - BASE_DOMAIN.vMin) / spanV;
 
-  return {
-    left: `${((padLeft + u * plotW) / width) * 100}%`,
-    top: `${((padTop + (1 - t) * plotH) / height) * 100}%`,
-  };
+  return plotPercentFromRatio(
+    getPlotMetrics(),
+    (h - BASE_DOMAIN.hMin) / spanH,
+    (v - BASE_DOMAIN.vMin) / spanV,
+  );
 }
 
 function hideActiveRegionSelectionVisuals() {
@@ -793,43 +765,12 @@ function updateChrome() {
 
 function renderAxisLabels() {
   const view = getActiveViewConfig();
-  const hLabel = view.hAxis.toUpperCase();
-  const vLabel = view.vAxis.toUpperCase();
 
-  grid2dAxisLabelsEl.replaceChildren();
-
-  const hDirLabel = document.createElement('span');
-  hDirLabel.className = `grid2d-axis-dir grid2d-axis-dir--horizontal grid2d-axis-dir--${view.hAxis}`;
-  hDirLabel.textContent = `${hLabel} →`;
-
-  const vDirLabel = document.createElement('span');
-  vDirLabel.className = `grid2d-axis-dir grid2d-axis-dir--vertical grid2d-axis-dir--${view.vAxis}`;
-  vDirLabel.textContent = `${vLabel} ↑`;
-
-  const hMinTick = document.createElement('span');
-  hMinTick.className = 'grid2d-axis-tick grid2d-axis-tick--h-min';
-  hMinTick.textContent = '0';
-
-  const hMaxTick = document.createElement('span');
-  hMaxTick.className = 'grid2d-axis-tick grid2d-axis-tick--h-max';
-  hMaxTick.textContent = `${ROOM_SIZE}`;
-
-  const vMinTick = document.createElement('span');
-  vMinTick.className = 'grid2d-axis-tick grid2d-axis-tick--v-min';
-  vMinTick.textContent = '0';
-
-  const vMaxTick = document.createElement('span');
-  vMaxTick.className = 'grid2d-axis-tick grid2d-axis-tick--v-max';
-  vMaxTick.textContent = `${ROOM_SIZE}`;
-
-  grid2dAxisLabelsEl.append(
-    hDirLabel,
-    vDirLabel,
-    hMinTick,
-    hMaxTick,
-    vMinTick,
-    vMaxTick,
-  );
+  renderPlotAxisLabels(grid2dAxisLabelsEl, {
+    hAxis: view.hAxis,
+    vAxis: view.vAxis,
+    maxLabel: `${ROOM_SIZE}`,
+  });
 }
 
 function renderLatticePoints() {

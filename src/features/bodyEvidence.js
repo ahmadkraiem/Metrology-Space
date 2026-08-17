@@ -50,8 +50,9 @@ let overlayVisible = false;
 let secondaryCandidatesVisible = false;
 
 /**
- * UI-only Body Evidence landmark selection (inspect/select v0).
- * Separate from measurement A/B, Annotate selection, annotations, and Scene Graph.
+ * UI-only Front Body Evidence landmark selection (inspect/select v0).
+ * Separate from measurement A/B, Annotate selection, annotations, Scene Graph,
+ * and Side Evidence inspection selection.
  * Not included in diagnostic or Scene State export.
  * @type {{
  *   id: string,
@@ -70,6 +71,29 @@ let secondaryCandidatesVisible = false;
  * }|null}
  */
 let selectedBodyEvidenceLandmark = null;
+
+/**
+ * UI-only Side Evidence landmark selection (inspect v0).
+ * Separate from Front Body Evidence selection, A/B, Annotate, Scene Graph,
+ * and Scene State. Not promotable. Not exported.
+ * @type {{
+ *   id: string,
+ *   name: string,
+ *   view: 'side',
+ *   imageX: number,
+ *   imageY: number,
+ *   sideUcm: number,
+ *   sideYcm: number,
+ *   score: number|null,
+ *   profile: 'Left'|'Right'|'Unknown',
+ *   scaleStatus: string,
+ *   scaleSource: string,
+ *   pixelsPerCm: number,
+ *   canvasSize: number,
+ *   status: string,
+ * }|null}
+ */
+let selectedSideEvidenceLandmark = null;
 
 /** @type {Set<() => void>} */
 const changeListeners = new Set();
@@ -117,6 +141,11 @@ function getFrontAcceptedLandmarks() {
   return qaResult?.views.front.pose.acceptedLandmarks ?? [];
 }
 
+/** Accepted (non-face) side landmarks, including low-confidence entries. */
+function getSideAcceptedLandmarks() {
+  return qaResult?.views.side.pose.acceptedLandmarks ?? [];
+}
+
 /**
  * Renderable / primary-candidate front body landmarks: accepted front landmarks
  * narrowed by the positive core-13 whitelist. This is the single source of
@@ -126,6 +155,19 @@ function getFrontAcceptedLandmarks() {
  */
 export function getRenderableFrontBodyLandmarks() {
   return getFrontAcceptedLandmarks().filter((landmark) => isCoreFrontBodyAnchor(landmark?.name));
+}
+
+/**
+ * Renderable Side Evidence body landmarks: accepted side pose landmarks
+ * narrowed by the same core body identities used for Front (partial profile
+ * sets are valid). Low-confidence entries are excluded from visualization.
+ * Face/head, dense hands/fingers, and non-core extras stay QA-only.
+ * Does not fabricate mirrored/opposite-side joints.
+ */
+export function getRenderableSideBodyLandmarks() {
+  return getSideAcceptedLandmarks().filter(
+    (landmark) => isCoreFrontBodyAnchor(landmark?.name) && !landmark.lowConfidence,
+  );
 }
 
 /**
@@ -213,8 +255,9 @@ export function isSelectedBodyEvidenceLandmark(landmarkOrId) {
 }
 
 /**
- * Select a Body Evidence overlay landmark for inspection only.
- * Replaces any previous Body Evidence selection.
+ * Select a Front Body Evidence overlay landmark for inspection only.
+ * Replaces any previous Front Body Evidence selection.
+ * Does not clear or mutate Side Evidence inspection selection.
  * @param {object|null} landmark
  */
 export function selectBodyEvidenceLandmark(landmark) {
@@ -265,12 +308,94 @@ export function selectBodyEvidenceLandmark(landmark) {
   notifyBodyEvidenceChange();
 }
 
-/** Clears only the Body Evidence landmark selection (inspect UI state). */
+/** Clears only the Front Body Evidence landmark selection (inspect UI state). */
 export function clearBodyEvidenceSelection() {
   if (selectedBodyEvidenceLandmark === null) {
     return;
   }
   selectedBodyEvidenceLandmark = null;
+  notifyBodyEvidenceChange();
+}
+
+export function getSelectedSideEvidenceLandmark() {
+  return selectedSideEvidenceLandmark;
+}
+
+export function isSelectedSideEvidenceLandmark(landmarkOrId) {
+  if (!selectedSideEvidenceLandmark) {
+    return false;
+  }
+  const id = typeof landmarkOrId === 'string'
+    ? landmarkOrId
+    : landmarkOrId?.id;
+  return Boolean(id) && selectedSideEvidenceLandmark.id === id;
+}
+
+/**
+ * Select a Side Evidence landmark for Side-pane inspection only.
+ * Does not mutate Front selection, A/B, annotations, or Body Graph.
+ * @param {object|null} landmark
+ */
+export function selectSideEvidenceLandmark(landmark) {
+  if (!landmark || typeof landmark !== 'object' || !landmark.id) {
+    if (selectedSideEvidenceLandmark !== null) {
+      selectedSideEvidenceLandmark = null;
+      notifyBodyEvidenceChange();
+    }
+    return;
+  }
+
+  const sideUcm = Number(landmark.sideUcm ?? landmark.u ?? landmark.h);
+  const sideYcm = Number(landmark.sideYcm ?? landmark.v);
+  const next = {
+    id: String(landmark.id),
+    name: String(landmark.name ?? ''),
+    view: 'side',
+    imageX: landmark.imageX,
+    imageY: landmark.imageY,
+    sideUcm,
+    sideYcm,
+    score: typeof landmark.score === 'number' && Number.isFinite(landmark.score)
+      ? landmark.score
+      : null,
+    profile: landmark.profile === 'Left' || landmark.profile === 'Right'
+      ? landmark.profile
+      : 'Unknown',
+    scaleStatus: String(landmark.scaleStatus ?? SCALE_STATUS_FIXED),
+    scaleSource: String(landmark.scaleSource ?? BODY_EVIDENCE_V0_SCALE.sourceLabel),
+    pixelsPerCm: Number(landmark.pixelsPerCm),
+    canvasSize: Number(landmark.canvasSize),
+    status: 'Side Evidence / inspect-only',
+  };
+
+  const prev = selectedSideEvidenceLandmark;
+  if (
+    prev
+    && prev.id === next.id
+    && prev.imageX === next.imageX
+    && prev.imageY === next.imageY
+    && prev.sideUcm === next.sideUcm
+    && prev.sideYcm === next.sideYcm
+    && prev.score === next.score
+    && prev.profile === next.profile
+    && prev.scaleStatus === next.scaleStatus
+    && prev.scaleSource === next.scaleSource
+    && prev.pixelsPerCm === next.pixelsPerCm
+    && prev.canvasSize === next.canvasSize
+  ) {
+    return;
+  }
+
+  selectedSideEvidenceLandmark = next;
+  notifyBodyEvidenceChange();
+}
+
+/** Clears only the Side Evidence landmark selection (inspect UI state). */
+export function clearSideEvidenceSelection() {
+  if (selectedSideEvidenceLandmark === null) {
+    return;
+  }
+  selectedSideEvidenceLandmark = null;
   notifyBodyEvidenceChange();
 }
 
@@ -406,6 +531,15 @@ export function promoteSelectedBodyEvidenceLandmark() {
     };
   }
 
+  // Side Evidence is inspect-only in this phase — never promote from Side.
+  if (selected.view !== 'front') {
+    return {
+      ok: false,
+      alreadyPromoted: false,
+      message: 'Only Front body landmark candidates can be promoted.',
+    };
+  }
+
   const name = String(selected.name ?? '').trim();
   if (!name) {
     return {
@@ -467,6 +601,7 @@ export function promoteSelectedBodyEvidenceLandmark() {
 
 function clearBodyEvidenceSelectionSilent() {
   selectedBodyEvidenceLandmark = null;
+  selectedSideEvidenceLandmark = null;
 }
 
 function hasBodyEvidencePoseOrSegSource() {

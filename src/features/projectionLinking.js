@@ -28,7 +28,7 @@ export const GRID2D_FRONT_VIEW_CONFIG = {
   axisLabel: 'X/Y',
   hAxis: 'x',
   vAxis: 'y',
-  buttonLabel: 'Front Surface — X / Y',
+  buttonLabel: 'Canonical Front Surface · X / Y',
 };
 
 const ORIGIN_3D = { x: 0, y: 0, z: 0 };

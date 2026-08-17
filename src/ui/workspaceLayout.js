@@ -12,6 +12,7 @@ import {
   grid2dGridWrapperEl,
 } from './domRefs.js';
 import { refreshGrid2dNavigator, hideGrid2dHoverCoordinateTooltip } from './grid2dNavigator.js';
+import { refreshSideEvidenceView, hideSideEvidenceTooltip } from './bodyEvidenceOverlaySide2d.js';
 import { refreshBodyGraphWorkspace } from './bodyGraphWorkspace.js';
 
 export const WORKSPACE_3D = '3d';
@@ -20,7 +21,8 @@ export const WORKSPACE_BODY_GRAPH = 'body-graph';
 
 const MIN_PANE_WIDTH_PX = 200;
 const DIVIDER_WIDTH_PX = 6;
-const DEFAULT_SPLIT_RATIO = 0.57;
+/** 3D share of the 2D Workspace: the Front + Side 2D area is the wider default. */
+const DEFAULT_SPLIT_RATIO = 0.36;
 
 let currentWorkspace = WORKSPACE_3D;
 let splitRatio = DEFAULT_SPLIT_RATIO;
@@ -72,6 +74,7 @@ function handleWorkspaceResize() {
 
   if (currentWorkspace === WORKSPACE_SPLIT) {
     refreshGrid2dNavigator();
+    refreshSideEvidenceView();
   }
 }
 
@@ -95,8 +98,10 @@ export function setWorkspace(mode) {
 
   if (mode === WORKSPACE_SPLIT) {
     refreshGrid2dNavigator();
+    refreshSideEvidenceView();
   } else {
     hideGrid2dHoverCoordinateTooltip();
+    hideSideEvidenceTooltip();
   }
 
   if (mode === WORKSPACE_BODY_GRAPH) {

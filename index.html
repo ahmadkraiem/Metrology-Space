@@ -273,70 +273,129 @@
           </div>
           <div id="workspace-split-divider" class="workspace-split-divider" role="separator" aria-orientation="vertical" aria-label="Resize 3D and 2D panes" hidden></div>
           <section id="grid2d-navigator-panel" class="grid2d-navigator-panel workspace-pane workspace-pane--2d">
-            <header class="grid2d-nav-header">
-              <div class="grid2d-nav-heading">
-                <h3 class="grid2d-nav-title">2D Grid Navigator</h3>
-                <p id="grid2d-nav-view-mode" class="grid2d-nav-view-mode">Front Surface — X / Y</p>
-                <p class="grid2d-helper">Control: mode · Scroll: zoom · Right-drag: pan</p>
-              </div>
-            </header>
-              <div class="grid2d-nav-body">
-              <div class="grid2d-readout">
-                <p class="grid2d-status-row">
-                  <span id="grid2d-view-readout" class="grid2d-view-readout">Step 10 cm</span>
-                  <span class="grid2d-status-sep" aria-hidden="true">·</span>
-                  <span id="grid2d-mode-readout" class="grid2d-mode-readout">Mode: Pick Point</span>
-                </p>
-                <div class="grid2d-selection-block grid2d-selection-block--empty">
-                  <p class="grid2d-readout-heading grid2d-readout-heading--selection">Selection</p>
-                  <p id="grid2d-selected-readout" class="grid2d-selected-readout grid2d-selected-readout--empty">Click a point or drag a region</p>
-                  <p id="grid2d-status-message" class="grid2d-status-message" hidden></p>
+            <div class="workspace-2d-area">
+              <div id="workspace-2d-front-pane" class="workspace-2d-pane">
+                <header class="grid2d-nav-header">
+                  <div class="grid2d-nav-heading">
+                    <h3 class="grid2d-nav-title">Front</h3>
+                    <p id="grid2d-nav-view-mode" class="grid2d-nav-view-mode">Canonical Front Surface · X / Y</p>
+                    <p class="grid2d-helper">Control: mode · Scroll: zoom · Right-drag: pan</p>
+                  </div>
+                </header>
+                <div class="grid2d-nav-body">
+                  <div class="grid2d-readout">
+                    <p class="grid2d-status-row">
+                      <span id="grid2d-view-readout" class="grid2d-view-readout">Step 10 cm</span>
+                      <span class="grid2d-status-sep" aria-hidden="true">·</span>
+                      <span id="grid2d-mode-readout" class="grid2d-mode-readout">Mode: Pick Point</span>
+                    </p>
+                    <div class="grid2d-selection-block grid2d-selection-block--empty">
+                      <p class="grid2d-readout-heading grid2d-readout-heading--selection">Selection</p>
+                      <p id="grid2d-selected-readout" class="grid2d-selected-readout grid2d-selected-readout--empty">Click a point or drag a region</p>
+                      <p id="grid2d-status-message" class="grid2d-status-message" hidden></p>
+                    </div>
+                  </div>
+                  <div id="grid2d-grid-wrapper" class="grid2d-grid-wrapper grid2d-grid-wrapper--pick">
+                    <div id="grid2d-field" class="grid2d-field">
+                      <div id="grid2d-axis-labels" class="grid2d-axis-labels" aria-hidden="true"></div>
+                      <div id="grid2d-lattice-points" class="grid2d-lattice-points"></div>
+                      <div id="grid2d-markers" class="grid2d-markers"></div>
+                      <div id="grid2d-body-measurement-previews" class="grid2d-body-measurement-previews" aria-hidden="true"></div>
+                      <div id="grid2d-body-evidence-markers" class="grid2d-body-evidence-markers" hidden></div>
+                      <div id="grid2d-selected-region" class="grid2d-selected-region" hidden></div>
+                    </div>
+                    <div id="grid2d-selection-rect" class="grid2d-selection-rect" hidden></div>
+                    <div id="grid2d-hover-tooltip" class="hover-coordinate-tooltip" hidden></div>
+                    <div id="grid2d-projection-tooltip" class="hover-coordinate-tooltip grid2d-projection-tooltip" hidden></div>
+                    <div id="grid2d-body-evidence-tooltip" class="hover-coordinate-tooltip grid2d-projection-tooltip" hidden></div>
+                  </div>
+                  <ul id="grid2d-legend" class="grid2d-legend" aria-label="2D marker legend">
+                    <li class="grid2d-legend-item" data-legend-type="lattice">
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--lattice"></span>
+                      <span class="grid2d-legend-label">Sample</span>
+                    </li>
+                    <li class="grid2d-legend-item" data-legend-type="selected" hidden>
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--selected"></span>
+                      <span class="grid2d-legend-label">Selected</span>
+                    </li>
+                    <li class="grid2d-legend-item" data-legend-type="measure-a" hidden>
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--measure-a"></span>
+                      <span class="grid2d-legend-label">Point A</span>
+                    </li>
+                    <li class="grid2d-legend-item" data-legend-type="measure-b" hidden>
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--measure-b"></span>
+                      <span class="grid2d-legend-label">Point B</span>
+                    </li>
+                    <li class="grid2d-legend-item" data-legend-type="ref">
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--ref"></span>
+                      <span class="grid2d-legend-label">Ref</span>
+                    </li>
+                    <li class="grid2d-legend-item" data-legend-type="annotation" hidden>
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--annotation"></span>
+                      <span class="grid2d-legend-label">Annotation</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
-              <div id="grid2d-grid-wrapper" class="grid2d-grid-wrapper grid2d-grid-wrapper--pick">
-                <div id="grid2d-field" class="grid2d-field">
-                  <div id="grid2d-axis-labels" class="grid2d-axis-labels" aria-hidden="true"></div>
-                  <div id="grid2d-lattice-points" class="grid2d-lattice-points"></div>
-                  <div id="grid2d-markers" class="grid2d-markers"></div>
-                  <div id="grid2d-body-measurement-previews" class="grid2d-body-measurement-previews" aria-hidden="true"></div>
-                  <div id="grid2d-body-evidence-markers" class="grid2d-body-evidence-markers" hidden></div>
-                  <div id="grid2d-selected-region" class="grid2d-selected-region" hidden></div>
+
+              <aside id="side-evidence-pane" class="workspace-2d-pane workspace-2d-pane--side" aria-label="Side Evidence">
+                <header class="grid2d-nav-header">
+                  <div class="grid2d-nav-heading">
+                    <h3 class="grid2d-nav-title grid2d-nav-title--side">Side</h3>
+                    <p class="grid2d-nav-view-mode">Side Evidence Plane · U / Y</p>
+                    <p class="grid2d-helper">Inspect only · no picking or measurement</p>
+                  </div>
+                </header>
+                <div class="grid2d-nav-body">
+                  <div class="grid2d-readout">
+                    <p class="grid2d-status-row">
+                      <span class="grid2d-view-readout">Evidence plane</span>
+                      <span class="grid2d-status-sep" aria-hidden="true">·</span>
+                      <span id="side-evidence-count-readout" class="grid2d-mode-readout">Landmarks 0</span>
+                    </p>
+                    <div class="grid2d-selection-block grid2d-selection-block--empty">
+                      <p class="grid2d-readout-heading grid2d-readout-heading--selection">Inspected</p>
+                      <div id="side-evidence-inspect" class="side-evidence-inspect" aria-live="polite">
+                        <p class="grid2d-selected-readout grid2d-selected-readout--empty">Click a Side landmark to inspect</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="side-evidence-viewport" class="grid2d-grid-wrapper side-evidence-viewport side-evidence-viewport--empty">
+                    <div id="side-evidence-field" class="grid2d-field side-evidence-field">
+                      <!-- Future layers: source image · segmentation · alignment guides -->
+                      <div id="side-evidence-axis-labels" class="grid2d-axis-labels" aria-hidden="true"></div>
+                      <div id="side-evidence-landmarks" class="side-evidence-landmarks"></div>
+                    </div>
+                    <div id="side-evidence-tooltip" class="hover-coordinate-tooltip grid2d-projection-tooltip side-evidence-tooltip" hidden></div>
+                    <p id="side-evidence-empty" class="side-evidence-empty">No side pose landmarks yet — load Side Pose JSON and Analyze.</p>
+                  </div>
+                  <ul class="grid2d-legend" aria-label="Side evidence legend">
+                    <li class="grid2d-legend-item">
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--side-landmark"></span>
+                      <span class="grid2d-legend-label">Side landmark</span>
+                    </li>
+                    <li class="grid2d-legend-item">
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--side-inspected"></span>
+                      <span class="grid2d-legend-label">Inspected</span>
+                    </li>
+                  </ul>
                 </div>
-                <div id="grid2d-selection-rect" class="grid2d-selection-rect" hidden></div>
-                <div id="grid2d-hover-tooltip" class="hover-coordinate-tooltip" hidden></div>
-                <div id="grid2d-projection-tooltip" class="hover-coordinate-tooltip grid2d-projection-tooltip" hidden></div>
-                <div id="grid2d-body-evidence-tooltip" class="hover-coordinate-tooltip grid2d-projection-tooltip" hidden></div>
+              </aside>
+            </div>
+            <div class="workspace-2d-toolbar">
+              <div class="workspace-2d-toolbar-group workspace-2d-toolbar-group--front">
+                <span class="workspace-2d-toolbar-label">Front</span>
+                <div class="workspace-2d-toolbar-actions">
+                  <button type="button" id="grid2d-back" class="panel-button panel-button--compact" disabled>Back</button>
+                  <button type="button" id="grid2d-reset" class="panel-button panel-button--compact">Reset</button>
+                  <button type="button" id="grid2d-split" class="panel-button panel-button--compact" disabled>Split Selection</button>
+                </div>
               </div>
-              <ul id="grid2d-legend" class="grid2d-legend" aria-label="2D marker legend">
-                <li class="grid2d-legend-item" data-legend-type="lattice">
-                  <span class="grid2d-legend-swatch grid2d-legend-swatch--lattice"></span>
-                  <span class="grid2d-legend-label">Sample</span>
-                </li>
-                <li class="grid2d-legend-item" data-legend-type="selected" hidden>
-                  <span class="grid2d-legend-swatch grid2d-legend-swatch--selected"></span>
-                  <span class="grid2d-legend-label">Selected</span>
-                </li>
-                <li class="grid2d-legend-item" data-legend-type="measure-a" hidden>
-                  <span class="grid2d-legend-swatch grid2d-legend-swatch--measure-a"></span>
-                  <span class="grid2d-legend-label">Point A</span>
-                </li>
-                <li class="grid2d-legend-item" data-legend-type="measure-b" hidden>
-                  <span class="grid2d-legend-swatch grid2d-legend-swatch--measure-b"></span>
-                  <span class="grid2d-legend-label">Point B</span>
-                </li>
-                <li class="grid2d-legend-item" data-legend-type="ref">
-                  <span class="grid2d-legend-swatch grid2d-legend-swatch--ref"></span>
-                  <span class="grid2d-legend-label">Ref</span>
-                </li>
-                <li class="grid2d-legend-item" data-legend-type="annotation" hidden>
-                  <span class="grid2d-legend-swatch grid2d-legend-swatch--annotation"></span>
-                  <span class="grid2d-legend-label">Annotation</span>
-                </li>
-              </ul>
-              <div class="grid2d-nav-actions">
-                <button type="button" id="grid2d-back" class="panel-button panel-button--compact" disabled>Back</button>
-                <button type="button" id="grid2d-reset" class="panel-button panel-button--compact">Reset</button>
-                <button type="button" id="grid2d-split" class="panel-button panel-button--compact" disabled>Split Selection</button>
+              <div class="workspace-2d-toolbar-group workspace-2d-toolbar-group--side">
+                <span class="workspace-2d-toolbar-label">Side</span>
+                <div class="workspace-2d-toolbar-actions">
+                  <button type="button" id="side-evidence-clear-selection" class="panel-button panel-button--compact" disabled>Clear Inspection</button>
+                </div>
               </div>
             </div>
           </section>

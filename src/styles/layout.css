@@ -231,7 +231,7 @@
 
 #viewport[data-workspace-mode='split'] .workspace-pane--3d {
   display: block;
-  flex: 0 0 57%;
+  flex: 0 0 36%;
   min-width: 200px;
 }
 
