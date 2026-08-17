@@ -264,6 +264,7 @@
         <div id="workspace-tabs" class="workspace-tabs" role="tablist" aria-label="Workspace">
           <button type="button" id="workspace-tab-3d" class="workspace-tab-btn workspace-tab-btn--active" role="tab" aria-selected="true" data-workspace="3d">3D Space</button>
           <button type="button" id="workspace-tab-split" class="workspace-tab-btn" role="tab" aria-selected="false" data-workspace="split">2D Workspace</button>
+          <button type="button" id="workspace-tab-body-graph" class="workspace-tab-btn" role="tab" aria-selected="false" data-workspace="body-graph">Body Graph</button>
         </div>
         <div id="workspace-content" class="workspace-content">
           <div id="workspace-pane-3d" class="workspace-pane workspace-pane--3d">
@@ -337,6 +338,23 @@
                 <button type="button" id="grid2d-reset" class="panel-button panel-button--compact">Reset</button>
                 <button type="button" id="grid2d-split" class="panel-button panel-button--compact" disabled>Split Selection</button>
               </div>
+            </div>
+          </section>
+          <section id="body-graph-workspace" class="body-graph-workspace workspace-pane workspace-pane--body-graph" aria-label="Body Graph" hidden>
+            <header class="body-graph-header">
+              <div class="body-graph-heading">
+                <h3 class="body-graph-title">Body Graph</h3>
+                <p class="body-graph-subtitle">Core 13 topology · read-only</p>
+              </div>
+              <p id="body-graph-summary" class="body-graph-summary" aria-live="polite">
+                <span class="body-graph-summary-item">Nodes <strong id="body-graph-summary-nodes">0/13</strong></span>
+                <span class="body-graph-summary-sep" aria-hidden="true">·</span>
+                <span class="body-graph-summary-item">Edges <strong id="body-graph-summary-edges">0/13</strong></span>
+              </p>
+            </header>
+            <div id="body-graph-stage" class="body-graph-stage">
+              <svg id="body-graph-edges" class="body-graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+              <div id="body-graph-nodes" class="body-graph-nodes"></div>
             </div>
           </section>
         </div>

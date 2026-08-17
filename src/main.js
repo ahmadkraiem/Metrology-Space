@@ -34,6 +34,7 @@ import { setupBodyEvidenceOverlay2d } from './ui/bodyEvidenceOverlay2d.js';
 import { initCollapsibleSections } from './ui/collapsibleSections.js';
 import { setupGrid2dNavigator, refreshGrid2dNavigator } from './ui/grid2dNavigator.js';
 import { setupWorkspaceLayout } from './ui/workspaceLayout.js';
+import { setupBodyGraphWorkspace } from './ui/bodyGraphWorkspace.js';
 import { setupProjectionLinking } from './features/projectionLinking.js';
 import { setupFrontSurfaceMeasurement } from './features/frontSurfaceMeasurement.js';
 import {
@@ -86,6 +87,7 @@ setupBodyEvidenceOverlay2d(refreshGrid2dNavigator);
 setupBodyEvidencePanel();
 setupBodyTabConsolidatedPanel();
 initCollapsibleSections();
+setupBodyGraphWorkspace();
 setupWorkspaceLayout();
 
 window.addEventListener('resize', onResize);

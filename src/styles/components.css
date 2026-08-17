@@ -1695,3 +1695,192 @@
 .workspace-tab-btn--active:hover {
   color: #fff;
 }
+
+/* ── Body Graph Workspace v0 ── */
+
+.body-graph-workspace {
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 18%, rgba(103, 232, 249, 0.05), transparent 55%),
+    linear-gradient(180deg, rgba(8, 11, 16, 0.98) 0%, #06080d 100%);
+  border-left: 1px solid rgba(147, 51, 234, 0.08);
+}
+
+.body-graph-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 18px;
+  flex-shrink: 0;
+  padding: 8px 14px 7px;
+  border-bottom: 1px solid rgba(147, 51, 234, 0.14);
+  background: linear-gradient(180deg, rgba(147, 51, 234, 0.06) 0%, transparent 100%);
+}
+
+.body-graph-heading {
+  min-width: 0;
+}
+
+.body-graph-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.body-graph-subtitle {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.body-graph-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.body-graph-summary strong {
+  color: var(--cyan-data);
+  font-weight: 600;
+}
+
+.body-graph-summary-sep {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.body-graph-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 8px 12px 12px;
+  border: 1px solid rgba(147, 51, 234, 0.16);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(180deg, rgba(12, 16, 24, 0.9) 0%, rgba(6, 8, 12, 0.95) 100%);
+  overflow: hidden;
+}
+
+.body-graph-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.body-graph-edge {
+  fill: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.body-graph-edge--ready {
+  stroke: rgba(103, 232, 249, 0.76);
+  stroke-width: 1.6;
+}
+
+.body-graph-edge--missing {
+  stroke: rgba(100, 116, 139, 0.28);
+  stroke-width: 1.1;
+  stroke-dasharray: 3 4;
+}
+
+.body-graph-nodes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.body-graph-node {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: min(156px, 27%);
+  height: 43px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  user-select: none;
+}
+
+.body-graph-node--present {
+  border-color: rgba(103, 232, 249, 0.5);
+  background:
+    linear-gradient(90deg, rgba(103, 232, 249, 0.08) 0, transparent 18px),
+    rgba(9, 15, 21, 0.96);
+  box-shadow: inset 2px 0 0 rgba(103, 232, 249, 0.62);
+}
+
+.body-graph-node--missing {
+  border-color: rgba(100, 116, 139, 0.16);
+  background: rgba(8, 10, 14, 0.46);
+}
+
+.body-graph-node-name {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.body-graph-node--missing .body-graph-node-name {
+  color: rgba(148, 163, 184, 0.5);
+}
+
+.body-graph-node-detail {
+  min-height: 11px;
+  margin: 4px 0 0;
+  color: rgba(103, 232, 249, 0.68);
+  font-family: var(--font-mono);
+  font-size: clamp(6.5px, 0.62vw, 8px);
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.body-graph-node--missing .body-graph-node-detail {
+  color: rgba(100, 116, 139, 0.5);
+  font-style: italic;
+}
+
+@media (max-width: 1100px) {
+  .body-graph-node {
+    width: min(144px, 27%);
+    height: 40px;
+    padding: 5px 7px;
+  }
+
+  .body-graph-node-name {
+    font-size: 9px;
+  }
+}

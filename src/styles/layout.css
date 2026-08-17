@@ -224,6 +224,7 @@
 }
 
 #viewport[data-workspace-mode='3d'] .workspace-pane--2d,
+#viewport[data-workspace-mode='3d'] .workspace-pane--body-graph,
 #viewport[data-workspace-mode='3d'] .workspace-split-divider {
   display: none;
 }
@@ -242,6 +243,29 @@
 
 #viewport[data-workspace-mode='split'] .workspace-split-divider {
   display: block;
+}
+
+#viewport[data-workspace-mode='split'] .workspace-pane--body-graph {
+  display: none;
+}
+
+#viewport[data-workspace-mode='body-graph'] .workspace-pane--3d,
+#viewport[data-workspace-mode='body-graph'] .workspace-pane--2d,
+#viewport[data-workspace-mode='body-graph'] .workspace-split-divider {
+  display: none;
+}
+
+#viewport[data-workspace-mode='body-graph'] .workspace-pane--body-graph {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workspace-pane--body-graph {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .workspace-split-divider {
