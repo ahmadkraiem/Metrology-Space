@@ -29,6 +29,7 @@ import { setupSceneGraphPanel } from './ui/sceneGraphPanel.js';
 import { setupSessionTabs } from './ui/sessionTabs.js';
 import { setupSideMeasurementInspector } from './ui/measurementPanel.js';
 import { setupAppMenuBar } from './ui/appMenuBar.js';
+import { setupViewControls } from './ui/viewControls.js';
 import { setupBodyEvidencePanel } from './ui/bodyEvidencePanel.js';
 import { setupBodyTabConsolidatedPanel } from './ui/bodyTabConsolidatedPanel.js';
 import { setupBodyEvidenceOverlay2d } from './ui/bodyEvidenceOverlay2d.js';
