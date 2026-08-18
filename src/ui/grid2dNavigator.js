@@ -776,6 +776,10 @@ export function setGrid2dPointsVisible(visible) {
 }
 
 export function refreshGrid2dNavigator() {
+  if (!grid2dGridWrapperEl || !grid2dFieldEl) {
+    return;
+  }
+
   syncPointSelectionWithMeasurementChange();
 
   if (selectedPoint2d && !isInDomain(selectedPoint2d.h, selectedPoint2d.v)) {

@@ -1,10 +1,4 @@
 import * as THREE from 'three';
-import {
-  selectionPanel,
-  selectedXEl,
-  selectedYEl,
-  selectedZEl,
-} from '../ui/domRefs.js';
 import { updateSelectionPanel } from '../ui/selectionPanel.js';
 import { clearAnnotationValidationMessage } from '../ui/annotationValidationMessage.js';
 

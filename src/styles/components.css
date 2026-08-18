@@ -98,10 +98,6 @@
   white-space: nowrap;
 }
 
-.info-value--accent {
-  color: var(--magenta);
-  font-weight: 600;
-}
 
 .info-value--data {
   color: var(--cyan-data);
@@ -406,25 +402,6 @@
   letter-spacing: 0.08em;
 }
 
-/* ── Scene import (Session Data sidebar) ── */
-
-.scene-import-label {
-  display: block;
-  text-align: center;
-  cursor: pointer;
-}
-
-.scene-import-status {
-  margin: 8px 0 0;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  line-height: 1.4;
-  color: #f87171;
-}
-
-.scene-import-status[data-status='error'] {
-  color: #f87171;
-}
 
 /* ── Inspector subgroups (View Controls / Body Evidence) ── */
 
@@ -622,17 +599,6 @@
   overscroll-behavior: contain;
 }
 
-#show-body-evidence-overlay:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-.body-evidence-summary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  pointer-events: none;
-}
 
 .body-evidence-promote-status {
   margin: 8px 0 0;
@@ -661,61 +627,6 @@
   border-color: rgba(234, 179, 8, 0.3);
 }
 
-.body-evidence-summary-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding: 6px 7px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(147, 51, 234, 0.16);
-  background: rgba(0, 0, 0, 0.28);
-}
-
-/* Long values (scale, source) get the full sidebar width on one line. */
-.body-evidence-summary-card--wide {
-  grid-column: 1 / -1;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.body-evidence-summary-card--wide .body-evidence-summary-label {
-  flex: 0 0 auto;
-}
-
-.body-evidence-summary-card--wide .body-evidence-summary-value {
-  flex: 0 1 auto;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
-  text-align: right;
-}
-
-.body-evidence-summary-label {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  line-height: 1.25;
-}
-
-.body-evidence-summary-value {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  line-height: 1.35;
-  color: var(--cyan-data);
-  text-transform: none;
-}
 
 .body-evidence-badge {
   display: inline-block;
@@ -1695,46 +1606,6 @@
   color: var(--text-muted);
 }
 
-.scene-graph-nested-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 2px;
-}
-
-.scene-graph-item {
-  padding: 6px 8px;
-  border: 1px solid rgba(147, 51, 234, 0.1);
-  border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.scene-graph-item-title {
-  margin-bottom: 4px;
-  font-family: var(--font-display);
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--purple-bright);
-}
-
-/* ── Workflow status (left inspector) ── */
-
-.inspector-section--mode .section-body {
-  padding-top: 2px;
-  padding-bottom: 6px;
-}
-
-.inspector-workflow-title {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  line-height: 1.35;
-  color: var(--text-primary);
-}
 
 /* Workflow-scoped panel visibility. Hiding is presentation only — panel state,
    measurements, annotations, and Body Evidence data are never reset. */
