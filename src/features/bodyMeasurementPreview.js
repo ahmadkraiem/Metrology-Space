@@ -96,6 +96,10 @@ function requestGrid2dRefresh() {
   }
 }
 
+export function isBodyMeasurementPreviewVisible() {
+  return previewVisible;
+}
+
 export function setBodyMeasurementPreviewVisible(visible) {
   previewVisible = Boolean(visible);
   refreshBodyMeasurementPreview();

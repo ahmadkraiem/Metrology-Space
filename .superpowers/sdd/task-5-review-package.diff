@@ -1,0 +1,1125 @@
+# Review Package Task 5
+ M index.html
+ M src/styles/components.css
+ M src/ui/bodyTabConsolidatedPanel.js
+ M src/ui/domRefs.js
+
+## Stat
+ index.html                         | 263 +++++++++++++++++++++-------------
+ src/styles/components.css          | 283 ++++++++++++++++++++++++++++++++++++-
+ src/ui/bodyTabConsolidatedPanel.js | 238 ++++++++++++++++++++-----------
+ src/ui/domRefs.js                  |  13 +-
+ 4 files changed, 612 insertions(+), 185 deletions(-)
+
+## Diff
+diff --git a/index.html b/index.html
+index c7392a9..9d04b2f 100644
+--- a/index.html
++++ b/index.html
+@@ -15,16 +15,75 @@
+   <body>
+     <div id="app-layout">
+       <header id="top-header">
+         <div class="header-brand">
+           <div class="header-eyebrow">REVacity</div>
+           <h1 class="header-title">Metrology Space</h1>
+           <p class="header-subtitle">Volumetric Coordinate Intelligence</p>
+         </div>
++        <nav id="app-menu-bar" class="app-menu-bar" aria-label="Application menu">
++          <div class="app-menu" data-menu="file">
++            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">File</button>
++            <ul class="app-menu-dropdown" role="menu" hidden>
++              <li role="none"><button type="button" role="menuitem" data-command="open-front-pose">Load Front Pose JSONâ€¦</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="open-side-pose">Load Side Pose JSONâ€¦</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="open-front-seg">Load Front Seg JSONâ€¦</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="open-side-seg">Load Side Seg JSONâ€¦</button></li>
++              <li role="separator" class="app-menu-separator"></li>
++              <li role="none"><button type="button" role="menuitem" data-command="open-scene-state">Import Scene Stateâ€¦</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="export-scene-state">Export Scene State</button></li>
++              <li role="separator" class="app-menu-separator"></li>
++              <li role="none"><button type="button" role="menuitem" data-command="download-body-evidence">Download Body Evidence JSON</button></li>
++            </ul>
++          </div>
++          <div class="app-menu" data-menu="edit">
++            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">Edit</button>
++            <ul class="app-menu-dropdown" role="menu" hidden>
++              <li role="none"><button type="button" role="menuitem" data-command="clear-selection">Clear Selection</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="clear-measurement">Clear Measurement</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="clear-history">Clear Measurement History</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="clear-body-evidence">Clear Body Evidence</button></li>
++            </ul>
++          </div>
++          <div class="app-menu" data-menu="view">
++            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">View</button>
++            <ul class="app-menu-dropdown" role="menu" hidden>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="origin-center">Origin / Center</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="annotations">Annotations</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="measurement-lines">Measurement Lines</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="lattice-3d">3D Lattice Points</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="front-grid">Front Grid Points</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="side-grid">Side Grid Points</button></li>
++              <li role="separator" class="app-menu-separator"></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="front-core">Front Core Candidates</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="front-secondary">Front Secondary Candidates</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="side-core">Side Core Candidates</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="side-secondary">Side Secondary Candidates</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="body-previews">Body Measurement Previews</button></li>
++            </ul>
++          </div>
++          <div class="app-menu" data-menu="workspace">
++            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">Workspace</button>
++            <ul class="app-menu-dropdown" role="menu" hidden>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-command="workspace-3d">3D Space</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-command="workspace-split">2D Workspace</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-command="workspace-body-graph">Body Graph</button></li>
++            </ul>
++          </div>
++          <div class="app-menu" data-menu="body">
++            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">Body</button>
++            <ul class="app-menu-dropdown" role="menu" hidden>
++              <li role="none"><button type="button" role="menuitem" data-command="analyze-body-evidence">Analyze Body Evidence</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="focus-body-front">Focus Front Evidence</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="focus-body-side">Focus Side Evidence</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="promote-front-evidence">Promote Front Evidence</button></li>
++            </ul>
++          </div>
++        </nav>
+         <div class="header-status">
+           <span class="status-badge status-badge--active">
+             <span class="status-dot"></span>
+             ACTIVE GRID
+           </span>
+           <span class="status-badge status-badge--points">68,921 POINTS</span>
+         </div>
+       </header>
+@@ -102,130 +161,138 @@
+                 </label>
+               </div>
+             </div>
+           </section>
+ 
+           <section id="body-evidence-panel" class="inspector-section inspector-section--body-evidence" data-collapsible>
+             <h2 class="section-title">Body Evidence</h2>
+             <div class="section-body body-evidence">
+-              <div class="inspector-subgroup" data-collapsible>
+-                <h3 class="inspector-subgroup-label">Import Files</h3>
+-                <div class="inspector-subgroup-body">
+-                  <div class="inspector-subgroup-actions">
+-                    <label for="load-front-pose-json" class="panel-button scene-import-label">Load Front Pose JSON</label>
+-                    <input type="file" id="load-front-pose-json" accept=".json,application/json" hidden />
+-                    <label for="load-side-pose-json" class="panel-button scene-import-label">Load Side Pose JSON</label>
+-                    <input type="file" id="load-side-pose-json" accept=".json,application/json" hidden />
+-                    <label for="load-front-seg-json" class="panel-button scene-import-label">Load Front Seg JSON</label>
+-                    <input type="file" id="load-front-seg-json" accept=".json,application/json" hidden />
+-                    <label for="load-side-seg-json" class="panel-button scene-import-label">Load Side Seg JSON</label>
+-                    <input type="file" id="load-side-seg-json" accept=".json,application/json" hidden />
+-                  </div>
+-                </div>
++              <div class="body-evidence-tabs" role="tablist" aria-label="Body Evidence views">
++                <button type="button" role="tab" data-body-evidence-tab="overview" aria-selected="true" aria-controls="body-evidence-tab-overview" id="body-evidence-tab-overview-btn">Overview</button>
++                <button type="button" role="tab" data-body-evidence-tab="front" aria-selected="false" aria-controls="body-evidence-tab-front" id="body-evidence-tab-front-btn">Front</button>
++                <button type="button" role="tab" data-body-evidence-tab="side" aria-selected="false" aria-controls="body-evidence-tab-side" id="body-evidence-tab-side-btn">Side</button>
++                <button type="button" role="tab" data-body-evidence-tab="selection" aria-selected="false" aria-controls="body-evidence-tab-selection" id="body-evidence-tab-selection-btn">Selection</button>
+               </div>
+-              <div class="inspector-subgroup" data-collapsible>
+-                <h3 class="inspector-subgroup-label">Actions</h3>
+-                <div class="inspector-subgroup-body">
+-                  <div class="inspector-subgroup-actions">
+-                    <button type="button" id="analyze-body-evidence" class="panel-button">Analyze Body Evidence</button>
+-                    <button type="button" id="download-body-evidence-json" class="panel-button" disabled aria-disabled="true">Download Body Evidence JSON</button>
+-                    <button type="button" id="clear-body-evidence" class="panel-button panel-button--compact">Clear Body Evidence</button>
++              <p id="body-evidence-status" class="body-evidence-status" hidden></p>
++
++              <div id="body-evidence-tab-overview" class="body-evidence-tab-panel" data-body-evidence-panel="overview" role="tabpanel" aria-labelledby="body-evidence-tab-overview-btn">
++                <div class="inspector-subgroup" data-collapsible>
++                  <h3 class="inspector-subgroup-label">Import Files</h3>
++                  <div class="inspector-subgroup-body">
++                    <div class="inspector-subgroup-actions">
++                      <label for="load-front-pose-json" class="panel-button scene-import-label">Load Front Pose JSON</label>
++                      <input type="file" id="load-front-pose-json" accept=".json,application/json" hidden />
++                      <label for="load-side-pose-json" class="panel-button scene-import-label">Load Side Pose JSON</label>
++                      <input type="file" id="load-side-pose-json" accept=".json,application/json" hidden />
++                      <label for="load-front-seg-json" class="panel-button scene-import-label">Load Front Seg JSON</label>
++                      <input type="file" id="load-front-seg-json" accept=".json,application/json" hidden />
++                      <label for="load-side-seg-json" class="panel-button scene-import-label">Load Side Seg JSON</label>
++                      <input type="file" id="load-side-seg-json" accept=".json,application/json" hidden />
++                    </div>
+                   </div>
+                 </div>
+-              </div>
+-              <div class="inspector-subgroup">
+-                <h3 class="inspector-subgroup-label">Evidence Summary</h3>
+-                <div class="body-evidence-summary" id="body-evidence-summary" aria-live="polite">
+-                  <div class="body-evidence-summary-card">
+-                    <span class="body-evidence-summary-label">Front Core</span>
+-                    <span class="body-evidence-summary-value" id="body-evidence-overlay-count" title="Front core candidates">0</span>
+-                  </div>
+-                  <div class="body-evidence-summary-card">
+-                    <span class="body-evidence-summary-label">Front Sec.</span>
+-                    <span class="body-evidence-summary-value" id="body-evidence-secondary-count" title="Secondary front candidates">0</span>
+-                  </div>
+-                  <div class="body-evidence-summary-card">
+-                    <span class="body-evidence-summary-label">Side</span>
+-                    <span class="body-evidence-summary-value" id="body-evidence-side-count" title="Side body candidates">0</span>
+-                  </div>
+-                  <div class="body-evidence-summary-card">
+-                    <span class="body-evidence-summary-label">Rejected</span>
+-                    <span class="body-evidence-summary-value" id="body-evidence-rejected-count" title="Rejected front face/head landmarks">0</span>
+-                  </div>
+-                  <div class="body-evidence-summary-card">
+-                    <span class="body-evidence-summary-label">Ignored</span>
+-                    <span class="body-evidence-summary-value" id="body-evidence-ignored-count" title="Ignored front non-core landmarks">0</span>
+-                  </div>
+-                  <div class="body-evidence-summary-card">
+-                    <span class="body-evidence-summary-label">Status</span>
+-                    <span class="body-evidence-summary-value" id="body-evidence-analysis-status" title="Analysis status">not analyzed</span>
+-                  </div>
+-                  <div class="body-evidence-summary-card body-evidence-summary-card--wide">
+-                    <span class="body-evidence-summary-label">Scale</span>
+-                    <span class="body-evidence-summary-value" id="body-evidence-overlay-scale" title="Scale status">â€”</span>
+-                  </div>
+-                  <div class="body-evidence-summary-card body-evidence-summary-card--wide">
+-                    <span class="body-evidence-summary-label">Source</span>
+-                    <span class="body-evidence-summary-value" id="body-evidence-source-summary" title="Evidence source">â€”</span>
++                <div class="inspector-subgroup" data-collapsible>
++                  <h3 class="inspector-subgroup-label">Actions</h3>
++                  <div class="inspector-subgroup-body">
++                    <div class="inspector-subgroup-actions">
++                      <button type="button" id="analyze-body-evidence" class="panel-button">Analyze Body Evidence</button>
++                      <button type="button" id="download-body-evidence-json" class="panel-button" disabled aria-disabled="true">Download Body Evidence JSON</button>
++                      <button type="button" id="clear-body-evidence" class="panel-button panel-button--compact">Clear Body Evidence</button>
++                    </div>
+                   </div>
+                 </div>
+-                <p id="body-evidence-status" class="body-evidence-status" hidden></p>
+-              </div>
+-              <div class="inspector-subgroup" data-collapsible>
+-                <h3 class="inspector-subgroup-label">Front Candidates</h3>
+-                <div class="inspector-subgroup-body">
+-                  <div
+-                    id="body-evidence-candidates"
+-                    class="body-evidence-candidates"
+-                    role="listbox"
+-                    aria-label="Front body landmark candidates"
+-                  >
+-                    <p class="body-evidence-candidates-empty">No front body landmark candidates.</p>
++                <div class="inspector-subgroup">
++                  <h3 class="inspector-subgroup-label">Evidence Summary</h3>
++                  <div class="body-evidence-summary" id="body-evidence-summary" aria-live="polite">
++                    <div class="body-evidence-summary-card">
++                      <span class="body-evidence-summary-label">Front Core</span>
++                      <span class="body-evidence-summary-value" id="body-evidence-overlay-count" title="Front core candidates">0</span>
++                    </div>
++                    <div class="body-evidence-summary-card">
++                      <span class="body-evidence-summary-label">Front Sec.</span>
++                      <span class="body-evidence-summary-value" id="body-evidence-secondary-count" title="Secondary front candidates">0</span>
++                    </div>
++                    <div class="body-evidence-summary-card">
++                      <span class="body-evidence-summary-label">Side Core</span>
++                      <span class="body-evidence-summary-value" id="body-evidence-side-count" title="Side core candidates">0</span>
++                    </div>
++                    <div class="body-evidence-summary-card">
++                      <span class="body-evidence-summary-label">Side Sec.</span>
++                      <span class="body-evidence-summary-value" id="body-evidence-side-secondary-count" title="Side secondary candidates">0</span>
++                    </div>
++                    <div class="body-evidence-summary-card">
++                      <span class="body-evidence-summary-label">Rejected</span>
++                      <span class="body-evidence-summary-value" id="body-evidence-rejected-count" title="Rejected face/head landmarks (Front + Side)">0</span>
++                    </div>
++                    <div class="body-evidence-summary-card">
++                      <span class="body-evidence-summary-label">Ignored</span>
++                      <span class="body-evidence-summary-value" id="body-evidence-ignored-count" title="Ignored non-core landmarks (Front + Side)">0</span>
++                    </div>
++                    <div class="body-evidence-summary-card body-evidence-summary-card--wide">
++                      <span class="body-evidence-summary-label">Status</span>
++                      <span class="body-evidence-summary-value" id="body-evidence-analysis-status" title="Analysis status">not analyzed</span>
++                    </div>
++                    <div class="body-evidence-summary-card body-evidence-summary-card--wide">
++                      <span class="body-evidence-summary-label">Scale</span>
++                      <span class="body-evidence-summary-value" id="body-evidence-overlay-scale" title="Scale status">â€”</span>
++                    </div>
++                    <div class="body-evidence-summary-card body-evidence-summary-card--wide">
++                      <span class="body-evidence-summary-label">Source</span>
++                      <span class="body-evidence-summary-value" id="body-evidence-source-summary" title="Evidence source">â€”</span>
++                    </div>
+                   </div>
+                 </div>
+               </div>
+-              <div id="body-evidence-secondary-candidates-group" class="inspector-subgroup" data-collapsible>
+-                <h3 class="inspector-subgroup-label">
+-                  Secondary Front Candidates (<span id="body-evidence-secondary-candidates-count">0</span>)
+-                </h3>
+-                <div class="inspector-subgroup-body">
+-                  <div
+-                    id="body-evidence-secondary-candidates"
+-                    class="body-evidence-candidates body-evidence-candidates--secondary"
+-                    role="listbox"
+-                    aria-label="Secondary front body landmark candidates"
+-                  >
+-                    <p class="body-evidence-candidates-empty">No secondary body candidates found.</p>
+-                  </div>
++
++              <div id="body-evidence-tab-front" class="body-evidence-tab-panel" data-body-evidence-panel="front" role="tabpanel" aria-labelledby="body-evidence-tab-front-btn" hidden>
++                <div class="body-evidence-layer-toggle" role="group" aria-label="Front candidate layer">
++                  <button type="button" data-body-evidence-source="front" data-body-evidence-layer="core" aria-pressed="true">Core</button>
++                  <button type="button" data-body-evidence-source="front" data-body-evidence-layer="secondary" aria-pressed="false">Secondary</button>
++                </div>
++                <div class="body-evidence-list-heading">
++                  <span id="body-evidence-front-list-label">Front Core</span>
++                  <span id="body-evidence-front-list-count">0</span>
++                </div>
++                <div
++                  id="body-evidence-front-candidates"
++                  class="body-evidence-candidates body-evidence-candidate-scroll"
++                  role="listbox"
++                  aria-label="Front body landmark candidates"
++                >
++                  <p class="body-evidence-candidates-empty">No front body landmark candidates.</p>
+                 </div>
+               </div>
+-              <div id="body-evidence-side-candidates-group" class="inspector-subgroup" data-collapsible>
+-                <h3 class="inspector-subgroup-label">
+-                  Side Candidates (<span id="body-evidence-side-candidates-count">0</span>)
+-                </h3>
+-                <div class="inspector-subgroup-body">
+-                  <div
+-                    id="body-evidence-side-candidates"
+-                    class="body-evidence-candidates body-evidence-candidates--side"
+-                    role="listbox"
+-                    aria-label="Side body landmark candidates"
+-                  >
+-                    <p class="body-evidence-candidates-empty">No side body landmark candidates.</p>
+-                  </div>
++
++              <div id="body-evidence-tab-side" class="body-evidence-tab-panel" data-body-evidence-panel="side" role="tabpanel" aria-labelledby="body-evidence-tab-side-btn" hidden>
++                <div class="body-evidence-layer-toggle" role="group" aria-label="Side candidate layer">
++                  <button type="button" data-body-evidence-source="side" data-body-evidence-layer="core" aria-pressed="true">Core</button>
++                  <button type="button" data-body-evidence-source="side" data-body-evidence-layer="secondary" aria-pressed="false">Secondary</button>
++                </div>
++                <div class="body-evidence-list-heading">
++                  <span id="body-evidence-side-list-label">Side Core</span>
++                  <span id="body-evidence-side-list-count">0</span>
++                </div>
++                <div
++                  id="body-evidence-side-candidates"
++                  class="body-evidence-candidates body-evidence-candidates--side body-evidence-candidate-scroll"
++                  role="listbox"
++                  aria-label="Side body landmark candidates"
++                >
++                  <p class="body-evidence-candidates-empty">No side body landmark candidates.</p>
+                 </div>
+               </div>
+-              <div class="inspector-subgroup">
+-                <h3 class="inspector-subgroup-label">Current Evidence Selection</h3>
++
++              <div id="body-evidence-tab-selection" class="body-evidence-tab-panel" data-body-evidence-panel="selection" role="tabpanel" aria-labelledby="body-evidence-tab-selection-btn" hidden>
+                 <div class="body-evidence-inspect-card">
+                   <div id="body-evidence-selected" class="body-evidence-selected" aria-live="polite">
+                     <p class="body-evidence-selected-empty">No body landmark selected.</p>
+                   </div>
+                   <div class="body-evidence-inspect-actions">
+-                    <button type="button" id="promote-selected-body-landmark" class="panel-button panel-button--compact body-evidence-inspect-promote" disabled aria-disabled="true">Promote Selected Landmark</button>
++                    <button type="button" id="promote-selected-body-landmark" class="panel-button panel-button--compact body-evidence-inspect-promote" hidden disabled aria-disabled="true">Promote Selected Landmark</button>
+                     <button type="button" id="clear-body-landmark-selection" class="panel-button panel-button--compact body-evidence-inspect-clear" disabled aria-disabled="true">Clear Selection</button>
+                   </div>
+                   <p id="body-evidence-promote-status" class="body-evidence-promote-status" hidden></p>
+                 </div>
+               </div>
+             </div>
+           </section>
+ 
+@@ -515,24 +582,26 @@
+                 <div id="session-body-evidence-status" class="session-body-evidence-status" aria-live="polite">
+                   <p class="session-empty-state">No body evidence analyzed.</p>
+                 </div>
+               </div>
+             </section>
+             <section id="promoted-body-anchors-panel" class="inspector-section">
+               <div class="section-body">
+                 <h3 class="body-tab-section-title">Promoted Body Anchors</h3>
++                <p class="body-tab-section-subtitle">Canonical promoted anchors</p>
+                 <p id="promoted-body-anchors-count" class="promoted-body-anchors-count" aria-live="polite">Total: 0</p>
+                 <p id="promoted-body-anchors-empty" class="session-empty-state">No promoted body anchors yet.</p>
+                 <div id="promoted-body-anchors-list" class="promoted-body-anchors-list" aria-live="polite"></div>
+               </div>
+             </section>
+             <section id="body-measurement-readiness-panel" class="inspector-section">
+               <div class="section-body">
+                 <h3 class="body-tab-section-title">Body Measurement Readiness</h3>
++                <p class="body-tab-section-subtitle">Based on promoted canonical body landmarks</p>
+                 <div id="body-measurement-readiness" class="body-measurement-readiness" aria-live="polite"></div>
+               </div>
+             </section>
+           </div>
+ 
+           <div id="tab-panel-graph" class="session-tab-panel tab-panel-hidden" role="tabpanel">
+             <section id="scene-graph-panel" class="inspector-section">
+               <div class="section-body">
+diff --git a/src/styles/components.css b/src/styles/components.css
+index d54caf0..9eb6a6f 100644
+--- a/src/styles/components.css
++++ b/src/styles/components.css
+@@ -494,16 +494,137 @@
+ }
+ 
+ /* â”€â”€ Body Evidence (left inspector, QA / inspect UI) â”€â”€ */
+ 
+ .inspector-section--body-evidence .section-body {
+   gap: 8px;
+ }
+ 
++.body-evidence-tabs {
++  display: flex;
++  flex-shrink: 0;
++  gap: 0;
++  border: 1px solid rgba(147, 51, 234, 0.28);
++  border-radius: var(--radius-sm);
++  overflow: hidden;
++  pointer-events: auto;
++}
++
++.body-evidence-tabs [data-body-evidence-tab] {
++  flex: 1 1 0;
++  min-width: 0;
++  margin: 0;
++  padding: 6px 4px;
++  border: none;
++  border-right: 1px solid rgba(147, 51, 234, 0.2);
++  border-radius: 0;
++  background: rgba(0, 0, 0, 0.35);
++  color: var(--text-muted);
++  font-family: inherit;
++  font-size: 8px;
++  font-weight: 600;
++  letter-spacing: 0.04em;
++  line-height: 1.2;
++  text-align: center;
++  text-transform: uppercase;
++  white-space: nowrap;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  cursor: pointer;
++  pointer-events: auto;
++}
++
++.body-evidence-tabs [data-body-evidence-tab]:last-child {
++  border-right: none;
++}
++
++.body-evidence-tabs [data-body-evidence-tab]:hover {
++  color: var(--text-secondary);
++  background: rgba(147, 51, 234, 0.12);
++}
++
++.body-evidence-tabs [data-body-evidence-tab].is-active,
++.body-evidence-tabs [data-body-evidence-tab][aria-selected='true'] {
++  background: linear-gradient(180deg, rgba(91, 33, 182, 0.35) 0%, rgba(6, 4, 14, 0.6) 100%);
++  color: var(--purple-bright);
++  text-shadow: 0 0 10px rgba(192, 132, 252, 0.25);
++}
++
++.body-evidence-tab-panel {
++  display: flex;
++  flex-direction: column;
++  gap: 8px;
++  min-width: 0;
++}
++
++.body-evidence-tab-panel[hidden] {
++  display: none;
++}
++
++.body-evidence-layer-toggle {
++  display: flex;
++  border: 1px solid rgba(147, 51, 234, 0.22);
++  border-radius: var(--radius-sm);
++  overflow: hidden;
++  pointer-events: auto;
++}
++
++.body-evidence-layer-toggle button {
++  flex: 1 1 0;
++  margin: 0;
++  padding: 5px 6px;
++  border: none;
++  border-right: 1px solid rgba(147, 51, 234, 0.18);
++  border-radius: 0;
++  background: rgba(0, 0, 0, 0.28);
++  color: var(--text-muted);
++  font-family: var(--font-mono);
++  font-size: 8px;
++  font-weight: 600;
++  letter-spacing: 0.06em;
++  text-transform: uppercase;
++  cursor: pointer;
++  pointer-events: auto;
++}
++
++.body-evidence-layer-toggle button:last-child {
++  border-right: none;
++}
++
++.body-evidence-layer-toggle button:hover {
++  color: var(--text-secondary);
++  background: rgba(147, 51, 234, 0.1);
++}
++
++.body-evidence-layer-toggle button.is-active,
++.body-evidence-layer-toggle button[aria-pressed='true'] {
++  background: rgba(34, 211, 238, 0.1);
++  color: var(--cyan-data);
++}
++
++.body-evidence-list-heading {
++  display: flex;
++  align-items: baseline;
++  justify-content: space-between;
++  gap: 8px;
++  font-family: var(--font-mono);
++  font-size: 8px;
++  font-weight: 600;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: var(--text-muted);
++}
++
++.body-evidence-candidate-scroll {
++  max-height: clamp(12rem, 34vh, 24rem);
++  overflow-y: auto;
++  overscroll-behavior: contain;
++}
++
+ #show-body-evidence-overlay:disabled {
+   cursor: not-allowed;
+   opacity: 0.4;
+ }
+ 
+ .body-evidence-summary {
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+@@ -653,29 +774,27 @@
+ .body-evidence-status[data-status='warn'] {
+   color: #fbbf24;
+ }
+ 
+ .body-evidence-candidates {
+   display: flex;
+   flex-direction: column;
+   gap: 2px;
+-  max-height: 148px;
+   overflow-x: hidden;
+   overflow-y: auto;
+   padding: 4px;
+   border-radius: var(--radius-sm);
+   border: 1px solid rgba(147, 51, 234, 0.16);
+   background: rgba(0, 0, 0, 0.28);
+   pointer-events: auto;
+   scrollbar-width: thin;
+ }
+ 
+ .body-evidence-candidates--secondary {
+-  max-height: 120px;
+   border-color: rgba(148, 163, 184, 0.22);
+ }
+ 
+ .body-evidence-candidates-empty {
+   margin: 0;
+   padding: 6px 4px;
+   font-family: var(--font-mono);
+   font-size: 9px;
+@@ -892,16 +1011,23 @@
+   font-family: var(--font-display);
+   font-size: 8px;
+   font-weight: 600;
+   letter-spacing: 0.12em;
+   text-transform: uppercase;
+   color: var(--text-secondary);
+ }
+ 
++.body-tab-section-subtitle {
++  margin: -2px 0 8px;
++  font-size: 8px;
++  line-height: 1.4;
++  color: var(--text-muted);
++}
++
+ .promoted-body-anchors-count {
+   margin: 0 0 8px;
+   font-size: 9px;
+   color: var(--text-muted);
+ }
+ 
+ .promoted-body-anchors-list {
+   display: flex;
+@@ -1041,16 +1167,53 @@
+   color: var(--text-secondary);
+   background: rgba(52, 211, 153, 0.08);
+ }
+ 
+ .body-tab-advanced-details {
+   margin-top: 2px;
+ }
+ 
++.body-tab-advanced-body {
++  display: flex;
++  flex-direction: column;
++}
++
++.body-tab-advanced-view {
++  display: flex;
++  flex-direction: column;
++  gap: 4px;
++  padding: 8px;
++  border-top: 1px solid rgba(147, 51, 234, 0.12);
++}
++
++.body-tab-advanced-view:first-child {
++  border-top: none;
++}
++
++.body-tab-advanced-view-title {
++  margin: 0 0 2px;
++  font-family: var(--font-display);
++  font-size: 8px;
++  font-weight: 600;
++  letter-spacing: 0.12em;
++  text-transform: uppercase;
++  color: var(--purple-bright);
++}
++
++.body-tab-advanced-view .body-evidence-qa-sublists {
++  padding: 4px 0 0;
++}
++
++.body-tab-seg-details {
++  margin: 0 8px 8px;
++  border-top: 1px solid rgba(147, 51, 234, 0.12);
++  padding-top: 4px;
++}
++
+ /* â”€â”€ Body Measurement Readiness (Session Data â†’ Body tab) â”€â”€ */
+ 
+ .body-measurement-readiness {
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+   pointer-events: none;
+ }
+@@ -1879,8 +2042,124 @@
+     height: 40px;
+     padding: 5px 7px;
+   }
+ 
+   .body-graph-node-name {
+     font-size: 9px;
+   }
+ }
++
++/* â”€â”€ Application menu bar â”€â”€ */
++
++.app-menu {
++  position: relative;
++}
++
++.app-menu-trigger {
++  appearance: none;
++  border: 1px solid transparent;
++  background: transparent;
++  color: var(--text-secondary);
++  font-family: var(--font-mono);
++  font-size: 11px;
++  font-weight: 500;
++  letter-spacing: 0.04em;
++  padding: 6px 10px;
++  border-radius: 4px;
++  cursor: pointer;
++  line-height: 1.2;
++}
++
++.app-menu-trigger:hover,
++.app-menu--open .app-menu-trigger {
++  color: var(--text-primary);
++  background: rgba(148, 163, 184, 0.08);
++  border-color: rgba(148, 163, 184, 0.16);
++}
++
++.app-menu-dropdown {
++  position: absolute;
++  top: calc(100% + 4px);
++  left: 0;
++  z-index: 40;
++  min-width: 240px;
++  margin: 0;
++  padding: 6px;
++  list-style: none;
++  background: rgba(15, 18, 28, 0.96);
++  border: 1px solid rgba(148, 163, 184, 0.18);
++  border-radius: 6px;
++  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
++}
++
++.app-menu-dropdown[hidden] {
++  display: none;
++}
++
++.app-menu-separator {
++  height: 1px;
++  margin: 5px 6px;
++  background: rgba(148, 163, 184, 0.14);
++  list-style: none;
++}
++
++.app-menu-dropdown [role="menuitem"] {
++  display: flex;
++  align-items: center;
++  width: 100%;
++  appearance: none;
++  border: 0;
++  background: transparent;
++  color: var(--text-primary);
++  font-family: var(--font-mono);
++  font-size: 11px;
++  font-weight: 450;
++  letter-spacing: 0.02em;
++  text-align: left;
++  padding: 7px 10px 7px 28px;
++  border-radius: 4px;
++  cursor: pointer;
++  position: relative;
++}
++
++.app-menu-dropdown [role="menuitem"]::before {
++  content: '';
++  position: absolute;
++  left: 10px;
++  width: 10px;
++  font-size: 10px;
++  line-height: 1;
++  color: var(--text-muted);
++}
++
++.app-menu-item--checked::before {
++  content: 'âœ“';
++  color: var(--text-primary);
++}
++
++.app-menu-dropdown [role="menuitem"]:hover,
++.app-menu-item--active {
++  background: rgba(148, 163, 184, 0.12);
++}
++
++.app-menu-dropdown [role="menuitem"]:disabled,
++.app-menu-dropdown [role="menuitem"][aria-disabled="true"] {
++  color: var(--text-muted);
++  cursor: default;
++  opacity: 0.55;
++}
++
++.app-menu-dropdown [role="menuitem"]:disabled:hover,
++.app-menu-dropdown [role="menuitem"][aria-disabled="true"]:hover {
++  background: transparent;
++}
++
++@media (max-width: 1100px) {
++  .app-menu-trigger {
++    padding: 5px 7px;
++    font-size: 10px;
++  }
++
++  .app-menu-dropdown {
++    min-width: 220px;
++  }
++}
+diff --git a/src/ui/bodyTabConsolidatedPanel.js b/src/ui/bodyTabConsolidatedPanel.js
+index fd37139..09690a0 100644
+--- a/src/ui/bodyTabConsolidatedPanel.js
++++ b/src/ui/bodyTabConsolidatedPanel.js
+@@ -1,19 +1,19 @@
+ /**
+  * Body Tab Consolidation v0 (Session Data â†’ Body).
+  *
+  * Compact read-only layout:
+- * 1. Body Evidence Status (+ collapsed Advanced Evidence Details)
+- * 2. Promoted Body Anchors (table)
+- * 3. Body Measurement Readiness (audit summary + measurement candidates)
++ * 1. Body Evidence Status (loaded chips + per-view QA totals, Advanced Details)
++ * 2. Promoted Body Anchors (annotation-only table)
++ * 3. Body Measurement Readiness (annotation-only audit + six candidates)
+  *
+  * Reuses existing compute helpers. Does not mutate Body Evidence, annotations,
+  * measurements, or export/import schema. Does not write readiness distances
+- * into measurement history.
++ * into measurement history. Promoted/readiness stay annotation-only.
+  */
+ 
+ import { formatCoordinate, formatDistance } from '../core/formatters.js';
+ import { formatLandmarkDisplayName } from '../core/landmarkDisplay.js';
+ import {
+   getAnnotations,
+   subscribeAnnotationsChange,
+ } from '../features/annotations.js';
+@@ -81,22 +81,16 @@ function formatAnchorLabel(name) {
+ 
+ function formatAnchorList(names) {
+   if (!Array.isArray(names) || names.length === 0) {
+     return 'None';
+   }
+   return names.map(formatAnchorLabel).join(', ');
+ }
+ 
+-function countLoadedFiles(loaded = {}) {
+-  return ['frontPose', 'sidePose', 'frontSeg', 'sideSeg']
+-    .filter((key) => Boolean(loaded[key]))
+-    .length;
+-}
+-
+ function renderSummaryRow(key, valueHtml) {
+   return (
+     '<div class="body-tab-summary-row">'
+     + `<span class="body-tab-summary-key">${escapeHtml(key)}</span>`
+     + `<span class="body-tab-summary-value">${valueHtml}</span>`
+     + '</div>'
+   );
+ }
+@@ -179,93 +173,181 @@ function nameItemsFromEntries(entries, { withReason = false } = {}) {
+     .filter((entry) => entry?.name)
+     .map((entry) => ({
+       text: formatAnchorLabel(entry.name),
+       meta: withReason && entry.reason ? entry.reason : '',
+       title: entry.name,
+     }));
+ }
+ 
+-function renderAdvancedEvidenceDetails(result) {
++function getViewPose(result, view) {
++  return result.views?.[view]?.pose ?? {
++    core: 0,
++    secondary: 0,
++    rejectedFace: 0,
++    ignoredNonCore: 0,
++    lowConfidence: 0,
++    acceptedLandmarks: [],
++    rejectedLandmarks: [],
++    ignoredLandmarks: [],
++  };
++}
++
++function nameItemsFromCore(landmarks) {
++  return nameItemsFromEntries(
++    (Array.isArray(landmarks) ? landmarks : []).filter((entry) => entry?.coreFront),
++  );
++}
++
++function nameItemsFromLowConfidence(landmarks) {
++  return (Array.isArray(landmarks) ? landmarks : [])
++    .filter((entry) => entry?.lowConfidence && entry.name)
++    .map((entry) => ({
++      text: formatAnchorLabel(entry.name),
++      meta: Number.isFinite(entry.score) ? `score ${entry.score}` : 'low confidence',
++      title: entry.name,
++    }));
++}
++
++function formatCoreCount(count) {
++  return `${formatCount(count)} / ${CORE_ANCHOR_TOTAL}`;
++}
++
++function formatScaleLabel(scale) {
++  const pixelsPerCm = Number.isFinite(scale?.pixelsPerCm) ? scale.pixelsPerCm : 10;
++  return `${pixelsPerCm} px/cm Â· fixed`;
++}
++
++function formatSegmentationStatus(qa, loaded) {
++  if (!loaded.frontSeg && !loaded.sideSeg) {
++    return 'none';
++  }
++  const classCount = typeof qa.segmentationClassCount === 'number'
++    ? qa.segmentationClassCount
++    : 0;
++  return classCount > 0 ? `QA Â· ${classCount} classes` : 'QA only';
++}
++
++function renderViewBreakdown(label, {
++  core,
++  secondary,
++  rejected,
++  ignored,
++  lowConfidence,
++  coreItems,
++  secondaryItems,
++  rejectedItems,
++  ignoredItems,
++  lowConfidenceItems,
++}) {
++  return (
++    `<section class="body-tab-advanced-view" aria-label="${escapeHtml(label)} evidence">`
++    + `<h4 class="body-tab-advanced-view-title">${escapeHtml(label)}</h4>`
++    + renderAdvancedRow('Core', formatCount(core))
++    + renderAdvancedRow('Secondary', formatCount(secondary))
++    + renderAdvancedRow('Rejected', formatCount(rejected))
++    + renderAdvancedRow('Ignored / Deferred', formatCount(ignored))
++    + renderAdvancedRow('Low Confidence', formatCount(lowConfidence))
++    + '<div class="body-evidence-qa-sublists">'
++    + renderNameListSubsection('Core', coreItems)
++    + renderNameListSubsection('Secondary', secondaryItems)
++    + renderNameListSubsection('Rejected', rejectedItems)
++    + renderNameListSubsection('Ignored / Deferred', ignoredItems)
++    + renderNameListSubsection('Low Confidence', lowConfidenceItems)
++    + '</div>'
++    + '</section>'
++  );
++}
++
++function renderSegmentationDetails(result) {
+   const loaded = result.loaded ?? {};
+   const qa = result.qa ?? {};
+-  const scale = result.scale ?? {};
+   const views = result.views ?? {};
+ 
+-  const canvas = Number.isFinite(scale.canvasSize)
+-    ? `${scale.canvasSize} Ã— ${scale.canvasSize}`
+-    : '2000 Ã— 2000';
+-  const pixelsPerCm = Number.isFinite(scale.pixelsPerCm)
+-    ? String(scale.pixelsPerCm)
+-    : '10';
+-  const source = scale.source === 'body-evidence-v0-fixed' || scale.status === 'fixed'
+-    ? 'fixed Body Evidence v0 assumption'
+-    : formatText(scale.source);
+-
+-  const advancedRows = [
+-    renderAdvancedLoadedRow('Front Pose', loaded.frontPose),
+-    renderAdvancedLoadedRow('Side Pose', loaded.sidePose),
++  const rows = [
+     renderAdvancedLoadedRow('Front Segmentation', loaded.frontSeg),
+     renderAdvancedLoadedRow('Side Segmentation', loaded.sideSeg),
+-    renderAdvancedRow('Total landmarks', formatCount(qa.totalLandmarks)),
+-    renderAdvancedRow('Front pose landmarks', formatCount(qa.frontTotalLandmarks)),
+-    renderAdvancedRow('Accepted body', formatCount(qa.acceptedBodyLandmarks)),
+-    renderAdvancedRow('Rejected face / head', formatCount(qa.rejectedFaceLandmarks)),
+-    renderAdvancedRow('Low confidence', formatCount(qa.lowConfidenceLandmarks)),
+-    renderAdvancedRow('Front accepted', formatCount(qa.frontAcceptedCount)),
+-    renderAdvancedRow('Side accepted', formatCount(qa.sideAcceptedCount)),
+-    renderAdvancedRow('Renderable front (core 13)', formatCount(qa.renderableFrontLandmarks)),
+-    renderAdvancedRow('Secondary front candidates', formatCount(qa.secondaryFrontLandmarks)),
+-    renderAdvancedRow('Front ignored / deferred', formatCount(qa.frontIgnoredNonCoreLandmarks)),
+-    renderAdvancedRow('Scale status', formatText(scale.status)),
+-    renderAdvancedRow('Scale source', source),
+-    renderAdvancedRow('Canvas size', canvas),
+-    renderAdvancedRow('Pixels / cm', pixelsPerCm),
+-    renderAdvancedRow('Segmentation classes', formatCount(qa.segmentationClassCount)),
++    renderAdvancedRow('Classes', formatCount(qa.segmentationClassCount)),
+   ];
+ 
+   const labelViews = [
+     ['Front', views.front?.segmentation],
+     ['Side', views.side?.segmentation],
+-  ].filter(([, segmentation]) => hasLabelMetadata(segmentation));
++  ];
+ 
+-  if (labelViews.length === 0) {
+-    advancedRows.push(renderAdvancedRow('Label shape', DASH));
+-    advancedRows.push(renderAdvancedRow('Label dtype', DASH));
+-  } else {
+-    labelViews.forEach(([label, segmentation]) => {
+-      advancedRows.push(renderAdvancedRow(`${label} label shape`, formatShape(segmentation.labelShape)));
+-      advancedRows.push(renderAdvancedRow(`${label} label dtype`, formatText(segmentation.labelDtype)));
+-    });
++  let hasAnyLabelMetadata = false;
++  labelViews.forEach(([label, segmentation]) => {
++    if (!hasLabelMetadata(segmentation)) {
++      return;
++    }
++    hasAnyLabelMetadata = true;
++    rows.push(renderAdvancedRow(`${label} label shape`, formatShape(segmentation.labelShape)));
++    rows.push(renderAdvancedRow(`${label} label dtype`, formatText(segmentation.labelDtype)));
++  });
++
++  if (!hasAnyLabelMetadata) {
++    rows.push(renderAdvancedRow('Label shape', DASH));
++    rows.push(renderAdvancedRow('Label dtype', DASH));
+   }
+ 
+-  const nameSubsections = [
+-    renderNameListSubsection(
+-      'Secondary Candidates',
+-      nameItemsFromNames(qa.secondaryFrontLandmarkNames),
+-    ),
+-    renderNameListSubsection(
+-      'Ignored / Deferred',
+-      nameItemsFromEntries(qa.ignoredFrontLandmarks, { withReason: true }),
+-    ),
+-    renderNameListSubsection(
+-      'Rejected Face / Head',
+-      nameItemsFromEntries(qa.rejectedFrontLandmarks),
+-    ),
+-    renderNameListSubsection(
+-      'Rejected Segmentation Classes',
++  return (
++    '<details class="body-evidence-qa-subgroup body-tab-seg-details">'
++    + '<summary class="body-evidence-qa-subgroup-summary">Segmentation metadata</summary>'
++    + `<div class="body-evidence-qa-body">${rows.join('')}</div>`
++    + '<div class="body-evidence-qa-sublists">'
++    + renderNameListSubsection(
++      'Rejected Classes',
+       nameItemsFromNames(qa.rejectedSegmentationClasses),
++    )
++    + '</div>'
++    + '</details>'
++  );
++}
++
++function renderAdvancedEvidenceDetails(result) {
++  const qa = result.qa ?? {};
++  const frontPose = getViewPose(result, 'front');
++  const sidePose = getViewPose(result, 'side');
++
++  const frontBreakdown = renderViewBreakdown('Front', {
++    core: qa.frontCoreLandmarks ?? frontPose.core,
++    secondary: qa.frontSecondaryLandmarks ?? frontPose.secondary,
++    rejected: qa.frontRejectedFaceLandmarks ?? frontPose.rejectedFace,
++    ignored: qa.frontIgnoredNonCoreLandmarks ?? frontPose.ignoredNonCore,
++    lowConfidence: frontPose.lowConfidence,
++    coreItems: nameItemsFromCore(frontPose.acceptedLandmarks),
++    secondaryItems: nameItemsFromNames(qa.secondaryFrontLandmarkNames),
++    rejectedItems: nameItemsFromEntries(qa.rejectedFrontLandmarks ?? frontPose.rejectedLandmarks),
++    ignoredItems: nameItemsFromEntries(
++      qa.ignoredFrontLandmarks ?? frontPose.ignoredLandmarks,
++      { withReason: true },
+     ),
+-  ].join('');
++    lowConfidenceItems: nameItemsFromLowConfidence(frontPose.acceptedLandmarks),
++  });
++
++  const sideBreakdown = renderViewBreakdown('Side', {
++    core: qa.sideCoreLandmarks ?? sidePose.core,
++    secondary: qa.sideSecondaryLandmarks ?? sidePose.secondary,
++    rejected: qa.sideRejectedFaceLandmarks ?? sidePose.rejectedFace,
++    ignored: qa.sideIgnoredNonCoreLandmarks ?? sidePose.ignoredNonCore,
++    lowConfidence: sidePose.lowConfidence,
++    coreItems: nameItemsFromCore(sidePose.acceptedLandmarks),
++    secondaryItems: nameItemsFromNames(qa.secondarySideLandmarkNames),
++    rejectedItems: nameItemsFromEntries(qa.rejectedSideLandmarks ?? sidePose.rejectedLandmarks),
++    ignoredItems: nameItemsFromEntries(
++      qa.ignoredSideLandmarks ?? sidePose.ignoredLandmarks,
++      { withReason: true },
++    ),
++    lowConfidenceItems: nameItemsFromLowConfidence(sidePose.acceptedLandmarks),
++  });
+ 
+   return (
+     '<details class="body-evidence-qa-group body-tab-advanced-details">'
+     + '<summary class="body-evidence-qa-summary">Advanced Evidence Details</summary>'
+-    + `<div class="body-evidence-qa-body">${advancedRows.join('')}</div>`
+-    + `<div class="body-evidence-qa-sublists">${nameSubsections}</div>`
++    + `<div class="body-tab-advanced-body">${frontBreakdown}${sideBreakdown}${renderSegmentationDetails(result)}</div>`
+     + '</details>'
+   );
+ }
+ 
+ function renderBodyEvidenceStatus() {
+   if (!sessionBodyEvidenceStatusEl) {
+     return;
+   }
+@@ -273,40 +355,36 @@ function renderBodyEvidenceStatus() {
+   const result = getBodyEvidenceQa();
+   if (!result) {
+     sessionBodyEvidenceStatusEl.innerHTML = EMPTY_EVIDENCE;
+     return;
+   }
+ 
+   const loaded = result.loaded ?? {};
+   const qa = result.qa ?? {};
+-  const loadedCount = countLoadedFiles(loaded);
+-  const acceptedCore = formatCount(qa.renderableFrontLandmarks);
+-  const sideCandidates = formatCount(qa.sideAcceptedCount);
+ 
+   const loadedChips = [
+     renderLoadedIndicator('Front Pose', loaded.frontPose),
+     renderLoadedIndicator('Side Pose', loaded.sidePose),
+     renderLoadedIndicator('Front Seg', loaded.frontSeg),
+     renderLoadedIndicator('Side Seg', loaded.sideSeg),
+   ].join('');
+ 
+   sessionBodyEvidenceStatusEl.innerHTML = [
+     '<div class="body-tab-status-card">',
+-    renderSummaryRow('Evidence', renderBadge('Loaded', 'ok')),
+-    renderTextSummaryRow('Loaded files', `${loadedCount} / 4`),
+     `<div class="body-tab-loaded-chips" aria-label="Loaded file indicators">${loadedChips}</div>`,
+-    renderTextSummaryRow('Front core candidates', `${acceptedCore} / ${CORE_ANCHOR_TOTAL}`),
+-    renderTextSummaryRow('Front secondary candidates', formatCount(qa.secondaryFrontLandmarks)),
+-    renderTextSummaryRow('Side candidates', sideCandidates),
+-    renderTextSummaryRow('Ignored / deferred', formatCount(qa.frontIgnoredNonCoreLandmarks)),
+-    renderTextSummaryRow('Rejected face / head', formatCount(qa.frontRejectedFaceLandmarks)),
+-    renderTextSummaryRow('Low confidence', formatCount(qa.lowConfidenceLandmarks)),
+-    renderTextSummaryRow('Scale', '10 px/cm fixed'),
+-    renderTextSummaryRow('Segmentation', 'QA only'),
++    renderTextSummaryRow('Front Core', formatCoreCount(qa.frontCoreLandmarks)),
++    renderTextSummaryRow('Front Secondary', formatCount(qa.frontSecondaryLandmarks)),
++    renderTextSummaryRow('Side Core', formatCoreCount(qa.sideCoreLandmarks)),
++    renderTextSummaryRow('Side Secondary', formatCount(qa.sideSecondaryLandmarks)),
++    renderTextSummaryRow('Rejected Total', formatCount(qa.rejectedFaceLandmarks)),
++    renderTextSummaryRow('Ignored / Deferred Total', formatCount(qa.ignoredNonCoreLandmarks)),
++    renderTextSummaryRow('Low Confidence', formatCount(qa.lowConfidenceLandmarks)),
++    renderTextSummaryRow('Scale', formatScaleLabel(result.scale)),
++    renderTextSummaryRow('Segmentation', formatSegmentationStatus(qa, loaded)),
+     '</div>',
+     renderAdvancedEvidenceDetails(result),
+   ].join('');
+ }
+ 
+ function getPromotedBodyAnchors() {
+   return getAnnotations().filter((entry) => entry.type === PROMOTED_BODY_LANDMARK_TYPE);
+ }
+diff --git a/src/ui/domRefs.js b/src/ui/domRefs.js
+index eb09ab2..58925f5 100644
+--- a/src/ui/domRefs.js
++++ b/src/ui/domRefs.js
+@@ -46,16 +46,17 @@ export const showOriginCenterCheckbox = document.getElementById('show-origin-cen
+ export const showAnnotationsCheckbox = document.getElementById('show-annotations');
+ export const show3dLatticePointsCheckbox = document.getElementById('show-3d-lattice-points');
+ export const show2dGridPointsCheckbox = document.getElementById('show-2d-grid-points');
+ export const showSideGridPointsCheckbox = document.getElementById('show-side-grid-points');
+ export const showMeasurementLinesCheckbox = document.getElementById('show-measurement-lines');
+ export const showBodyMeasurementPreviewsCheckbox = document.getElementById('show-body-measurement-previews');
+ export const showSecondaryBodyCandidatesCheckbox = document.getElementById('show-secondary-body-candidates');
+ export const showSideBodyCandidatesCheckbox = document.getElementById('show-side-body-candidates');
++export const appMenuBarEl = document.getElementById('app-menu-bar');
+ export const workspaceTab3dBtn = document.getElementById('workspace-tab-3d');
+ export const workspaceTabSplitBtn = document.getElementById('workspace-tab-split');
+ export const workspaceTabBodyGraphBtn = document.getElementById('workspace-tab-body-graph');
+ export const workspaceContentEl = document.getElementById('workspace-content');
+ export const workspacePane3dEl = document.getElementById('workspace-pane-3d');
+ export const workspacePane2dEl = document.getElementById('grid2d-navigator-panel');
+ export const workspacePaneBodyGraphEl = document.getElementById('body-graph-workspace');
+ export const workspaceSplitDividerEl = document.getElementById('workspace-split-divider');
+@@ -122,24 +123,24 @@ export const sideEvidenceSelectedRegionEl = document.getElementById('side-eviden
+ export const sideEvidenceLegendEl = document.getElementById('side-evidence-legend');
+ export const sideGridBackBtn = document.getElementById('side-grid-back');
+ export const sideGridResetBtn = document.getElementById('side-grid-reset');
+ export const sideGridSplitBtn = document.getElementById('side-grid-split');
+ export const sideGridClearPointABtn = document.getElementById('side-grid-clear-a');
+ export const sideGridClearPointBBtn = document.getElementById('side-grid-clear-b');
+ export const sideGridClearMeasureBtn = document.getElementById('side-grid-clear-measure');
+ export const bodyEvidenceSelectedEl = document.getElementById('body-evidence-selected');
+-export const bodyEvidenceCandidatesEl = document.getElementById('body-evidence-candidates');
+-export const bodyEvidenceSecondaryCandidatesEl = document.getElementById('body-evidence-secondary-candidates');
+-export const bodyEvidenceSecondaryCandidatesGroupEl = document.getElementById('body-evidence-secondary-candidates-group');
+-export const bodyEvidenceSecondaryCandidatesCountEl = document.getElementById('body-evidence-secondary-candidates-count');
++export const bodyEvidenceFrontCandidatesEl = document.getElementById('body-evidence-front-candidates');
+ export const bodyEvidenceSideCandidatesEl = document.getElementById('body-evidence-side-candidates');
+-export const bodyEvidenceSideCandidatesGroupEl = document.getElementById('body-evidence-side-candidates-group');
+-export const bodyEvidenceSideCandidatesCountEl = document.getElementById('body-evidence-side-candidates-count');
++export const bodyEvidenceFrontListCountEl = document.getElementById('body-evidence-front-list-count');
++export const bodyEvidenceFrontListLabelEl = document.getElementById('body-evidence-front-list-label');
++export const bodyEvidenceSideListCountEl = document.getElementById('body-evidence-side-list-count');
++export const bodyEvidenceSideListLabelEl = document.getElementById('body-evidence-side-list-label');
+ export const bodyEvidenceSideCountEl = document.getElementById('body-evidence-side-count');
++export const bodyEvidenceSideSecondaryCountEl = document.getElementById('body-evidence-side-secondary-count');
+ export const bodyEvidencePromoteStatusEl = document.getElementById('body-evidence-promote-status');
+ export const sessionBodyEvidenceStatusEl = document.getElementById('session-body-evidence-status');
+ export const promotedBodyAnchorsCountEl = document.getElementById('promoted-body-anchors-count');
+ export const promotedBodyAnchorsEmptyEl = document.getElementById('promoted-body-anchors-empty');
+ export const promotedBodyAnchorsListEl = document.getElementById('promoted-body-anchors-list');
+ export const bodyMeasurementReadinessEl = document.getElementById('body-measurement-readiness');
+ export const promoteSelectedBodyLandmarkBtn = document.getElementById('promote-selected-body-landmark');
+ export const clearBodyLandmarkSelectionBtn = document.getElementById('clear-body-landmark-selection');

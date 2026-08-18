@@ -1,0 +1,1784 @@
+# Review Package Task 3
+Head: WORKING_TREE
+
+## Status
+ M index.html
+ M src/features/bodyEvidence.js
+ M src/features/sceneExport.js
+ M src/features/sceneImport.js
+ M src/main.js
+ M src/styles/components.css
+ M src/styles/layout.css
+ M src/ui/bodyEvidencePanel.js
+ M src/ui/domRefs.js
+ M src/ui/inspectorWorkflow.js
+ M src/ui/viewControls.js
+ M src/ui/workspaceLayout.js
+?? src/ui/appMenuBar.js
+
+## Stat
+ index.html                   |  59 +++++++++
+ src/features/bodyEvidence.js |  98 ++++++++++++--
+ src/features/sceneExport.js  |  15 ++-
+ src/features/sceneImport.js  |   4 +
+ src/main.js                  |   7 +
+ src/styles/components.css    | 116 ++++++++++++++++
+ src/styles/layout.css        |  16 +++
+ src/ui/bodyEvidencePanel.js  | 101 +++++++++-----
+ src/ui/domRefs.js            |   1 +
+ src/ui/inspectorWorkflow.js  |   7 +-
+ src/ui/viewControls.js       | 308 +++++++++++++++++++++++++++++++++++++------
+ src/ui/workspaceLayout.js    |  16 +++
+ 12 files changed, 660 insertions(+), 88 deletions(-)
+
+## Diff tracked
+diff --git a/index.html b/index.html
+index c7392a9..fa5a5f2 100644
+--- a/index.html
++++ b/index.html
+@@ -15,16 +15,75 @@
+   <body>
+     <div id="app-layout">
+       <header id="top-header">
+         <div class="header-brand">
+           <div class="header-eyebrow">REVacity</div>
+           <h1 class="header-title">Metrology Space</h1>
+           <p class="header-subtitle">Volumetric Coordinate Intelligence</p>
+         </div>
++        <nav id="app-menu-bar" class="app-menu-bar" aria-label="Application menu">
++          <div class="app-menu" data-menu="file">
++            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">File</button>
++            <ul class="app-menu-dropdown" role="menu" hidden>
++              <li role="none"><button type="button" role="menuitem" data-command="open-front-pose">Load Front Pose JSONâ€¦</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="open-side-pose">Load Side Pose JSONâ€¦</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="open-front-seg">Load Front Seg JSONâ€¦</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="open-side-seg">Load Side Seg JSONâ€¦</button></li>
++              <li role="separator" class="app-menu-separator"></li>
++              <li role="none"><button type="button" role="menuitem" data-command="open-scene-state">Import Scene Stateâ€¦</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="export-scene-state">Export Scene State</button></li>
++              <li role="separator" class="app-menu-separator"></li>
++              <li role="none"><button type="button" role="menuitem" data-command="download-body-evidence">Download Body Evidence JSON</button></li>
++            </ul>
++          </div>
++          <div class="app-menu" data-menu="edit">
++            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">Edit</button>
++            <ul class="app-menu-dropdown" role="menu" hidden>
++              <li role="none"><button type="button" role="menuitem" data-command="clear-selection">Clear Selection</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="clear-measurement">Clear Measurement</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="clear-history">Clear Measurement History</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="clear-body-evidence">Clear Body Evidence</button></li>
++            </ul>
++          </div>
++          <div class="app-menu" data-menu="view">
++            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">View</button>
++            <ul class="app-menu-dropdown" role="menu" hidden>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="origin-center">Origin / Center</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="annotations">Annotations</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="measurement-lines">Measurement Lines</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="lattice-3d">3D Lattice Points</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="front-grid">Front Grid Points</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="side-grid">Side Grid Points</button></li>
++              <li role="separator" class="app-menu-separator"></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="front-core">Front Core Candidates</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="front-secondary">Front Secondary Candidates</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="side-core">Side Core Candidates</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="side-secondary">Side Secondary Candidates</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="body-previews">Body Measurement Previews</button></li>
++            </ul>
++          </div>
++          <div class="app-menu" data-menu="workspace">
++            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">Workspace</button>
++            <ul class="app-menu-dropdown" role="menu" hidden>
++              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-command="workspace-3d">3D Space</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-command="workspace-split">2D Workspace</button></li>
++              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-command="workspace-body-graph">Body Graph</button></li>
++            </ul>
++          </div>
++          <div class="app-menu" data-menu="body">
++            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">Body</button>
++            <ul class="app-menu-dropdown" role="menu" hidden>
++              <li role="none"><button type="button" role="menuitem" data-command="analyze-body-evidence">Analyze Body Evidence</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="focus-body-front">Focus Front Evidence</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="focus-body-side">Focus Side Evidence</button></li>
++              <li role="none"><button type="button" role="menuitem" data-command="promote-front-evidence">Promote Front Evidence</button></li>
++            </ul>
++          </div>
++        </nav>
+         <div class="header-status">
+           <span class="status-badge status-badge--active">
+             <span class="status-dot"></span>
+             ACTIVE GRID
+           </span>
+           <span class="status-badge status-badge--points">68,921 POINTS</span>
+         </div>
+       </header>
+diff --git a/src/features/bodyEvidence.js b/src/features/bodyEvidence.js
+index fbb4f58..44af1bf 100644
+--- a/src/features/bodyEvidence.js
++++ b/src/features/bodyEvidence.js
+@@ -43,18 +43,20 @@ let sources = emptySources();
+ /** @type {ReturnType<typeof analyzeBodyEvidence>|null} */
+ let qaResult = null;
+ 
+ /** @type {string|null} */
+ let lastError = null;
+ 
+ let overlayVisible = false;
+ let secondaryCandidatesVisible = false;
+-/** Side Body Candidates overlay visibility (evidence plane; default on when analyzed). */
+-let sideOverlayVisible = true;
++/** Side core Body Evidence overlay visibility (evidence plane; default on when analyzed). */
++let sideCoreOverlayVisible = true;
++/** Side secondary Body Evidence overlay visibility (evidence plane; default on when analyzed). */
++let sideSecondaryOverlayVisible = true;
+ 
+ /**
+  * UI-only Front Body Evidence landmark selection (inspect/select v0).
+  * Separate from measurement A/B, Annotate selection, annotations, Scene Graph,
+  * and Side Evidence inspection selection.
+  * Not included in diagnostic or Scene State export.
+  * @type {{
+  *   id: string,
+@@ -154,16 +156,26 @@ function getSideAcceptedLandmarks() {
+  * truth for what the Front Surface overlay and core candidate list may show.
+  * Dense extra points remain parsed and QA-counted; named secondary body
+  * landmarks are available separately via `getSecondaryFrontBodyLandmarks`.
+  */
+ export function getRenderableFrontBodyLandmarks() {
+   return getFrontAcceptedLandmarks().filter((landmark) => isCoreFrontBodyAnchor(landmark?.name));
+ }
+ 
++/**
++ * Secondary Side Body Landmark Candidates v0: allowlisted side pose landmarks
++ * beyond the core 13. Inspect-only â€” not promotable.
++ */
++export function getSecondarySideBodyLandmarks() {
++  return getSideAcceptedLandmarks().filter(
++    (landmark) => landmark?.secondary === true && !landmark.lowConfidence,
++  );
++}
++
+ /**
+  * Renderable Side Evidence body landmarks: accepted side pose landmarks
+  * narrowed by the same core body identities used for Front (partial profile
+  * sets are valid). Low-confidence entries are excluded from visualization.
+  * Face/head, dense hands/fingers, and non-core extras stay QA-only.
+  * Does not fabricate mirrored/opposite-side joints.
+  */
+ export function getRenderableSideBodyLandmarks() {
+@@ -237,26 +249,69 @@ export function setSecondaryBodyEvidenceVisible(visible) {
+   const next = Boolean(visible) && getSecondaryFrontBodyLandmarks().length > 0;
+   if (next === secondaryCandidatesVisible) {
+     return;
+   }
+   secondaryCandidatesVisible = next;
+   notifyBodyEvidenceChange();
+ }
+ 
++export function isSideCoreBodyEvidenceVisible() {
++  return (
++    sideCoreOverlayVisible
++    && qaResult != null
++    && getRenderableSideBodyLandmarks().length > 0
++  );
++}
++
++export function setSideCoreBodyEvidenceVisible(visible) {
++  const next = Boolean(visible) && getRenderableSideBodyLandmarks().length > 0;
++  if (next === sideCoreOverlayVisible) {
++    return;
++  }
++  sideCoreOverlayVisible = next;
++  notifyBodyEvidenceChange();
++}
++
++export function isSideSecondaryBodyEvidenceVisible() {
++  return (
++    sideSecondaryOverlayVisible
++    && qaResult != null
++    && getSecondarySideBodyLandmarks().length > 0
++  );
++}
++
++export function setSideSecondaryBodyEvidenceVisible(visible) {
++  const next = Boolean(visible) && getSecondarySideBodyLandmarks().length > 0;
++  if (next === sideSecondaryOverlayVisible) {
++    return;
++  }
++  sideSecondaryOverlayVisible = next;
++  notifyBodyEvidenceChange();
++}
++
++/** Compatibility wrapper: true when either Side core or secondary layer is visible. */
+ export function isSideBodyEvidenceVisible() {
+-  return sideOverlayVisible && qaResult != null;
++  return isSideCoreBodyEvidenceVisible() || isSideSecondaryBodyEvidenceVisible();
+ }
+ 
+ export function setSideBodyEvidenceVisible(visible) {
+   const next = Boolean(visible);
+-  if (next === sideOverlayVisible) {
++  const coreCount = getRenderableSideBodyLandmarks().length;
++  const secondaryCount = getSecondarySideBodyLandmarks().length;
++  const nextCore = next && coreCount > 0;
++  const nextSecondary = next && secondaryCount > 0;
++  if (
++    nextCore === sideCoreOverlayVisible
++    && nextSecondary === sideSecondaryOverlayVisible
++  ) {
+     return;
+   }
+-  sideOverlayVisible = next;
++  sideCoreOverlayVisible = nextCore;
++  sideSecondaryOverlayVisible = nextSecondary;
+   notifyBodyEvidenceChange();
+ }
+ 
+ export function getSelectedBodyEvidenceLandmark() {
+   return selectedBodyEvidenceLandmark;
+ }
+ 
+ export function isSelectedBodyEvidenceLandmark(landmarkOrId) {
+@@ -633,17 +688,18 @@ export function hasAnyBodyEvidenceSource() {
+ }
+ 
+ /** Loading a source invalidates the previous analysis, overlay, and selection. */
+ function resetAnalysisForNewSource() {
+   qaResult = null;
+   lastError = null;
+   overlayVisible = false;
+   secondaryCandidatesVisible = false;
+-  sideOverlayVisible = false;
++  sideCoreOverlayVisible = false;
++  sideSecondaryOverlayVisible = false;
+   clearBodyEvidenceSelectionSilent();
+   notifyBodyEvidenceChange();
+ }
+ 
+ export function setFrontPoseSource(data) {
+   sources.frontPose = data;
+   resetAnalysisForNewSource();
+ }
+@@ -664,51 +720,55 @@ export function setSideSegSource(data) {
+ }
+ 
+ export function analyzeLoadedBodyEvidence() {
+   if (!hasBodyEvidencePoseOrSegSource()) {
+     lastError = 'Load at least one pose or segmentation JSON before analyzing.';
+     qaResult = null;
+     overlayVisible = false;
+     secondaryCandidatesVisible = false;
+-    sideOverlayVisible = false;
++    sideCoreOverlayVisible = false;
++    sideSecondaryOverlayVisible = false;
+     clearBodyEvidenceSelectionSilent();
+     notifyBodyEvidenceChange();
+     return { ok: false, error: lastError, result: null };
+   }
+ 
+   try {
+     qaResult = analyzeBodyEvidence(getBodyEvidenceSources());
+     lastError = null;
+     overlayVisible = getRenderableFrontBodyLandmarks().length > 0;
+     secondaryCandidatesVisible = getSecondaryFrontBodyLandmarks().length > 0;
+-    sideOverlayVisible = getRenderableSideBodyLandmarks().length > 0;
++    sideCoreOverlayVisible = getRenderableSideBodyLandmarks().length > 0;
++    sideSecondaryOverlayVisible = getSecondarySideBodyLandmarks().length > 0;
+     // Re-analyze replaces the landmark set â€” drop any prior inspect selection.
+     clearBodyEvidenceSelectionSilent();
+     notifyBodyEvidenceChange();
+     return { ok: true, error: null, result: qaResult };
+   } catch (error) {
+     lastError = error instanceof Error ? error.message : 'Body evidence analysis failed.';
+     qaResult = null;
+     overlayVisible = false;
+     secondaryCandidatesVisible = false;
+-    sideOverlayVisible = false;
++    sideCoreOverlayVisible = false;
++    sideSecondaryOverlayVisible = false;
+     clearBodyEvidenceSelectionSilent();
+     notifyBodyEvidenceChange();
+     return { ok: false, error: lastError, result: null };
+   }
+ }
+ 
+ export function clearBodyEvidence() {
+   sources = emptySources();
+   qaResult = null;
+   lastError = null;
+   overlayVisible = false;
+   secondaryCandidatesVisible = false;
+-  sideOverlayVisible = false;
++  sideCoreOverlayVisible = false;
++  sideSecondaryOverlayVisible = false;
+   clearBodyEvidenceSelectionSilent();
+   notifyBodyEvidenceChange();
+ }
+ 
+ function formatBodyEvidenceFilenameTimestamp(date) {
+   const pad = (value) => String(value).padStart(2, '0');
+ 
+   return [
+@@ -724,22 +784,24 @@ function formatBodyEvidenceFilenameTimestamp(date) {
+ function formatBodyEvidenceLocalTimestamp(date) {
+   const pad = (value) => String(value).padStart(2, '0');
+ 
+   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+ }
+ 
+ /** Diagnostic pose view stays counts-only; landmark records are not exported. */
+ function exportPoseView(pose) {
++  const core = pose?.core ?? 0;
+   return {
+     total: pose?.total ?? 0,
+     accepted: pose?.accepted ?? 0,
+     rejectedFace: pose?.rejectedFace ?? 0,
+     lowConfidence: pose?.lowConfidence ?? 0,
+-    coreFront: pose?.coreFront ?? 0,
++    core,
++    coreFront: core,
+     secondary: pose?.secondary ?? 0,
+     ignoredNonCore: pose?.ignoredNonCore ?? 0,
+   };
+ }
+ 
+ /**
+  * View segmentation for diagnostics: class names, real pixel counts, and label
+  * metadata only. Mask payloads (`base64`, raw label data) are never exported.
+@@ -808,26 +870,40 @@ export function buildBodyEvidenceExport(exportedAt = new Date()) {
+     qa: {
+       totalLandmarks: qaResult.qa.totalLandmarks,
+       acceptedBodyLandmarks: qaResult.qa.acceptedBodyLandmarks,
+       rejectedFaceLandmarks: qaResult.qa.rejectedFaceLandmarks,
+       lowConfidenceLandmarks: qaResult.qa.lowConfidenceLandmarks,
+       frontAcceptedCount: qaResult.qa.frontAcceptedCount,
+       sideAcceptedCount: qaResult.qa.sideAcceptedCount,
+       frontTotalLandmarks: qaResult.qa.frontTotalLandmarks ?? 0,
++      frontCoreLandmarks: qaResult.qa.frontCoreLandmarks ?? 0,
++      sideCoreLandmarks: qaResult.qa.sideCoreLandmarks ?? 0,
+       renderableFrontLandmarks: qaResult.qa.renderableFrontLandmarks,
++      frontSecondaryLandmarks: qaResult.qa.frontSecondaryLandmarks
++        ?? qaResult.qa.secondaryFrontLandmarks
++        ?? 0,
+       secondaryFrontLandmarks: qaResult.qa.secondaryFrontLandmarks ?? 0,
++      sideSecondaryLandmarks: qaResult.qa.sideSecondaryLandmarks ?? 0,
+       frontRejectedFaceLandmarks: qaResult.qa.frontRejectedFaceLandmarks ?? 0,
++      sideRejectedFaceLandmarks: qaResult.qa.sideRejectedFaceLandmarks ?? 0,
+       frontIgnoredNonCoreLandmarks: qaResult.qa.frontIgnoredNonCoreLandmarks ?? 0,
++      sideIgnoredNonCoreLandmarks: qaResult.qa.sideIgnoredNonCoreLandmarks ?? 0,
+       secondaryFrontLandmarkNames: [...(qaResult.qa.secondaryFrontLandmarkNames ?? [])],
++      secondarySideLandmarkNames: [...(qaResult.qa.secondarySideLandmarkNames ?? [])],
+       secondaryAllowlist: [...(qaResult.qa.secondaryAllowlist ?? [])],
++      secondarySideAllowlist: [...(qaResult.qa.secondarySideAllowlist ?? [])],
+       ignoredFrontLandmarks: (qaResult.qa.ignoredFrontLandmarks ?? [])
+         .map((entry) => ({ ...entry })),
++      ignoredSideLandmarks: (qaResult.qa.ignoredSideLandmarks ?? [])
++        .map((entry) => ({ ...entry })),
+       rejectedFrontLandmarks: (qaResult.qa.rejectedFrontLandmarks ?? [])
+         .map((entry) => ({ ...entry })),
++      rejectedSideLandmarks: (qaResult.qa.rejectedSideLandmarks ?? [])
++        .map((entry) => ({ ...entry })),
+       ignoredNonCoreLandmarks: qaResult.qa.ignoredNonCoreLandmarks ?? 0,
+       segmentationClassCount: qaResult.qa.segmentationClassCount,
+       rejectedSegmentationClasses: [...(qaResult.qa.rejectedSegmentationClasses ?? [])],
+       classNames: [...(qaResult.qa.classNames ?? [])],
+       classCounts: { ...(qaResult.qa.classCounts ?? {}) },
+       notes: [...(qaResult.qa.notes ?? [])],
+     },
+   };
+diff --git a/src/features/sceneExport.js b/src/features/sceneExport.js
+index e49844a..a04eab6 100644
+--- a/src/features/sceneExport.js
++++ b/src/features/sceneExport.js
+@@ -115,13 +115,22 @@ export function downloadSceneStateJson(measurement) {
+   const url = URL.createObjectURL(blob);
+   const link = document.createElement('a');
+   link.href = url;
+   link.download = `revacity-scene-state-${formatExportFilenameTimestamp(exportedAt)}.json`;
+   link.click();
+   URL.revokeObjectURL(url);
+ }
+ 
++/** @type {object | null} */
++let sceneExportMeasurement = null;
++
++export function runExportSceneStateAction() {
++  if (!sceneExportMeasurement) {
++    return;
++  }
++  downloadSceneStateJson(sceneExportMeasurement);
++}
++
+ export function setupSceneExport(measurement) {
+-  exportSceneJsonBtn.addEventListener('click', () => {
+-    downloadSceneStateJson(measurement);
+-  });
++  sceneExportMeasurement = measurement;
++  exportSceneJsonBtn.addEventListener('click', runExportSceneStateAction);
+ }
+diff --git a/src/features/sceneImport.js b/src/features/sceneImport.js
+index c2947d1..bc88299 100644
+--- a/src/features/sceneImport.js
++++ b/src/features/sceneImport.js
+@@ -272,16 +272,20 @@ export function importSceneState(data, measurement, selectionHighlight) {
+   if (importedMode && VALID_MODES.has(importedMode)) {
+     applyImportedMode(importedMode, selectionHighlight);
+   }
+ 
+   console.info('[REVacity] Scene State imported successfully.');
+   return true;
+ }
+ 
++export function openSceneStateFilePicker() {
++  loadSceneJsonInput?.click();
++}
++
+ export function setupSceneImport(measurement, selectionHighlight) {
+   loadSceneJsonInput.addEventListener('change', async (event) => {
+     const file = event.target.files?.[0];
+     event.target.value = '';
+ 
+     if (!file) {
+       return;
+     }
+diff --git a/src/main.js b/src/main.js
+index 8234ed8..8ec5ca4 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -23,16 +23,17 @@ import { setupPointInteraction } from './interactions/pointerEvents.js';
+ import { setupAppModeControls } from './ui/appModeControls.js';
+ import { setupInspectorWorkflow } from './ui/inspectorWorkflow.js';
+ import { setupAnnotationControls } from './ui/annotationControls.js';
+ import { setupSceneExport } from './features/sceneExport.js';
+ import { setupSceneImport } from './features/sceneImport.js';
+ import { setupSceneGraphPanel } from './ui/sceneGraphPanel.js';
+ import { setupSessionTabs } from './ui/sessionTabs.js';
+ import { setupViewControls } from './ui/viewControls.js';
++import { setupAppMenuBar } from './ui/appMenuBar.js';
+ import { setupBodyEvidencePanel } from './ui/bodyEvidencePanel.js';
+ import { setupBodyTabConsolidatedPanel } from './ui/bodyTabConsolidatedPanel.js';
+ import { setupBodyEvidenceOverlay2d } from './ui/bodyEvidenceOverlay2d.js';
+ import { setupSideGrid2dNavigator } from './ui/sideGrid2dNavigator.js';
+ import { initCollapsibleSections } from './ui/collapsibleSections.js';
+ import { setupGrid2dNavigator, refreshGrid2dNavigator } from './ui/grid2dNavigator.js';
+ import { setupWorkspaceLayout } from './ui/workspaceLayout.js';
+ import { setupBodyGraphWorkspace } from './ui/bodyGraphWorkspace.js';
+@@ -86,16 +87,22 @@ setupProjectionLinking(refreshGrid2dNavigator);
+ setupBodyMeasurementPreview(refreshGrid2dNavigator);
+ setupViewControls(referenceMarkers, internalVolumeGrid, measurement);
+ setupBodyEvidenceOverlay2d(refreshGrid2dNavigator);
+ setupBodyEvidencePanel();
+ setupBodyTabConsolidatedPanel();
+ initCollapsibleSections();
+ setupBodyGraphWorkspace();
+ setupWorkspaceLayout();
++setupAppMenuBar({
++  measurement,
++  selectionHighlight,
++  referenceMarkers,
++  volumeGrid: internalVolumeGrid,
++});
+ 
+ window.addEventListener('resize', onResize);
+ 
+ function animate() {
+   requestAnimationFrame(animate);
+   controls.update();
+   updateInternalVolumeLod(
+     internalVolumeGrid,
+diff --git a/src/styles/components.css b/src/styles/components.css
+index d54caf0..52d8e81 100644
+--- a/src/styles/components.css
++++ b/src/styles/components.css
+@@ -1879,8 +1879,124 @@
+     height: 40px;
+     padding: 5px 7px;
+   }
+ 
+   .body-graph-node-name {
+     font-size: 9px;
+   }
+ }
++
++/* â”€â”€ Application menu bar â”€â”€ */
++
++.app-menu {
++  position: relative;
++}
++
++.app-menu-trigger {
++  appearance: none;
++  border: 1px solid transparent;
++  background: transparent;
++  color: var(--text-secondary);
++  font-family: var(--font-mono);
++  font-size: 11px;
++  font-weight: 500;
++  letter-spacing: 0.04em;
++  padding: 6px 10px;
++  border-radius: 4px;
++  cursor: pointer;
++  line-height: 1.2;
++}
++
++.app-menu-trigger:hover,
++.app-menu--open .app-menu-trigger {
++  color: var(--text-primary);
++  background: rgba(148, 163, 184, 0.08);
++  border-color: rgba(148, 163, 184, 0.16);
++}
++
++.app-menu-dropdown {
++  position: absolute;
++  top: calc(100% + 4px);
++  left: 0;
++  z-index: 40;
++  min-width: 240px;
++  margin: 0;
++  padding: 6px;
++  list-style: none;
++  background: rgba(15, 18, 28, 0.96);
++  border: 1px solid rgba(148, 163, 184, 0.18);
++  border-radius: 6px;
++  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
++}
++
++.app-menu-dropdown[hidden] {
++  display: none;
++}
++
++.app-menu-separator {
++  height: 1px;
++  margin: 5px 6px;
++  background: rgba(148, 163, 184, 0.14);
++  list-style: none;
++}
++
++.app-menu-dropdown [role="menuitem"] {
++  display: flex;
++  align-items: center;
++  width: 100%;
++  appearance: none;
++  border: 0;
++  background: transparent;
++  color: var(--text-primary);
++  font-family: var(--font-mono);
++  font-size: 11px;
++  font-weight: 450;
++  letter-spacing: 0.02em;
++  text-align: left;
++  padding: 7px 10px 7px 28px;
++  border-radius: 4px;
++  cursor: pointer;
++  position: relative;
++}
++
++.app-menu-dropdown [role="menuitem"]::before {
++  content: '';
++  position: absolute;
++  left: 10px;
++  width: 10px;
++  font-size: 10px;
++  line-height: 1;
++  color: var(--text-muted);
++}
++
++.app-menu-item--checked::before {
++  content: 'âœ“';
++  color: var(--text-primary);
++}
++
++.app-menu-dropdown [role="menuitem"]:hover,
++.app-menu-item--active {
++  background: rgba(148, 163, 184, 0.12);
++}
++
++.app-menu-dropdown [role="menuitem"]:disabled,
++.app-menu-dropdown [role="menuitem"][aria-disabled="true"] {
++  color: var(--text-muted);
++  cursor: default;
++  opacity: 0.55;
++}
++
++.app-menu-dropdown [role="menuitem"]:disabled:hover,
++.app-menu-dropdown [role="menuitem"][aria-disabled="true"]:hover {
++  background: transparent;
++}
++
++@media (max-width: 1100px) {
++  .app-menu-trigger {
++    padding: 5px 7px;
++    font-size: 10px;
++  }
++
++  .app-menu-dropdown {
++    min-width: 220px;
++  }
++}
+diff --git a/src/styles/layout.css b/src/styles/layout.css
+index 0e8da88..af31486 100644
+--- a/src/styles/layout.css
++++ b/src/styles/layout.css
+@@ -8,27 +8,43 @@
+ 
+ /* â”€â”€ Top header â”€â”€ */
+ 
+ #top-header {
+   grid-column: 1 / -1;
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
++  gap: 16px;
+   padding: 0 20px;
+   background: var(--bg-panel);
+   backdrop-filter: blur(20px) saturate(140%);
+   -webkit-backdrop-filter: blur(20px) saturate(140%);
+   border-bottom: 1px solid var(--glass-border);
+   box-shadow: 0 1px 0 rgba(192, 132, 252, 0.06);
+   user-select: none;
+   pointer-events: none;
+   z-index: 20;
+ }
+ 
++.header-brand,
++.header-status {
++  pointer-events: none;
++}
++
++.app-menu-bar {
++  pointer-events: auto;
++  flex: 1 1 auto;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 2px;
++  min-width: 0;
++}
++
+ .header-brand {
+   display: flex;
+   flex-direction: column;
+   gap: 1px;
+ }
+ 
+ .header-eyebrow {
+   font-family: var(--font-display);
+diff --git a/src/ui/bodyEvidencePanel.js b/src/ui/bodyEvidencePanel.js
+index af9c110..224edd9 100644
+--- a/src/ui/bodyEvidencePanel.js
++++ b/src/ui/bodyEvidencePanel.js
+@@ -17,28 +17,23 @@ import {
+   downloadBodyEvidenceJson,
+   getBodyEvidenceError,
+   getBodyEvidenceQa,
+   getBodyEvidenceScaleInfo,
+   getSelectedBodyEvidenceLandmark,
+   getSelectedSideEvidenceLandmark,
+   hasAnalyzedBodyEvidence,
+   hasAnyBodyEvidenceSource,
+-  isBodyEvidenceOverlayVisible,
+   isBodyLandmarkPromoted,
+-  isSecondaryBodyEvidenceVisible,
+   isSelectedBodyEvidenceLandmark,
+   isSelectedSideEvidenceLandmark,
+   isSideBodyEvidenceVisible,
+   promoteSelectedBodyEvidenceLandmark,
+   selectBodyEvidenceLandmark,
+   selectSideEvidenceLandmark,
+-  setBodyEvidenceOverlayVisible,
+-  setSecondaryBodyEvidenceVisible,
+-  setSideBodyEvidenceVisible,
+   setFrontPoseSource,
+   setFrontSegSource,
+   setSidePoseSource,
+   setSideSegSource,
+   subscribeBodyEvidenceChange,
+ } from '../features/bodyEvidence.js';
+ import { subscribeAnnotationsChange } from '../features/annotations.js';
+ import { formatLandmarkDisplayName } from '../core/landmarkDisplay.js';
+@@ -47,16 +42,18 @@ import {
+   getFrontOverlayLandmarks,
+   getSecondaryCandidateLandmarkCount,
+   getSecondaryCandidateLandmarks,
+ } from './bodyEvidenceOverlay2d.js';
+ import {
+   getSideCandidateLandmarkCount,
+   getSideCandidateLandmarks,
+ } from './bodyEvidenceOverlaySide2d.js';
++import { setInspectorWorkflow, WORKFLOW_BODY_EVIDENCE } from './inspectorWorkflow.js';
++import { getViewSetting, VIEW_SETTING_IDS } from './viewControls.js';
+ import {
+   analyzeBodyEvidenceBtn,
+   bodyEvidenceAnalysisStatusEl,
+   bodyEvidenceCandidatesEl,
+   bodyEvidenceIgnoredCountEl,
+   bodyEvidenceOverlayCountEl,
+   bodyEvidenceOverlayScaleEl,
+   bodyEvidencePromoteStatusEl,
+@@ -80,16 +77,21 @@ import {
+   loadSidePoseJsonInput,
+   loadSideSegJsonInput,
+   promoteSelectedBodyLandmarkBtn,
+   showBodyEvidenceOverlayCheckbox,
+   showSecondaryBodyCandidatesCheckbox,
+   showSideBodyCandidatesCheckbox,
+ } from './domRefs.js';
+ 
++const BODY_EVIDENCE_TABS = Object.freeze(['overview', 'front', 'side', 'selection']);
++
++/** @type {'overview'|'front'|'side'|'selection'} */
++let activeBodyEvidenceTab = 'overview';
++
+ function escapeHtml(value) {
+   return String(value ?? '')
+     .replaceAll('&', '&amp;')
+     .replaceAll('<', '&lt;')
+     .replaceAll('>', '&gt;')
+     .replaceAll('"', '&quot;');
+ }
+ 
+@@ -193,36 +195,46 @@ function setSummaryValue(el, html, title = '') {
+ 
+ function syncOverlayControls() {
+   const analyzed = hasAnalyzedBodyEvidence();
+   const count = analyzed ? getFrontOverlayLandmarkCount() : 0;
+   const secondaryCount = analyzed ? getSecondaryCandidateLandmarkCount() : 0;
+   const sideCount = analyzed ? getSideCandidateLandmarkCount() : 0;
+   const qa = getBodyEvidenceQa();
+ 
++  const frontCore = getViewSetting(VIEW_SETTING_IDS.FRONT_CORE);
++  const frontSecondary = getViewSetting(VIEW_SETTING_IDS.FRONT_SECONDARY);
++  const sideCore = getViewSetting(VIEW_SETTING_IDS.SIDE_CORE);
++  const sideSecondary = getViewSetting(VIEW_SETTING_IDS.SIDE_SECONDARY);
++
+   if (showBodyEvidenceOverlayCheckbox) {
+-    showBodyEvidenceOverlayCheckbox.checked = isBodyEvidenceOverlayVisible();
+-    showBodyEvidenceOverlayCheckbox.disabled = !analyzed || count === 0;
++    showBodyEvidenceOverlayCheckbox.checked = frontCore.checked;
++    showBodyEvidenceOverlayCheckbox.disabled = frontCore.disabled;
++    showBodyEvidenceOverlayCheckbox.setAttribute(
++      'aria-disabled',
++      frontCore.disabled ? 'true' : 'false',
++    );
+   }
+ 
+   if (showSecondaryBodyCandidatesCheckbox) {
+-    showSecondaryBodyCandidatesCheckbox.checked = isSecondaryBodyEvidenceVisible();
+-    showSecondaryBodyCandidatesCheckbox.disabled = !analyzed || secondaryCount === 0;
++    showSecondaryBodyCandidatesCheckbox.checked = frontSecondary.checked;
++    showSecondaryBodyCandidatesCheckbox.disabled = frontSecondary.disabled;
+     showSecondaryBodyCandidatesCheckbox.setAttribute(
+       'aria-disabled',
+-      showSecondaryBodyCandidatesCheckbox.disabled ? 'true' : 'false',
++      frontSecondary.disabled ? 'true' : 'false',
+     );
+   }
+ 
+   if (showSideBodyCandidatesCheckbox) {
++    const sideDisabled = sideCore.disabled && sideSecondary.disabled;
+     showSideBodyCandidatesCheckbox.checked = isSideBodyEvidenceVisible();
+-    showSideBodyCandidatesCheckbox.disabled = !analyzed || sideCount === 0;
++    showSideBodyCandidatesCheckbox.disabled = sideDisabled;
+     showSideBodyCandidatesCheckbox.setAttribute(
+       'aria-disabled',
+-      showSideBodyCandidatesCheckbox.disabled ? 'true' : 'false',
++      sideDisabled ? 'true' : 'false',
+     );
+   }
+ 
+   if (bodyEvidenceOverlayCountEl) {
+     const label = analyzed ? `${count} / 13` : '0 / 13';
+     bodyEvidenceOverlayCountEl.textContent = label;
+     bodyEvidenceOverlayCountEl.setAttribute('title', `Primary/core front candidates: ${count} / 13`);
+   }
+@@ -621,17 +633,33 @@ function wireFileInput(input, setter, label) {
+         ? `Invalid JSON in ${label}`
+         : `Failed to read ${label}`;
+       console.warn('[REVacity] Body evidence load failed:', message, error);
+       showStatus(message, 'error');
+     }
+   });
+ }
+ 
+-function onAnalyze() {
++export function openFrontPoseFilePicker() {
++  loadFrontPoseJsonInput?.click();
++}
++
++export function openSidePoseFilePicker() {
++  loadSidePoseJsonInput?.click();
++}
++
++export function openFrontSegFilePicker() {
++  loadFrontSegJsonInput?.click();
++}
++
++export function openSideSegFilePicker() {
++  loadSideSegJsonInput?.click();
++}
++
++export function runAnalyzeBodyEvidenceAction() {
+   const { ok, error } = analyzeLoadedBodyEvidence();
+   if (!ok) {
+     showStatus(error ?? getBodyEvidenceError() ?? 'Analyze failed.', 'error');
+     syncDownloadButton();
+     syncOverlayControls();
+     refreshCandidateLists();
+     renderSelectedLandmark();
+     return;
+@@ -639,17 +667,17 @@ function onAnalyze() {
+   hideStatus();
+   syncDownloadButton();
+   syncOverlayControls();
+   refreshCandidateLists();
+   renderSelectedLandmark();
+   showStatus('Body evidence analyzed.', 'ok');
+ }
+ 
+-function onClear() {
++export function runClearBodyEvidenceAction() {
+   clearBodyEvidence();
+   syncDownloadButton();
+   syncOverlayControls();
+   refreshCandidateLists();
+   renderSelectedLandmark();
+   hideStatus();
+   hidePromoteStatus();
+   showStatus('Body evidence cleared.', 'ok');
+@@ -658,70 +686,71 @@ function onClear() {
+ function onClearSelection() {
+   clearBodyEvidenceSelection();
+   clearSideEvidenceSelection();
+   hidePromoteStatus();
+   refreshCandidateLists();
+   renderSelectedLandmark();
+ }
+ 
+-function onPromoteSelected() {
++export function runPromoteFrontEvidenceAction() {
+   const { ok, alreadyPromoted, message } = promoteSelectedBodyEvidenceLandmark();
+   if (ok) {
+     showStatus(message || 'Promoted to annotation.', 'ok');
+     showPromoteStatus(message || 'Promoted to annotation.', 'ok');
+   } else if (alreadyPromoted) {
+     showStatus(message || 'Already promoted.', 'warn');
+     showPromoteStatus(message || 'Already promoted.', 'warn');
+   } else {
+     showStatus(message || 'Promotion failed.', 'error');
+     showPromoteStatus(message || 'Promotion failed.', 'error');
+   }
+   // Keep selection; refresh badges. Annotation list / Scene Graph refresh via addAnnotation.
+   refreshCandidateLists();
+   renderSelectedLandmark();
+ }
+ 
+-function onToggleOverlay() {
+-  setBodyEvidenceOverlayVisible(Boolean(showBodyEvidenceOverlayCheckbox?.checked));
+-  syncOverlayControls();
+-}
+-
+-function onToggleSecondaryCandidates() {
+-  setSecondaryBodyEvidenceVisible(Boolean(showSecondaryBodyCandidatesCheckbox?.checked));
+-}
+-
+-function onToggleSideCandidates() {
+-  setSideBodyEvidenceVisible(Boolean(showSideBodyCandidatesCheckbox?.checked));
+-}
+-
+-function onDownload() {
++export function runDownloadBodyEvidenceAction() {
+   const { ok, error } = downloadBodyEvidenceJson();
+   if (!ok) {
+     showStatus(error ?? 'Download failed.', 'error');
+     syncDownloadButton();
+     return;
+   }
+   showStatus('Body Evidence JSON downloaded.', 'ok');
+ }
+ 
++/**
++ * Focus Body Evidence workflow and remember the target tab.
++ * Tab UI rendering lands in Task 4; this stores the intended tab now.
++ * @param {'overview'|'front'|'side'|'selection'} tab
++ */
++export function focusBodyEvidenceTab(tab) {
++  if (!BODY_EVIDENCE_TABS.includes(tab)) {
++    return;
++  }
++  activeBodyEvidenceTab = tab;
++  setInspectorWorkflow(WORKFLOW_BODY_EVIDENCE);
++}
++
++export function getBodyEvidencePanelTab() {
++  return activeBodyEvidenceTab;
++}
++
+ export function setupBodyEvidencePanel() {
+   wireFileInput(loadFrontPoseJsonInput, setFrontPoseSource, 'Front Pose JSON');
+   wireFileInput(loadSidePoseJsonInput, setSidePoseSource, 'Side Pose JSON');
+   wireFileInput(loadFrontSegJsonInput, setFrontSegSource, 'Front Seg JSON');
+   wireFileInput(loadSideSegJsonInput, setSideSegSource, 'Side Seg JSON');
+ 
+-  analyzeBodyEvidenceBtn?.addEventListener('click', onAnalyze);
+-  clearBodyEvidenceBtn?.addEventListener('click', onClear);
++  analyzeBodyEvidenceBtn?.addEventListener('click', runAnalyzeBodyEvidenceAction);
++  clearBodyEvidenceBtn?.addEventListener('click', runClearBodyEvidenceAction);
+   clearBodyLandmarkSelectionBtn?.addEventListener('click', onClearSelection);
+-  promoteSelectedBodyLandmarkBtn?.addEventListener('click', onPromoteSelected);
+-  downloadBodyEvidenceJsonBtn?.addEventListener('click', onDownload);
+-  showBodyEvidenceOverlayCheckbox?.addEventListener('change', onToggleOverlay);
+-  showSecondaryBodyCandidatesCheckbox?.addEventListener('change', onToggleSecondaryCandidates);
+-  showSideBodyCandidatesCheckbox?.addEventListener('change', onToggleSideCandidates);
++  promoteSelectedBodyLandmarkBtn?.addEventListener('click', runPromoteFrontEvidenceAction);
++  downloadBodyEvidenceJsonBtn?.addEventListener('click', runDownloadBodyEvidenceAction);
+   bodyEvidenceCandidatesEl?.addEventListener('click', onCandidateListClick);
+   bodyEvidenceSecondaryCandidatesEl?.addEventListener('click', onCandidateListClick);
+   bodyEvidenceSideCandidatesEl?.addEventListener('click', onCandidateListClick);
+ 
+   subscribeBodyEvidenceChange(() => {
+     refreshCandidateLists();
+     renderSelectedLandmark();
+     syncOverlayControls();
+diff --git a/src/ui/domRefs.js b/src/ui/domRefs.js
+index eb09ab2..feb22c9 100644
+--- a/src/ui/domRefs.js
++++ b/src/ui/domRefs.js
+@@ -46,16 +46,17 @@ export const showOriginCenterCheckbox = document.getElementById('show-origin-cen
+ export const showAnnotationsCheckbox = document.getElementById('show-annotations');
+ export const show3dLatticePointsCheckbox = document.getElementById('show-3d-lattice-points');
+ export const show2dGridPointsCheckbox = document.getElementById('show-2d-grid-points');
+ export const showSideGridPointsCheckbox = document.getElementById('show-side-grid-points');
+ export const showMeasurementLinesCheckbox = document.getElementById('show-measurement-lines');
+ export const showBodyMeasurementPreviewsCheckbox = document.getElementById('show-body-measurement-previews');
+ export const showSecondaryBodyCandidatesCheckbox = document.getElementById('show-secondary-body-candidates');
+ export const showSideBodyCandidatesCheckbox = document.getElementById('show-side-body-candidates');
++export const appMenuBarEl = document.getElementById('app-menu-bar');
+ export const workspaceTab3dBtn = document.getElementById('workspace-tab-3d');
+ export const workspaceTabSplitBtn = document.getElementById('workspace-tab-split');
+ export const workspaceTabBodyGraphBtn = document.getElementById('workspace-tab-body-graph');
+ export const workspaceContentEl = document.getElementById('workspace-content');
+ export const workspacePane3dEl = document.getElementById('workspace-pane-3d');
+ export const workspacePane2dEl = document.getElementById('grid2d-navigator-panel');
+ export const workspacePaneBodyGraphEl = document.getElementById('body-graph-workspace');
+ export const workspaceSplitDividerEl = document.getElementById('workspace-split-divider');
+diff --git a/src/ui/inspectorWorkflow.js b/src/ui/inspectorWorkflow.js
+index d1aa46e..3516f89 100644
+--- a/src/ui/inspectorWorkflow.js
++++ b/src/ui/inspectorWorkflow.js
+@@ -62,19 +62,24 @@ export function setInspectorWorkflow(workflow) {
+     button?.setAttribute('aria-pressed', id === workflow ? 'true' : 'false');
+   });
+ 
+   if (statusHintEl) {
+     statusHintEl.textContent = WORKFLOW_HINTS[workflow];
+   }
+ }
+ 
++/** Focus the Body Evidence inspector workflow without mutating evidence data. */
++export function focusBodyEvidenceWorkflow() {
++  setInspectorWorkflow(WORKFLOW_BODY_EVIDENCE);
++}
++
+ /**
+  * Body Evidence is inspector-only: selecting it changes panel visibility and
+  * nothing else, so measurements, annotations, and evidence state survive.
+  */
+ export function setupInspectorWorkflow() {
+   workflowBodyEvidenceBtn?.addEventListener('click', () => {
+-    setInspectorWorkflow(WORKFLOW_BODY_EVIDENCE);
++    focusBodyEvidenceWorkflow();
+   });
+ 
+   setInspectorWorkflow(currentWorkflow);
+ }
+diff --git a/src/ui/viewControls.js b/src/ui/viewControls.js
+index b0b6160..fec3e33 100644
+--- a/src/ui/viewControls.js
++++ b/src/ui/viewControls.js
+@@ -1,66 +1,300 @@
+ import {
+   showOriginCenterCheckbox,
+   showAnnotationsCheckbox,
+   show3dLatticePointsCheckbox,
+   show2dGridPointsCheckbox,
+   showSideGridPointsCheckbox,
+   showMeasurementLinesCheckbox,
+   showBodyMeasurementPreviewsCheckbox,
++  showBodyEvidenceOverlayCheckbox,
++  showSecondaryBodyCandidatesCheckbox,
++  showSideBodyCandidatesCheckbox,
+ } from './domRefs.js';
+ import { setReferenceMarkersVisible } from '../metrology/referenceMarkers.js';
+ import { setInternalVolumeGridVisible } from '../metrology/volumeGrid.js';
+ import { setAnnotationsVisible } from '../features/annotations.js';
+-import { setMeasurement3dLinesVisible } from '../features/measurement.js';
++import {
++  getMeasurement3dLinesVisible,
++  setMeasurement3dLinesVisible,
++} from '../features/measurement.js';
+ import { setBodyMeasurementPreviewVisible } from '../features/bodyMeasurementPreview.js';
+ import { setGrid2dPointsVisible } from './grid2dNavigator.js';
+ import { setSideGrid2dPointsVisible } from './sideGrid2dNavigator.js';
+ import {
+   setProjectedAnnotationsVisible,
+   setProjectedReferenceMarkersVisible,
+ } from '../features/projectionLinking.js';
++import {
++  getRenderableSideBodyLandmarks,
++  getSecondarySideBodyLandmarks,
++  hasAnalyzedBodyEvidence,
++  isBodyEvidenceOverlayVisible,
++  isSecondaryBodyEvidenceVisible,
++  isSideBodyEvidenceVisible,
++  isSideCoreBodyEvidenceVisible,
++  isSideSecondaryBodyEvidenceVisible,
++  setBodyEvidenceOverlayVisible,
++  setSecondaryBodyEvidenceVisible,
++  setSideCoreBodyEvidenceVisible,
++  setSideSecondaryBodyEvidenceVisible,
++} from '../features/bodyEvidence.js';
++import {
++  getFrontOverlayLandmarkCount,
++  getSecondaryCandidateLandmarkCount,
++} from './bodyEvidenceOverlay2d.js';
+ 
+-export function setupViewControls(referenceMarkers, volumeGrid, measurement) {
+-  showOriginCenterCheckbox.addEventListener('change', () => {
+-    const visible = showOriginCenterCheckbox.checked;
+-    setReferenceMarkersVisible(referenceMarkers, visible);
+-    setProjectedReferenceMarkersVisible(visible);
+-  });
++export const VIEW_SETTING_IDS = Object.freeze({
++  ORIGIN_CENTER: 'origin-center',
++  ANNOTATIONS: 'annotations',
++  MEASUREMENT_LINES: 'measurement-lines',
++  LATTICE_3D: 'lattice-3d',
++  FRONT_GRID: 'front-grid',
++  SIDE_GRID: 'side-grid',
++  FRONT_CORE: 'front-core',
++  FRONT_SECONDARY: 'front-secondary',
++  SIDE_CORE: 'side-core',
++  SIDE_SECONDARY: 'side-secondary',
++  BODY_PREVIEWS: 'body-previews',
++});
+ 
+-  showAnnotationsCheckbox.addEventListener('change', () => {
+-    const visible = showAnnotationsCheckbox.checked;
+-    setAnnotationsVisible(visible);
+-    setProjectedAnnotationsVisible(visible);
+-  });
++/** @type {{ measurement: object, selectionHighlight: object, referenceMarkers: object, volumeGrid: object } | null} */
++let viewControlDeps = null;
+ 
+-  show3dLatticePointsCheckbox.addEventListener('change', () => {
+-    setInternalVolumeGridVisible(volumeGrid, show3dLatticePointsCheckbox.checked);
+-  });
++function syncCheckbox(checkbox, checked, disabled = false) {
++  if (!checkbox) {
++    return;
++  }
++  checkbox.checked = Boolean(checked);
++  checkbox.disabled = Boolean(disabled);
++  checkbox.setAttribute('aria-disabled', disabled ? 'true' : 'false');
++}
+ 
+-  show2dGridPointsCheckbox.addEventListener('change', () => {
+-    setGrid2dPointsVisible(show2dGridPointsCheckbox.checked);
+-  });
++function syncEvidenceCheckboxes() {
++  const analyzed = hasAnalyzedBodyEvidence();
++  const frontCoreCount = analyzed ? getFrontOverlayLandmarkCount() : 0;
++  const frontSecondaryCount = analyzed ? getSecondaryCandidateLandmarkCount() : 0;
++  const sideCoreCount = analyzed ? getRenderableSideBodyLandmarks().length : 0;
++  const sideSecondaryCount = analyzed ? getSecondarySideBodyLandmarks().length : 0;
+ 
+-  showSideGridPointsCheckbox?.addEventListener('change', () => {
+-    setSideGrid2dPointsVisible(showSideGridPointsCheckbox.checked);
+-  });
++  syncCheckbox(
++    showBodyEvidenceOverlayCheckbox,
++    isBodyEvidenceOverlayVisible(),
++    !analyzed || frontCoreCount === 0,
++  );
++  syncCheckbox(
++    showSecondaryBodyCandidatesCheckbox,
++    isSecondaryBodyEvidenceVisible(),
++    !analyzed || frontSecondaryCount === 0,
++  );
++  // Transitional single Side checkbox until Task 6 splits Side Core / Secondary.
++  syncCheckbox(
++    showSideBodyCandidatesCheckbox,
++    isSideBodyEvidenceVisible(),
++    !analyzed || (sideCoreCount === 0 && sideSecondaryCount === 0),
++  );
++}
+ 
+-  // One flag drives the 3D line/label and the front-surface 2D line/label.
+-  showMeasurementLinesCheckbox.addEventListener('change', () => {
+-    setMeasurement3dLinesVisible(measurement, showMeasurementLinesCheckbox.checked);
+-  });
++/**
++ * Apply a View setting. Checkboxes and menu commands both call this.
++ * @param {string} id
++ * @param {boolean} visible
++ * @param {{ measurement?: object, referenceMarkers?: object, volumeGrid?: object } | null} [deps]
++ */
++export function applyViewSetting(id, visible, deps = viewControlDeps) {
++  const next = Boolean(visible);
++  const measurement = deps?.measurement;
++  const referenceMarkers = deps?.referenceMarkers;
++  const volumeGrid = deps?.volumeGrid;
++
++  switch (id) {
++    case VIEW_SETTING_IDS.ORIGIN_CENTER:
++      if (referenceMarkers) {
++        setReferenceMarkersVisible(referenceMarkers, next);
++        setProjectedReferenceMarkersVisible(next);
++      }
++      syncCheckbox(showOriginCenterCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.ANNOTATIONS:
++      setAnnotationsVisible(next);
++      setProjectedAnnotationsVisible(next);
++      syncCheckbox(showAnnotationsCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.MEASUREMENT_LINES:
++      if (measurement) {
++        setMeasurement3dLinesVisible(measurement, next);
++      }
++      syncCheckbox(showMeasurementLinesCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.LATTICE_3D:
++      if (volumeGrid) {
++        setInternalVolumeGridVisible(volumeGrid, next);
++      }
++      syncCheckbox(show3dLatticePointsCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.FRONT_GRID:
++      setGrid2dPointsVisible(next);
++      syncCheckbox(show2dGridPointsCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.SIDE_GRID:
++      setSideGrid2dPointsVisible(next);
++      syncCheckbox(showSideGridPointsCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.FRONT_CORE:
++      setBodyEvidenceOverlayVisible(next);
++      syncEvidenceCheckboxes();
++      break;
++    case VIEW_SETTING_IDS.FRONT_SECONDARY:
++      setSecondaryBodyEvidenceVisible(next);
++      syncEvidenceCheckboxes();
++      break;
++    case VIEW_SETTING_IDS.SIDE_CORE:
++      setSideCoreBodyEvidenceVisible(next);
++      syncEvidenceCheckboxes();
++      break;
++    case VIEW_SETTING_IDS.SIDE_SECONDARY:
++      setSideSecondaryBodyEvidenceVisible(next);
++      syncEvidenceCheckboxes();
++      break;
++    case VIEW_SETTING_IDS.BODY_PREVIEWS:
++      setBodyMeasurementPreviewVisible(next);
++      syncCheckbox(showBodyMeasurementPreviewsCheckbox, next);
++      break;
++    default:
++      break;
++  }
++}
++
++/**
++ * @param {string} id
++ * @returns {{ checked: boolean, disabled: boolean }}
++ */
++export function getViewSetting(id) {
++  const analyzed = hasAnalyzedBodyEvidence();
++  const frontCoreCount = analyzed ? getFrontOverlayLandmarkCount() : 0;
++  const frontSecondaryCount = analyzed ? getSecondaryCandidateLandmarkCount() : 0;
++  const sideCoreCount = analyzed ? getRenderableSideBodyLandmarks().length : 0;
++  const sideSecondaryCount = analyzed ? getSecondarySideBodyLandmarks().length : 0;
++
++  switch (id) {
++    case VIEW_SETTING_IDS.ORIGIN_CENTER:
++      return { checked: Boolean(showOriginCenterCheckbox?.checked), disabled: false };
++    case VIEW_SETTING_IDS.ANNOTATIONS:
++      return { checked: Boolean(showAnnotationsCheckbox?.checked), disabled: false };
++    case VIEW_SETTING_IDS.MEASUREMENT_LINES:
++      return {
++        checked: showMeasurementLinesCheckbox
++          ? Boolean(showMeasurementLinesCheckbox.checked)
++          : getMeasurement3dLinesVisible(),
++        disabled: false,
++      };
++    case VIEW_SETTING_IDS.LATTICE_3D:
++      return { checked: Boolean(show3dLatticePointsCheckbox?.checked), disabled: false };
++    case VIEW_SETTING_IDS.FRONT_GRID:
++      return { checked: Boolean(show2dGridPointsCheckbox?.checked), disabled: false };
++    case VIEW_SETTING_IDS.SIDE_GRID:
++      return { checked: Boolean(showSideGridPointsCheckbox?.checked ?? true), disabled: false };
++    case VIEW_SETTING_IDS.FRONT_CORE:
++      return {
++        checked: isBodyEvidenceOverlayVisible(),
++        disabled: !analyzed || frontCoreCount === 0,
++      };
++    case VIEW_SETTING_IDS.FRONT_SECONDARY:
++      return {
++        checked: isSecondaryBodyEvidenceVisible(),
++        disabled: !analyzed || frontSecondaryCount === 0,
++      };
++    case VIEW_SETTING_IDS.SIDE_CORE:
++      return {
++        checked: isSideCoreBodyEvidenceVisible(),
++        disabled: !analyzed || sideCoreCount === 0,
++      };
++    case VIEW_SETTING_IDS.SIDE_SECONDARY:
++      return {
++        checked: isSideSecondaryBodyEvidenceVisible(),
++        disabled: !analyzed || sideSecondaryCount === 0,
++      };
++    case VIEW_SETTING_IDS.BODY_PREVIEWS:
++      return {
++        checked: Boolean(showBodyMeasurementPreviewsCheckbox?.checked ?? true),
++        disabled: false,
++      };
++    default:
++      return { checked: false, disabled: true };
++  }
++}
++
++/**
++ * @param {string} id
++ * @param {{ measurement?: object, referenceMarkers?: object, volumeGrid?: object } | null} [deps]
++ */
++export function toggleViewSetting(id, deps = viewControlDeps) {
++  const current = getViewSetting(id);
++  if (current.disabled) {
++    return;
++  }
++  applyViewSetting(id, !current.checked, deps);
++}
++
++export function setupViewControls(referenceMarkers, volumeGrid, measurement) {
++  viewControlDeps = { referenceMarkers, volumeGrid, measurement };
++
++  const bindCheckbox = (checkbox, id) => {
++    checkbox?.addEventListener('change', () => {
++      applyViewSetting(id, Boolean(checkbox.checked), viewControlDeps);
++    });
++  };
++
++  bindCheckbox(showOriginCenterCheckbox, VIEW_SETTING_IDS.ORIGIN_CENTER);
++  bindCheckbox(showAnnotationsCheckbox, VIEW_SETTING_IDS.ANNOTATIONS);
++  bindCheckbox(show3dLatticePointsCheckbox, VIEW_SETTING_IDS.LATTICE_3D);
++  bindCheckbox(show2dGridPointsCheckbox, VIEW_SETTING_IDS.FRONT_GRID);
++  bindCheckbox(showSideGridPointsCheckbox, VIEW_SETTING_IDS.SIDE_GRID);
++  bindCheckbox(showMeasurementLinesCheckbox, VIEW_SETTING_IDS.MEASUREMENT_LINES);
++  bindCheckbox(showBodyMeasurementPreviewsCheckbox, VIEW_SETTING_IDS.BODY_PREVIEWS);
++  bindCheckbox(showBodyEvidenceOverlayCheckbox, VIEW_SETTING_IDS.FRONT_CORE);
++  bindCheckbox(showSecondaryBodyCandidatesCheckbox, VIEW_SETTING_IDS.FRONT_SECONDARY);
+ 
+-  // Independent from A/B Measurement Lines â€” body preview overlay only.
+-  showBodyMeasurementPreviewsCheckbox?.addEventListener('change', () => {
+-    setBodyMeasurementPreviewVisible(showBodyMeasurementPreviewsCheckbox.checked);
++  // Existing single Side checkbox toggles both layers until Task 6 splits them.
++  showSideBodyCandidatesCheckbox?.addEventListener('change', () => {
++    const visible = Boolean(showSideBodyCandidatesCheckbox.checked);
++    applyViewSetting(VIEW_SETTING_IDS.SIDE_CORE, visible, viewControlDeps);
++    applyViewSetting(VIEW_SETTING_IDS.SIDE_SECONDARY, visible, viewControlDeps);
+   });
+ 
+-  setReferenceMarkersVisible(referenceMarkers, showOriginCenterCheckbox.checked);
+-  setProjectedReferenceMarkersVisible(showOriginCenterCheckbox.checked);
+-  setAnnotationsVisible(showAnnotationsCheckbox.checked);
+-  setProjectedAnnotationsVisible(showAnnotationsCheckbox.checked);
+-  setInternalVolumeGridVisible(volumeGrid, show3dLatticePointsCheckbox.checked);
+-  setGrid2dPointsVisible(show2dGridPointsCheckbox.checked);
+-  setSideGrid2dPointsVisible(showSideGridPointsCheckbox?.checked ?? true);
+-  setMeasurement3dLinesVisible(measurement, showMeasurementLinesCheckbox.checked);
+-  setBodyMeasurementPreviewVisible(showBodyMeasurementPreviewsCheckbox?.checked ?? true);
++  applyViewSetting(
++    VIEW_SETTING_IDS.ORIGIN_CENTER,
++    Boolean(showOriginCenterCheckbox?.checked),
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.ANNOTATIONS,
++    Boolean(showAnnotationsCheckbox?.checked),
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.LATTICE_3D,
++    Boolean(show3dLatticePointsCheckbox?.checked),
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.FRONT_GRID,
++    Boolean(show2dGridPointsCheckbox?.checked),
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.SIDE_GRID,
++    showSideGridPointsCheckbox?.checked ?? true,
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.MEASUREMENT_LINES,
++    Boolean(showMeasurementLinesCheckbox?.checked),
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.BODY_PREVIEWS,
++    showBodyMeasurementPreviewsCheckbox?.checked ?? true,
++    viewControlDeps,
++  );
++  syncEvidenceCheckboxes();
+ }
+diff --git a/src/ui/workspaceLayout.js b/src/ui/workspaceLayout.js
+index 782cc9e..3c9027b 100644
+--- a/src/ui/workspaceLayout.js
++++ b/src/ui/workspaceLayout.js
+@@ -25,16 +25,30 @@ const MIN_PANE_WIDTH_PX = 200;
+ const DIVIDER_WIDTH_PX = 6;
+ /** 3D share of the 2D Workspace: the Front + Side 2D area is the wider default. */
+ const DEFAULT_SPLIT_RATIO = 0.36;
+ 
+ let currentWorkspace = WORKSPACE_3D;
+ let splitRatio = DEFAULT_SPLIT_RATIO;
+ let dividerDragActive = false;
+ 
++/** @type {Set<(mode: string) => void>} */
++const workspaceChangeListeners = new Set();
++
++export function subscribeWorkspaceChange(listener) {
++  workspaceChangeListeners.add(listener);
++  return () => workspaceChangeListeners.delete(listener);
++}
++
++function notifyWorkspaceChange() {
++  for (const listener of workspaceChangeListeners) {
++    listener(currentWorkspace);
++  }
++}
++
+ function clamp(value, min, max) {
+   return Math.min(Math.max(value, min), max);
+ }
+ 
+ function updateTabStates(mode) {
+   const tabs = [
+     { btn: workspaceTab3dBtn, mode: WORKSPACE_3D },
+     { btn: workspaceTabSplitBtn, mode: WORKSPACE_SPLIT },
+@@ -105,16 +119,18 @@ export function setWorkspace(mode) {
+     hideGrid2dHoverCoordinateTooltip();
+     hideSideEvidenceTooltip();
+   }
+ 
+   if (mode === WORKSPACE_BODY_GRAPH) {
+     refreshBodyGraphWorkspace();
+   }
+ 
++  notifyWorkspaceChange();
++
+   requestAnimationFrame(() => {
+     handleWorkspaceResize();
+   });
+ }
+ 
+ export function getWorkspace() {
+   return currentWorkspace;
+ }
+
+## New file: src/ui/appMenuBar.js
+/**
+ * Application menu bar — CAD-style File / Edit / View / Workspace / Body.
+ * Calls shared owner actions; never imports file-input DOM refs or .click()s them.
+ */
+
+import { subscribeAnnotationsChange } from '../features/annotations.js';
+import {
+  getSelectedBodyEvidenceLandmark,
+  hasAnalyzedBodyEvidence,
+  hasAnyBodyEvidenceSource,
+  subscribeBodyEvidenceChange,
+} from '../features/bodyEvidence.js';
+import { clearMeasurement, clearMeasurementHistory, getMeasurementHistory } from '../features/measurement.js';
+import { openSceneStateFilePicker } from '../features/sceneImport.js';
+import { runExportSceneStateAction } from '../features/sceneExport.js';
+import { clearSelection, getSelectedPoint } from '../features/selection.js';
+import {
+  focusBodyEvidenceTab,
+  openFrontPoseFilePicker,
+  openFrontSegFilePicker,
+  openSidePoseFilePicker,
+  openSideSegFilePicker,
+  runAnalyzeBodyEvidenceAction,
+  runClearBodyEvidenceAction,
+  runDownloadBodyEvidenceAction,
+  runPromoteFrontEvidenceAction,
+} from './bodyEvidencePanel.js';
+import {
+  appMenuBarEl,
+} from './domRefs.js';
+import {
+  getViewSetting,
+  toggleViewSetting,
+} from './viewControls.js';
+import {
+  getWorkspace,
+  setWorkspace,
+  subscribeWorkspaceChange,
+  WORKSPACE_3D,
+  WORKSPACE_BODY_GRAPH,
+  WORKSPACE_SPLIT,
+} from './workspaceLayout.js';
+
+/** @type {{ measurement: object, selectionHighlight: object, referenceMarkers: object, volumeGrid: object } | null} */
+let menuDeps = null;
+
+/** @type {HTMLElement | null} */
+let openMenuRoot = null;
+
+/** @type {number} */
+let activeItemIndex = -1;
+
+function getMenuRoots() {
+  if (!appMenuBarEl) {
+    return [];
+  }
+  return Array.from(appMenuBarEl.querySelectorAll('.app-menu'));
+}
+
+function getDropdown(menuRoot) {
+  return menuRoot?.querySelector('.app-menu-dropdown') ?? null;
+}
+
+function getTrigger(menuRoot) {
+  return menuRoot?.querySelector('.app-menu-trigger') ?? null;
+}
+
+function getItems(menuRoot) {
+  const dropdown = getDropdown(menuRoot);
+  if (!dropdown) {
+    return [];
+  }
+  return Array.from(dropdown.querySelectorAll('[role="menuitem"]'));
+}
+
+function closeAllMenus() {
+  for (const root of getMenuRoots()) {
+    root.classList.remove('app-menu--open');
+    const trigger = getTrigger(root);
+    const dropdown = getDropdown(root);
+    trigger?.setAttribute('aria-expanded', 'false');
+    if (dropdown) {
+      dropdown.hidden = true;
+    }
+    for (const item of getItems(root)) {
+      item.classList.remove('app-menu-item--active');
+    }
+  }
+  openMenuRoot = null;
+  activeItemIndex = -1;
+}
+
+function openMenu(menuRoot) {
+  if (!menuRoot) {
+    return;
+  }
+  closeAllMenus();
+  refreshMenuState();
+  menuRoot.classList.add('app-menu--open');
+  const trigger = getTrigger(menuRoot);
+  const dropdown = getDropdown(menuRoot);
+  trigger?.setAttribute('aria-expanded', 'true');
+  if (dropdown) {
+    dropdown.hidden = false;
+  }
+  openMenuRoot = menuRoot;
+  const items = getItems(menuRoot);
+  activeItemIndex = items.findIndex((item) => !item.disabled);
+  syncActiveItemHighlight();
+}
+
+function syncActiveItemHighlight() {
+  if (!openMenuRoot) {
+    return;
+  }
+  const items = getItems(openMenuRoot);
+  items.forEach((item, index) => {
+    item.classList.toggle('app-menu-item--active', index === activeItemIndex);
+  });
+  const active = items[activeItemIndex];
+  active?.focus({ preventScroll: true });
+}
+
+function moveActiveItem(delta) {
+  if (!openMenuRoot) {
+    return;
+  }
+  const items = getItems(openMenuRoot);
+  if (items.length === 0) {
+    return;
+  }
+
+  let next = activeItemIndex;
+  for (let step = 0; step < items.length; step += 1) {
+    next = (next + delta + items.length) % items.length;
+    if (!items[next].disabled) {
+      activeItemIndex = next;
+      syncActiveItemHighlight();
+      return;
+    }
+  }
+}
+
+function setItemChecked(item, checked) {
+  item.classList.toggle('app-menu-item--checked', Boolean(checked));
+  item.setAttribute('aria-checked', checked ? 'true' : 'false');
+}
+
+function setItemDisabled(item, disabled) {
+  item.disabled = Boolean(disabled);
+  item.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+}
+
+function refreshMenuState() {
+  if (!appMenuBarEl || !menuDeps) {
+    return;
+  }
+
+  const { measurement } = menuDeps;
+  const workspace = getWorkspace();
+  const hasSelection = getSelectedPoint() != null;
+  const hasMeasurement = Boolean(measurement?.pointA || measurement?.pointB);
+  const hasHistory = getMeasurementHistory().length > 0;
+  const hasEvidence = hasAnyBodyEvidenceSource() || hasAnalyzedBodyEvidence();
+  const canAnalyze = hasAnyBodyEvidenceSource();
+  const canDownload = hasAnalyzedBodyEvidence();
+  const canPromote = getSelectedBodyEvidenceLandmark() != null;
+
+  for (const item of appMenuBarEl.querySelectorAll('[data-command]')) {
+    const command = item.dataset.command;
+    switch (command) {
+      case 'clear-selection':
+        setItemDisabled(item, !hasSelection);
+        break;
+      case 'clear-measurement':
+        setItemDisabled(item, !hasMeasurement);
+        break;
+      case 'clear-history':
+        setItemDisabled(item, !hasHistory);
+        break;
+      case 'clear-body-evidence':
+        setItemDisabled(item, !hasEvidence);
+        break;
+      case 'analyze-body-evidence':
+        setItemDisabled(item, !canAnalyze);
+        break;
+      case 'download-body-evidence':
+        setItemDisabled(item, !canDownload);
+        break;
+      case 'promote-front-evidence':
+        setItemDisabled(item, !canPromote);
+        break;
+      case 'workspace-3d':
+        setItemChecked(item, workspace === WORKSPACE_3D);
+        break;
+      case 'workspace-split':
+        setItemChecked(item, workspace === WORKSPACE_SPLIT);
+        break;
+      case 'workspace-body-graph':
+        setItemChecked(item, workspace === WORKSPACE_BODY_GRAPH);
+        break;
+      default:
+        break;
+    }
+
+    const viewId = item.dataset.viewSetting;
+    if (viewId) {
+      const state = getViewSetting(viewId);
+      setItemChecked(item, state.checked);
+      setItemDisabled(item, state.disabled);
+    }
+  }
+}
+
+function runCommand(command) {
+  if (!menuDeps) {
+    return;
+  }
+  const { measurement, selectionHighlight } = menuDeps;
+
+  switch (command) {
+    case 'open-front-pose':
+      openFrontPoseFilePicker();
+      break;
+    case 'open-side-pose':
+      openSidePoseFilePicker();
+      break;
+    case 'open-front-seg':
+      openFrontSegFilePicker();
+      break;
+    case 'open-side-seg':
+      openSideSegFilePicker();
+      break;
+    case 'open-scene-state':
+      openSceneStateFilePicker();
+      break;
+    case 'export-scene-state':
+      runExportSceneStateAction();
+      break;
+    case 'download-body-evidence':
+      runDownloadBodyEvidenceAction();
+      break;
+    case 'clear-selection':
+      clearSelection(selectionHighlight);
+      break;
+    case 'clear-measurement':
+      clearMeasurement(measurement, selectionHighlight);
+      break;
+    case 'clear-history':
+      clearMeasurementHistory();
+      break;
+    case 'clear-body-evidence':
+      runClearBodyEvidenceAction();
+      break;
+    case 'workspace-3d':
+      setWorkspace(WORKSPACE_3D);
+      break;
+    case 'workspace-split':
+      setWorkspace(WORKSPACE_SPLIT);
+      break;
+    case 'workspace-body-graph':
+      setWorkspace(WORKSPACE_BODY_GRAPH);
+      break;
+    case 'analyze-body-evidence':
+      runAnalyzeBodyEvidenceAction();
+      break;
+    case 'focus-body-front':
+      focusBodyEvidenceTab('front');
+      setWorkspace(WORKSPACE_SPLIT);
+      break;
+    case 'focus-body-side':
+      focusBodyEvidenceTab('side');
+      setWorkspace(WORKSPACE_SPLIT);
+      break;
+    case 'promote-front-evidence':
+      runPromoteFrontEvidenceAction();
+      break;
+    default:
+      break;
+  }
+
+  refreshMenuState();
+}
+
+function onMenuitemActivate(item) {
+  if (item.disabled) {
+    return;
+  }
+
+  const viewId = item.dataset.viewSetting;
+  if (viewId) {
+    toggleViewSetting(viewId, menuDeps);
+    refreshMenuState();
+    closeAllMenus();
+    return;
+  }
+
+  const command = item.dataset.command;
+  if (command) {
+    runCommand(command);
+    closeAllMenus();
+  }
+}
+
+export function setupAppMenuBar({
+  measurement,
+  selectionHighlight,
+  referenceMarkers,
+  volumeGrid,
+}) {
+  if (!appMenuBarEl) {
+    return;
+  }
+
+  menuDeps = {
+    measurement,
+    selectionHighlight,
+    referenceMarkers,
+    volumeGrid,
+  };
+
+  for (const root of getMenuRoots()) {
+    const trigger = getTrigger(root);
+    trigger?.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (openMenuRoot === root) {
+        closeAllMenus();
+        return;
+      }
+      openMenu(root);
+    });
+
+    for (const item of getItems(root)) {
+      item.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onMenuitemActivate(item);
+      });
+    }
+  }
+
+  document.addEventListener('pointerdown', (event) => {
+    if (!openMenuRoot) {
+      return;
+    }
+    if (appMenuBarEl.contains(event.target)) {
+      return;
+    }
+    closeAllMenus();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (!openMenuRoot) {
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeAllMenus();
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveActiveItem(1);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveActiveItem(-1);
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      const items = getItems(openMenuRoot);
+      const active = items[activeItemIndex];
+      if (active) {
+        event.preventDefault();
+        onMenuitemActivate(active);
+      }
+    }
+  });
+
+  subscribeBodyEvidenceChange(() => {
+    refreshMenuState();
+  });
+  subscribeAnnotationsChange(() => {
+    refreshMenuState();
+  });
+  subscribeWorkspaceChange(() => {
+    refreshMenuState();
+  });
+
+  refreshMenuState();
+}

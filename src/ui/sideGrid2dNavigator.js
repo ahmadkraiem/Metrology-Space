@@ -11,14 +11,15 @@ import { formatCoordinate, formatDistance } from '../core/formatters.js';
 import { formatLandmarkDisplayName } from '../core/landmarkDisplay.js';
 import {
   clearSideEvidenceSelection,
+  getBodyEvidenceQa,
   getSelectedSideEvidenceLandmark,
+  hasAnalyzedBodyEvidence,
+  hasSidePoseSource,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
 import {
   advanceSideMeasurement,
   clearSideMeasurement,
-  clearSideMeasurementPointA,
-  clearSideMeasurementPointB,
   getActiveSideMeasurement,
   subscribeSideMeasurementChange,
 } from '../features/sideMeasurement.js';
@@ -67,15 +68,12 @@ import {
   MEASURE_EMPHASIS_MULTIPLIER,
   updateLatticeStepLookup,
 } from './grid2dMarkerSizing.js';
+import { formatSideEvidenceStatus } from './sideEvidenceStatus.js';
 import {
   sideGridBackBtn,
-  sideGridClearMeasureBtn,
-  sideGridClearPointABtn,
-  sideGridClearPointBBtn,
   sideGridResetBtn,
   sideGridSplitBtn,
   sideEvidenceAxisLabelsEl,
-  sideEvidenceEmptyEl,
   sideEvidenceFieldEl,
   sideEvidenceHoverTooltipEl,
   sideEvidenceInspectEl,
@@ -84,6 +82,7 @@ import {
   sideEvidenceModeReadoutEl,
   sideEvidenceSelectedRegionEl,
   sideEvidenceSelectionRectEl,
+  sideEvidenceSourceStatusEl,
   sideEvidenceStatusMessageEl,
   sideEvidenceViewReadoutEl,
   sideEvidenceViewportEl,
@@ -109,6 +108,20 @@ let sideGridPointsVisible = true;
 
 function getSelectionHint() {
   return 'Click a point or drag a region';
+}
+
+function updateSideEvidenceStatus() {
+  if (!sideEvidenceSourceStatusEl) {
+    return;
+  }
+
+  const qa = getBodyEvidenceQa()?.qa ?? {};
+  sideEvidenceSourceStatusEl.textContent = formatSideEvidenceStatus({
+    sidePoseLoaded: hasSidePoseSource(),
+    analyzed: hasAnalyzedBodyEvidence(),
+    coreCount: qa.sideCoreLandmarks ?? 0,
+    secondaryCount: qa.sideSecondaryLandmarks ?? 0,
+  });
 }
 
 function getBasePoints() {
@@ -443,6 +456,7 @@ function updateLegend() {
     'measure-a': Boolean(measurement.pointA),
     'measure-b': Boolean(measurement.pointB),
     landmark: true,
+    'landmark-secondary': true,
   };
 
   const dimmed = {
@@ -458,26 +472,6 @@ function updateLegend() {
 
 function formatSidePointCoords(point) {
   return `U ${formatCoordinate(point.u)} · Y ${formatCoordinate(point.y)} cm`;
-}
-
-function syncMeasureClearButtons() {
-  const measurement = getActiveSideMeasurement();
-  const hasA = Boolean(measurement.pointA);
-  const hasB = Boolean(measurement.pointB);
-
-  if (sideGridClearPointABtn) {
-    sideGridClearPointABtn.disabled = !hasA;
-    sideGridClearPointABtn.setAttribute('aria-disabled', hasA ? 'false' : 'true');
-  }
-  if (sideGridClearPointBBtn) {
-    sideGridClearPointBBtn.disabled = !hasB;
-    sideGridClearPointBBtn.setAttribute('aria-disabled', hasB ? 'false' : 'true');
-  }
-  if (sideGridClearMeasureBtn) {
-    const hasAny = hasA || hasB;
-    sideGridClearMeasureBtn.disabled = !hasAny;
-    sideGridClearMeasureBtn.setAttribute('aria-disabled', hasAny ? 'false' : 'true');
-  }
 }
 
 function updateChrome() {
@@ -574,12 +568,8 @@ function updateChrome() {
     selectionBlock.classList.toggle('grid2d-selection-block--empty', !hasSelectionDetails);
   }
 
-  if (sideEvidenceEmptyEl) {
-    sideEvidenceEmptyEl.hidden = true;
-  }
-  sideEvidenceViewportEl?.classList.remove('side-evidence-viewport--empty');
+  updateSideEvidenceStatus();
 
-  syncMeasureClearButtons();
   updateModeUI();
   updateLegend();
 }
@@ -721,6 +711,10 @@ function renderSideMeasurementOverlay() {
     label.style.top = `${(a.py + b.py) / 2}px`;
     sideEvidenceFieldEl.appendChild(label);
   }
+}
+
+export function isSideGrid2dPointsVisible() {
+  return sideGridPointsVisible;
 }
 
 export function setSideGrid2dPointsVisible(visible) {
@@ -1026,18 +1020,6 @@ export function setupSideGrid2dNavigator() {
     splitSelectedRegion();
   });
 
-  sideGridClearPointABtn?.addEventListener('click', () => {
-    clearSideMeasurementPointA();
-  });
-
-  sideGridClearPointBBtn?.addEventListener('click', () => {
-    clearSideMeasurementPointB();
-  });
-
-  sideGridClearMeasureBtn?.addEventListener('click', () => {
-    clearSideMeasurement();
-  });
-
   const preventGridPointerBleed = (event) => {
     event.stopPropagation();
     if (sideEvidenceViewportEl.hasPointerCapture(event.pointerId)) {
@@ -1054,9 +1036,6 @@ export function setupSideGrid2dNavigator() {
     sideGridBackBtn,
     sideGridResetBtn,
     sideGridSplitBtn,
-    sideGridClearPointABtn,
-    sideGridClearPointBBtn,
-    sideGridClearMeasureBtn,
   ]) {
     actionBtn?.addEventListener('pointerdown', preventGridPointerBleed);
   }

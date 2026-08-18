@@ -276,6 +276,7 @@ function wireMarkerInteraction(marker, landmark) {
     event.preventDefault();
     clearSideEvidenceSelection();
     selectBodyEvidenceLandmark(landmark);
+    document.dispatchEvent(new CustomEvent('body-evidence-selection-focus'));
   });
 
   marker.addEventListener('keydown', (event) => {
@@ -286,6 +287,7 @@ function wireMarkerInteraction(marker, landmark) {
     event.stopPropagation();
     clearSideEvidenceSelection();
     selectBodyEvidenceLandmark(landmark);
+    document.dispatchEvent(new CustomEvent('body-evidence-selection-focus'));
   });
 }
 

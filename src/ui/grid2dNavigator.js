@@ -761,6 +761,10 @@ function renderFrontSurfaceMeasurementOverlay() {
   }
 }
 
+export function isGrid2dPointsVisible() {
+  return grid2dPointsVisible;
+}
+
 export function setGrid2dPointsVisible(visible) {
   grid2dPointsVisible = Boolean(visible);
   refreshGrid2dNavigator();

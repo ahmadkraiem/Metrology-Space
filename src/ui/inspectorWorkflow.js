@@ -9,62 +9,61 @@
 
 import { APP_MODE_ANNOTATE } from '../features/appMode.js';
 import {
+  inspectorWorkflowTitleEl,
   leftSidebarEl,
-  modeAnnotateBtn,
-  modeInspectMeasureBtn,
   statusHintEl,
-  workflowBodyEvidenceBtn,
 } from './domRefs.js';
+import {
+  WORKFLOW_ANNOTATION,
+  WORKFLOW_BODY_EVIDENCE,
+  WORKFLOW_LABELS,
+  WORKFLOW_MEASUREMENT,
+  getInspectorWorkflow,
+  getWorkflowHint,
+  getWorkflowLabel,
+  isBodyEvidenceWorkflow,
+  setInspectorWorkflowState,
+  subscribeInspectorWorkflowChange,
+} from './inspectorWorkflowState.js';
 
-export const WORKFLOW_MEASUREMENT = 'measurement';
-export const WORKFLOW_ANNOTATION = 'annotation';
-export const WORKFLOW_BODY_EVIDENCE = 'body-evidence';
-
-const WORKFLOW_HINTS = {
-  [WORKFLOW_MEASUREMENT]: 'Hover a point, click two points to measure distance',
-  [WORKFLOW_ANNOTATION]: 'Click a point to select, then add an annotation',
-  [WORKFLOW_BODY_EVIDENCE]: 'Load and analyze body evidence, then inspect or promote a landmark',
+export {
+  WORKFLOW_ANNOTATION,
+  WORKFLOW_BODY_EVIDENCE,
+  WORKFLOW_LABELS,
+  WORKFLOW_MEASUREMENT,
+  getInspectorWorkflow,
+  getWorkflowLabel,
+  isBodyEvidenceWorkflow,
+  subscribeInspectorWorkflowChange,
 };
-
-const WORKFLOW_BUTTONS = {
-  [WORKFLOW_MEASUREMENT]: modeInspectMeasureBtn,
-  [WORKFLOW_ANNOTATION]: modeAnnotateBtn,
-  [WORKFLOW_BODY_EVIDENCE]: workflowBodyEvidenceBtn,
-};
-
-let currentWorkflow = WORKFLOW_MEASUREMENT;
 
 export function workflowForMode(mode) {
   return mode === APP_MODE_ANNOTATE ? WORKFLOW_ANNOTATION : WORKFLOW_MEASUREMENT;
 }
 
-export function getInspectorWorkflow() {
-  return currentWorkflow;
-}
-
-export function isBodyEvidenceWorkflow() {
-  return currentWorkflow === WORKFLOW_BODY_EVIDENCE;
-}
-
-export function setInspectorWorkflow(workflow) {
-  if (!WORKFLOW_BUTTONS[workflow]) {
-    return;
-  }
-
-  currentWorkflow = workflow;
+function syncWorkflowChrome() {
+  const workflow = getInspectorWorkflow();
 
   if (leftSidebarEl) {
     leftSidebarEl.dataset.workflow = workflow;
   }
 
-  Object.entries(WORKFLOW_BUTTONS).forEach(([id, button]) => {
-    button?.classList.toggle('mode-toggle-btn--active', id === workflow);
-    button?.setAttribute('aria-pressed', id === workflow ? 'true' : 'false');
-  });
+  if (inspectorWorkflowTitleEl) {
+    inspectorWorkflowTitleEl.textContent = getWorkflowLabel(workflow);
+  }
 
   if (statusHintEl) {
-    statusHintEl.textContent = WORKFLOW_HINTS[workflow];
+    statusHintEl.textContent = getWorkflowHint(workflow);
   }
+}
+
+export function setInspectorWorkflow(workflow) {
+  setInspectorWorkflowState(workflow);
+}
+
+/** Focus the Body Evidence inspector workflow without mutating evidence data. */
+export function focusBodyEvidenceWorkflow() {
+  setInspectorWorkflow(WORKFLOW_BODY_EVIDENCE);
 }
 
 /**
@@ -72,9 +71,8 @@ export function setInspectorWorkflow(workflow) {
  * nothing else, so measurements, annotations, and evidence state survive.
  */
 export function setupInspectorWorkflow() {
-  workflowBodyEvidenceBtn?.addEventListener('click', () => {
-    setInspectorWorkflow(WORKFLOW_BODY_EVIDENCE);
+  subscribeInspectorWorkflowChange(() => {
+    syncWorkflowChrome();
   });
-
-  setInspectorWorkflow(currentWorkflow);
+  syncWorkflowChrome();
 }

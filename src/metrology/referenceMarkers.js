@@ -64,6 +64,10 @@ export function hideReferenceMarkerLabels(referenceMarkers) {
   });
 }
 
+export function isReferenceMarkersVisible() {
+  return referenceMarkersVisible;
+}
+
 export function setReferenceMarkersVisible(referenceMarkers, visible) {
   referenceMarkersVisible = visible;
   referenceMarkers.visible = visible;

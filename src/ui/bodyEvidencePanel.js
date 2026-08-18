@@ -1,12 +1,13 @@
 /**
  * Body Evidence panel (v0)
  * Left Metrology Inspector — load/analyze/clear body-processing JSON.
+ * Tabbed workflow: Front / Side / Selection.
  * Evidence UI only — does not mutate scene or measurement state.
- * Compact summary counts render here; full QA name lists live in the Session
- * Data Body tab (Advanced Evidence Details). Diagnostic JSON remains available
- * via Download Body Evidence JSON.
+ * Compact summary counts render in Session Data > Body.
+ * File load remains available through the File menu (hidden inputs).
  * Promote Selected Landmark creates a normal annotation via the shared
  * annotation helper; Body Evidence evidence state is unchanged.
+ * Side remains U/Y evidence and is never promotable.
  */
 
 import {
@@ -16,24 +17,13 @@ import {
   clearSideEvidenceSelection,
   downloadBodyEvidenceJson,
   getBodyEvidenceError,
-  getBodyEvidenceQa,
-  getBodyEvidenceScaleInfo,
   getSelectedBodyEvidenceLandmark,
   getSelectedSideEvidenceLandmark,
   hasAnalyzedBodyEvidence,
-  hasAnyBodyEvidenceSource,
-  isBodyEvidenceOverlayVisible,
   isBodyLandmarkPromoted,
-  isSecondaryBodyEvidenceVisible,
-  isSelectedBodyEvidenceLandmark,
-  isSelectedSideEvidenceLandmark,
-  isSideBodyEvidenceVisible,
   promoteSelectedBodyEvidenceLandmark,
   selectBodyEvidenceLandmark,
   selectSideEvidenceLandmark,
-  setBodyEvidenceOverlayVisible,
-  setSecondaryBodyEvidenceVisible,
-  setSideBodyEvidenceVisible,
   setFrontPoseSource,
   setFrontSegSource,
   setSidePoseSource,
@@ -43,34 +33,24 @@ import {
 import { subscribeAnnotationsChange } from '../features/annotations.js';
 import { formatLandmarkDisplayName } from '../core/landmarkDisplay.js';
 import {
-  getFrontOverlayLandmarkCount,
   getFrontOverlayLandmarks,
-  getSecondaryCandidateLandmarkCount,
   getSecondaryCandidateLandmarks,
 } from './bodyEvidenceOverlay2d.js';
 import {
-  getSideCandidateLandmarkCount,
   getSideCandidateLandmarks,
 } from './bodyEvidenceOverlaySide2d.js';
+import { renderEvidenceCandidateList } from './bodyEvidenceCandidateList.js';
+import { focusBodyEvidenceWorkflow } from './inspectorWorkflow.js';
 import {
   analyzeBodyEvidenceBtn,
-  bodyEvidenceAnalysisStatusEl,
-  bodyEvidenceCandidatesEl,
-  bodyEvidenceIgnoredCountEl,
-  bodyEvidenceOverlayCountEl,
-  bodyEvidenceOverlayScaleEl,
+  bodyEvidenceFrontCandidatesEl,
+  bodyEvidenceFrontListCountEl,
+  bodyEvidenceFrontListLabelEl,
   bodyEvidencePromoteStatusEl,
-  bodyEvidenceRejectedCountEl,
-  bodyEvidenceSecondaryCandidatesGroupEl,
-  bodyEvidenceSecondaryCandidatesCountEl,
-  bodyEvidenceSecondaryCandidatesEl,
-  bodyEvidenceSecondaryCountEl,
   bodyEvidenceSelectedEl,
-  bodyEvidenceSideCandidatesCountEl,
   bodyEvidenceSideCandidatesEl,
-  bodyEvidenceSideCandidatesGroupEl,
-  bodyEvidenceSideCountEl,
-  bodyEvidenceSourceSummaryEl,
+  bodyEvidenceSideListCountEl,
+  bodyEvidenceSideListLabelEl,
   bodyEvidenceStatusEl,
   clearBodyEvidenceBtn,
   clearBodyLandmarkSelectionBtn,
@@ -80,10 +60,18 @@ import {
   loadSidePoseJsonInput,
   loadSideSegJsonInput,
   promoteSelectedBodyLandmarkBtn,
-  showBodyEvidenceOverlayCheckbox,
-  showSecondaryBodyCandidatesCheckbox,
-  showSideBodyCandidatesCheckbox,
 } from './domRefs.js';
+
+const BODY_EVIDENCE_TABS = Object.freeze(['front', 'side', 'selection']);
+const CANDIDATE_LAYERS = Object.freeze(['core', 'secondary']);
+
+/** @type {'front'|'side'|'selection'} */
+let activeBodyEvidenceTab = 'front';
+/** @type {'core'|'secondary'} */
+let frontCandidateLayer = 'core';
+/** @type {'core'|'secondary'} */
+let sideCandidateLayer = 'core';
+let lastSelectionKey = '';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -123,16 +111,6 @@ function badgeClassForTone(tone) {
 function renderBadge(label, tone = 'default', title = '') {
   const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
   return `<span class="${badgeClassForTone(tone)}"${titleAttr}>${escapeHtml(label)}</span>`;
-}
-
-function scaleStatusTone(status) {
-  if (status === 'fixed' || status === 'detected') {
-    return 'ok';
-  }
-  if (status === 'partial') {
-    return 'warn';
-  }
-  return 'muted';
 }
 
 function showStatus(message, type = 'info') {
@@ -179,118 +157,70 @@ function syncDownloadButton() {
   downloadBodyEvidenceJsonBtn.setAttribute('aria-disabled', available ? 'false' : 'true');
 }
 
-function setSummaryValue(el, html, title = '') {
-  if (!el) {
-    return;
+function currentSelectionKey() {
+  const selectedFront = getSelectedBodyEvidenceLandmark();
+  if (selectedFront) {
+    return `front:${selectedFront.id}`;
   }
-  el.innerHTML = html;
-  if (title) {
-    el.setAttribute('title', title);
-  } else {
-    el.removeAttribute('title');
+  const selectedSide = getSelectedSideEvidenceLandmark();
+  if (selectedSide) {
+    return `side:${selectedSide.id}`;
   }
+  return '';
 }
 
-function syncOverlayControls() {
-  const analyzed = hasAnalyzedBodyEvidence();
-  const count = analyzed ? getFrontOverlayLandmarkCount() : 0;
-  const secondaryCount = analyzed ? getSecondaryCandidateLandmarkCount() : 0;
-  const sideCount = analyzed ? getSideCandidateLandmarkCount() : 0;
-  const qa = getBodyEvidenceQa();
+function syncTabUi() {
+  document.querySelectorAll('[data-body-evidence-tab]').forEach((button) => {
+    const selected = button.dataset.bodyEvidenceTab === activeBodyEvidenceTab;
+    button.classList.toggle('is-active', selected);
+    button.setAttribute('aria-selected', selected ? 'true' : 'false');
+    button.tabIndex = selected ? 0 : -1;
+  });
+  document.querySelectorAll('[data-body-evidence-panel]').forEach((panel) => {
+    panel.hidden = panel.dataset.bodyEvidencePanel !== activeBodyEvidenceTab;
+  });
+}
 
-  if (showBodyEvidenceOverlayCheckbox) {
-    showBodyEvidenceOverlayCheckbox.checked = isBodyEvidenceOverlayVisible();
-    showBodyEvidenceOverlayCheckbox.disabled = !analyzed || count === 0;
-  }
+function syncLayerUi(source) {
+  const layer = source === 'side' ? sideCandidateLayer : frontCandidateLayer;
+  document.querySelectorAll(
+    `[data-body-evidence-source="${source}"][data-body-evidence-layer]`,
+  ).forEach((button) => {
+    const pressed = button.dataset.bodyEvidenceLayer === layer;
+    button.classList.toggle('is-active', pressed);
+    button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+  });
+}
 
-  if (showSecondaryBodyCandidatesCheckbox) {
-    showSecondaryBodyCandidatesCheckbox.checked = isSecondaryBodyEvidenceVisible();
-    showSecondaryBodyCandidatesCheckbox.disabled = !analyzed || secondaryCount === 0;
-    showSecondaryBodyCandidatesCheckbox.setAttribute(
-      'aria-disabled',
-      showSecondaryBodyCandidatesCheckbox.disabled ? 'true' : 'false',
-    );
+export function setBodyEvidencePanelTab(tab) {
+  if (!BODY_EVIDENCE_TABS.includes(tab)) {
+    return;
   }
+  activeBodyEvidenceTab = tab;
+  syncTabUi();
+}
 
-  if (showSideBodyCandidatesCheckbox) {
-    showSideBodyCandidatesCheckbox.checked = isSideBodyEvidenceVisible();
-    showSideBodyCandidatesCheckbox.disabled = !analyzed || sideCount === 0;
-    showSideBodyCandidatesCheckbox.setAttribute(
-      'aria-disabled',
-      showSideBodyCandidatesCheckbox.disabled ? 'true' : 'false',
-    );
+export function setBodyEvidenceCandidateLayer(source, layer) {
+  if (layer !== 'core' && layer !== 'secondary') {
+    return;
   }
+  if (source === 'front') {
+    frontCandidateLayer = layer;
+  } else if (source === 'side') {
+    sideCandidateLayer = layer;
+  } else {
+    return;
+  }
+  syncLayerUi(source);
+  refreshCandidateLists();
+}
 
-  if (bodyEvidenceOverlayCountEl) {
-    const label = analyzed ? `${count} / 13` : '0 / 13';
-    bodyEvidenceOverlayCountEl.textContent = label;
-    bodyEvidenceOverlayCountEl.setAttribute('title', `Primary/core front candidates: ${count} / 13`);
+function maybeFocusSelectionTab() {
+  const key = currentSelectionKey();
+  if (key && key !== lastSelectionKey) {
+    setBodyEvidencePanelTab('selection');
   }
-
-  if (bodyEvidenceSecondaryCountEl) {
-    bodyEvidenceSecondaryCountEl.textContent = String(secondaryCount);
-  }
-  if (bodyEvidenceSideCountEl) {
-    bodyEvidenceSideCountEl.textContent = String(sideCount);
-  }
-  if (bodyEvidenceRejectedCountEl) {
-    bodyEvidenceRejectedCountEl.textContent = String(qa?.qa?.frontRejectedFaceLandmarks ?? 0);
-  }
-  if (bodyEvidenceIgnoredCountEl) {
-    bodyEvidenceIgnoredCountEl.textContent = String(qa?.qa?.frontIgnoredNonCoreLandmarks ?? 0);
-  }
-
-  if (bodyEvidenceOverlayScaleEl) {
-    if (!analyzed) {
-      setSummaryValue(bodyEvidenceOverlayScaleEl, renderBadge('—', 'muted'), 'Scale not analyzed');
-    } else {
-      const scaleInfo = getBodyEvidenceScaleInfo();
-      const status = scaleInfo.status ?? 'fixed';
-      const px = `${scaleInfo.pixelsPerCm} px/cm fixed`;
-      const label = `${status} · ${px}`;
-      setSummaryValue(
-        bodyEvidenceOverlayScaleEl,
-        renderBadge(label, scaleStatusTone(status), scaleInfo.sourceLabel ?? label),
-        scaleInfo.sourceLabel ?? label,
-      );
-    }
-  }
-
-  if (bodyEvidenceAnalysisStatusEl) {
-    if (analyzed) {
-      setSummaryValue(
-        bodyEvidenceAnalysisStatusEl,
-        renderBadge('analyzed', 'ok'),
-        'Body Evidence analyzed',
-      );
-    } else if (hasAnyBodyEvidenceSource()) {
-      setSummaryValue(
-        bodyEvidenceAnalysisStatusEl,
-        renderBadge('loaded', 'warn', 'Sources loaded — not analyzed'),
-        'Sources loaded — not analyzed',
-      );
-    } else {
-      setSummaryValue(
-        bodyEvidenceAnalysisStatusEl,
-        renderBadge('not analyzed', 'muted'),
-        'Body Evidence not analyzed',
-      );
-    }
-  }
-
-  if (bodyEvidenceSourceSummaryEl) {
-    if (!analyzed) {
-      setSummaryValue(bodyEvidenceSourceSummaryEl, renderBadge('—', 'muted'), 'Source unknown');
-    } else {
-      const conceptual = qa?.isMockData !== false;
-      const label = conceptual ? 'conceptual' : 'live';
-      setSummaryValue(
-        bodyEvidenceSourceSummaryEl,
-        renderBadge(label, conceptual ? 'muted' : 'ok', label),
-        label,
-      );
-    }
-  }
+  lastSelectionKey = key;
 }
 
 function syncClearSelectionButton() {
@@ -309,155 +239,21 @@ function syncPromoteButton() {
   if (!promoteSelectedBodyLandmarkBtn) {
     return;
   }
-  // Promote is Front-only. Side selection must never enable Promote.
+  // Promote is Front-only. Side selection must never show or enable Promote.
   const hasFrontSelection = getSelectedBodyEvidenceLandmark() != null;
+  promoteSelectedBodyLandmarkBtn.hidden = !hasFrontSelection;
   promoteSelectedBodyLandmarkBtn.disabled = !hasFrontSelection;
   promoteSelectedBodyLandmarkBtn.setAttribute('aria-disabled', hasFrontSelection ? 'false' : 'true');
 }
 
-/**
- * Candidate rows use the same mapped front overlay landmarks as 2D markers,
- * so row selection and marker selection share one inspect id/state.
- */
-function renderCandidateRow(landmark) {
-  const selected = isSelectedBodyEvidenceLandmark(landmark.id);
-  const promoted = isBodyLandmarkPromoted(landmark.name);
-  const displayName = formatLandmarkDisplayName(landmark.name) || landmark.name;
-  const scoreLabel = formatScore(landmark.score);
-  const scoreBadge = scoreLabel === 'n/a'
-    ? ''
-    : `<span class="body-evidence-candidate-score">${renderBadge(
-      scoreLabel,
-      landmark.lowConfidence ? 'warn' : 'ok',
-      `Score / confidence: ${scoreLabel}${landmark.lowConfidence ? ' (low)' : ''}`,
-    )}</span>`;
-  const promotedBadge = promoted
-    ? `<span class="body-evidence-candidate-promoted">${renderBadge('Promoted', 'ok', 'Already promoted to a body_landmark annotation')}</span>`
-    : '';
-  const coords = `X ${formatCmValue(landmark.spaceX)} / Y ${formatCmValue(landmark.spaceY)}`;
-  const candidateTypeClass = landmark.candidateType === 'secondary'
-    ? ' body-evidence-candidate-row--secondary'
-    : '';
-  const rowClass = selected
-    ? `body-evidence-candidate-row${candidateTypeClass} is-selected`
-    : `body-evidence-candidate-row${candidateTypeClass}`;
-
-  return (
-    `<button type="button" class="${rowClass}" role="option"`
-    + ` data-body-evidence-id="${escapeHtml(landmark.id)}"`
-    + ` aria-selected="${selected ? 'true' : 'false'}"`
-    + ` title="${escapeHtml(`${landmark.name} · ${coords}`)}">`
-    + `<span class="body-evidence-candidate-main">`
-    + `<span class="body-evidence-candidate-name">${escapeHtml(displayName)}</span>`
-    + `<span class="body-evidence-candidate-coords">${escapeHtml(coords)}</span>`
-    + `</span>`
-    + `<span class="body-evidence-candidate-meta">`
-    + scoreBadge
-    + promotedBadge
-    + `</span>`
-    + `</button>`
-  );
-}
-
-function renderCandidateList() {
-  if (!bodyEvidenceCandidatesEl) {
-    return;
+function promotedNamesFor(landmarks) {
+  const names = new Set();
+  for (const landmark of landmarks) {
+    if (isBodyLandmarkPromoted(landmark.name)) {
+      names.add(landmark.name);
+    }
   }
-
-  const landmarks = hasAnalyzedBodyEvidence() ? getFrontOverlayLandmarks() : [];
-  if (landmarks.length === 0) {
-    bodyEvidenceCandidatesEl.innerHTML = (
-      '<p class="body-evidence-candidates-empty">No front body landmark candidates.</p>'
-    );
-    return;
-  }
-
-  bodyEvidenceCandidatesEl.innerHTML = landmarks.map(renderCandidateRow).join('');
-}
-
-function renderSideCandidateRow(landmark) {
-  const selected = isSelectedSideEvidenceLandmark(landmark.id);
-  const displayName = formatLandmarkDisplayName(landmark.name) || landmark.name;
-  const scoreLabel = formatScore(landmark.score);
-  const scoreBadge = scoreLabel === 'n/a'
-    ? ''
-    : `<span class="body-evidence-candidate-score">${renderBadge(
-      scoreLabel,
-      landmark.lowConfidence ? 'warn' : 'ok',
-      `Score / confidence: ${scoreLabel}${landmark.lowConfidence ? ' (low)' : ''}`,
-    )}</span>`;
-  const coords = `U ${formatCmValue(landmark.sideUcm)} / Y ${formatCmValue(landmark.sideYcm)}`;
-  const rowClass = selected
-    ? 'body-evidence-candidate-row body-evidence-candidate-row--side is-selected'
-    : 'body-evidence-candidate-row body-evidence-candidate-row--side';
-
-  return (
-    `<button type="button" class="${rowClass}" role="option"`
-    + ` data-body-evidence-id="${escapeHtml(landmark.id)}"`
-    + ` data-body-evidence-view="side"`
-    + ` aria-selected="${selected ? 'true' : 'false'}"`
-    + ` title="${escapeHtml(`${landmark.name} · ${coords} · Side (no promote)`)}">`
-    + `<span class="body-evidence-candidate-main">`
-    + `<span class="body-evidence-candidate-name">${escapeHtml(displayName)}</span>`
-    + `<span class="body-evidence-candidate-coords">${escapeHtml(coords)}</span>`
-    + `</span>`
-    + `<span class="body-evidence-candidate-meta">`
-    + scoreBadge
-    + `<span class="body-evidence-candidate-promoted">${renderBadge('Side', 'muted', 'Evidence only — not promotable')}</span>`
-    + `</span>`
-    + `</button>`
-  );
-}
-
-function renderSideCandidateList() {
-  if (!bodyEvidenceSideCandidatesEl) {
-    return;
-  }
-
-  const analyzed = hasAnalyzedBodyEvidence();
-  const landmarks = analyzed ? getSideCandidateLandmarks() : [];
-
-  if (bodyEvidenceSideCandidatesCountEl) {
-    bodyEvidenceSideCandidatesCountEl.textContent = String(landmarks.length);
-  }
-  if (bodyEvidenceSideCandidatesGroupEl) {
-    bodyEvidenceSideCandidatesGroupEl.hidden = false;
-  }
-
-  if (landmarks.length === 0) {
-    bodyEvidenceSideCandidatesEl.innerHTML = (
-      '<p class="body-evidence-candidates-empty">No side body landmark candidates.</p>'
-    );
-    return;
-  }
-
-  bodyEvidenceSideCandidatesEl.innerHTML = landmarks.map(renderSideCandidateRow).join('');
-}
-
-function renderSecondaryCandidateList() {
-  if (!bodyEvidenceSecondaryCandidatesEl) {
-    return;
-  }
-
-  const analyzed = hasAnalyzedBodyEvidence();
-  const landmarks = analyzed ? getSecondaryCandidateLandmarks() : [];
-  const visible = isSecondaryBodyEvidenceVisible();
-
-  if (bodyEvidenceSecondaryCandidatesGroupEl) {
-    bodyEvidenceSecondaryCandidatesGroupEl.hidden = analyzed && landmarks.length > 0 && !visible;
-  }
-  if (bodyEvidenceSecondaryCandidatesCountEl) {
-    bodyEvidenceSecondaryCandidatesCountEl.textContent = String(landmarks.length);
-  }
-
-  if (landmarks.length === 0) {
-    bodyEvidenceSecondaryCandidatesEl.innerHTML = (
-      '<p class="body-evidence-candidates-empty">No secondary body candidates found.</p>'
-    );
-    return;
-  }
-
-  bodyEvidenceSecondaryCandidatesEl.innerHTML = landmarks.map(renderCandidateRow).join('');
+  return names;
 }
 
 function findCandidateLandmarkById(landmarkId) {
@@ -470,49 +266,76 @@ function findSideCandidateLandmarkById(landmarkId) {
   return getSideCandidateLandmarks().find((entry) => entry.id === landmarkId) ?? null;
 }
 
-function onCandidateListClick(event) {
-  const row = event.target.closest('.body-evidence-candidate-row');
-  if (!row) {
-    return;
+function resolveCandidateType(selected, source) {
+  if (selected?.candidateType === 'secondary' || selected?.candidateType === 'core') {
+    return selected.candidateType;
   }
+  const found = source === 'side'
+    ? findSideCandidateLandmarkById(selected?.id)
+    : findCandidateLandmarkById(selected?.id);
+  return found?.candidateType === 'secondary' ? 'secondary' : 'core';
+}
 
-  const landmarkId = row.dataset.bodyEvidenceId;
-  if (!landmarkId) {
-    return;
-  }
-
-  event.preventDefault();
-
-  if (row.dataset.bodyEvidenceView === 'side'
-    || bodyEvidenceSideCandidatesEl?.contains(row)) {
-    const landmark = findSideCandidateLandmarkById(landmarkId);
-    if (!landmark) {
-      return;
-    }
-    clearBodyEvidenceSelection();
-    selectSideEvidenceLandmark(landmark);
-    return;
-  }
-
-  const inCoreList = Boolean(bodyEvidenceCandidatesEl?.contains(row));
-  const inSecondaryList = Boolean(bodyEvidenceSecondaryCandidatesEl?.contains(row));
-  if (!inCoreList && !inSecondaryList) {
-    return;
-  }
-
-  const landmark = findCandidateLandmarkById(landmarkId);
-  if (!landmark) {
-    return;
-  }
-
+function onFrontCandidateSelect(landmark) {
   clearSideEvidenceSelection();
   selectBodyEvidenceLandmark(landmark);
+  setBodyEvidencePanelTab('selection');
+}
+
+function onSideCandidateSelect(landmark) {
+  clearBodyEvidenceSelection();
+  selectSideEvidenceLandmark(landmark);
+  setBodyEvidencePanelTab('selection');
 }
 
 function refreshCandidateLists() {
-  renderCandidateList();
-  renderSecondaryCandidateList();
-  renderSideCandidateList();
+  const analyzed = hasAnalyzedBodyEvidence();
+  const selectedFront = getSelectedBodyEvidenceLandmark();
+  const selectedSide = getSelectedSideEvidenceLandmark();
+
+  const frontLandmarks = !analyzed
+    ? []
+    : (frontCandidateLayer === 'secondary'
+      ? getSecondaryCandidateLandmarks()
+      : getFrontOverlayLandmarks());
+  if (bodyEvidenceFrontListLabelEl) {
+    bodyEvidenceFrontListLabelEl.textContent = (
+      frontCandidateLayer === 'secondary' ? 'Front Secondary' : 'Front Core'
+    );
+  }
+  if (bodyEvidenceFrontListCountEl) {
+    bodyEvidenceFrontListCountEl.textContent = String(frontLandmarks.length);
+  }
+  renderEvidenceCandidateList({
+    container: bodyEvidenceFrontCandidatesEl,
+    landmarks: frontLandmarks,
+    source: 'front',
+    selectedId: selectedFront?.id ?? null,
+    promotedNames: promotedNamesFor(frontLandmarks),
+    onSelect: onFrontCandidateSelect,
+    layer: frontCandidateLayer,
+  });
+
+  const sideLandmarks = analyzed
+    ? getSideCandidateLandmarks({ layer: sideCandidateLayer })
+    : [];
+  if (bodyEvidenceSideListLabelEl) {
+    bodyEvidenceSideListLabelEl.textContent = (
+      sideCandidateLayer === 'secondary' ? 'Side Secondary' : 'Side Core'
+    );
+  }
+  if (bodyEvidenceSideListCountEl) {
+    bodyEvidenceSideListCountEl.textContent = String(sideLandmarks.length);
+  }
+  renderEvidenceCandidateList({
+    container: bodyEvidenceSideCandidatesEl,
+    landmarks: sideLandmarks,
+    source: 'side',
+    selectedId: selectedSide?.id ?? null,
+    promotedNames: new Set(),
+    onSelect: onSideCandidateSelect,
+    layer: sideCandidateLayer,
+  });
 }
 
 function renderCoordCell(axisLabel, value) {
@@ -544,6 +367,8 @@ function renderSelectedLandmark() {
     const promoted = isBodyLandmarkPromoted(selectedFront.name);
     const displayName = formatLandmarkDisplayName(selectedFront.name) || selectedFront.name;
     const scoreLabel = formatScore(selectedFront.score);
+    const candidateType = resolveCandidateType(selectedFront, 'front');
+    const typeLabel = candidateType === 'secondary' ? 'Secondary' : 'Core';
     const promotedBadge = renderBadge(
       promoted ? 'Promoted' : 'Not promoted',
       promoted ? 'ok' : 'muted',
@@ -554,7 +379,8 @@ function renderSelectedLandmark() {
       + `<div class="body-evidence-inspect-name" title="${escapeHtml(selectedFront.name)}">${escapeHtml(displayName)}</div>`
       + `<div class="body-evidence-inspect-header-badges">`
       + `${renderBadge('Front', 'ok')}`
-      + `${renderBadge(scoreLabel, 'ok')}`
+      + `${renderBadge(typeLabel, candidateType === 'secondary' ? 'muted' : 'ok')}`
+      + `${renderBadge(scoreLabel, 'ok', 'Confidence')}`
       + `${promotedBadge}`
       + `</div>`
       + `</div>`
@@ -564,16 +390,21 @@ function renderSelectedLandmark() {
       + `</div>`
     );
   } else {
+    // Side is evidence-only — never show Front promote feedback on Selection.
+    hidePromoteStatus();
+
     const displayName = formatLandmarkDisplayName(selectedSide.name) || selectedSide.name;
     const scoreLabel = formatScore(selectedSide.score);
+    const candidateType = resolveCandidateType(selectedSide, 'side');
+    const typeLabel = candidateType === 'secondary' ? 'Secondary' : 'Core';
 
     bodyEvidenceSelectedEl.innerHTML = (
       `<div class="body-evidence-inspect-header">`
       + `<div class="body-evidence-inspect-name" title="${escapeHtml(selectedSide.name)}">${escapeHtml(displayName)}</div>`
       + `<div class="body-evidence-inspect-header-badges">`
       + `${renderBadge('Side', 'muted')}`
-      + `${renderBadge(scoreLabel, 'ok')}`
-      + `${renderBadge('No promote', 'muted')}`
+      + `${renderBadge(typeLabel, candidateType === 'secondary' ? 'muted' : 'ok')}`
+      + `${renderBadge(scoreLabel, 'ok', 'Confidence')}`
       + `</div>`
       + `</div>`
       + `<div class="body-evidence-coord-grid">`
@@ -613,7 +444,6 @@ function wireFileInput(input, setter, label) {
         'ok',
       );
       syncDownloadButton();
-      syncOverlayControls();
       refreshCandidateLists();
       renderSelectedLandmark();
     } catch (error) {
@@ -626,28 +456,41 @@ function wireFileInput(input, setter, label) {
   });
 }
 
-function onAnalyze() {
+export function openFrontPoseFilePicker() {
+  loadFrontPoseJsonInput?.click();
+}
+
+export function openSidePoseFilePicker() {
+  loadSidePoseJsonInput?.click();
+}
+
+export function openFrontSegFilePicker() {
+  loadFrontSegJsonInput?.click();
+}
+
+export function openSideSegFilePicker() {
+  loadSideSegJsonInput?.click();
+}
+
+export function runAnalyzeBodyEvidenceAction() {
   const { ok, error } = analyzeLoadedBodyEvidence();
   if (!ok) {
     showStatus(error ?? getBodyEvidenceError() ?? 'Analyze failed.', 'error');
     syncDownloadButton();
-    syncOverlayControls();
     refreshCandidateLists();
     renderSelectedLandmark();
     return;
   }
   hideStatus();
   syncDownloadButton();
-  syncOverlayControls();
   refreshCandidateLists();
   renderSelectedLandmark();
   showStatus('Body evidence analyzed.', 'ok');
 }
 
-function onClear() {
+export function runClearBodyEvidenceAction() {
   clearBodyEvidence();
   syncDownloadButton();
-  syncOverlayControls();
   refreshCandidateLists();
   renderSelectedLandmark();
   hideStatus();
@@ -663,7 +506,7 @@ function onClearSelection() {
   renderSelectedLandmark();
 }
 
-function onPromoteSelected() {
+export function runPromoteFrontEvidenceAction() {
   const { ok, alreadyPromoted, message } = promoteSelectedBodyEvidenceLandmark();
   if (ok) {
     showStatus(message || 'Promoted to annotation.', 'ok');
@@ -680,20 +523,7 @@ function onPromoteSelected() {
   renderSelectedLandmark();
 }
 
-function onToggleOverlay() {
-  setBodyEvidenceOverlayVisible(Boolean(showBodyEvidenceOverlayCheckbox?.checked));
-  syncOverlayControls();
-}
-
-function onToggleSecondaryCandidates() {
-  setSecondaryBodyEvidenceVisible(Boolean(showSecondaryBodyCandidatesCheckbox?.checked));
-}
-
-function onToggleSideCandidates() {
-  setSideBodyEvidenceVisible(Boolean(showSideBodyCandidatesCheckbox?.checked));
-}
-
-function onDownload() {
+export function runDownloadBodyEvidenceAction() {
   const { ok, error } = downloadBodyEvidenceJson();
   if (!ok) {
     showStatus(error ?? 'Download failed.', 'error');
@@ -703,28 +533,65 @@ function onDownload() {
   showStatus('Body Evidence JSON downloaded.', 'ok');
 }
 
+/**
+ * Focus Body Evidence workflow and switch to the requested internal tab.
+ * @param {'front'|'side'|'selection'} tab
+ */
+export function focusBodyEvidenceTab(tab) {
+  if (!BODY_EVIDENCE_TABS.includes(tab)) {
+    return;
+  }
+  setBodyEvidencePanelTab(tab);
+  focusBodyEvidenceWorkflow();
+}
+
+export function getBodyEvidencePanelTab() {
+  return activeBodyEvidenceTab;
+}
+
+function onTabButtonClick(event) {
+  const tab = event.currentTarget?.dataset?.bodyEvidenceTab;
+  setBodyEvidencePanelTab(tab);
+}
+
+function onLayerButtonClick(event) {
+  const source = event.currentTarget?.dataset?.bodyEvidenceSource;
+  const layer = event.currentTarget?.dataset?.bodyEvidenceLayer;
+  if (!CANDIDATE_LAYERS.includes(layer)) {
+    return;
+  }
+  setBodyEvidenceCandidateLayer(source, layer);
+}
+
 export function setupBodyEvidencePanel() {
   wireFileInput(loadFrontPoseJsonInput, setFrontPoseSource, 'Front Pose JSON');
   wireFileInput(loadSidePoseJsonInput, setSidePoseSource, 'Side Pose JSON');
   wireFileInput(loadFrontSegJsonInput, setFrontSegSource, 'Front Seg JSON');
   wireFileInput(loadSideSegJsonInput, setSideSegSource, 'Side Seg JSON');
 
-  analyzeBodyEvidenceBtn?.addEventListener('click', onAnalyze);
-  clearBodyEvidenceBtn?.addEventListener('click', onClear);
+  analyzeBodyEvidenceBtn?.addEventListener('click', runAnalyzeBodyEvidenceAction);
+  clearBodyEvidenceBtn?.addEventListener('click', runClearBodyEvidenceAction);
   clearBodyLandmarkSelectionBtn?.addEventListener('click', onClearSelection);
-  promoteSelectedBodyLandmarkBtn?.addEventListener('click', onPromoteSelected);
-  downloadBodyEvidenceJsonBtn?.addEventListener('click', onDownload);
-  showBodyEvidenceOverlayCheckbox?.addEventListener('change', onToggleOverlay);
-  showSecondaryBodyCandidatesCheckbox?.addEventListener('change', onToggleSecondaryCandidates);
-  showSideBodyCandidatesCheckbox?.addEventListener('change', onToggleSideCandidates);
-  bodyEvidenceCandidatesEl?.addEventListener('click', onCandidateListClick);
-  bodyEvidenceSecondaryCandidatesEl?.addEventListener('click', onCandidateListClick);
-  bodyEvidenceSideCandidatesEl?.addEventListener('click', onCandidateListClick);
+  promoteSelectedBodyLandmarkBtn?.addEventListener('click', runPromoteFrontEvidenceAction);
+  downloadBodyEvidenceJsonBtn?.addEventListener('click', runDownloadBodyEvidenceAction);
+
+  document.querySelectorAll('[data-body-evidence-tab]').forEach((button) => {
+    button.addEventListener('click', onTabButtonClick);
+  });
+  document.querySelectorAll('[data-body-evidence-layer]').forEach((button) => {
+    button.addEventListener('click', onLayerButtonClick);
+  });
+
+  document.addEventListener('body-evidence-selection-focus', () => {
+    setBodyEvidencePanelTab('selection');
+  });
+
+  lastSelectionKey = currentSelectionKey();
 
   subscribeBodyEvidenceChange(() => {
     refreshCandidateLists();
     renderSelectedLandmark();
-    syncOverlayControls();
+    maybeFocusSelectionTab();
   });
 
   // Keep Promoted badges in sync when annotations are added/deleted elsewhere.
@@ -733,8 +600,10 @@ export function setupBodyEvidencePanel() {
     renderSelectedLandmark();
   });
 
+  syncTabUi();
+  syncLayerUi('front');
+  syncLayerUi('side');
   syncDownloadButton();
-  syncOverlayControls();
   refreshCandidateLists();
   renderSelectedLandmark();
   hidePromoteStatus();

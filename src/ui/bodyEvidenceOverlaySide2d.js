@@ -12,9 +12,11 @@ import {
   clearBodyEvidenceSelection,
   getBodyEvidenceScaleInfo,
   getRenderableSideBodyLandmarks,
+  getSecondarySideBodyLandmarks,
   hasAnalyzedBodyEvidence,
   isSelectedSideEvidenceLandmark,
-  isSideBodyEvidenceVisible,
+  isSideCoreBodyEvidenceVisible,
+  isSideSecondaryBodyEvidenceVisible,
   selectSideEvidenceLandmark,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
@@ -58,18 +60,17 @@ function describeScaleSource(_source, pixelsPerCm) {
 }
 
 /**
- * Map accepted side core landmarks into Side Evidence candidates.
+ * Map accepted side landmark records into Side Evidence candidate rows.
+ * @param {Array<{ name: string, imageX: number|null, imageY: number|null, score: number|null, lowConfidence?: boolean, profile?: string }>} landmarks
+ * @param {string} idPrefix
+ * @param {'core'|'secondary'} candidateType
  */
-export function getSideOverlayLandmarks() {
-  if (!hasAnalyzedBodyEvidence() || !isSideBodyEvidenceVisible()) {
-    return [];
-  }
-
+function mapSideLandmarksToCandidates(landmarks, idPrefix, candidateType) {
   const scaleInfo = getBodyEvidenceScaleInfo();
   const { pixelsPerCm, canvasSize, source, status } = scaleInfo;
   const scaleSource = describeScaleSource(source, pixelsPerCm);
 
-  return getRenderableSideBodyLandmarks()
+  return landmarks
     .filter((landmark) => (
       Number.isFinite(landmark.imageX)
       && Number.isFinite(landmark.imageY)
@@ -82,8 +83,9 @@ export function getSideOverlayLandmarks() {
         canvasSize,
       );
       return {
-        id: `body-evidence-side-${index}-${landmark.name}`,
+        id: `${idPrefix}-${index}-${landmark.name}`,
         name: landmark.name,
+        candidateType,
         view: 'side',
         imageX: landmark.imageX,
         imageY: landmark.imageY,
@@ -101,54 +103,77 @@ export function getSideOverlayLandmarks() {
     });
 }
 
+/**
+ * Side core overlay landmarks (respects core visibility flag).
+ */
+export function getSideCoreOverlayLandmarks() {
+  if (!hasAnalyzedBodyEvidence() || !isSideCoreBodyEvidenceVisible()) {
+    return [];
+  }
+  return mapSideLandmarksToCandidates(
+    getRenderableSideBodyLandmarks(),
+    'body-evidence-side-core',
+    'core',
+  );
+}
+
+/**
+ * Side secondary overlay landmarks (respects secondary visibility flag).
+ */
+export function getSideSecondaryOverlayLandmarks() {
+  if (!hasAnalyzedBodyEvidence() || !isSideSecondaryBodyEvidenceVisible()) {
+    return [];
+  }
+  return mapSideLandmarksToCandidates(
+    getSecondarySideBodyLandmarks(),
+    'body-evidence-side-secondary',
+    'secondary',
+  );
+}
+
+/**
+ * Map accepted side core and secondary landmarks into Side Evidence overlay candidates.
+ */
+export function getSideOverlayLandmarks() {
+  return [
+    ...getSideCoreOverlayLandmarks(),
+    ...getSideSecondaryOverlayLandmarks(),
+  ];
+}
+
 /** All Side candidates for the left inspector list (ignores overlay visibility). */
-export function getSideCandidateLandmarks() {
+export function getSideCandidateLandmarks({ layer } = {}) {
   if (!hasAnalyzedBodyEvidence()) {
     return [];
   }
 
-  const scaleInfo = getBodyEvidenceScaleInfo();
-  const { pixelsPerCm, canvasSize, source, status } = scaleInfo;
-  const scaleSource = describeScaleSource(source, pixelsPerCm);
+  if (layer === 'core') {
+    return mapSideLandmarksToCandidates(
+      getRenderableSideBodyLandmarks(),
+      'body-evidence-side-core',
+      'core',
+    );
+  }
+  if (layer === 'secondary') {
+    return mapSideLandmarksToCandidates(
+      getSecondarySideBodyLandmarks(),
+      'body-evidence-side-secondary',
+      'secondary',
+    );
+  }
 
-  return getRenderableSideBodyLandmarks()
-    .filter((landmark) => (
-      Number.isFinite(landmark.imageX)
-      && Number.isFinite(landmark.imageY)
-    ))
-    .map((landmark, index) => {
-      const mapped = mapImagePointToSideEvidence(
-        landmark.imageX,
-        landmark.imageY,
-        pixelsPerCm,
-        canvasSize,
-      );
-      return {
-        id: `body-evidence-side-${index}-${landmark.name}`,
-        name: landmark.name,
-        view: 'side',
-        imageX: landmark.imageX,
-        imageY: landmark.imageY,
-        score: landmark.score ?? null,
-        lowConfidence: Boolean(landmark.lowConfidence),
-        profile: landmark.profile ?? 'Unknown',
-        sideUcm: mapped.u,
-        sideYcm: mapped.y,
-        scaleStatus: status,
-        scaleSource,
-        pixelsPerCm,
-        canvasSize,
-        status: 'Side Evidence / inspect-only',
-      };
-    });
-}
-
-export function getSideOverlayLandmarkCount() {
-  return getSideOverlayLandmarks().length;
-}
-
-export function getSideCandidateLandmarkCount() {
-  return getSideCandidateLandmarks().length;
+  return [
+    ...mapSideLandmarksToCandidates(
+      getRenderableSideBodyLandmarks(),
+      'body-evidence-side-core',
+      'core',
+    ),
+    ...mapSideLandmarksToCandidates(
+      getSecondarySideBodyLandmarks(),
+      'body-evidence-side-secondary',
+      'secondary',
+    ),
+  ];
 }
 
 function escapeTooltipHtml(value) {
@@ -253,6 +278,7 @@ function wireMarker(marker, landmark) {
     event.stopPropagation();
     clearBodyEvidenceSelection();
     selectSideEvidenceLandmark(landmark);
+    document.dispatchEvent(new CustomEvent('body-evidence-selection-focus'));
     requestSideRefreshFn?.();
   });
 
@@ -263,6 +289,7 @@ function wireMarker(marker, landmark) {
     event.preventDefault();
     clearBodyEvidenceSelection();
     selectSideEvidenceLandmark(landmark);
+    document.dispatchEvent(new CustomEvent('body-evidence-selection-focus'));
     requestSideRefreshFn?.();
   });
 }
@@ -292,10 +319,15 @@ export function renderSideBodyEvidenceOverlay({ projectToPercent }) {
     if (isSelectedSideEvidenceLandmark(landmark.id)) {
       marker.classList.add('side-evidence-marker--active');
     }
+    if (landmark.candidateType === 'secondary') {
+      marker.classList.add('side-evidence-marker--secondary');
+    } else {
+      marker.classList.add('side-evidence-marker--core');
+    }
 
     const displayName = formatLandmarkDisplayName(landmark.name) || landmark.name;
-    marker.title = `${displayName} (side evidence)`;
-    marker.setAttribute('aria-label', `${displayName}, Side evidence landmark`);
+    marker.title = `${displayName} (${landmark.candidateType} side evidence)`;
+    marker.setAttribute('aria-label', `${displayName}, Side ${landmark.candidateType} evidence landmark`);
 
     wireMarker(marker, landmark);
     fragment.appendChild(marker);

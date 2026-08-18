@@ -6,6 +6,8 @@
  * Body Graph, Body Measurement Readiness, or Scene State export/import.
  */
 
+import { formatCoordinate } from '../core/formatters.js';
+
 /** @type {{ u: number, y: number } | null} */
 let pointA = null;
 /** @type {{ u: number, y: number } | null} */
@@ -45,6 +47,25 @@ export function getActiveSideMeasurement() {
     pointB: clonePoint(pointB),
     distanceCm: distanceCm(pointA, pointB),
   };
+}
+
+export function getSideMeasurementState() {
+  return getActiveSideMeasurement();
+}
+
+/**
+ * Inspector display lines for a Side U/Y point. Never includes X/Z.
+ * @param {{ u: number, y: number } | null | undefined} point
+ * @returns {string[] | null}
+ */
+export function formatSideMeasurementInspectPoint(point) {
+  if (!point || !Number.isFinite(point.u) || !Number.isFinite(point.y)) {
+    return null;
+  }
+  return [
+    `U: ${formatCoordinate(point.u)} cm`,
+    `Y: ${formatCoordinate(point.y)} cm`,
+  ];
 }
 
 /**

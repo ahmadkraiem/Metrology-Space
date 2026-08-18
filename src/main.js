@@ -27,7 +27,8 @@ import { setupSceneExport } from './features/sceneExport.js';
 import { setupSceneImport } from './features/sceneImport.js';
 import { setupSceneGraphPanel } from './ui/sceneGraphPanel.js';
 import { setupSessionTabs } from './ui/sessionTabs.js';
-import { setupViewControls } from './ui/viewControls.js';
+import { setupSideMeasurementInspector } from './ui/measurementPanel.js';
+import { setupAppMenuBar } from './ui/appMenuBar.js';
 import { setupBodyEvidencePanel } from './ui/bodyEvidencePanel.js';
 import { setupBodyTabConsolidatedPanel } from './ui/bodyTabConsolidatedPanel.js';
 import { setupBodyEvidenceOverlay2d } from './ui/bodyEvidenceOverlay2d.js';
@@ -85,12 +86,19 @@ setupSideGrid2dNavigator();
 setupProjectionLinking(refreshGrid2dNavigator);
 setupBodyMeasurementPreview(refreshGrid2dNavigator);
 setupViewControls(referenceMarkers, internalVolumeGrid, measurement);
+setupSideMeasurementInspector();
 setupBodyEvidenceOverlay2d(refreshGrid2dNavigator);
 setupBodyEvidencePanel();
 setupBodyTabConsolidatedPanel();
 initCollapsibleSections();
 setupBodyGraphWorkspace();
 setupWorkspaceLayout();
+setupAppMenuBar({
+  measurement,
+  selectionHighlight,
+  referenceMarkers,
+  volumeGrid: internalVolumeGrid,
+});
 
 window.addEventListener('resize', onResize);
 

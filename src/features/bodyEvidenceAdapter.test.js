@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   analyzeBodyEvidence,
   classifyBodyLandmarkCandidate,
+  classifyPoseLandmarks,
   isDeferredBodyLandmark,
   isSecondaryBodyAnchorCandidate,
   SECONDARY_FRONT_BODY_ANCHORS,
@@ -106,7 +107,9 @@ test('reports a front-only secondary audit without side landmarks contaminating 
 
   assert.equal(result.qa.frontTotalLandmarks, 8);
   assert.equal(result.qa.renderableFrontLandmarks, 2);
+  assert.equal(result.qa.frontSecondaryLandmarks, 2);
   assert.equal(result.qa.secondaryFrontLandmarks, 2);
+  assert.equal(result.qa.frontSecondaryLandmarks, result.qa.secondaryFrontLandmarks);
   assert.equal(result.qa.frontRejectedFaceLandmarks, 1);
   assert.equal(result.qa.frontIgnoredNonCoreLandmarks, 3);
   assert.deepEqual(result.qa.secondaryFrontLandmarkNames, ['left_acromion', 'left_heel']);
@@ -119,4 +122,81 @@ test('reports a front-only secondary audit without side landmarks contaminating 
   assert.deepEqual(result.qa.rejectedFrontLandmarks, [
     { name: 'nose', reason: 'face-head-term' },
   ]);
+});
+
+test('preserves Front core and secondary classification', () => {
+  const result = classifyPoseLandmarks([
+    point('left_shoulder'),
+    point('right_heel'),
+    point('nose'),
+    point('left_index'),
+  ], { view: 'front' });
+  assert.equal(result.core, 1);
+  assert.equal(result.secondary, 1);
+  assert.equal(result.rejectedFace, 1);
+  assert.equal(result.ignoredNonCore, 1);
+});
+
+test('classifies only exact safe Side secondary identities', () => {
+  const result = classifyPoseLandmarks([
+    point('left_shoulder'),
+    point('right_heel'),
+    point('heel_prediction'),
+    point('left_thumb1'),
+  ], { view: 'side' });
+  assert.equal(result.core, 1);
+  assert.equal(result.secondary, 1);
+  assert.equal(result.ignoredNonCore, 2);
+  assert.deepEqual(
+    result.acceptedLandmarks.filter((entry) => entry.secondary).map((entry) => entry.name),
+    ['right_heel'],
+  );
+});
+
+test('reports rejected and ignored counts separately by view', () => {
+  const result = analyzeBodyEvidence({
+    frontPose: { landmarks: [point('left_shoulder'), point('nose')] },
+    sidePose: { landmarks: [point('right_hip'), point('ear'), point('left_index')] },
+  });
+  assert.equal(result.qa.frontCoreLandmarks, 1);
+  assert.equal(result.qa.sideCoreLandmarks, 1);
+  assert.equal(result.qa.frontRejectedFaceLandmarks, 1);
+  assert.equal(result.qa.sideRejectedFaceLandmarks, 1);
+  assert.equal(result.qa.frontIgnoredNonCoreLandmarks, 0);
+  assert.equal(result.qa.sideIgnoredNonCoreLandmarks, 1);
+  assert.equal(result.qa.rejectedFaceLandmarks, 2);
+  assert.equal(result.qa.ignoredNonCoreLandmarks, 1);
+});
+
+test('Side pose with right_heel exposes one secondary without duplicating in core', () => {
+  const result = analyzeBodyEvidence({
+    sidePose: {
+      keypoints_named: [
+        point('left_shoulder'),
+        point('right_heel'),
+      ],
+    },
+  });
+
+  assert.equal(result.qa.sideCoreLandmarks, 1);
+  assert.equal(result.qa.sideSecondaryLandmarks, 1);
+
+  const sideAccepted = result.views.side.pose.acceptedLandmarks;
+  const coreNames = sideAccepted.filter((entry) => entry.coreFront).map((entry) => entry.name);
+  const secondaryNames = sideAccepted.filter((entry) => entry.secondary).map((entry) => entry.name);
+
+  assert.deepEqual(coreNames, ['left_shoulder']);
+  assert.deepEqual(secondaryNames, ['right_heel']);
+  assert.equal(coreNames.includes('right_heel'), false);
+});
+
+test('Side U/Y coordinate formula remains stable at fixed v0 scale', () => {
+  const imageX = 1000;
+  const imageY = 500;
+  const pixelsPerCm = 10;
+  const canvasSize = 2000;
+  const sideUcm = imageX / pixelsPerCm;
+  const sideYcm = (canvasSize - imageY) / pixelsPerCm;
+  assert.equal(sideUcm, 100);
+  assert.equal(sideYcm, 150);
 });

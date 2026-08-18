@@ -10,12 +10,14 @@ import { clearSelection } from '../features/selection.js';
 import {
   annotationAddControls,
   measurementPanel,
-  modeAnnotateBtn,
-  modeInspectMeasureBtn,
   selectionPanel,
   statusModeValueEl,
 } from './domRefs.js';
-import { setInspectorWorkflow, workflowForMode } from './inspectorWorkflow.js';
+import {
+  focusBodyEvidenceWorkflow,
+  setInspectorWorkflow,
+  workflowForMode,
+} from './inspectorWorkflow.js';
 import { updateSceneGraph } from './sceneGraphPanel.js';
 
 const MODE_LABELS = {
@@ -30,13 +32,12 @@ function updateModeUI(mode, selectionHighlight) {
   if (mode === APP_MODE_INSPECT_MEASURE) {
     selectionPanel.hidden = true;
     selectionHighlight.visible = false;
+    measurementPanel.hidden = false;
   } else {
     measurementPanel.hidden = true;
   }
 
-  // Workflow owns the toggle buttons, left panel visibility, and status hint.
   setInspectorWorkflow(workflowForMode(mode));
-
   updateSceneGraph();
 }
 
@@ -69,19 +70,20 @@ export function applyImportedMode(mode, selectionHighlight) {
   updateModeUI(mode, selectionHighlight);
 }
 
+export function activateInspectMeasureWorkflow(measurement, selectionHighlight) {
+  switchToMode(APP_MODE_INSPECT_MEASURE, measurement, selectionHighlight);
+  setInspectorWorkflow(workflowForMode(APP_MODE_INSPECT_MEASURE));
+}
+
+export function activateAnnotateWorkflow(measurement, selectionHighlight) {
+  switchToMode(APP_MODE_ANNOTATE, measurement, selectionHighlight);
+  setInspectorWorkflow(workflowForMode(APP_MODE_ANNOTATE));
+}
+
+export function activateBodyEvidenceWorkflow() {
+  focusBodyEvidenceWorkflow();
+}
+
 export function setupAppModeControls(measurement, selectionHighlight) {
   updateModeUI(getAppMode(), selectionHighlight);
-
-  // Workflow is set explicitly: switchToMode is a no-op when the mode already
-  // matches (e.g. returning from the Body Evidence workflow), and re-entering a
-  // mode must never clear the active measurement or selection.
-  modeInspectMeasureBtn.addEventListener('click', () => {
-    switchToMode(APP_MODE_INSPECT_MEASURE, measurement, selectionHighlight);
-    setInspectorWorkflow(workflowForMode(APP_MODE_INSPECT_MEASURE));
-  });
-
-  modeAnnotateBtn.addEventListener('click', () => {
-    switchToMode(APP_MODE_ANNOTATE, measurement, selectionHighlight);
-    setInspectorWorkflow(workflowForMode(APP_MODE_ANNOTATE));
-  });
 }

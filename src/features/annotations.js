@@ -46,6 +46,10 @@ annotationsGroup.name = 'annotations';
 
 let annotationsVisible = true;
 
+export function isAnnotationsVisible() {
+  return annotationsVisible;
+}
+
 export function setAnnotationsVisible(visible) {
   annotationsVisible = visible;
   annotationsGroup.visible = visible;

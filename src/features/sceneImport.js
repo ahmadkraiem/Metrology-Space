@@ -277,6 +277,10 @@ export function importSceneState(data, measurement, selectionHighlight) {
   return true;
 }
 
+export function openSceneStateFilePicker() {
+  loadSceneJsonInput?.click();
+}
+
 export function setupSceneImport(measurement, selectionHighlight) {
   loadSceneJsonInput.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];

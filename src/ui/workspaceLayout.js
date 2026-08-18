@@ -30,6 +30,20 @@ let currentWorkspace = WORKSPACE_3D;
 let splitRatio = DEFAULT_SPLIT_RATIO;
 let dividerDragActive = false;
 
+/** @type {Set<(mode: string) => void>} */
+const workspaceChangeListeners = new Set();
+
+export function subscribeWorkspaceChange(listener) {
+  workspaceChangeListeners.add(listener);
+  return () => workspaceChangeListeners.delete(listener);
+}
+
+function notifyWorkspaceChange() {
+  for (const listener of workspaceChangeListeners) {
+    listener(currentWorkspace);
+  }
+}
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -109,6 +123,8 @@ export function setWorkspace(mode) {
   if (mode === WORKSPACE_BODY_GRAPH) {
     refreshBodyGraphWorkspace();
   }
+
+  notifyWorkspaceChange();
 
   requestAnimationFrame(() => {
     handleWorkspaceResize();

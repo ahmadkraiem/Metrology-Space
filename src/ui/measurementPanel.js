@@ -1,12 +1,26 @@
 import { formatCoordinate, formatDistance, formatPointCoords } from '../core/formatters.js';
 import { calculateDistance } from '../core/math.js';
 import {
+  clearSideMeasurement,
+  clearSideMeasurementPointA,
+  clearSideMeasurementPointB,
+  formatSideMeasurementInspectPoint,
+  getSideMeasurementState,
+  subscribeSideMeasurementChange,
+} from '../features/sideMeasurement.js';
+import {
+  clearSideMeasurementBtn,
+  clearSidePointABtn,
+  clearSidePointBBtn,
   historyEmptyEl,
   historyListEl,
   measurementDistanceEl,
   measurementPanel,
   pointACoordsEl,
   pointBCoordsEl,
+  sideMeasurementDistanceEl,
+  sidePointACoordsEl,
+  sidePointBCoordsEl,
 } from './domRefs.js';
 import { updateSceneGraph } from './sceneGraphPanel.js';
 import {
@@ -33,7 +47,68 @@ export function updateMeasurementPanel(measurement) {
     measurementDistanceEl.textContent = '—';
   }
 
+  updateSideMeasurementInspector();
   updateSceneGraph();
+}
+
+function renderSideMeasurementPoint(targetEl, point) {
+  if (!targetEl) {
+    return;
+  }
+  const lines = formatSideMeasurementInspectPoint(point);
+  if (!lines) {
+    targetEl.textContent = '—';
+    return;
+  }
+
+  const fragments = lines.map((line) => {
+    const lineEl = document.createElement('span');
+    lineEl.className = 'measurement-point-coords';
+    lineEl.textContent = line;
+    return lineEl;
+  });
+  targetEl.replaceChildren(...fragments);
+}
+
+function setClearEnabled(button, enabled) {
+  if (!button) {
+    return;
+  }
+  button.disabled = !enabled;
+  button.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+}
+
+export function updateSideMeasurementInspector() {
+  const state = getSideMeasurementState();
+  renderSideMeasurementPoint(sidePointACoordsEl, state.pointA);
+  renderSideMeasurementPoint(sidePointBCoordsEl, state.pointB);
+
+  if (sideMeasurementDistanceEl) {
+    sideMeasurementDistanceEl.textContent = state.distanceCm == null
+      ? '—'
+      : formatDistance(state.distanceCm);
+  }
+
+  setClearEnabled(clearSidePointABtn, Boolean(state.pointA));
+  setClearEnabled(clearSidePointBBtn, Boolean(state.pointB));
+  setClearEnabled(clearSideMeasurementBtn, Boolean(state.pointA || state.pointB));
+}
+
+export function setupSideMeasurementInspector() {
+  clearSidePointABtn?.addEventListener('click', () => {
+    clearSideMeasurementPointA();
+  });
+  clearSidePointBBtn?.addEventListener('click', () => {
+    clearSideMeasurementPointB();
+  });
+  clearSideMeasurementBtn?.addEventListener('click', () => {
+    clearSideMeasurement();
+  });
+
+  subscribeSideMeasurementChange(() => {
+    updateSideMeasurementInspector();
+  });
+  updateSideMeasurementInspector();
 }
 
 /**

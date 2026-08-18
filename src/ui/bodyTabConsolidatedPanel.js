@@ -2,13 +2,13 @@
  * Body Tab Consolidation v0 (Session Data → Body).
  *
  * Compact read-only layout:
- * 1. Body Evidence Status (+ collapsed Advanced Evidence Details)
- * 2. Promoted Body Anchors (table)
- * 3. Body Measurement Readiness (audit summary + measurement candidates)
+ * 1. Body Evidence Status (loaded chips + per-view QA totals, Advanced Details)
+ * 2. Promoted Body Anchors (annotation-only table)
+ * 3. Body Measurement Readiness (annotation-only audit + six candidates)
  *
  * Reuses existing compute helpers. Does not mutate Body Evidence, annotations,
  * measurements, or export/import schema. Does not write readiness distances
- * into measurement history.
+ * into measurement history. Promoted/readiness stay annotation-only.
  */
 
 import { formatCoordinate, formatDistance } from '../core/formatters.js';
@@ -84,12 +84,6 @@ function formatAnchorList(names) {
     return 'None';
   }
   return names.map(formatAnchorLabel).join(', ');
-}
-
-function countLoadedFiles(loaded = {}) {
-  return ['frontPose', 'sidePose', 'frontSeg', 'sideSeg']
-    .filter((key) => Boolean(loaded[key]))
-    .length;
 }
 
 function renderSummaryRow(key, valueHtml) {
@@ -184,83 +178,171 @@ function nameItemsFromEntries(entries, { withReason = false } = {}) {
     }));
 }
 
-function renderAdvancedEvidenceDetails(result) {
+function getViewPose(result, view) {
+  return result.views?.[view]?.pose ?? {
+    core: 0,
+    secondary: 0,
+    rejectedFace: 0,
+    ignoredNonCore: 0,
+    lowConfidence: 0,
+    acceptedLandmarks: [],
+    rejectedLandmarks: [],
+    ignoredLandmarks: [],
+  };
+}
+
+function nameItemsFromCore(landmarks) {
+  return nameItemsFromEntries(
+    (Array.isArray(landmarks) ? landmarks : []).filter((entry) => entry?.coreFront),
+  );
+}
+
+function nameItemsFromLowConfidence(landmarks) {
+  return (Array.isArray(landmarks) ? landmarks : [])
+    .filter((entry) => entry?.lowConfidence && entry.name)
+    .map((entry) => ({
+      text: formatAnchorLabel(entry.name),
+      meta: Number.isFinite(entry.score) ? `score ${entry.score}` : 'low confidence',
+      title: entry.name,
+    }));
+}
+
+function formatCoreCount(count) {
+  return `${formatCount(count)} / ${CORE_ANCHOR_TOTAL}`;
+}
+
+function formatScaleLabel(scale) {
+  const pixelsPerCm = Number.isFinite(scale?.pixelsPerCm) ? scale.pixelsPerCm : 10;
+  return `${pixelsPerCm} px/cm · fixed`;
+}
+
+function formatSegmentationStatus(qa, loaded) {
+  if (!loaded.frontSeg && !loaded.sideSeg) {
+    return 'none';
+  }
+  const classCount = typeof qa.segmentationClassCount === 'number'
+    ? qa.segmentationClassCount
+    : 0;
+  return classCount > 0 ? `QA · ${classCount} classes` : 'QA only';
+}
+
+function renderViewBreakdown(label, {
+  core,
+  secondary,
+  rejected,
+  ignored,
+  lowConfidence,
+  coreItems,
+  secondaryItems,
+  rejectedItems,
+  ignoredItems,
+  lowConfidenceItems,
+}) {
+  return (
+    `<section class="body-tab-advanced-view" aria-label="${escapeHtml(label)} evidence">`
+    + `<h4 class="body-tab-advanced-view-title">${escapeHtml(label)}</h4>`
+    + renderAdvancedRow('Core', formatCount(core))
+    + renderAdvancedRow('Secondary', formatCount(secondary))
+    + renderAdvancedRow('Rejected', formatCount(rejected))
+    + renderAdvancedRow('Ignored / Deferred', formatCount(ignored))
+    + renderAdvancedRow('Low Confidence', formatCount(lowConfidence))
+    + '<div class="body-evidence-qa-sublists">'
+    + renderNameListSubsection('Core', coreItems)
+    + renderNameListSubsection('Secondary', secondaryItems)
+    + renderNameListSubsection('Rejected', rejectedItems)
+    + renderNameListSubsection('Ignored / Deferred', ignoredItems)
+    + renderNameListSubsection('Low Confidence', lowConfidenceItems)
+    + '</div>'
+    + '</section>'
+  );
+}
+
+function renderSegmentationDetails(result) {
   const loaded = result.loaded ?? {};
   const qa = result.qa ?? {};
-  const scale = result.scale ?? {};
   const views = result.views ?? {};
 
-  const canvas = Number.isFinite(scale.canvasSize)
-    ? `${scale.canvasSize} × ${scale.canvasSize}`
-    : '2000 × 2000';
-  const pixelsPerCm = Number.isFinite(scale.pixelsPerCm)
-    ? String(scale.pixelsPerCm)
-    : '10';
-  const source = scale.source === 'body-evidence-v0-fixed' || scale.status === 'fixed'
-    ? 'fixed Body Evidence v0 assumption'
-    : formatText(scale.source);
-
-  const advancedRows = [
-    renderAdvancedLoadedRow('Front Pose', loaded.frontPose),
-    renderAdvancedLoadedRow('Side Pose', loaded.sidePose),
+  const rows = [
     renderAdvancedLoadedRow('Front Segmentation', loaded.frontSeg),
     renderAdvancedLoadedRow('Side Segmentation', loaded.sideSeg),
-    renderAdvancedRow('Total landmarks', formatCount(qa.totalLandmarks)),
-    renderAdvancedRow('Front pose landmarks', formatCount(qa.frontTotalLandmarks)),
-    renderAdvancedRow('Accepted body', formatCount(qa.acceptedBodyLandmarks)),
-    renderAdvancedRow('Rejected face / head', formatCount(qa.rejectedFaceLandmarks)),
-    renderAdvancedRow('Low confidence', formatCount(qa.lowConfidenceLandmarks)),
-    renderAdvancedRow('Front accepted', formatCount(qa.frontAcceptedCount)),
-    renderAdvancedRow('Side accepted', formatCount(qa.sideAcceptedCount)),
-    renderAdvancedRow('Renderable front (core 13)', formatCount(qa.renderableFrontLandmarks)),
-    renderAdvancedRow('Secondary front candidates', formatCount(qa.secondaryFrontLandmarks)),
-    renderAdvancedRow('Front ignored / deferred', formatCount(qa.frontIgnoredNonCoreLandmarks)),
-    renderAdvancedRow('Scale status', formatText(scale.status)),
-    renderAdvancedRow('Scale source', source),
-    renderAdvancedRow('Canvas size', canvas),
-    renderAdvancedRow('Pixels / cm', pixelsPerCm),
-    renderAdvancedRow('Segmentation classes', formatCount(qa.segmentationClassCount)),
+    renderAdvancedRow('Classes', formatCount(qa.segmentationClassCount)),
   ];
 
   const labelViews = [
     ['Front', views.front?.segmentation],
     ['Side', views.side?.segmentation],
-  ].filter(([, segmentation]) => hasLabelMetadata(segmentation));
+  ];
 
-  if (labelViews.length === 0) {
-    advancedRows.push(renderAdvancedRow('Label shape', DASH));
-    advancedRows.push(renderAdvancedRow('Label dtype', DASH));
-  } else {
-    labelViews.forEach(([label, segmentation]) => {
-      advancedRows.push(renderAdvancedRow(`${label} label shape`, formatShape(segmentation.labelShape)));
-      advancedRows.push(renderAdvancedRow(`${label} label dtype`, formatText(segmentation.labelDtype)));
-    });
+  let hasAnyLabelMetadata = false;
+  labelViews.forEach(([label, segmentation]) => {
+    if (!hasLabelMetadata(segmentation)) {
+      return;
+    }
+    hasAnyLabelMetadata = true;
+    rows.push(renderAdvancedRow(`${label} label shape`, formatShape(segmentation.labelShape)));
+    rows.push(renderAdvancedRow(`${label} label dtype`, formatText(segmentation.labelDtype)));
+  });
+
+  if (!hasAnyLabelMetadata) {
+    rows.push(renderAdvancedRow('Label shape', DASH));
+    rows.push(renderAdvancedRow('Label dtype', DASH));
   }
 
-  const nameSubsections = [
-    renderNameListSubsection(
-      'Secondary Candidates',
-      nameItemsFromNames(qa.secondaryFrontLandmarkNames),
-    ),
-    renderNameListSubsection(
-      'Ignored / Deferred',
-      nameItemsFromEntries(qa.ignoredFrontLandmarks, { withReason: true }),
-    ),
-    renderNameListSubsection(
-      'Rejected Face / Head',
-      nameItemsFromEntries(qa.rejectedFrontLandmarks),
-    ),
-    renderNameListSubsection(
-      'Rejected Segmentation Classes',
+  return (
+    '<details class="body-evidence-qa-subgroup body-tab-seg-details">'
+    + '<summary class="body-evidence-qa-subgroup-summary">Segmentation metadata</summary>'
+    + `<div class="body-evidence-qa-body">${rows.join('')}</div>`
+    + '<div class="body-evidence-qa-sublists">'
+    + renderNameListSubsection(
+      'Rejected Classes',
       nameItemsFromNames(qa.rejectedSegmentationClasses),
+    )
+    + '</div>'
+    + '</details>'
+  );
+}
+
+function renderAdvancedEvidenceDetails(result) {
+  const qa = result.qa ?? {};
+  const frontPose = getViewPose(result, 'front');
+  const sidePose = getViewPose(result, 'side');
+
+  const frontBreakdown = renderViewBreakdown('Front', {
+    core: qa.frontCoreLandmarks ?? frontPose.core,
+    secondary: qa.frontSecondaryLandmarks ?? frontPose.secondary,
+    rejected: qa.frontRejectedFaceLandmarks ?? frontPose.rejectedFace,
+    ignored: qa.frontIgnoredNonCoreLandmarks ?? frontPose.ignoredNonCore,
+    lowConfidence: frontPose.lowConfidence,
+    coreItems: nameItemsFromCore(frontPose.acceptedLandmarks),
+    secondaryItems: nameItemsFromNames(qa.secondaryFrontLandmarkNames),
+    rejectedItems: nameItemsFromEntries(qa.rejectedFrontLandmarks ?? frontPose.rejectedLandmarks),
+    ignoredItems: nameItemsFromEntries(
+      qa.ignoredFrontLandmarks ?? frontPose.ignoredLandmarks,
+      { withReason: true },
     ),
-  ].join('');
+    lowConfidenceItems: nameItemsFromLowConfidence(frontPose.acceptedLandmarks),
+  });
+
+  const sideBreakdown = renderViewBreakdown('Side', {
+    core: qa.sideCoreLandmarks ?? sidePose.core,
+    secondary: qa.sideSecondaryLandmarks ?? sidePose.secondary,
+    rejected: qa.sideRejectedFaceLandmarks ?? sidePose.rejectedFace,
+    ignored: qa.sideIgnoredNonCoreLandmarks ?? sidePose.ignoredNonCore,
+    lowConfidence: sidePose.lowConfidence,
+    coreItems: nameItemsFromCore(sidePose.acceptedLandmarks),
+    secondaryItems: nameItemsFromNames(qa.secondarySideLandmarkNames),
+    rejectedItems: nameItemsFromEntries(qa.rejectedSideLandmarks ?? sidePose.rejectedLandmarks),
+    ignoredItems: nameItemsFromEntries(
+      qa.ignoredSideLandmarks ?? sidePose.ignoredLandmarks,
+      { withReason: true },
+    ),
+    lowConfidenceItems: nameItemsFromLowConfidence(sidePose.acceptedLandmarks),
+  });
 
   return (
     '<details class="body-evidence-qa-group body-tab-advanced-details">'
     + '<summary class="body-evidence-qa-summary">Advanced Evidence Details</summary>'
-    + `<div class="body-evidence-qa-body">${advancedRows.join('')}</div>`
-    + `<div class="body-evidence-qa-sublists">${nameSubsections}</div>`
+    + `<div class="body-tab-advanced-body">${frontBreakdown}${sideBreakdown}${renderSegmentationDetails(result)}</div>`
     + '</details>'
   );
 }
@@ -278,9 +360,6 @@ function renderBodyEvidenceStatus() {
 
   const loaded = result.loaded ?? {};
   const qa = result.qa ?? {};
-  const loadedCount = countLoadedFiles(loaded);
-  const acceptedCore = formatCount(qa.renderableFrontLandmarks);
-  const sideCandidates = formatCount(qa.sideAcceptedCount);
 
   const loadedChips = [
     renderLoadedIndicator('Front Pose', loaded.frontPose),
@@ -291,17 +370,16 @@ function renderBodyEvidenceStatus() {
 
   sessionBodyEvidenceStatusEl.innerHTML = [
     '<div class="body-tab-status-card">',
-    renderSummaryRow('Evidence', renderBadge('Loaded', 'ok')),
-    renderTextSummaryRow('Loaded files', `${loadedCount} / 4`),
     `<div class="body-tab-loaded-chips" aria-label="Loaded file indicators">${loadedChips}</div>`,
-    renderTextSummaryRow('Front core candidates', `${acceptedCore} / ${CORE_ANCHOR_TOTAL}`),
-    renderTextSummaryRow('Front secondary candidates', formatCount(qa.secondaryFrontLandmarks)),
-    renderTextSummaryRow('Side candidates', sideCandidates),
-    renderTextSummaryRow('Ignored / deferred', formatCount(qa.frontIgnoredNonCoreLandmarks)),
-    renderTextSummaryRow('Rejected face / head', formatCount(qa.frontRejectedFaceLandmarks)),
-    renderTextSummaryRow('Low confidence', formatCount(qa.lowConfidenceLandmarks)),
-    renderTextSummaryRow('Scale', '10 px/cm fixed'),
-    renderTextSummaryRow('Segmentation', 'QA only'),
+    renderTextSummaryRow('Front Core', formatCoreCount(qa.frontCoreLandmarks)),
+    renderTextSummaryRow('Front Secondary', formatCount(qa.frontSecondaryLandmarks)),
+    renderTextSummaryRow('Side Core', formatCoreCount(qa.sideCoreLandmarks)),
+    renderTextSummaryRow('Side Secondary', formatCount(qa.sideSecondaryLandmarks)),
+    renderTextSummaryRow('Rejected Total', formatCount(qa.rejectedFaceLandmarks)),
+    renderTextSummaryRow('Ignored / Deferred Total', formatCount(qa.ignoredNonCoreLandmarks)),
+    renderTextSummaryRow('Low Confidence', formatCount(qa.lowConfidenceLandmarks)),
+    renderTextSummaryRow('Scale', formatScaleLabel(result.scale)),
+    renderTextSummaryRow('Segmentation', formatSegmentationStatus(qa, loaded)),
     '</div>',
     renderAdvancedEvidenceDetails(result),
   ].join('');

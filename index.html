@@ -20,6 +20,49 @@
           <h1 class="header-title">Metrology Space</h1>
           <p class="header-subtitle">Volumetric Coordinate Intelligence</p>
         </div>
+        <nav id="app-menu-bar" class="app-menu-bar" aria-label="Application menu">
+          <div class="app-menu" data-menu="file">
+            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">File</button>
+            <ul class="app-menu-dropdown" role="menu" hidden>
+              <li role="none"><button type="button" role="menuitem" data-command="open-front-pose">Load Front Pose JSON…</button></li>
+              <li role="none"><button type="button" role="menuitem" data-command="open-side-pose">Load Side Pose JSON…</button></li>
+              <li role="none"><button type="button" role="menuitem" data-command="open-front-seg">Load Front Seg JSON…</button></li>
+              <li role="none"><button type="button" role="menuitem" data-command="open-side-seg">Load Side Seg JSON…</button></li>
+              <li role="separator" class="app-menu-separator"></li>
+              <li role="none"><button type="button" role="menuitem" data-command="open-scene-state">Import Scene State…</button></li>
+              <li role="none"><button type="button" role="menuitem" data-command="export-scene-state">Export Scene State</button></li>
+              <li role="separator" class="app-menu-separator"></li>
+              <li role="none"><button type="button" role="menuitem" data-command="download-body-evidence">Download Body Evidence JSON</button></li>
+            </ul>
+          </div>
+          <div class="app-menu" data-menu="view">
+            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">View</button>
+            <ul class="app-menu-dropdown" role="menu" hidden>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="origin-center">Origin / Center</button></li>
+              <li role="separator" class="app-menu-separator"></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="annotations">Annotations</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="measurement-lines">Measurement Lines</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="lattice-3d">3D Lattice Points</button></li>
+              <li role="separator" class="app-menu-separator"></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="front-grid">Front Grid Points</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="side-grid">Side Grid Points</button></li>
+              <li role="separator" class="app-menu-separator"></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="front-core">Front Core</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="front-secondary">Front Secondary</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="side-core">Side Core</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="side-secondary">Side Secondary</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="body-previews">Body Measurement Previews</button></li>
+            </ul>
+          </div>
+          <div class="app-menu" data-menu="workflow">
+            <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">Workflow</button>
+            <ul class="app-menu-dropdown" role="menu" hidden>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-workflow="measurement">Inspect &amp; Measure</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-workflow="annotation">Annotate</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-workflow="body-evidence">Body Evidence</button></li>
+            </ul>
+          </div>
+        </nav>
         <div class="header-status">
           <span class="status-badge status-badge--active">
             <span class="status-dot"></span>
@@ -32,195 +75,84 @@
       <aside id="left-sidebar" data-workflow="measurement">
         <div class="sidebar-title">Metrology Inspector</div>
         <div class="sidebar-scroll">
-          <section id="mode-panel" class="inspector-section inspector-section--mode" data-collapsible>
+          <section id="mode-panel" class="inspector-section inspector-section--mode">
             <h2 class="section-title">Workflow</h2>
             <div class="section-body">
-              <div class="mode-toggle" role="group" aria-label="Inspector workflow">
-                <button type="button" id="mode-inspect-measure" class="mode-toggle-btn mode-toggle-btn--active">Inspect &amp; Measure</button>
-                <button type="button" id="mode-annotate" class="mode-toggle-btn">Annotate</button>
-                <button type="button" id="workflow-body-evidence" class="mode-toggle-btn mode-toggle-btn--wide">Body Evidence</button>
-              </div>
-            </div>
-          </section>
-
-          <section id="view-controls-panel" class="inspector-section inspector-section--view-controls" data-collapsible>
-            <h2 class="section-title">View Controls</h2>
-            <div class="section-body view-controls">
-              <div class="inspector-subgroup">
-                <h3 class="inspector-subgroup-label">Reference</h3>
-                <label class="view-control-label" for="show-origin-center">
-                  <input type="checkbox" id="show-origin-center" class="view-control-checkbox" checked />
-                  <span class="view-control-text">Origin / Center</span>
-                </label>
-              </div>
-              <div class="inspector-subgroup">
-                <h3 class="inspector-subgroup-label">Scene Overlays</h3>
-                <label class="view-control-label" for="show-annotations">
-                  <input type="checkbox" id="show-annotations" class="view-control-checkbox" checked />
-                  <span class="view-control-text">Annotations</span>
-                </label>
-                <label class="view-control-label" for="show-measurement-lines">
-                  <input type="checkbox" id="show-measurement-lines" class="view-control-checkbox" checked />
-                  <span class="view-control-text">Measurement Lines</span>
-                </label>
-              </div>
-              <div class="inspector-subgroup">
-                <h3 class="inspector-subgroup-label">2D Views</h3>
-                <label class="view-control-label" for="show-2d-grid-points">
-                  <input type="checkbox" id="show-2d-grid-points" class="view-control-checkbox" checked />
-                  <span class="view-control-text">Front Grid Points</span>
-                </label>
-                <label class="view-control-label" for="show-side-grid-points">
-                  <input type="checkbox" id="show-side-grid-points" class="view-control-checkbox" checked />
-                  <span class="view-control-text">Side Grid Points</span>
-                </label>
-              </div>
-              <div class="inspector-subgroup">
-                <h3 class="inspector-subgroup-label">Grid / Points</h3>
-                <label class="view-control-label" for="show-3d-lattice-points">
-                  <input type="checkbox" id="show-3d-lattice-points" class="view-control-checkbox" checked />
-                  <span class="view-control-text">3D Lattice Points</span>
-                </label>
-              </div>
-              <div class="inspector-subgroup">
-                <h3 class="inspector-subgroup-label">Evidence</h3>
-                <label class="view-control-label" for="show-body-evidence-overlay">
-                  <input type="checkbox" id="show-body-evidence-overlay" class="view-control-checkbox" />
-                  <span class="view-control-text">Front Body Candidates</span>
-                </label>
-                <label class="view-control-label" for="show-secondary-body-candidates">
-                  <input type="checkbox" id="show-secondary-body-candidates" class="view-control-checkbox" />
-                  <span class="view-control-text">Secondary Front Candidates</span>
-                </label>
-                <label class="view-control-label" for="show-side-body-candidates">
-                  <input type="checkbox" id="show-side-body-candidates" class="view-control-checkbox" />
-                  <span class="view-control-text">Side Body Candidates</span>
-                </label>
-                <label class="view-control-label" for="show-body-measurement-previews">
-                  <input type="checkbox" id="show-body-measurement-previews" class="view-control-checkbox" checked />
-                  <span class="view-control-text">Body Measurement Previews</span>
-                </label>
-              </div>
+              <p id="inspector-workflow-title" class="inspector-workflow-title" aria-live="polite">Inspect &amp; Measure</p>
             </div>
           </section>
 
           <section id="body-evidence-panel" class="inspector-section inspector-section--body-evidence" data-collapsible>
             <h2 class="section-title">Body Evidence</h2>
             <div class="section-body body-evidence">
-              <div class="inspector-subgroup" data-collapsible>
-                <h3 class="inspector-subgroup-label">Import Files</h3>
-                <div class="inspector-subgroup-body">
-                  <div class="inspector-subgroup-actions">
-                    <label for="load-front-pose-json" class="panel-button scene-import-label">Load Front Pose JSON</label>
-                    <input type="file" id="load-front-pose-json" accept=".json,application/json" hidden />
-                    <label for="load-side-pose-json" class="panel-button scene-import-label">Load Side Pose JSON</label>
-                    <input type="file" id="load-side-pose-json" accept=".json,application/json" hidden />
-                    <label for="load-front-seg-json" class="panel-button scene-import-label">Load Front Seg JSON</label>
-                    <input type="file" id="load-front-seg-json" accept=".json,application/json" hidden />
-                    <label for="load-side-seg-json" class="panel-button scene-import-label">Load Side Seg JSON</label>
-                    <input type="file" id="load-side-seg-json" accept=".json,application/json" hidden />
-                  </div>
-                </div>
+              <div class="body-evidence-tabs" role="tablist" aria-label="Body Evidence views">
+                <button type="button" role="tab" data-body-evidence-tab="front" aria-selected="true" aria-controls="body-evidence-tab-front" id="body-evidence-tab-front-btn">Front</button>
+                <button type="button" role="tab" data-body-evidence-tab="side" aria-selected="false" aria-controls="body-evidence-tab-side" id="body-evidence-tab-side-btn">Side</button>
+                <button type="button" role="tab" data-body-evidence-tab="selection" aria-selected="false" aria-controls="body-evidence-tab-selection" id="body-evidence-tab-selection-btn">Selection</button>
               </div>
-              <div class="inspector-subgroup" data-collapsible>
+              <p id="body-evidence-status" class="body-evidence-status" hidden></p>
+
+              <div class="inspector-subgroup inspector-subgroup--body-actions">
                 <h3 class="inspector-subgroup-label">Actions</h3>
                 <div class="inspector-subgroup-body">
                   <div class="inspector-subgroup-actions">
-                    <button type="button" id="analyze-body-evidence" class="panel-button">Analyze Body Evidence</button>
-                    <button type="button" id="download-body-evidence-json" class="panel-button" disabled aria-disabled="true">Download Body Evidence JSON</button>
-                    <button type="button" id="clear-body-evidence" class="panel-button panel-button--compact">Clear Body Evidence</button>
+                    <button type="button" id="analyze-body-evidence" class="panel-button">Analyze</button>
+                    <button type="button" id="download-body-evidence-json" class="panel-button" disabled aria-disabled="true">Download Evidence JSON</button>
+                    <button type="button" id="clear-body-evidence" class="panel-button panel-button--compact">Clear Evidence</button>
                   </div>
                 </div>
               </div>
-              <div class="inspector-subgroup">
-                <h3 class="inspector-subgroup-label">Evidence Summary</h3>
-                <div class="body-evidence-summary" id="body-evidence-summary" aria-live="polite">
-                  <div class="body-evidence-summary-card">
-                    <span class="body-evidence-summary-label">Front Core</span>
-                    <span class="body-evidence-summary-value" id="body-evidence-overlay-count" title="Front core candidates">0</span>
-                  </div>
-                  <div class="body-evidence-summary-card">
-                    <span class="body-evidence-summary-label">Front Sec.</span>
-                    <span class="body-evidence-summary-value" id="body-evidence-secondary-count" title="Secondary front candidates">0</span>
-                  </div>
-                  <div class="body-evidence-summary-card">
-                    <span class="body-evidence-summary-label">Side</span>
-                    <span class="body-evidence-summary-value" id="body-evidence-side-count" title="Side body candidates">0</span>
-                  </div>
-                  <div class="body-evidence-summary-card">
-                    <span class="body-evidence-summary-label">Rejected</span>
-                    <span class="body-evidence-summary-value" id="body-evidence-rejected-count" title="Rejected front face/head landmarks">0</span>
-                  </div>
-                  <div class="body-evidence-summary-card">
-                    <span class="body-evidence-summary-label">Ignored</span>
-                    <span class="body-evidence-summary-value" id="body-evidence-ignored-count" title="Ignored front non-core landmarks">0</span>
-                  </div>
-                  <div class="body-evidence-summary-card">
-                    <span class="body-evidence-summary-label">Status</span>
-                    <span class="body-evidence-summary-value" id="body-evidence-analysis-status" title="Analysis status">not analyzed</span>
-                  </div>
-                  <div class="body-evidence-summary-card body-evidence-summary-card--wide">
-                    <span class="body-evidence-summary-label">Scale</span>
-                    <span class="body-evidence-summary-value" id="body-evidence-overlay-scale" title="Scale status">—</span>
-                  </div>
-                  <div class="body-evidence-summary-card body-evidence-summary-card--wide">
-                    <span class="body-evidence-summary-label">Source</span>
-                    <span class="body-evidence-summary-value" id="body-evidence-source-summary" title="Evidence source">—</span>
-                  </div>
+
+              <input type="file" id="load-front-pose-json" accept=".json,application/json" hidden />
+              <input type="file" id="load-side-pose-json" accept=".json,application/json" hidden />
+              <input type="file" id="load-front-seg-json" accept=".json,application/json" hidden />
+              <input type="file" id="load-side-seg-json" accept=".json,application/json" hidden />
+
+              <div id="body-evidence-tab-front" class="body-evidence-tab-panel" data-body-evidence-panel="front" role="tabpanel" aria-labelledby="body-evidence-tab-front-btn">
+                <div class="body-evidence-layer-toggle" role="group" aria-label="Front candidate layer">
+                  <button type="button" data-body-evidence-source="front" data-body-evidence-layer="core" aria-pressed="true">Core</button>
+                  <button type="button" data-body-evidence-source="front" data-body-evidence-layer="secondary" aria-pressed="false">Secondary</button>
                 </div>
-                <p id="body-evidence-status" class="body-evidence-status" hidden></p>
-              </div>
-              <div class="inspector-subgroup" data-collapsible>
-                <h3 class="inspector-subgroup-label">Front Candidates</h3>
-                <div class="inspector-subgroup-body">
-                  <div
-                    id="body-evidence-candidates"
-                    class="body-evidence-candidates"
-                    role="listbox"
-                    aria-label="Front body landmark candidates"
-                  >
-                    <p class="body-evidence-candidates-empty">No front body landmark candidates.</p>
-                  </div>
+                <div class="body-evidence-list-heading">
+                  <span id="body-evidence-front-list-label">Front Core</span>
+                  <span id="body-evidence-front-list-count">0</span>
+                </div>
+                <div
+                  id="body-evidence-front-candidates"
+                  class="body-evidence-candidates body-evidence-candidate-scroll"
+                  role="listbox"
+                  aria-label="Front body landmark candidates"
+                >
+                  <p class="body-evidence-candidates-empty">No front body landmark candidates.</p>
                 </div>
               </div>
-              <div id="body-evidence-secondary-candidates-group" class="inspector-subgroup" data-collapsible>
-                <h3 class="inspector-subgroup-label">
-                  Secondary Front Candidates (<span id="body-evidence-secondary-candidates-count">0</span>)
-                </h3>
-                <div class="inspector-subgroup-body">
-                  <div
-                    id="body-evidence-secondary-candidates"
-                    class="body-evidence-candidates body-evidence-candidates--secondary"
-                    role="listbox"
-                    aria-label="Secondary front body landmark candidates"
-                  >
-                    <p class="body-evidence-candidates-empty">No secondary body candidates found.</p>
-                  </div>
+
+              <div id="body-evidence-tab-side" class="body-evidence-tab-panel" data-body-evidence-panel="side" role="tabpanel" aria-labelledby="body-evidence-tab-side-btn" hidden>
+                <div class="body-evidence-layer-toggle" role="group" aria-label="Side candidate layer">
+                  <button type="button" data-body-evidence-source="side" data-body-evidence-layer="core" aria-pressed="true">Core</button>
+                  <button type="button" data-body-evidence-source="side" data-body-evidence-layer="secondary" aria-pressed="false">Secondary</button>
+                </div>
+                <div class="body-evidence-list-heading">
+                  <span id="body-evidence-side-list-label">Side Core</span>
+                  <span id="body-evidence-side-list-count">0</span>
+                </div>
+                <div
+                  id="body-evidence-side-candidates"
+                  class="body-evidence-candidates body-evidence-candidate-scroll"
+                  role="listbox"
+                  aria-label="Side body landmark candidates"
+                >
+                  <p class="body-evidence-candidates-empty">No side body landmark candidates.</p>
                 </div>
               </div>
-              <div id="body-evidence-side-candidates-group" class="inspector-subgroup" data-collapsible>
-                <h3 class="inspector-subgroup-label">
-                  Side Candidates (<span id="body-evidence-side-candidates-count">0</span>)
-                </h3>
-                <div class="inspector-subgroup-body">
-                  <div
-                    id="body-evidence-side-candidates"
-                    class="body-evidence-candidates body-evidence-candidates--side"
-                    role="listbox"
-                    aria-label="Side body landmark candidates"
-                  >
-                    <p class="body-evidence-candidates-empty">No side body landmark candidates.</p>
-                  </div>
-                </div>
-              </div>
-              <div class="inspector-subgroup">
-                <h3 class="inspector-subgroup-label">Current Evidence Selection</h3>
+
+              <div id="body-evidence-tab-selection" class="body-evidence-tab-panel" data-body-evidence-panel="selection" role="tabpanel" aria-labelledby="body-evidence-tab-selection-btn" hidden>
                 <div class="body-evidence-inspect-card">
                   <div id="body-evidence-selected" class="body-evidence-selected" aria-live="polite">
                     <p class="body-evidence-selected-empty">No body landmark selected.</p>
                   </div>
                   <div class="body-evidence-inspect-actions">
-                    <button type="button" id="promote-selected-body-landmark" class="panel-button panel-button--compact body-evidence-inspect-promote" disabled aria-disabled="true">Promote Selected Landmark</button>
+                    <button type="button" id="promote-selected-body-landmark" class="panel-button panel-button--compact body-evidence-inspect-promote" hidden disabled aria-disabled="true">Promote Selected Landmark</button>
                     <button type="button" id="clear-body-landmark-selection" class="panel-button panel-button--compact body-evidence-inspect-clear" disabled aria-disabled="true">Clear Selection</button>
                   </div>
                   <p id="body-evidence-promote-status" class="body-evidence-promote-status" hidden></p>
@@ -271,24 +203,48 @@
           <section id="measurement-panel" class="inspector-section" data-collapsible hidden>
             <h2 class="section-title">Distance Measurement</h2>
             <div class="section-body">
-              <div class="info-row measurement-point-row">
-                <span class="info-label measurement-point-label">Point A</span>
-                <span class="info-value info-value--data measurement-point-value" id="point-a-coords">—</span>
+              <div class="inspector-subgroup measurement-context">
+                <h3 class="inspector-subgroup-label">Front / Canonical</h3>
+                <div class="info-row measurement-point-row">
+                  <span class="info-label measurement-point-label">Point A</span>
+                  <span class="info-value info-value--data measurement-point-value" id="point-a-coords">—</span>
+                </div>
+                <div class="info-row measurement-point-row">
+                  <span class="info-label measurement-point-label">Point B</span>
+                  <span class="info-value info-value--data measurement-point-value" id="point-b-coords">—</span>
+                </div>
+                <div class="info-row info-row--highlight">
+                  <span class="info-label">Distance</span>
+                  <span class="info-value info-value--measure"><span id="measurement-distance">—</span> cm</span>
+                </div>
+                <div class="measurement-actions">
+                  <button type="button" id="clear-point-a" class="panel-button panel-button--compact">Clear A</button>
+                  <button type="button" id="clear-point-b" class="panel-button panel-button--compact">Clear B</button>
+                </div>
+                <button type="button" id="clear-measurement" class="panel-button">Clear Measurement</button>
+                <p class="inspector-helper-text">Click two points in 3D or on the Front Surface grid to measure distance in cm.</p>
               </div>
-              <div class="info-row measurement-point-row">
-                <span class="info-label measurement-point-label">Point B</span>
-                <span class="info-value info-value--data measurement-point-value" id="point-b-coords">—</span>
+              <div class="inspector-subgroup measurement-context measurement-context--side">
+                <h3 class="inspector-subgroup-label">Side / U-Y</h3>
+                <div class="info-row measurement-point-row">
+                  <span class="info-label measurement-point-label">Point A</span>
+                  <span class="info-value info-value--data measurement-point-value" id="side-point-a-coords">—</span>
+                </div>
+                <div class="info-row measurement-point-row">
+                  <span class="info-label measurement-point-label">Point B</span>
+                  <span class="info-value info-value--data measurement-point-value" id="side-point-b-coords">—</span>
+                </div>
+                <div class="info-row info-row--highlight">
+                  <span class="info-label">Distance</span>
+                  <span class="info-value info-value--measure"><span id="side-measurement-distance">—</span> cm</span>
+                </div>
+                <div class="measurement-actions">
+                  <button type="button" id="clear-side-point-a" class="panel-button panel-button--compact">Clear A</button>
+                  <button type="button" id="clear-side-point-b" class="panel-button panel-button--compact">Clear B</button>
+                </div>
+                <button type="button" id="clear-side-measurement" class="panel-button">Clear Measurement</button>
+                <p class="inspector-helper-text">Click two points on the Side Evidence navigator to measure U/Y distance in cm.</p>
               </div>
-              <div class="info-row info-row--highlight">
-                <span class="info-label">Distance</span>
-                <span class="info-value info-value--measure"><span id="measurement-distance">—</span> cm</span>
-              </div>
-              <div class="measurement-actions">
-                <button type="button" id="clear-point-a" class="panel-button panel-button--compact">Clear Point A</button>
-                <button type="button" id="clear-point-b" class="panel-button panel-button--compact">Clear Point B</button>
-              </div>
-              <button type="button" id="clear-measurement" class="panel-button">Clear Measurement</button>
-              <p class="inspector-helper-text">Click two points in 3D or on the Front Surface grid to measure distance in cm.</p>
             </div>
           </section>
         </div>
@@ -386,6 +342,8 @@
                       <span id="side-evidence-view-readout" class="grid2d-view-readout">Step 10 cm</span>
                       <span class="grid2d-status-sep" aria-hidden="true">·</span>
                       <span id="side-evidence-mode-readout" class="grid2d-mode-readout">Mode: Pick Point</span>
+                      <span class="grid2d-status-sep" aria-hidden="true">·</span>
+                      <span id="side-evidence-source-status" class="grid2d-evidence-status" aria-live="polite">No Side Pose</span>
                     </p>
                     <div class="grid2d-selection-block grid2d-selection-block--empty">
                       <p class="grid2d-readout-heading grid2d-readout-heading--selection">Selection</p>
@@ -405,7 +363,6 @@
                     <div id="side-evidence-selection-rect" class="grid2d-selection-rect" hidden></div>
                     <div id="side-evidence-hover-tooltip" class="hover-coordinate-tooltip" hidden></div>
                     <div id="side-evidence-tooltip" class="hover-coordinate-tooltip grid2d-projection-tooltip side-evidence-tooltip" hidden></div>
-                    <p id="side-evidence-empty" class="side-evidence-empty" hidden>No side pose landmarks yet — load Side Pose JSON and Analyze.</p>
                   </div>
                   <ul id="side-evidence-legend" class="grid2d-legend" aria-label="Side navigator legend">
                     <li class="grid2d-legend-item" data-legend-type="lattice">
@@ -425,8 +382,12 @@
                       <span class="grid2d-legend-label">Point B</span>
                     </li>
                     <li class="grid2d-legend-item" data-legend-type="landmark">
-                      <span class="grid2d-legend-swatch grid2d-legend-swatch--side-landmark"></span>
-                      <span class="grid2d-legend-label">Side landmark</span>
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--side-core"></span>
+                      <span class="grid2d-legend-label">Side Core</span>
+                    </li>
+                    <li class="grid2d-legend-item" data-legend-type="landmark-secondary" hidden>
+                      <span class="grid2d-legend-swatch grid2d-legend-swatch--side-secondary"></span>
+                      <span class="grid2d-legend-label">Side Secondary</span>
                     </li>
                   </ul>
                 </div>
@@ -447,9 +408,6 @@
                   <button type="button" id="side-grid-back" class="panel-button panel-button--compact" disabled>Back</button>
                   <button type="button" id="side-grid-reset" class="panel-button panel-button--compact">Reset</button>
                   <button type="button" id="side-grid-split" class="panel-button panel-button--compact" disabled>Split</button>
-                  <button type="button" id="side-grid-clear-a" class="panel-button panel-button--compact" disabled>Clear A</button>
-                  <button type="button" id="side-grid-clear-b" class="panel-button panel-button--compact" disabled>Clear B</button>
-                  <button type="button" id="side-grid-clear-measure" class="panel-button panel-button--compact" disabled>Clear Meas.</button>
                 </div>
               </div>
             </div>
@@ -520,6 +478,7 @@
             <section id="promoted-body-anchors-panel" class="inspector-section">
               <div class="section-body">
                 <h3 class="body-tab-section-title">Promoted Body Anchors</h3>
+                <p class="body-tab-section-subtitle">Canonical promoted anchors</p>
                 <p id="promoted-body-anchors-count" class="promoted-body-anchors-count" aria-live="polite">Total: 0</p>
                 <p id="promoted-body-anchors-empty" class="session-empty-state">No promoted body anchors yet.</p>
                 <div id="promoted-body-anchors-list" class="promoted-body-anchors-list" aria-live="polite"></div>
@@ -528,6 +487,7 @@
             <section id="body-measurement-readiness-panel" class="inspector-section">
               <div class="section-body">
                 <h3 class="body-tab-section-title">Body Measurement Readiness</h3>
+                <p class="body-tab-section-subtitle">Based on promoted canonical body landmarks</p>
                 <div id="body-measurement-readiness" class="body-measurement-readiness" aria-live="polite"></div>
               </div>
             </section>

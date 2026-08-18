@@ -120,8 +120,17 @@ export function downloadSceneStateJson(measurement) {
   URL.revokeObjectURL(url);
 }
 
+/** @type {object | null} */
+let sceneExportMeasurement = null;
+
+export function runExportSceneStateAction() {
+  if (!sceneExportMeasurement) {
+    return;
+  }
+  downloadSceneStateJson(sceneExportMeasurement);
+}
+
 export function setupSceneExport(measurement) {
-  exportSceneJsonBtn.addEventListener('click', () => {
-    downloadSceneStateJson(measurement);
-  });
+  sceneExportMeasurement = measurement;
+  exportSceneJsonBtn.addEventListener('click', runExportSceneStateAction);
 }

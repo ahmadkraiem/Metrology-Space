@@ -94,6 +94,10 @@ export function createInternalVolumeGrid() {
 }
 
 /** Visual-only toggle for internal 3D lattice layers (does not affect picking/data). */
+export function isInternalVolumeGridVisible(volumeGrid) {
+  return Boolean(volumeGrid?.visible);
+}
+
 export function setInternalVolumeGridVisible(volumeGrid, visible) {
   if (!volumeGrid) {
     return;

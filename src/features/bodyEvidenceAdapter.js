@@ -54,6 +54,24 @@ export const SECONDARY_FRONT_BODY_ANCHORS = Object.freeze([
 const SECONDARY_FRONT_BODY_ANCHOR_SET = new Set(SECONDARY_FRONT_BODY_ANCHORS);
 
 /**
+ * Secondary Side Body Landmark Candidates v0 — explicit allowlist.
+ * Same exact safe identities as Front secondary; kept as a separate set so
+ * Side classification never mirrors or infers beyond emitted names.
+ */
+export const SECONDARY_SIDE_BODY_ANCHORS = Object.freeze([
+  'left_acromion',
+  'right_acromion',
+  'left_heel',
+  'right_heel',
+  'left_big_toe',
+  'right_big_toe',
+  'left_small_toe',
+  'right_small_toe',
+]);
+
+const SECONDARY_SIDE_BODY_ANCHOR_SET = new Set(SECONDARY_SIDE_BODY_ANCHORS);
+
+/**
  * Hand / finger detail vocabulary. Deferred in v0: too detailed and unstable
  * for Body Graph preparation, so it never reaches the secondary candidate list.
  */
@@ -258,8 +276,8 @@ export function isRejectedFaceHeadLandmark(name) {
 /**
  * Secondary Body Landmark Candidates v0: an exact allowlist match only.
  * A landmark is never secondary just because the model outputs it — it must be
- * one of `SECONDARY_FRONT_BODY_ANCHORS`. Side-pose sources are excluded by
- * callers (front accepted landmarks only).
+ * one of `SECONDARY_FRONT_BODY_ANCHORS`. Side view secondary classification
+ * is handled by `classifyPoseLandmarks(..., { view: 'side' })` instead.
  *
  * @param {unknown} name
  * @returns {boolean}
@@ -595,12 +613,13 @@ function landmarksFromParallelArrays(names, keypoints, scores) {
  * ignored/non-core (QA-only).
  *
  * @param {Array<{ name: string, x: number|null, y: number|null, score: number|null }>} landmarks
+ * @param {{ view?: 'front'|'side' }} [options]
  * @returns {{
  *   total: number,
  *   accepted: number,
  *   rejectedFace: number,
  *   lowConfidence: number,
- *   coreFront: number,
+ *   core: number,
  *   secondary: number,
  *   ignoredNonCore: number,
  *   acceptedLandmarks: Array<{
@@ -612,28 +631,52 @@ function landmarksFromParallelArrays(names, keypoints, scores) {
  *     coreFront: boolean,
  *     secondary: boolean,
  *   }>,
+ *   rejectedLandmarks: Array<{ name: string, reason: string }>,
+ *   ignoredLandmarks: Array<{ name: string, reason: string }>,
  * }}
  */
-export function classifyPoseLandmarks(landmarks) {
+export function classifyPoseLandmarks(landmarks, { view = 'front' } = {}) {
+  const secondarySet = view === 'side'
+    ? SECONDARY_SIDE_BODY_ANCHOR_SET
+    : SECONDARY_FRONT_BODY_ANCHOR_SET;
   const list = Array.isArray(landmarks) ? landmarks : [];
   const acceptedLandmarks = [];
   const rejectedLandmarks = [];
   const ignoredLandmarks = [];
   let rejectedFace = 0;
   let lowConfidence = 0;
-  let coreFront = 0;
+  let core = 0;
   let secondary = 0;
   let ignoredNonCore = 0;
 
   for (const landmark of list) {
     const name = String(landmark?.name ?? '');
-    const candidateClass = classifyBodyLandmarkCandidate(name);
+    const normalized = normalizeLandmarkName(name);
 
-    if (candidateClass.classification === 'rejected-face-head') {
+    if (isCoreFrontBodyAnchor(name)) {
+      const score = asFiniteNumber(landmark?.score);
+      const isLowConfidence = score !== null && score < LOW_CONFIDENCE_THRESHOLD;
+      if (isLowConfidence) {
+        lowConfidence += 1;
+      }
+      core += 1;
+      acceptedLandmarks.push({
+        name,
+        imageX: asFiniteNumber(landmark?.x),
+        imageY: asFiniteNumber(landmark?.y),
+        score,
+        lowConfidence: isLowConfidence,
+        coreFront: true,
+        secondary: false,
+      });
+      continue;
+    }
+
+    if (isRejectedFaceHeadLandmark(name)) {
       rejectedFace += 1;
       rejectedLandmarks.push({
         name,
-        reason: candidateClass.reason,
+        reason: 'face-head-term',
       });
       continue;
     }
@@ -644,17 +687,14 @@ export function classifyPoseLandmarks(landmarks) {
       lowConfidence += 1;
     }
 
-    const isCoreFront = candidateClass.classification === 'core';
-    const isSecondary = candidateClass.classification === 'secondary';
-    if (isCoreFront) {
-      coreFront += 1;
-    } else if (isSecondary) {
+    const isSecondary = secondarySet.has(normalized);
+    if (isSecondary) {
       secondary += 1;
     } else {
       ignoredNonCore += 1;
       ignoredLandmarks.push({
         name,
-        reason: candidateClass.reason,
+        reason: deferredLandmarkReason(normalized),
       });
     }
 
@@ -664,7 +704,7 @@ export function classifyPoseLandmarks(landmarks) {
       imageY: asFiniteNumber(landmark?.y),
       score,
       lowConfidence: isLowConfidence,
-      coreFront: isCoreFront,
+      coreFront: false,
       secondary: isSecondary,
     });
   }
@@ -674,7 +714,7 @@ export function classifyPoseLandmarks(landmarks) {
     accepted: acceptedLandmarks.length,
     rejectedFace,
     lowConfidence,
-    coreFront,
+    core,
     secondary,
     ignoredNonCore,
     rejectedLandmarks,
@@ -909,7 +949,7 @@ function emptyViewPose() {
     accepted: 0,
     rejectedFace: 0,
     lowConfidence: 0,
-    coreFront: 0,
+    core: 0,
     secondary: 0,
     ignoredNonCore: 0,
     rejectedLandmarks: [],
@@ -960,8 +1000,12 @@ export function analyzeBodyEvidence(sources = {}) {
   const frontLandmarks = frontPose ? extractPoseLandmarks(frontPose) : [];
   const sideLandmarks = sidePose ? extractPoseLandmarks(sidePose) : [];
 
-  const frontPoseStats = frontPose ? classifyPoseLandmarks(frontLandmarks) : emptyViewPose();
-  const sidePoseStats = sidePose ? classifyPoseLandmarks(sideLandmarks) : emptyViewPose();
+  const frontPoseStats = frontPose
+    ? classifyPoseLandmarks(frontLandmarks, { view: 'front' })
+    : emptyViewPose();
+  const sidePoseStats = sidePose
+    ? classifyPoseLandmarks(sideLandmarks, { view: 'side' })
+    : emptyViewPose();
   const frontSegStats = frontSeg ? classifySegmentation(extractSegmentation(frontSeg)) : emptyViewSeg();
   const sideSegStats = sideSeg ? classifySegmentation(extractSegmentation(sideSeg)) : emptyViewSeg();
 
@@ -978,7 +1022,8 @@ export function analyzeBodyEvidence(sources = {}) {
     'Face/head landmarks and segmentation classes are rejected from body counts.',
     'Low-confidence body landmarks (score < 0.5) are counted but not rendered in v0.',
     'Only the core 13 front body anchors are overlay-rendered as primary candidates.',
-    `Secondary candidates are limited to the v0 allowlist: ${SECONDARY_FRONT_BODY_ANCHORS.join(', ')}.`,
+    `Secondary Front candidates are limited to the v0 allowlist: ${SECONDARY_FRONT_BODY_ANCHORS.join(', ')}.`,
+    `Secondary Side candidates are limited to the v0 allowlist: ${SECONDARY_SIDE_BODY_ANCHORS.join(', ')}.`,
     'Hand/finger/thumb detail, dense contours, and unstable model extras are deferred QA-only in v0.',
     `Scale uses fixed Body Evidence v0 assumption (${BODY_EVIDENCE_V0_SCALE.pixelsPerCm} px/cm, ${BODY_EVIDENCE_V0_SCALE.canvasSize}×${BODY_EVIDENCE_V0_SCALE.canvasSize} canvas).`,
     'heightCm is postponed / not used in v0.',
@@ -1010,16 +1055,28 @@ export function analyzeBodyEvidence(sources = {}) {
       frontAcceptedCount: frontPoseStats.accepted,
       sideAcceptedCount: sidePoseStats.accepted,
       frontTotalLandmarks: frontPoseStats.total,
-      renderableFrontLandmarks: frontPoseStats.coreFront,
+      frontCoreLandmarks: frontPoseStats.core,
+      sideCoreLandmarks: sidePoseStats.core,
+      renderableFrontLandmarks: frontPoseStats.core,
+      frontSecondaryLandmarks: frontPoseStats.secondary,
       secondaryFrontLandmarks: frontPoseStats.secondary,
+      sideSecondaryLandmarks: sidePoseStats.secondary,
       frontRejectedFaceLandmarks: frontPoseStats.rejectedFace,
+      sideRejectedFaceLandmarks: sidePoseStats.rejectedFace,
       frontIgnoredNonCoreLandmarks: frontPoseStats.ignoredNonCore,
+      sideIgnoredNonCoreLandmarks: sidePoseStats.ignoredNonCore,
       secondaryFrontLandmarkNames: frontPoseStats.acceptedLandmarks
         .filter((landmark) => landmark.secondary)
         .map((landmark) => landmark.name),
+      secondarySideLandmarkNames: sidePoseStats.acceptedLandmarks
+        .filter((landmark) => landmark.secondary)
+        .map((landmark) => landmark.name),
       secondaryAllowlist: [...SECONDARY_FRONT_BODY_ANCHORS],
+      secondarySideAllowlist: [...SECONDARY_SIDE_BODY_ANCHORS],
       ignoredFrontLandmarks: frontPoseStats.ignoredLandmarks.map((landmark) => ({ ...landmark })),
+      ignoredSideLandmarks: sidePoseStats.ignoredLandmarks.map((landmark) => ({ ...landmark })),
       rejectedFrontLandmarks: frontPoseStats.rejectedLandmarks.map((landmark) => ({ ...landmark })),
+      rejectedSideLandmarks: sidePoseStats.rejectedLandmarks.map((landmark) => ({ ...landmark })),
       ignoredNonCoreLandmarks: frontPoseStats.ignoredNonCore + sidePoseStats.ignoredNonCore,
       segmentationClassCount: allClassNames.length,
       rejectedSegmentationClasses: allRejectedClasses,

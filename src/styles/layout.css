@@ -13,6 +13,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding: 0 20px;
   background: var(--bg-panel);
   backdrop-filter: blur(20px) saturate(140%);
@@ -22,6 +23,21 @@
   user-select: none;
   pointer-events: none;
   z-index: 20;
+}
+
+.header-brand,
+.header-status {
+  pointer-events: none;
+}
+
+.app-menu-bar {
+  pointer-events: auto;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
 }
 
 .header-brand {
@@ -216,6 +232,13 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.workspace-pane--2d .grid2d-nav-header,
+.workspace-pane--2d .grid2d-nav-heading,
+.workspace-pane--2d .workspace-2d-toolbar,
+.workspace-pane--2d .workspace-2d-toolbar-group {
+  min-width: 0;
 }
 
 #viewport[data-workspace-mode='3d'] .workspace-pane--3d {

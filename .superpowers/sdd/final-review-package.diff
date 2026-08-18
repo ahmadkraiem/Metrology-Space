@@ -1,0 +1,2078 @@
+# Final whole-branch review package
+Base: e0748c22b498d058bce253899f18e2b017bceeac
+Head: WORKING_TREE
+
+## Stat vs base
+ index.html                               | 297 +++++++++++-------
+ src/features/bodyEvidence.js             |  90 +++++-
+ src/features/bodyEvidenceAdapter.js      |  99 ++++--
+ src/features/bodyEvidenceAdapter.test.js |  80 +++++
+ src/features/sceneExport.js              |  15 +-
+ src/features/sceneImport.js              |   4 +
+ src/main.js                              |   7 +
+ src/styles/components.css                | 300 +++++++++++++++++-
+ src/styles/layout.css                    |  23 ++
+ src/styles/overlays.css                  |  89 +++---
+ src/ui/bodyEvidenceOverlay2d.js          |   2 +
+ src/ui/bodyEvidenceOverlaySide2d.js      | 134 +++++---
+ src/ui/bodyEvidencePanel.js              | 521 +++++++++++++++++--------------
+ src/ui/bodyTabConsolidatedPanel.js       | 238 +++++++++-----
+ src/ui/domRefs.js                        |  18 +-
+ src/ui/inspectorWorkflow.js              |   7 +-
+ src/ui/sideGrid2dNavigator.js            |  25 +-
+ src/ui/viewControls.js                   | 309 +++++++++++++++---
+ src/ui/workspaceLayout.js                |  16 +
+ 19 files changed, 1650 insertions(+), 624 deletions(-)
+
+## Status
+ M index.html
+ M src/features/bodyEvidence.js
+ M src/features/bodyEvidenceAdapter.js
+ M src/features/bodyEvidenceAdapter.test.js
+ M src/features/sceneExport.js
+ M src/features/sceneImport.js
+ M src/main.js
+ M src/styles/components.css
+ M src/styles/layout.css
+ M src/styles/overlays.css
+ M src/ui/bodyEvidenceOverlay2d.js
+ M src/ui/bodyEvidenceOverlaySide2d.js
+ M src/ui/bodyEvidencePanel.js
+ M src/ui/bodyTabConsolidatedPanel.js
+ M src/ui/domRefs.js
+ M src/ui/inspectorWorkflow.js
+ M src/ui/sideGrid2dNavigator.js
+ M src/ui/viewControls.js
+ M src/ui/workspaceLayout.js
+?? .superpowers/
+?? docs/
+?? src/ui/appMenuBar.js
+?? src/ui/bodyEvidenceCandidateList.js
+?? src/ui/bodyEvidenceCandidateList.test.js
+?? src/ui/sideEvidenceStatus.js
+?? src/ui/sideEvidenceStatus.test.js
+
+## Critical files diff
+diff --git a/src/features/bodyEvidence.js b/src/features/bodyEvidence.js
+index fbb4f58..4949946 100644
+--- a/src/features/bodyEvidence.js
++++ b/src/features/bodyEvidence.js
+@@ -46,12 +46,14 @@ let qaResult = null;
+ /** @type {string|null} */
+ let lastError = null;
+ 
+ let overlayVisible = false;
+ let secondaryCandidatesVisible = false;
+-/** Side Body Candidates overlay visibility (evidence plane; default on when analyzed). */
+-let sideOverlayVisible = true;
++/** Side core Body Evidence overlay visibility (evidence plane; default on when analyzed). */
++let sideCoreOverlayVisible = true;
++/** Side secondary Body Evidence overlay visibility (evidence plane; default on when analyzed). */
++let sideSecondaryOverlayVisible = true;
+ 
+ /**
+  * UI-only Front Body Evidence landmark selection (inspect/select v0).
+  * Separate from measurement A/B, Annotate selection, annotations, Scene Graph,
+  * and Side Evidence inspection selection.
+@@ -157,10 +159,20 @@ function getSideAcceptedLandmarks() {
+  */
+ export function getRenderableFrontBodyLandmarks() {
+   return getFrontAcceptedLandmarks().filter((landmark) => isCoreFrontBodyAnchor(landmark?.name));
+ }
+ 
++/**
++ * Secondary Side Body Landmark Candidates v0: allowlisted side pose landmarks
++ * beyond the core 13. Inspect-only â€” not promotable.
++ */
++export function getSecondarySideBodyLandmarks() {
++  return getSideAcceptedLandmarks().filter(
++    (landmark) => landmark?.secondary === true && !landmark.lowConfidence,
++  );
++}
++
+ /**
+  * Renderable Side Evidence body landmarks: accepted side pose landmarks
+  * narrowed by the same core body identities used for Front (partial profile
+  * sets are valid). Low-confidence entries are excluded from visualization.
+  * Face/head, dense hands/fingers, and non-core extras stay QA-only.
+@@ -240,20 +252,41 @@ export function setSecondaryBodyEvidenceVisible(visible) {
+   }
+   secondaryCandidatesVisible = next;
+   notifyBodyEvidenceChange();
+ }
+ 
+-export function isSideBodyEvidenceVisible() {
+-  return sideOverlayVisible && qaResult != null;
++export function isSideCoreBodyEvidenceVisible() {
++  return (
++    sideCoreOverlayVisible
++    && qaResult != null
++    && getRenderableSideBodyLandmarks().length > 0
++  );
+ }
+ 
+-export function setSideBodyEvidenceVisible(visible) {
+-  const next = Boolean(visible);
+-  if (next === sideOverlayVisible) {
++export function setSideCoreBodyEvidenceVisible(visible) {
++  const next = Boolean(visible) && getRenderableSideBodyLandmarks().length > 0;
++  if (next === sideCoreOverlayVisible) {
++    return;
++  }
++  sideCoreOverlayVisible = next;
++  notifyBodyEvidenceChange();
++}
++
++export function isSideSecondaryBodyEvidenceVisible() {
++  return (
++    sideSecondaryOverlayVisible
++    && qaResult != null
++    && getSecondarySideBodyLandmarks().length > 0
++  );
++}
++
++export function setSideSecondaryBodyEvidenceVisible(visible) {
++  const next = Boolean(visible) && getSecondarySideBodyLandmarks().length > 0;
++  if (next === sideSecondaryOverlayVisible) {
+     return;
+   }
+-  sideOverlayVisible = next;
++  sideSecondaryOverlayVisible = next;
+   notifyBodyEvidenceChange();
+ }
+ 
+ export function getSelectedBodyEvidenceLandmark() {
+   return selectedBodyEvidenceLandmark;
+@@ -286,10 +319,11 @@ export function selectBodyEvidenceLandmark(landmark) {
+ 
+   const next = {
+     id: String(landmark.id),
+     name: String(landmark.name ?? ''),
+     view: 'front',
++    candidateType: landmark.candidateType === 'secondary' ? 'secondary' : 'core',
+     imageX: landmark.imageX,
+     imageY: landmark.imageY,
+     spaceX: landmark.spaceX ?? landmark.h,
+     spaceY: landmark.spaceY ?? landmark.v,
+     score: typeof landmark.score === 'number' && Number.isFinite(landmark.score)
+@@ -304,10 +338,11 @@ export function selectBodyEvidenceLandmark(landmark) {
+ 
+   const prev = selectedBodyEvidenceLandmark;
+   if (
+     prev
+     && prev.id === next.id
++    && prev.candidateType === next.candidateType
+     && prev.imageX === next.imageX
+     && prev.imageY === next.imageY
+     && prev.spaceX === next.spaceX
+     && prev.spaceY === next.spaceY
+     && prev.score === next.score
+@@ -364,10 +399,11 @@ export function selectSideEvidenceLandmark(landmark) {
+   const sideYcm = Number(landmark.sideYcm ?? landmark.v);
+   const next = {
+     id: String(landmark.id),
+     name: String(landmark.name ?? ''),
+     view: 'side',
++    candidateType: landmark.candidateType === 'secondary' ? 'secondary' : 'core',
+     imageX: landmark.imageX,
+     imageY: landmark.imageY,
+     sideUcm,
+     sideYcm,
+     score: typeof landmark.score === 'number' && Number.isFinite(landmark.score)
+@@ -385,10 +421,11 @@ export function selectSideEvidenceLandmark(landmark) {
+ 
+   const prev = selectedSideEvidenceLandmark;
+   if (
+     prev
+     && prev.id === next.id
++    && prev.candidateType === next.candidateType
+     && prev.imageX === next.imageX
+     && prev.imageY === next.imageY
+     && prev.sideUcm === next.sideUcm
+     && prev.sideYcm === next.sideYcm
+     && prev.score === next.score
+@@ -630,17 +667,22 @@ function hasBodyEvidencePoseOrSegSource() {
+ 
+ export function hasAnyBodyEvidenceSource() {
+   return hasBodyEvidencePoseOrSegSource();
+ }
+ 
++export function hasSidePoseSource() {
++  return Boolean(sources.sidePose);
++}
++
+ /** Loading a source invalidates the previous analysis, overlay, and selection. */
+ function resetAnalysisForNewSource() {
+   qaResult = null;
+   lastError = null;
+   overlayVisible = false;
+   secondaryCandidatesVisible = false;
+-  sideOverlayVisible = false;
++  sideCoreOverlayVisible = false;
++  sideSecondaryOverlayVisible = false;
+   clearBodyEvidenceSelectionSilent();
+   notifyBodyEvidenceChange();
+ }
+ 
+ export function setFrontPoseSource(data) {
+@@ -667,32 +709,35 @@ export function analyzeLoadedBodyEvidence() {
+   if (!hasBodyEvidencePoseOrSegSource()) {
+     lastError = 'Load at least one pose or segmentation JSON before analyzing.';
+     qaResult = null;
+     overlayVisible = false;
+     secondaryCandidatesVisible = false;
+-    sideOverlayVisible = false;
++    sideCoreOverlayVisible = false;
++    sideSecondaryOverlayVisible = false;
+     clearBodyEvidenceSelectionSilent();
+     notifyBodyEvidenceChange();
+     return { ok: false, error: lastError, result: null };
+   }
+ 
+   try {
+     qaResult = analyzeBodyEvidence(getBodyEvidenceSources());
+     lastError = null;
+     overlayVisible = getRenderableFrontBodyLandmarks().length > 0;
+     secondaryCandidatesVisible = getSecondaryFrontBodyLandmarks().length > 0;
+-    sideOverlayVisible = getRenderableSideBodyLandmarks().length > 0;
++    sideCoreOverlayVisible = getRenderableSideBodyLandmarks().length > 0;
++    sideSecondaryOverlayVisible = getSecondarySideBodyLandmarks().length > 0;
+     // Re-analyze replaces the landmark set â€” drop any prior inspect selection.
+     clearBodyEvidenceSelectionSilent();
+     notifyBodyEvidenceChange();
+     return { ok: true, error: null, result: qaResult };
+   } catch (error) {
+     lastError = error instanceof Error ? error.message : 'Body evidence analysis failed.';
+     qaResult = null;
+     overlayVisible = false;
+     secondaryCandidatesVisible = false;
+-    sideOverlayVisible = false;
++    sideCoreOverlayVisible = false;
++    sideSecondaryOverlayVisible = false;
+     clearBodyEvidenceSelectionSilent();
+     notifyBodyEvidenceChange();
+     return { ok: false, error: lastError, result: null };
+   }
+ }
+@@ -701,11 +746,12 @@ export function clearBodyEvidence() {
+   sources = emptySources();
+   qaResult = null;
+   lastError = null;
+   overlayVisible = false;
+   secondaryCandidatesVisible = false;
+-  sideOverlayVisible = false;
++  sideCoreOverlayVisible = false;
++  sideSecondaryOverlayVisible = false;
+   clearBodyEvidenceSelectionSilent();
+   notifyBodyEvidenceChange();
+ }
+ 
+ function formatBodyEvidenceFilenameTimestamp(date) {
+@@ -727,16 +773,18 @@ function formatBodyEvidenceLocalTimestamp(date) {
+   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+ }
+ 
+ /** Diagnostic pose view stays counts-only; landmark records are not exported. */
+ function exportPoseView(pose) {
++  const core = pose?.core ?? 0;
+   return {
+     total: pose?.total ?? 0,
+     accepted: pose?.accepted ?? 0,
+     rejectedFace: pose?.rejectedFace ?? 0,
+     lowConfidence: pose?.lowConfidence ?? 0,
+-    coreFront: pose?.coreFront ?? 0,
++    core,
++    coreFront: core,
+     secondary: pose?.secondary ?? 0,
+     ignoredNonCore: pose?.ignoredNonCore ?? 0,
+   };
+ }
+ 
+@@ -811,20 +859,34 @@ export function buildBodyEvidenceExport(exportedAt = new Date()) {
+       rejectedFaceLandmarks: qaResult.qa.rejectedFaceLandmarks,
+       lowConfidenceLandmarks: qaResult.qa.lowConfidenceLandmarks,
+       frontAcceptedCount: qaResult.qa.frontAcceptedCount,
+       sideAcceptedCount: qaResult.qa.sideAcceptedCount,
+       frontTotalLandmarks: qaResult.qa.frontTotalLandmarks ?? 0,
++      frontCoreLandmarks: qaResult.qa.frontCoreLandmarks ?? 0,
++      sideCoreLandmarks: qaResult.qa.sideCoreLandmarks ?? 0,
+       renderableFrontLandmarks: qaResult.qa.renderableFrontLandmarks,
++      frontSecondaryLandmarks: qaResult.qa.frontSecondaryLandmarks
++        ?? qaResult.qa.secondaryFrontLandmarks
++        ?? 0,
+       secondaryFrontLandmarks: qaResult.qa.secondaryFrontLandmarks ?? 0,
++      sideSecondaryLandmarks: qaResult.qa.sideSecondaryLandmarks ?? 0,
+       frontRejectedFaceLandmarks: qaResult.qa.frontRejectedFaceLandmarks ?? 0,
++      sideRejectedFaceLandmarks: qaResult.qa.sideRejectedFaceLandmarks ?? 0,
+       frontIgnoredNonCoreLandmarks: qaResult.qa.frontIgnoredNonCoreLandmarks ?? 0,
++      sideIgnoredNonCoreLandmarks: qaResult.qa.sideIgnoredNonCoreLandmarks ?? 0,
+       secondaryFrontLandmarkNames: [...(qaResult.qa.secondaryFrontLandmarkNames ?? [])],
++      secondarySideLandmarkNames: [...(qaResult.qa.secondarySideLandmarkNames ?? [])],
+       secondaryAllowlist: [...(qaResult.qa.secondaryAllowlist ?? [])],
++      secondarySideAllowlist: [...(qaResult.qa.secondarySideAllowlist ?? [])],
+       ignoredFrontLandmarks: (qaResult.qa.ignoredFrontLandmarks ?? [])
+         .map((entry) => ({ ...entry })),
++      ignoredSideLandmarks: (qaResult.qa.ignoredSideLandmarks ?? [])
++        .map((entry) => ({ ...entry })),
+       rejectedFrontLandmarks: (qaResult.qa.rejectedFrontLandmarks ?? [])
+         .map((entry) => ({ ...entry })),
++      rejectedSideLandmarks: (qaResult.qa.rejectedSideLandmarks ?? [])
++        .map((entry) => ({ ...entry })),
+       ignoredNonCoreLandmarks: qaResult.qa.ignoredNonCoreLandmarks ?? 0,
+       segmentationClassCount: qaResult.qa.segmentationClassCount,
+       rejectedSegmentationClasses: [...(qaResult.qa.rejectedSegmentationClasses ?? [])],
+       classNames: [...(qaResult.qa.classNames ?? [])],
+       classCounts: { ...(qaResult.qa.classCounts ?? {}) },
+diff --git a/src/features/bodyEvidenceAdapter.js b/src/features/bodyEvidenceAdapter.js
+index 6dc4c6c..3cab45e 100644
+--- a/src/features/bodyEvidenceAdapter.js
++++ b/src/features/bodyEvidenceAdapter.js
+@@ -51,10 +51,28 @@ export const SECONDARY_FRONT_BODY_ANCHORS = Object.freeze([
+   'right_small_toe',
+ ]);
+ 
+ const SECONDARY_FRONT_BODY_ANCHOR_SET = new Set(SECONDARY_FRONT_BODY_ANCHORS);
+ 
++/**
++ * Secondary Side Body Landmark Candidates v0 â€” explicit allowlist.
++ * Same exact safe identities as Front secondary; kept as a separate set so
++ * Side classification never mirrors or infers beyond emitted names.
++ */
++export const SECONDARY_SIDE_BODY_ANCHORS = Object.freeze([
++  'left_acromion',
++  'right_acromion',
++  'left_heel',
++  'right_heel',
++  'left_big_toe',
++  'right_big_toe',
++  'left_small_toe',
++  'right_small_toe',
++]);
++
++const SECONDARY_SIDE_BODY_ANCHOR_SET = new Set(SECONDARY_SIDE_BODY_ANCHORS);
++
+ /**
+  * Hand / finger detail vocabulary. Deferred in v0: too detailed and unstable
+  * for Body Graph preparation, so it never reaches the secondary candidate list.
+  */
+ const DEFERRED_HAND_DETAIL_TERMS = [
+@@ -256,12 +274,12 @@ export function isRejectedFaceHeadLandmark(name) {
+ }
+ 
+ /**
+  * Secondary Body Landmark Candidates v0: an exact allowlist match only.
+  * A landmark is never secondary just because the model outputs it â€” it must be
+- * one of `SECONDARY_FRONT_BODY_ANCHORS`. Side-pose sources are excluded by
+- * callers (front accepted landmarks only).
++ * one of `SECONDARY_FRONT_BODY_ANCHORS`. Side view secondary classification
++ * is handled by `classifyPoseLandmarks(..., { view: 'side' })` instead.
+  *
+  * @param {unknown} name
+  * @returns {boolean}
+  */
+ export function isSecondaryBodyAnchorCandidate(name) {
+@@ -593,16 +611,17 @@ function landmarksFromParallelArrays(names, keypoints, scores) {
+  * for QA and kept in `acceptedLandmarks` (the overlay skips them when drawing).
+  * Non-core accepted landmarks are further split into secondary candidates vs
+  * ignored/non-core (QA-only).
+  *
+  * @param {Array<{ name: string, x: number|null, y: number|null, score: number|null }>} landmarks
++ * @param {{ view?: 'front'|'side' }} [options]
+  * @returns {{
+  *   total: number,
+  *   accepted: number,
+  *   rejectedFace: number,
+  *   lowConfidence: number,
+- *   coreFront: number,
++ *   core: number,
+  *   secondary: number,
+  *   ignoredNonCore: number,
+  *   acceptedLandmarks: Array<{
+  *     name: string,
+  *     imageX: number|null,
+@@ -610,73 +629,94 @@ function landmarksFromParallelArrays(names, keypoints, scores) {
+  *     score: number|null,
+  *     lowConfidence: boolean,
+  *     coreFront: boolean,
+  *     secondary: boolean,
+  *   }>,
++ *   rejectedLandmarks: Array<{ name: string, reason: string }>,
++ *   ignoredLandmarks: Array<{ name: string, reason: string }>,
+  * }}
+  */
+-export function classifyPoseLandmarks(landmarks) {
++export function classifyPoseLandmarks(landmarks, { view = 'front' } = {}) {
++  const secondarySet = view === 'side'
++    ? SECONDARY_SIDE_BODY_ANCHOR_SET
++    : SECONDARY_FRONT_BODY_ANCHOR_SET;
+   const list = Array.isArray(landmarks) ? landmarks : [];
+   const acceptedLandmarks = [];
+   const rejectedLandmarks = [];
+   const ignoredLandmarks = [];
+   let rejectedFace = 0;
+   let lowConfidence = 0;
+-  let coreFront = 0;
++  let core = 0;
+   let secondary = 0;
+   let ignoredNonCore = 0;
+ 
+   for (const landmark of list) {
+     const name = String(landmark?.name ?? '');
+-    const candidateClass = classifyBodyLandmarkCandidate(name);
++    const normalized = normalizeLandmarkName(name);
++
++    if (isCoreFrontBodyAnchor(name)) {
++      const score = asFiniteNumber(landmark?.score);
++      const isLowConfidence = score !== null && score < LOW_CONFIDENCE_THRESHOLD;
++      if (isLowConfidence) {
++        lowConfidence += 1;
++      }
++      core += 1;
++      acceptedLandmarks.push({
++        name,
++        imageX: asFiniteNumber(landmark?.x),
++        imageY: asFiniteNumber(landmark?.y),
++        score,
++        lowConfidence: isLowConfidence,
++        coreFront: true,
++        secondary: false,
++      });
++      continue;
++    }
+ 
+-    if (candidateClass.classification === 'rejected-face-head') {
++    if (isRejectedFaceHeadLandmark(name)) {
+       rejectedFace += 1;
+       rejectedLandmarks.push({
+         name,
+-        reason: candidateClass.reason,
++        reason: 'face-head-term',
+       });
+       continue;
+     }
+ 
+     const score = asFiniteNumber(landmark?.score);
+     const isLowConfidence = score !== null && score < LOW_CONFIDENCE_THRESHOLD;
+     if (isLowConfidence) {
+       lowConfidence += 1;
+     }
+ 
+-    const isCoreFront = candidateClass.classification === 'core';
+-    const isSecondary = candidateClass.classification === 'secondary';
+-    if (isCoreFront) {
+-      coreFront += 1;
+-    } else if (isSecondary) {
++    const isSecondary = secondarySet.has(normalized);
++    if (isSecondary) {
+       secondary += 1;
+     } else {
+       ignoredNonCore += 1;
+       ignoredLandmarks.push({
+         name,
+-        reason: candidateClass.reason,
++        reason: deferredLandmarkReason(normalized),
+       });
+     }
+ 
+     acceptedLandmarks.push({
+       name,
+       imageX: asFiniteNumber(landmark?.x),
+       imageY: asFiniteNumber(landmark?.y),
+       score,
+       lowConfidence: isLowConfidence,
+-      coreFront: isCoreFront,
++      coreFront: false,
+       secondary: isSecondary,
+     });
+   }
+ 
+   return {
+     total: list.length,
+     accepted: acceptedLandmarks.length,
+     rejectedFace,
+     lowConfidence,
+-    coreFront,
++    core,
+     secondary,
+     ignoredNonCore,
+     rejectedLandmarks,
+     ignoredLandmarks,
+     acceptedLandmarks,
+@@ -907,11 +947,11 @@ function emptyViewPose() {
+   return {
+     total: 0,
+     accepted: 0,
+     rejectedFace: 0,
+     lowConfidence: 0,
+-    coreFront: 0,
++    core: 0,
+     secondary: 0,
+     ignoredNonCore: 0,
+     rejectedLandmarks: [],
+     ignoredLandmarks: [],
+     acceptedLandmarks: [],
+@@ -958,12 +998,16 @@ export function analyzeBodyEvidence(sources = {}) {
+   } = sources;
+ 
+   const frontLandmarks = frontPose ? extractPoseLandmarks(frontPose) : [];
+   const sideLandmarks = sidePose ? extractPoseLandmarks(sidePose) : [];
+ 
+-  const frontPoseStats = frontPose ? classifyPoseLandmarks(frontLandmarks) : emptyViewPose();
+-  const sidePoseStats = sidePose ? classifyPoseLandmarks(sideLandmarks) : emptyViewPose();
++  const frontPoseStats = frontPose
++    ? classifyPoseLandmarks(frontLandmarks, { view: 'front' })
++    : emptyViewPose();
++  const sidePoseStats = sidePose
++    ? classifyPoseLandmarks(sideLandmarks, { view: 'side' })
++    : emptyViewPose();
+   const frontSegStats = frontSeg ? classifySegmentation(extractSegmentation(frontSeg)) : emptyViewSeg();
+   const sideSegStats = sideSeg ? classifySegmentation(extractSegmentation(sideSeg)) : emptyViewSeg();
+ 
+   const scale = createFixedBodyEvidenceScale();
+ 
+@@ -976,11 +1020,12 @@ export function analyzeBodyEvidence(sources = {}) {
+   const notes = [
+     'Body evidence is conceptual/mock data for QA only.',
+     'Face/head landmarks and segmentation classes are rejected from body counts.',
+     'Low-confidence body landmarks (score < 0.5) are counted but not rendered in v0.',
+     'Only the core 13 front body anchors are overlay-rendered as primary candidates.',
+-    `Secondary candidates are limited to the v0 allowlist: ${SECONDARY_FRONT_BODY_ANCHORS.join(', ')}.`,
++    `Secondary Front candidates are limited to the v0 allowlist: ${SECONDARY_FRONT_BODY_ANCHORS.join(', ')}.`,
++    `Secondary Side candidates are limited to the v0 allowlist: ${SECONDARY_SIDE_BODY_ANCHORS.join(', ')}.`,
+     'Hand/finger/thumb detail, dense contours, and unstable model extras are deferred QA-only in v0.',
+     `Scale uses fixed Body Evidence v0 assumption (${BODY_EVIDENCE_V0_SCALE.pixelsPerCm} px/cm, ${BODY_EVIDENCE_V0_SCALE.canvasSize}Ã—${BODY_EVIDENCE_V0_SCALE.canvasSize} canvas).`,
+     'heightCm is postponed / not used in v0.',
+   ];
+ 
+@@ -1008,20 +1053,32 @@ export function analyzeBodyEvidence(sources = {}) {
+       rejectedFaceLandmarks: frontPoseStats.rejectedFace + sidePoseStats.rejectedFace,
+       lowConfidenceLandmarks: frontPoseStats.lowConfidence + sidePoseStats.lowConfidence,
+       frontAcceptedCount: frontPoseStats.accepted,
+       sideAcceptedCount: sidePoseStats.accepted,
+       frontTotalLandmarks: frontPoseStats.total,
+-      renderableFrontLandmarks: frontPoseStats.coreFront,
++      frontCoreLandmarks: frontPoseStats.core,
++      sideCoreLandmarks: sidePoseStats.core,
++      renderableFrontLandmarks: frontPoseStats.core,
++      frontSecondaryLandmarks: frontPoseStats.secondary,
+       secondaryFrontLandmarks: frontPoseStats.secondary,
++      sideSecondaryLandmarks: sidePoseStats.secondary,
+       frontRejectedFaceLandmarks: frontPoseStats.rejectedFace,
++      sideRejectedFaceLandmarks: sidePoseStats.rejectedFace,
+       frontIgnoredNonCoreLandmarks: frontPoseStats.ignoredNonCore,
++      sideIgnoredNonCoreLandmarks: sidePoseStats.ignoredNonCore,
+       secondaryFrontLandmarkNames: frontPoseStats.acceptedLandmarks
+         .filter((landmark) => landmark.secondary)
+         .map((landmark) => landmark.name),
++      secondarySideLandmarkNames: sidePoseStats.acceptedLandmarks
++        .filter((landmark) => landmark.secondary)
++        .map((landmark) => landmark.name),
+       secondaryAllowlist: [...SECONDARY_FRONT_BODY_ANCHORS],
++      secondarySideAllowlist: [...SECONDARY_SIDE_BODY_ANCHORS],
+       ignoredFrontLandmarks: frontPoseStats.ignoredLandmarks.map((landmark) => ({ ...landmark })),
++      ignoredSideLandmarks: sidePoseStats.ignoredLandmarks.map((landmark) => ({ ...landmark })),
+       rejectedFrontLandmarks: frontPoseStats.rejectedLandmarks.map((landmark) => ({ ...landmark })),
++      rejectedSideLandmarks: sidePoseStats.rejectedLandmarks.map((landmark) => ({ ...landmark })),
+       ignoredNonCoreLandmarks: frontPoseStats.ignoredNonCore + sidePoseStats.ignoredNonCore,
+       segmentationClassCount: allClassNames.length,
+       rejectedSegmentationClasses: allRejectedClasses,
+       classNames: allClassNames,
+       classCounts: aggregateClassCounts([frontSegStats, sideSegStats]),
+diff --git a/src/features/sceneExport.js b/src/features/sceneExport.js
+index e49844a..a04eab6 100644
+--- a/src/features/sceneExport.js
++++ b/src/features/sceneExport.js
+@@ -118,10 +118,19 @@ export function downloadSceneStateJson(measurement) {
+   link.download = `revacity-scene-state-${formatExportFilenameTimestamp(exportedAt)}.json`;
+   link.click();
+   URL.revokeObjectURL(url);
+ }
+ 
++/** @type {object | null} */
++let sceneExportMeasurement = null;
++
++export function runExportSceneStateAction() {
++  if (!sceneExportMeasurement) {
++    return;
++  }
++  downloadSceneStateJson(sceneExportMeasurement);
++}
++
+ export function setupSceneExport(measurement) {
+-  exportSceneJsonBtn.addEventListener('click', () => {
+-    downloadSceneStateJson(measurement);
+-  });
++  sceneExportMeasurement = measurement;
++  exportSceneJsonBtn.addEventListener('click', runExportSceneStateAction);
+ }
+diff --git a/src/main.js b/src/main.js
+index 8234ed8..8ec5ca4 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -26,10 +26,11 @@ import { setupAnnotationControls } from './ui/annotationControls.js';
+ import { setupSceneExport } from './features/sceneExport.js';
+ import { setupSceneImport } from './features/sceneImport.js';
+ import { setupSceneGraphPanel } from './ui/sceneGraphPanel.js';
+ import { setupSessionTabs } from './ui/sessionTabs.js';
+ import { setupViewControls } from './ui/viewControls.js';
++import { setupAppMenuBar } from './ui/appMenuBar.js';
+ import { setupBodyEvidencePanel } from './ui/bodyEvidencePanel.js';
+ import { setupBodyTabConsolidatedPanel } from './ui/bodyTabConsolidatedPanel.js';
+ import { setupBodyEvidenceOverlay2d } from './ui/bodyEvidenceOverlay2d.js';
+ import { setupSideGrid2dNavigator } from './ui/sideGrid2dNavigator.js';
+ import { initCollapsibleSections } from './ui/collapsibleSections.js';
+@@ -89,10 +90,16 @@ setupBodyEvidenceOverlay2d(refreshGrid2dNavigator);
+ setupBodyEvidencePanel();
+ setupBodyTabConsolidatedPanel();
+ initCollapsibleSections();
+ setupBodyGraphWorkspace();
+ setupWorkspaceLayout();
++setupAppMenuBar({
++  measurement,
++  selectionHighlight,
++  referenceMarkers,
++  volumeGrid: internalVolumeGrid,
++});
+ 
+ window.addEventListener('resize', onResize);
+ 
+ function animate() {
+   requestAnimationFrame(animate);
+diff --git a/src/ui/bodyEvidencePanel.js b/src/ui/bodyEvidencePanel.js
+index af9c110..9cc3c08 100644
+--- a/src/ui/bodyEvidencePanel.js
++++ b/src/ui/bodyEvidencePanel.js
+@@ -1,14 +1,16 @@
+ /**
+  * Body Evidence panel (v0)
+  * Left Metrology Inspector â€” load/analyze/clear body-processing JSON.
++ * Tabbed workflow: Overview / Front / Side / Selection.
+  * Evidence UI only â€” does not mutate scene or measurement state.
+- * Compact summary counts render here; full QA name lists live in the Session
+- * Data Body tab (Advanced Evidence Details). Diagnostic JSON remains available
+- * via Download Body Evidence JSON.
++ * Compact summary counts render in Overview; full QA name lists live in the
++ * Session Data Body tab (Advanced Evidence Details). Diagnostic JSON remains
++ * available via Download Body Evidence JSON.
+  * Promote Selected Landmark creates a normal annotation via the shared
+  * annotation helper; Body Evidence evidence state is unchanged.
++ * Side remains U/Y evidence and is never promotable.
+  */
+ 
+ import {
+   analyzeLoadedBodyEvidence,
+   clearBodyEvidence,
+@@ -20,22 +22,14 @@ import {
+   getBodyEvidenceScaleInfo,
+   getSelectedBodyEvidenceLandmark,
+   getSelectedSideEvidenceLandmark,
+   hasAnalyzedBodyEvidence,
+   hasAnyBodyEvidenceSource,
+-  isBodyEvidenceOverlayVisible,
+   isBodyLandmarkPromoted,
+-  isSecondaryBodyEvidenceVisible,
+-  isSelectedBodyEvidenceLandmark,
+-  isSelectedSideEvidenceLandmark,
+-  isSideBodyEvidenceVisible,
+   promoteSelectedBodyEvidenceLandmark,
+   selectBodyEvidenceLandmark,
+   selectSideEvidenceLandmark,
+-  setBodyEvidenceOverlayVisible,
+-  setSecondaryBodyEvidenceVisible,
+-  setSideBodyEvidenceVisible,
+   setFrontPoseSource,
+   setFrontSegSource,
+   setSidePoseSource,
+   setSideSegSource,
+   subscribeBodyEvidenceChange,
+@@ -47,31 +41,33 @@ import {
+   getFrontOverlayLandmarks,
+   getSecondaryCandidateLandmarkCount,
+   getSecondaryCandidateLandmarks,
+ } from './bodyEvidenceOverlay2d.js';
+ import {
+-  getSideCandidateLandmarkCount,
+   getSideCandidateLandmarks,
+ } from './bodyEvidenceOverlaySide2d.js';
++import { renderEvidenceCandidateList } from './bodyEvidenceCandidateList.js';
++import { focusBodyEvidenceWorkflow } from './inspectorWorkflow.js';
++import { getViewSetting, VIEW_SETTING_IDS } from './viewControls.js';
+ import {
+   analyzeBodyEvidenceBtn,
+   bodyEvidenceAnalysisStatusEl,
+-  bodyEvidenceCandidatesEl,
++  bodyEvidenceFrontCandidatesEl,
++  bodyEvidenceFrontListCountEl,
++  bodyEvidenceFrontListLabelEl,
+   bodyEvidenceIgnoredCountEl,
+   bodyEvidenceOverlayCountEl,
+   bodyEvidenceOverlayScaleEl,
+   bodyEvidencePromoteStatusEl,
+   bodyEvidenceRejectedCountEl,
+-  bodyEvidenceSecondaryCandidatesGroupEl,
+-  bodyEvidenceSecondaryCandidatesCountEl,
+-  bodyEvidenceSecondaryCandidatesEl,
+   bodyEvidenceSecondaryCountEl,
+   bodyEvidenceSelectedEl,
+-  bodyEvidenceSideCandidatesCountEl,
+   bodyEvidenceSideCandidatesEl,
+-  bodyEvidenceSideCandidatesGroupEl,
+   bodyEvidenceSideCountEl,
++  bodyEvidenceSideListCountEl,
++  bodyEvidenceSideListLabelEl,
++  bodyEvidenceSideSecondaryCountEl,
+   bodyEvidenceSourceSummaryEl,
+   bodyEvidenceStatusEl,
+   clearBodyEvidenceBtn,
+   clearBodyLandmarkSelectionBtn,
+   downloadBodyEvidenceJsonBtn,
+@@ -80,13 +76,25 @@ import {
+   loadSidePoseJsonInput,
+   loadSideSegJsonInput,
+   promoteSelectedBodyLandmarkBtn,
+   showBodyEvidenceOverlayCheckbox,
+   showSecondaryBodyCandidatesCheckbox,
+-  showSideBodyCandidatesCheckbox,
++  showSideCoreCheckbox,
++  showSideSecondaryCheckbox,
+ } from './domRefs.js';
+ 
++const BODY_EVIDENCE_TABS = Object.freeze(['overview', 'front', 'side', 'selection']);
++const CANDIDATE_LAYERS = Object.freeze(['core', 'secondary']);
++
++/** @type {'overview'|'front'|'side'|'selection'} */
++let activeBodyEvidenceTab = 'overview';
++/** @type {'core'|'secondary'} */
++let frontCandidateLayer = 'core';
++/** @type {'core'|'secondary'} */
++let sideCandidateLayer = 'core';
++let lastSelectionKey = '';
++
+ function escapeHtml(value) {
+   return String(value ?? '')
+     .replaceAll('&', '&amp;')
+     .replaceAll('<', '&lt;')
+     .replaceAll('>', '&gt;')
+@@ -189,37 +197,122 @@ function setSummaryValue(el, html, title = '') {
+   } else {
+     el.removeAttribute('title');
+   }
+ }
+ 
++function currentSelectionKey() {
++  const selectedFront = getSelectedBodyEvidenceLandmark();
++  if (selectedFront) {
++    return `front:${selectedFront.id}`;
++  }
++  const selectedSide = getSelectedSideEvidenceLandmark();
++  if (selectedSide) {
++    return `side:${selectedSide.id}`;
++  }
++  return '';
++}
++
++function syncTabUi() {
++  document.querySelectorAll('[data-body-evidence-tab]').forEach((button) => {
++    const selected = button.dataset.bodyEvidenceTab === activeBodyEvidenceTab;
++    button.classList.toggle('is-active', selected);
++    button.setAttribute('aria-selected', selected ? 'true' : 'false');
++    button.tabIndex = selected ? 0 : -1;
++  });
++  document.querySelectorAll('[data-body-evidence-panel]').forEach((panel) => {
++    panel.hidden = panel.dataset.bodyEvidencePanel !== activeBodyEvidenceTab;
++  });
++}
++
++function syncLayerUi(source) {
++  const layer = source === 'side' ? sideCandidateLayer : frontCandidateLayer;
++  document.querySelectorAll(
++    `[data-body-evidence-source="${source}"][data-body-evidence-layer]`,
++  ).forEach((button) => {
++    const pressed = button.dataset.bodyEvidenceLayer === layer;
++    button.classList.toggle('is-active', pressed);
++    button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
++  });
++}
++
++export function setBodyEvidencePanelTab(tab) {
++  if (!BODY_EVIDENCE_TABS.includes(tab)) {
++    return;
++  }
++  activeBodyEvidenceTab = tab;
++  syncTabUi();
++}
++
++export function setBodyEvidenceCandidateLayer(source, layer) {
++  if (layer !== 'core' && layer !== 'secondary') {
++    return;
++  }
++  if (source === 'front') {
++    frontCandidateLayer = layer;
++  } else if (source === 'side') {
++    sideCandidateLayer = layer;
++  } else {
++    return;
++  }
++  syncLayerUi(source);
++  refreshCandidateLists();
++}
++
++function maybeFocusSelectionTab() {
++  const key = currentSelectionKey();
++  if (key && key !== lastSelectionKey) {
++    setBodyEvidencePanelTab('selection');
++  }
++  lastSelectionKey = key;
++}
++
+ function syncOverlayControls() {
+   const analyzed = hasAnalyzedBodyEvidence();
+   const count = analyzed ? getFrontOverlayLandmarkCount() : 0;
+   const secondaryCount = analyzed ? getSecondaryCandidateLandmarkCount() : 0;
+-  const sideCount = analyzed ? getSideCandidateLandmarkCount() : 0;
++  const sideCoreCount = analyzed ? getSideCandidateLandmarks({ layer: 'core' }).length : 0;
++  const sideSecondaryCount = analyzed ? getSideCandidateLandmarks({ layer: 'secondary' }).length : 0;
+   const qa = getBodyEvidenceQa();
+ 
++  const frontCore = getViewSetting(VIEW_SETTING_IDS.FRONT_CORE);
++  const frontSecondary = getViewSetting(VIEW_SETTING_IDS.FRONT_SECONDARY);
++  const sideCore = getViewSetting(VIEW_SETTING_IDS.SIDE_CORE);
++  const sideSecondary = getViewSetting(VIEW_SETTING_IDS.SIDE_SECONDARY);
++
+   if (showBodyEvidenceOverlayCheckbox) {
+-    showBodyEvidenceOverlayCheckbox.checked = isBodyEvidenceOverlayVisible();
+-    showBodyEvidenceOverlayCheckbox.disabled = !analyzed || count === 0;
++    showBodyEvidenceOverlayCheckbox.checked = frontCore.checked;
++    showBodyEvidenceOverlayCheckbox.disabled = frontCore.disabled;
++    showBodyEvidenceOverlayCheckbox.setAttribute(
++      'aria-disabled',
++      frontCore.disabled ? 'true' : 'false',
++    );
+   }
+ 
+   if (showSecondaryBodyCandidatesCheckbox) {
+-    showSecondaryBodyCandidatesCheckbox.checked = isSecondaryBodyEvidenceVisible();
+-    showSecondaryBodyCandidatesCheckbox.disabled = !analyzed || secondaryCount === 0;
++    showSecondaryBodyCandidatesCheckbox.checked = frontSecondary.checked;
++    showSecondaryBodyCandidatesCheckbox.disabled = frontSecondary.disabled;
+     showSecondaryBodyCandidatesCheckbox.setAttribute(
+       'aria-disabled',
+-      showSecondaryBodyCandidatesCheckbox.disabled ? 'true' : 'false',
++      frontSecondary.disabled ? 'true' : 'false',
++    );
++  }
++
++  if (showSideCoreCheckbox) {
++    showSideCoreCheckbox.checked = sideCore.checked;
++    showSideCoreCheckbox.disabled = sideCore.disabled;
++    showSideCoreCheckbox.setAttribute(
++      'aria-disabled',
++      sideCore.disabled ? 'true' : 'false',
+     );
+   }
+ 
+-  if (showSideBodyCandidatesCheckbox) {
+-    showSideBodyCandidatesCheckbox.checked = isSideBodyEvidenceVisible();
+-    showSideBodyCandidatesCheckbox.disabled = !analyzed || sideCount === 0;
+-    showSideBodyCandidatesCheckbox.setAttribute(
++  if (showSideSecondaryCheckbox) {
++    showSideSecondaryCheckbox.checked = sideSecondary.checked;
++    showSideSecondaryCheckbox.disabled = sideSecondary.disabled;
++    showSideSecondaryCheckbox.setAttribute(
+       'aria-disabled',
+-      showSideBodyCandidatesCheckbox.disabled ? 'true' : 'false',
++      sideSecondary.disabled ? 'true' : 'false',
+     );
+   }
+ 
+   if (bodyEvidenceOverlayCountEl) {
+     const label = analyzed ? `${count} / 13` : '0 / 13';
+@@ -229,17 +322,20 @@ function syncOverlayControls() {
+ 
+   if (bodyEvidenceSecondaryCountEl) {
+     bodyEvidenceSecondaryCountEl.textContent = String(secondaryCount);
+   }
+   if (bodyEvidenceSideCountEl) {
+-    bodyEvidenceSideCountEl.textContent = String(sideCount);
++    bodyEvidenceSideCountEl.textContent = String(sideCoreCount);
++  }
++  if (bodyEvidenceSideSecondaryCountEl) {
++    bodyEvidenceSideSecondaryCountEl.textContent = String(sideSecondaryCount);
+   }
+   if (bodyEvidenceRejectedCountEl) {
+-    bodyEvidenceRejectedCountEl.textContent = String(qa?.qa?.frontRejectedFaceLandmarks ?? 0);
++    bodyEvidenceRejectedCountEl.textContent = String(qa?.qa?.rejectedFaceLandmarks ?? 0);
+   }
+   if (bodyEvidenceIgnoredCountEl) {
+-    bodyEvidenceIgnoredCountEl.textContent = String(qa?.qa?.frontIgnoredNonCoreLandmarks ?? 0);
++    bodyEvidenceIgnoredCountEl.textContent = String(qa?.qa?.ignoredNonCoreLandmarks ?? 0);
+   }
+ 
+   if (bodyEvidenceOverlayScaleEl) {
+     if (!analyzed) {
+       setSummaryValue(bodyEvidenceOverlayScaleEl, renderBadge('â€”', 'muted'), 'Scale not analyzed');
+@@ -307,159 +403,25 @@ function syncClearSelectionButton() {
+ 
+ function syncPromoteButton() {
+   if (!promoteSelectedBodyLandmarkBtn) {
+     return;
+   }
+-  // Promote is Front-only. Side selection must never enable Promote.
++  // Promote is Front-only. Side selection must never show or enable Promote.
+   const hasFrontSelection = getSelectedBodyEvidenceLandmark() != null;
++  promoteSelectedBodyLandmarkBtn.hidden = !hasFrontSelection;
+   promoteSelectedBodyLandmarkBtn.disabled = !hasFrontSelection;
+   promoteSelectedBodyLandmarkBtn.setAttribute('aria-disabled', hasFrontSelection ? 'false' : 'true');
+ }
+ 
+-/**
+- * Candidate rows use the same mapped front overlay landmarks as 2D markers,
+- * so row selection and marker selection share one inspect id/state.
+- */
+-function renderCandidateRow(landmark) {
+-  const selected = isSelectedBodyEvidenceLandmark(landmark.id);
+-  const promoted = isBodyLandmarkPromoted(landmark.name);
+-  const displayName = formatLandmarkDisplayName(landmark.name) || landmark.name;
+-  const scoreLabel = formatScore(landmark.score);
+-  const scoreBadge = scoreLabel === 'n/a'
+-    ? ''
+-    : `<span class="body-evidence-candidate-score">${renderBadge(
+-      scoreLabel,
+-      landmark.lowConfidence ? 'warn' : 'ok',
+-      `Score / confidence: ${scoreLabel}${landmark.lowConfidence ? ' (low)' : ''}`,
+-    )}</span>`;
+-  const promotedBadge = promoted
+-    ? `<span class="body-evidence-candidate-promoted">${renderBadge('Promoted', 'ok', 'Already promoted to a body_landmark annotation')}</span>`
+-    : '';
+-  const coords = `X ${formatCmValue(landmark.spaceX)} / Y ${formatCmValue(landmark.spaceY)}`;
+-  const candidateTypeClass = landmark.candidateType === 'secondary'
+-    ? ' body-evidence-candidate-row--secondary'
+-    : '';
+-  const rowClass = selected
+-    ? `body-evidence-candidate-row${candidateTypeClass} is-selected`
+-    : `body-evidence-candidate-row${candidateTypeClass}`;
+-
+-  return (
+-    `<button type="button" class="${rowClass}" role="option"`
+-    + ` data-body-evidence-id="${escapeHtml(landmark.id)}"`
+-    + ` aria-selected="${selected ? 'true' : 'false'}"`
+-    + ` title="${escapeHtml(`${landmark.name} Â· ${coords}`)}">`
+-    + `<span class="body-evidence-candidate-main">`
+-    + `<span class="body-evidence-candidate-name">${escapeHtml(displayName)}</span>`
+-    + `<span class="body-evidence-candidate-coords">${escapeHtml(coords)}</span>`
+-    + `</span>`
+-    + `<span class="body-evidence-candidate-meta">`
+-    + scoreBadge
+-    + promotedBadge
+-    + `</span>`
+-    + `</button>`
+-  );
+-}
+-
+-function renderCandidateList() {
+-  if (!bodyEvidenceCandidatesEl) {
+-    return;
+-  }
+-
+-  const landmarks = hasAnalyzedBodyEvidence() ? getFrontOverlayLandmarks() : [];
+-  if (landmarks.length === 0) {
+-    bodyEvidenceCandidatesEl.innerHTML = (
+-      '<p class="body-evidence-candidates-empty">No front body landmark candidates.</p>'
+-    );
+-    return;
+-  }
+-
+-  bodyEvidenceCandidatesEl.innerHTML = landmarks.map(renderCandidateRow).join('');
+-}
+-
+-function renderSideCandidateRow(landmark) {
+-  const selected = isSelectedSideEvidenceLandmark(landmark.id);
+-  const displayName = formatLandmarkDisplayName(landmark.name) || landmark.name;
+-  const scoreLabel = formatScore(landmark.score);
+-  const scoreBadge = scoreLabel === 'n/a'
+-    ? ''
+-    : `<span class="body-evidence-candidate-score">${renderBadge(
+-      scoreLabel,
+-      landmark.lowConfidence ? 'warn' : 'ok',
+-      `Score / confidence: ${scoreLabel}${landmark.lowConfidence ? ' (low)' : ''}`,
+-    )}</span>`;
+-  const coords = `U ${formatCmValue(landmark.sideUcm)} / Y ${formatCmValue(landmark.sideYcm)}`;
+-  const rowClass = selected
+-    ? 'body-evidence-candidate-row body-evidence-candidate-row--side is-selected'
+-    : 'body-evidence-candidate-row body-evidence-candidate-row--side';
+-
+-  return (
+-    `<button type="button" class="${rowClass}" role="option"`
+-    + ` data-body-evidence-id="${escapeHtml(landmark.id)}"`
+-    + ` data-body-evidence-view="side"`
+-    + ` aria-selected="${selected ? 'true' : 'false'}"`
+-    + ` title="${escapeHtml(`${landmark.name} Â· ${coords} Â· Side (no promote)`)}">`
+-    + `<span class="body-evidence-candidate-main">`
+-    + `<span class="body-evidence-candidate-name">${escapeHtml(displayName)}</span>`
+-    + `<span class="body-evidence-candidate-coords">${escapeHtml(coords)}</span>`
+-    + `</span>`
+-    + `<span class="body-evidence-candidate-meta">`
+-    + scoreBadge
+-    + `<span class="body-evidence-candidate-promoted">${renderBadge('Side', 'muted', 'Evidence only â€” not promotable')}</span>`
+-    + `</span>`
+-    + `</button>`
+-  );
+-}
+-
+-function renderSideCandidateList() {
+-  if (!bodyEvidenceSideCandidatesEl) {
+-    return;
+-  }
+-
+-  const analyzed = hasAnalyzedBodyEvidence();
+-  const landmarks = analyzed ? getSideCandidateLandmarks() : [];
+-
+-  if (bodyEvidenceSideCandidatesCountEl) {
+-    bodyEvidenceSideCandidatesCountEl.textContent = String(landmarks.length);
+-  }
+-  if (bodyEvidenceSideCandidatesGroupEl) {
+-    bodyEvidenceSideCandidatesGroupEl.hidden = false;
+-  }
+-
+-  if (landmarks.length === 0) {
+-    bodyEvidenceSideCandidatesEl.innerHTML = (
+-      '<p class="body-evidence-candidates-empty">No side body landmark candidates.</p>'
+-    );
+-    return;
+-  }
+-
+-  bodyEvidenceSideCandidatesEl.innerHTML = landmarks.map(renderSideCandidateRow).join('');
+-}
+-
+-function renderSecondaryCandidateList() {
+-  if (!bodyEvidenceSecondaryCandidatesEl) {
+-    return;
+-  }
+-
+-  const analyzed = hasAnalyzedBodyEvidence();
+-  const landmarks = analyzed ? getSecondaryCandidateLandmarks() : [];
+-  const visible = isSecondaryBodyEvidenceVisible();
+-
+-  if (bodyEvidenceSecondaryCandidatesGroupEl) {
+-    bodyEvidenceSecondaryCandidatesGroupEl.hidden = analyzed && landmarks.length > 0 && !visible;
+-  }
+-  if (bodyEvidenceSecondaryCandidatesCountEl) {
+-    bodyEvidenceSecondaryCandidatesCountEl.textContent = String(landmarks.length);
+-  }
+-
+-  if (landmarks.length === 0) {
+-    bodyEvidenceSecondaryCandidatesEl.innerHTML = (
+-      '<p class="body-evidence-candidates-empty">No secondary body candidates found.</p>'
+-    );
+-    return;
++function promotedNamesFor(landmarks) {
++  const names = new Set();
++  for (const landmark of landmarks) {
++    if (isBodyLandmarkPromoted(landmark.name)) {
++      names.add(landmark.name);
++    }
+   }
+-
+-  bodyEvidenceSecondaryCandidatesEl.innerHTML = landmarks.map(renderCandidateRow).join('');
++  return names;
+ }
+ 
+ function findCandidateLandmarkById(landmarkId) {
+   return getFrontOverlayLandmarks().find((entry) => entry.id === landmarkId)
+     ?? getSecondaryCandidateLandmarks().find((entry) => entry.id === landmarkId)
+@@ -468,53 +430,80 @@ function findCandidateLandmarkById(landmarkId) {
+ 
+ function findSideCandidateLandmarkById(landmarkId) {
+   return getSideCandidateLandmarks().find((entry) => entry.id === landmarkId) ?? null;
+ }
+ 
+-function onCandidateListClick(event) {
+-  const row = event.target.closest('.body-evidence-candidate-row');
+-  if (!row) {
+-    return;
++function resolveCandidateType(selected, source) {
++  if (selected?.candidateType === 'secondary' || selected?.candidateType === 'core') {
++    return selected.candidateType;
+   }
++  const found = source === 'side'
++    ? findSideCandidateLandmarkById(selected?.id)
++    : findCandidateLandmarkById(selected?.id);
++  return found?.candidateType === 'secondary' ? 'secondary' : 'core';
++}
+ 
+-  const landmarkId = row.dataset.bodyEvidenceId;
+-  if (!landmarkId) {
+-    return;
+-  }
++function onFrontCandidateSelect(landmark) {
++  clearSideEvidenceSelection();
++  selectBodyEvidenceLandmark(landmark);
++  setBodyEvidencePanelTab('selection');
++}
+ 
+-  event.preventDefault();
++function onSideCandidateSelect(landmark) {
++  clearBodyEvidenceSelection();
++  selectSideEvidenceLandmark(landmark);
++  setBodyEvidencePanelTab('selection');
++}
+ 
+-  if (row.dataset.bodyEvidenceView === 'side'
+-    || bodyEvidenceSideCandidatesEl?.contains(row)) {
+-    const landmark = findSideCandidateLandmarkById(landmarkId);
+-    if (!landmark) {
+-      return;
+-    }
+-    clearBodyEvidenceSelection();
+-    selectSideEvidenceLandmark(landmark);
+-    return;
+-  }
++function refreshCandidateLists() {
++  const analyzed = hasAnalyzedBodyEvidence();
++  const selectedFront = getSelectedBodyEvidenceLandmark();
++  const selectedSide = getSelectedSideEvidenceLandmark();
+ 
+-  const inCoreList = Boolean(bodyEvidenceCandidatesEl?.contains(row));
+-  const inSecondaryList = Boolean(bodyEvidenceSecondaryCandidatesEl?.contains(row));
+-  if (!inCoreList && !inSecondaryList) {
+-    return;
++  const frontLandmarks = !analyzed
++    ? []
++    : (frontCandidateLayer === 'secondary'
++      ? getSecondaryCandidateLandmarks()
++      : getFrontOverlayLandmarks());
++  if (bodyEvidenceFrontListLabelEl) {
++    bodyEvidenceFrontListLabelEl.textContent = (
++      frontCandidateLayer === 'secondary' ? 'Front Secondary' : 'Front Core'
++    );
+   }
++  if (bodyEvidenceFrontListCountEl) {
++    bodyEvidenceFrontListCountEl.textContent = String(frontLandmarks.length);
++  }
++  renderEvidenceCandidateList({
++    container: bodyEvidenceFrontCandidatesEl,
++    landmarks: frontLandmarks,
++    source: 'front',
++    selectedId: selectedFront?.id ?? null,
++    promotedNames: promotedNamesFor(frontLandmarks),
++    onSelect: onFrontCandidateSelect,
++    layer: frontCandidateLayer,
++  });
+ 
+-  const landmark = findCandidateLandmarkById(landmarkId);
+-  if (!landmark) {
+-    return;
++  const sideLandmarks = analyzed
++    ? getSideCandidateLandmarks({ layer: sideCandidateLayer })
++    : [];
++  if (bodyEvidenceSideListLabelEl) {
++    bodyEvidenceSideListLabelEl.textContent = (
++      sideCandidateLayer === 'secondary' ? 'Side Secondary' : 'Side Core'
++    );
+   }
+-
+-  clearSideEvidenceSelection();
+-  selectBodyEvidenceLandmark(landmark);
+-}
+-
+-function refreshCandidateLists() {
+-  renderCandidateList();
+-  renderSecondaryCandidateList();
+-  renderSideCandidateList();
++  if (bodyEvidenceSideListCountEl) {
++    bodyEvidenceSideListCountEl.textContent = String(sideLandmarks.length);
++  }
++  renderEvidenceCandidateList({
++    container: bodyEvidenceSideCandidatesEl,
++    landmarks: sideLandmarks,
++    source: 'side',
++    selectedId: selectedSide?.id ?? null,
++    promotedNames: new Set(),
++    onSelect: onSideCandidateSelect,
++    layer: sideCandidateLayer,
++  });
+ }
+ 
+ function renderCoordCell(axisLabel, value) {
+   return (
+     `<div class="body-evidence-coord-cell">`
+@@ -542,40 +531,48 @@ function renderSelectedLandmark() {
+ 
+   if (selectedFront) {
+     const promoted = isBodyLandmarkPromoted(selectedFront.name);
+     const displayName = formatLandmarkDisplayName(selectedFront.name) || selectedFront.name;
+     const scoreLabel = formatScore(selectedFront.score);
++    const candidateType = resolveCandidateType(selectedFront, 'front');
++    const typeLabel = candidateType === 'secondary' ? 'Secondary' : 'Core';
+     const promotedBadge = renderBadge(
+       promoted ? 'Promoted' : 'Not promoted',
+       promoted ? 'ok' : 'muted',
+     );
+ 
+     bodyEvidenceSelectedEl.innerHTML = (
+       `<div class="body-evidence-inspect-header">`
+       + `<div class="body-evidence-inspect-name" title="${escapeHtml(selectedFront.name)}">${escapeHtml(displayName)}</div>`
+       + `<div class="body-evidence-inspect-header-badges">`
+       + `${renderBadge('Front', 'ok')}`
+-      + `${renderBadge(scoreLabel, 'ok')}`
++      + `${renderBadge(typeLabel, candidateType === 'secondary' ? 'muted' : 'ok')}`
++      + `${renderBadge(scoreLabel, 'ok', 'Confidence')}`
+       + `${promotedBadge}`
+       + `</div>`
+       + `</div>`
+       + `<div class="body-evidence-coord-grid">`
+       + renderCoordCell('X', `${formatCmValue(selectedFront.spaceX)} cm`)
+       + renderCoordCell('Y', `${formatCmValue(selectedFront.spaceY)} cm`)
+       + `</div>`
+     );
+   } else {
++    // Side is evidence-only â€” never show Front promote feedback on Selection.
++    hidePromoteStatus();
++
+     const displayName = formatLandmarkDisplayName(selectedSide.name) || selectedSide.name;
+     const scoreLabel = formatScore(selectedSide.score);
++    const candidateType = resolveCandidateType(selectedSide, 'side');
++    const typeLabel = candidateType === 'secondary' ? 'Secondary' : 'Core';
+ 
+     bodyEvidenceSelectedEl.innerHTML = (
+       `<div class="body-evidence-inspect-header">`
+       + `<div class="body-evidence-inspect-name" title="${escapeHtml(selectedSide.name)}">${escapeHtml(displayName)}</div>`
+       + `<div class="body-evidence-inspect-header-badges">`
+       + `${renderBadge('Side', 'muted')}`
+-      + `${renderBadge(scoreLabel, 'ok')}`
+-      + `${renderBadge('No promote', 'muted')}`
++      + `${renderBadge(typeLabel, candidateType === 'secondary' ? 'muted' : 'ok')}`
++      + `${renderBadge(scoreLabel, 'ok', 'Confidence')}`
+       + `</div>`
+       + `</div>`
+       + `<div class="body-evidence-coord-grid">`
+       + renderCoordCell('U', `${formatCmValue(selectedSide.sideUcm)} cm`)
+       + renderCoordCell('Y', `${formatCmValue(selectedSide.sideYcm)} cm`)
+@@ -624,11 +621,27 @@ function wireFileInput(input, setter, label) {
+       showStatus(message, 'error');
+     }
+   });
+ }
+ 
+-function onAnalyze() {
++export function openFrontPoseFilePicker() {
++  loadFrontPoseJsonInput?.click();
++}
++
++export function openSidePoseFilePicker() {
++  loadSidePoseJsonInput?.click();
++}
++
++export function openFrontSegFilePicker() {
++  loadFrontSegJsonInput?.click();
++}
++
++export function openSideSegFilePicker() {
++  loadSideSegJsonInput?.click();
++}
++
++export function runAnalyzeBodyEvidenceAction() {
+   const { ok, error } = analyzeLoadedBodyEvidence();
+   if (!ok) {
+     showStatus(error ?? getBodyEvidenceError() ?? 'Analyze failed.', 'error');
+     syncDownloadButton();
+     syncOverlayControls();
+@@ -642,11 +655,11 @@ function onAnalyze() {
+   refreshCandidateLists();
+   renderSelectedLandmark();
+   showStatus('Body evidence analyzed.', 'ok');
+ }
+ 
+-function onClear() {
++export function runClearBodyEvidenceAction() {
+   clearBodyEvidence();
+   syncDownloadButton();
+   syncOverlayControls();
+   refreshCandidateLists();
+   renderSelectedLandmark();
+@@ -661,11 +674,11 @@ function onClearSelection() {
+   hidePromoteStatus();
+   refreshCandidateLists();
+   renderSelectedLandmark();
+ }
+ 
+-function onPromoteSelected() {
++export function runPromoteFrontEvidenceAction() {
+   const { ok, alreadyPromoted, message } = promoteSelectedBodyEvidenceLandmark();
+   if (ok) {
+     showStatus(message || 'Promoted to annotation.', 'ok');
+     showPromoteStatus(message || 'Promoted to annotation.', 'ok');
+   } else if (alreadyPromoted) {
+@@ -678,63 +691,91 @@ function onPromoteSelected() {
+   // Keep selection; refresh badges. Annotation list / Scene Graph refresh via addAnnotation.
+   refreshCandidateLists();
+   renderSelectedLandmark();
+ }
+ 
+-function onToggleOverlay() {
+-  setBodyEvidenceOverlayVisible(Boolean(showBodyEvidenceOverlayCheckbox?.checked));
+-  syncOverlayControls();
++export function runDownloadBodyEvidenceAction() {
++  const { ok, error } = downloadBodyEvidenceJson();
++  if (!ok) {
++    showStatus(error ?? 'Download failed.', 'error');
++    syncDownloadButton();
++    return;
++  }
++  showStatus('Body Evidence JSON downloaded.', 'ok');
+ }
+ 
+-function onToggleSecondaryCandidates() {
+-  setSecondaryBodyEvidenceVisible(Boolean(showSecondaryBodyCandidatesCheckbox?.checked));
++/**
++ * Focus Body Evidence workflow and switch to the requested internal tab.
++ * @param {'overview'|'front'|'side'|'selection'} tab
++ */
++export function focusBodyEvidenceTab(tab) {
++  if (!BODY_EVIDENCE_TABS.includes(tab)) {
++    return;
++  }
++  setBodyEvidencePanelTab(tab);
++  focusBodyEvidenceWorkflow();
+ }
+ 
+-function onToggleSideCandidates() {
+-  setSideBodyEvidenceVisible(Boolean(showSideBodyCandidatesCheckbox?.checked));
++export function getBodyEvidencePanelTab() {
++  return activeBodyEvidenceTab;
+ }
+ 
+-function onDownload() {
+-  const { ok, error } = downloadBodyEvidenceJson();
+-  if (!ok) {
+-    showStatus(error ?? 'Download failed.', 'error');
+-    syncDownloadButton();
++function onTabButtonClick(event) {
++  const tab = event.currentTarget?.dataset?.bodyEvidenceTab;
++  setBodyEvidencePanelTab(tab);
++}
++
++function onLayerButtonClick(event) {
++  const source = event.currentTarget?.dataset?.bodyEvidenceSource;
++  const layer = event.currentTarget?.dataset?.bodyEvidenceLayer;
++  if (!CANDIDATE_LAYERS.includes(layer)) {
+     return;
+   }
+-  showStatus('Body Evidence JSON downloaded.', 'ok');
++  setBodyEvidenceCandidateLayer(source, layer);
+ }
+ 
+ export function setupBodyEvidencePanel() {
+   wireFileInput(loadFrontPoseJsonInput, setFrontPoseSource, 'Front Pose JSON');
+   wireFileInput(loadSidePoseJsonInput, setSidePoseSource, 'Side Pose JSON');
+   wireFileInput(loadFrontSegJsonInput, setFrontSegSource, 'Front Seg JSON');
+   wireFileInput(loadSideSegJsonInput, setSideSegSource, 'Side Seg JSON');
+ 
+-  analyzeBodyEvidenceBtn?.addEventListener('click', onAnalyze);
+-  clearBodyEvidenceBtn?.addEventListener('click', onClear);
++  analyzeBodyEvidenceBtn?.addEventListener('click', runAnalyzeBodyEvidenceAction);
++  clearBodyEvidenceBtn?.addEventListener('click', runClearBodyEvidenceAction);
+   clearBodyLandmarkSelectionBtn?.addEventListener('click', onClearSelection);
+-  promoteSelectedBodyLandmarkBtn?.addEventListener('click', onPromoteSelected);
+-  downloadBodyEvidenceJsonBtn?.addEventListener('click', onDownload);
+-  showBodyEvidenceOverlayCheckbox?.addEventListener('change', onToggleOverlay);
+-  showSecondaryBodyCandidatesCheckbox?.addEventListener('change', onToggleSecondaryCandidates);
+-  showSideBodyCandidatesCheckbox?.addEventListener('change', onToggleSideCandidates);
+-  bodyEvidenceCandidatesEl?.addEventListener('click', onCandidateListClick);
+-  bodyEvidenceSecondaryCandidatesEl?.addEventListener('click', onCandidateListClick);
+-  bodyEvidenceSideCandidatesEl?.addEventListener('click', onCandidateListClick);
++  promoteSelectedBodyLandmarkBtn?.addEventListener('click', runPromoteFrontEvidenceAction);
++  downloadBodyEvidenceJsonBtn?.addEventListener('click', runDownloadBodyEvidenceAction);
++
++  document.querySelectorAll('[data-body-evidence-tab]').forEach((button) => {
++    button.addEventListener('click', onTabButtonClick);
++  });
++  document.querySelectorAll('[data-body-evidence-layer]').forEach((button) => {
++    button.addEventListener('click', onLayerButtonClick);
++  });
++
++  document.addEventListener('body-evidence-selection-focus', () => {
++    setBodyEvidencePanelTab('selection');
++  });
++
++  lastSelectionKey = currentSelectionKey();
+ 
+   subscribeBodyEvidenceChange(() => {
+     refreshCandidateLists();
+     renderSelectedLandmark();
+     syncOverlayControls();
++    maybeFocusSelectionTab();
+   });
+ 
+   // Keep Promoted badges in sync when annotations are added/deleted elsewhere.
+   subscribeAnnotationsChange(() => {
+     refreshCandidateLists();
+     renderSelectedLandmark();
+   });
+ 
++  syncTabUi();
++  syncLayerUi('front');
++  syncLayerUi('side');
+   syncDownloadButton();
+   syncOverlayControls();
+   refreshCandidateLists();
+   renderSelectedLandmark();
+   hidePromoteStatus();
+diff --git a/src/ui/bodyTabConsolidatedPanel.js b/src/ui/bodyTabConsolidatedPanel.js
+index fd37139..09690a0 100644
+--- a/src/ui/bodyTabConsolidatedPanel.js
++++ b/src/ui/bodyTabConsolidatedPanel.js
+@@ -1,16 +1,16 @@
+ /**
+  * Body Tab Consolidation v0 (Session Data â†’ Body).
+  *
+  * Compact read-only layout:
+- * 1. Body Evidence Status (+ collapsed Advanced Evidence Details)
+- * 2. Promoted Body Anchors (table)
+- * 3. Body Measurement Readiness (audit summary + measurement candidates)
++ * 1. Body Evidence Status (loaded chips + per-view QA totals, Advanced Details)
++ * 2. Promoted Body Anchors (annotation-only table)
++ * 3. Body Measurement Readiness (annotation-only audit + six candidates)
+  *
+  * Reuses existing compute helpers. Does not mutate Body Evidence, annotations,
+  * measurements, or export/import schema. Does not write readiness distances
+- * into measurement history.
++ * into measurement history. Promoted/readiness stay annotation-only.
+  */
+ 
+ import { formatCoordinate, formatDistance } from '../core/formatters.js';
+ import { formatLandmarkDisplayName } from '../core/landmarkDisplay.js';
+ import {
+@@ -84,16 +84,10 @@ function formatAnchorList(names) {
+     return 'None';
+   }
+   return names.map(formatAnchorLabel).join(', ');
+ }
+ 
+-function countLoadedFiles(loaded = {}) {
+-  return ['frontPose', 'sidePose', 'frontSeg', 'sideSeg']
+-    .filter((key) => Boolean(loaded[key]))
+-    .length;
+-}
+-
+ function renderSummaryRow(key, valueHtml) {
+   return (
+     '<div class="body-tab-summary-row">'
+     + `<span class="body-tab-summary-key">${escapeHtml(key)}</span>`
+     + `<span class="body-tab-summary-value">${valueHtml}</span>`
+@@ -182,87 +176,175 @@ function nameItemsFromEntries(entries, { withReason = false } = {}) {
+       meta: withReason && entry.reason ? entry.reason : '',
+       title: entry.name,
+     }));
+ }
+ 
+-function renderAdvancedEvidenceDetails(result) {
++function getViewPose(result, view) {
++  return result.views?.[view]?.pose ?? {
++    core: 0,
++    secondary: 0,
++    rejectedFace: 0,
++    ignoredNonCore: 0,
++    lowConfidence: 0,
++    acceptedLandmarks: [],
++    rejectedLandmarks: [],
++    ignoredLandmarks: [],
++  };
++}
++
++function nameItemsFromCore(landmarks) {
++  return nameItemsFromEntries(
++    (Array.isArray(landmarks) ? landmarks : []).filter((entry) => entry?.coreFront),
++  );
++}
++
++function nameItemsFromLowConfidence(landmarks) {
++  return (Array.isArray(landmarks) ? landmarks : [])
++    .filter((entry) => entry?.lowConfidence && entry.name)
++    .map((entry) => ({
++      text: formatAnchorLabel(entry.name),
++      meta: Number.isFinite(entry.score) ? `score ${entry.score}` : 'low confidence',
++      title: entry.name,
++    }));
++}
++
++function formatCoreCount(count) {
++  return `${formatCount(count)} / ${CORE_ANCHOR_TOTAL}`;
++}
++
++function formatScaleLabel(scale) {
++  const pixelsPerCm = Number.isFinite(scale?.pixelsPerCm) ? scale.pixelsPerCm : 10;
++  return `${pixelsPerCm} px/cm Â· fixed`;
++}
++
++function formatSegmentationStatus(qa, loaded) {
++  if (!loaded.frontSeg && !loaded.sideSeg) {
++    return 'none';
++  }
++  const classCount = typeof qa.segmentationClassCount === 'number'
++    ? qa.segmentationClassCount
++    : 0;
++  return classCount > 0 ? `QA Â· ${classCount} classes` : 'QA only';
++}
++
++function renderViewBreakdown(label, {
++  core,
++  secondary,
++  rejected,
++  ignored,
++  lowConfidence,
++  coreItems,
++  secondaryItems,
++  rejectedItems,
++  ignoredItems,
++  lowConfidenceItems,
++}) {
++  return (
++    `<section class="body-tab-advanced-view" aria-label="${escapeHtml(label)} evidence">`
++    + `<h4 class="body-tab-advanced-view-title">${escapeHtml(label)}</h4>`
++    + renderAdvancedRow('Core', formatCount(core))
++    + renderAdvancedRow('Secondary', formatCount(secondary))
++    + renderAdvancedRow('Rejected', formatCount(rejected))
++    + renderAdvancedRow('Ignored / Deferred', formatCount(ignored))
++    + renderAdvancedRow('Low Confidence', formatCount(lowConfidence))
++    + '<div class="body-evidence-qa-sublists">'
++    + renderNameListSubsection('Core', coreItems)
++    + renderNameListSubsection('Secondary', secondaryItems)
++    + renderNameListSubsection('Rejected', rejectedItems)
++    + renderNameListSubsection('Ignored / Deferred', ignoredItems)
++    + renderNameListSubsection('Low Confidence', lowConfidenceItems)
++    + '</div>'
++    + '</section>'
++  );
++}
++
++function renderSegmentationDetails(result) {
+   const loaded = result.loaded ?? {};
+   const qa = result.qa ?? {};
+-  const scale = result.scale ?? {};
+   const views = result.views ?? {};
+ 
+-  const canvas = Number.isFinite(scale.canvasSize)
+-    ? `${scale.canvasSize} Ã— ${scale.canvasSize}`
+-    : '2000 Ã— 2000';
+-  const pixelsPerCm = Number.isFinite(scale.pixelsPerCm)
+-    ? String(scale.pixelsPerCm)
+-    : '10';
+-  const source = scale.source === 'body-evidence-v0-fixed' || scale.status === 'fixed'
+-    ? 'fixed Body Evidence v0 assumption'
+-    : formatText(scale.source);
+-
+-  const advancedRows = [
+-    renderAdvancedLoadedRow('Front Pose', loaded.frontPose),
+-    renderAdvancedLoadedRow('Side Pose', loaded.sidePose),
++  const rows = [
+     renderAdvancedLoadedRow('Front Segmentation', loaded.frontSeg),
+     renderAdvancedLoadedRow('Side Segmentation', loaded.sideSeg),
+-    renderAdvancedRow('Total landmarks', formatCount(qa.totalLandmarks)),
+-    renderAdvancedRow('Front pose landmarks', formatCount(qa.frontTotalLandmarks)),
+-    renderAdvancedRow('Accepted body', formatCount(qa.acceptedBodyLandmarks)),
+-    renderAdvancedRow('Rejected face / head', formatCount(qa.rejectedFaceLandmarks)),
+-    renderAdvancedRow('Low confidence', formatCount(qa.lowConfidenceLandmarks)),
+-    renderAdvancedRow('Front accepted', formatCount(qa.frontAcceptedCount)),
+-    renderAdvancedRow('Side accepted', formatCount(qa.sideAcceptedCount)),
+-    renderAdvancedRow('Renderable front (core 13)', formatCount(qa.renderableFrontLandmarks)),
+-    renderAdvancedRow('Secondary front candidates', formatCount(qa.secondaryFrontLandmarks)),
+-    renderAdvancedRow('Front ignored / deferred', formatCount(qa.frontIgnoredNonCoreLandmarks)),
+-    renderAdvancedRow('Scale status', formatText(scale.status)),
+-    renderAdvancedRow('Scale source', source),
+-    renderAdvancedRow('Canvas size', canvas),
+-    renderAdvancedRow('Pixels / cm', pixelsPerCm),
+-    renderAdvancedRow('Segmentation classes', formatCount(qa.segmentationClassCount)),
++    renderAdvancedRow('Classes', formatCount(qa.segmentationClassCount)),
+   ];
+ 
+   const labelViews = [
+     ['Front', views.front?.segmentation],
+     ['Side', views.side?.segmentation],
+-  ].filter(([, segmentation]) => hasLabelMetadata(segmentation));
++  ];
+ 
+-  if (labelViews.length === 0) {
+-    advancedRows.push(renderAdvancedRow('Label shape', DASH));
+-    advancedRows.push(renderAdvancedRow('Label dtype', DASH));
+-  } else {
+-    labelViews.forEach(([label, segmentation]) => {
+-      advancedRows.push(renderAdvancedRow(`${label} label shape`, formatShape(segmentation.labelShape)));
+-      advancedRows.push(renderAdvancedRow(`${label} label dtype`, formatText(segmentation.labelDtype)));
+-    });
++  let hasAnyLabelMetadata = false;
++  labelViews.forEach(([label, segmentation]) => {
++    if (!hasLabelMetadata(segmentation)) {
++      return;
++    }
++    hasAnyLabelMetadata = true;
++    rows.push(renderAdvancedRow(`${label} label shape`, formatShape(segmentation.labelShape)));
++    rows.push(renderAdvancedRow(`${label} label dtype`, formatText(segmentation.labelDtype)));
++  });
++
++  if (!hasAnyLabelMetadata) {
++    rows.push(renderAdvancedRow('Label shape', DASH));
++    rows.push(renderAdvancedRow('Label dtype', DASH));
+   }
+ 
+-  const nameSubsections = [
+-    renderNameListSubsection(
+-      'Secondary Candidates',
+-      nameItemsFromNames(qa.secondaryFrontLandmarkNames),
+-    ),
+-    renderNameListSubsection(
+-      'Ignored / Deferred',
+-      nameItemsFromEntries(qa.ignoredFrontLandmarks, { withReason: true }),
+-    ),
+-    renderNameListSubsection(
+-      'Rejected Face / Head',
+-      nameItemsFromEntries(qa.rejectedFrontLandmarks),
+-    ),
+-    renderNameListSubsection(
+-      'Rejected Segmentation Classes',
++  return (
++    '<details class="body-evidence-qa-subgroup body-tab-seg-details">'
++    + '<summary class="body-evidence-qa-subgroup-summary">Segmentation metadata</summary>'
++    + `<div class="body-evidence-qa-body">${rows.join('')}</div>`
++    + '<div class="body-evidence-qa-sublists">'
++    + renderNameListSubsection(
++      'Rejected Classes',
+       nameItemsFromNames(qa.rejectedSegmentationClasses),
++    )
++    + '</div>'
++    + '</details>'
++  );
++}
++
++function renderAdvancedEvidenceDetails(result) {
++  const qa = result.qa ?? {};
++  const frontPose = getViewPose(result, 'front');
++  const sidePose = getViewPose(result, 'side');
++
++  const frontBreakdown = renderViewBreakdown('Front', {
++    core: qa.frontCoreLandmarks ?? frontPose.core,
++    secondary: qa.frontSecondaryLandmarks ?? frontPose.secondary,
++    rejected: qa.frontRejectedFaceLandmarks ?? frontPose.rejectedFace,
++    ignored: qa.frontIgnoredNonCoreLandmarks ?? frontPose.ignoredNonCore,
++    lowConfidence: frontPose.lowConfidence,
++    coreItems: nameItemsFromCore(frontPose.acceptedLandmarks),
++    secondaryItems: nameItemsFromNames(qa.secondaryFrontLandmarkNames),
++    rejectedItems: nameItemsFromEntries(qa.rejectedFrontLandmarks ?? frontPose.rejectedLandmarks),
++    ignoredItems: nameItemsFromEntries(
++      qa.ignoredFrontLandmarks ?? frontPose.ignoredLandmarks,
++      { withReason: true },
+     ),
+-  ].join('');
++    lowConfidenceItems: nameItemsFromLowConfidence(frontPose.acceptedLandmarks),
++  });
++
++  const sideBreakdown = renderViewBreakdown('Side', {
++    core: qa.sideCoreLandmarks ?? sidePose.core,
++    secondary: qa.sideSecondaryLandmarks ?? sidePose.secondary,
++    rejected: qa.sideRejectedFaceLandmarks ?? sidePose.rejectedFace,
++    ignored: qa.sideIgnoredNonCoreLandmarks ?? sidePose.ignoredNonCore,
++    lowConfidence: sidePose.lowConfidence,
++    coreItems: nameItemsFromCore(sidePose.acceptedLandmarks),
++    secondaryItems: nameItemsFromNames(qa.secondarySideLandmarkNames),
++    rejectedItems: nameItemsFromEntries(qa.rejectedSideLandmarks ?? sidePose.rejectedLandmarks),
++    ignoredItems: nameItemsFromEntries(
++      qa.ignoredSideLandmarks ?? sidePose.ignoredLandmarks,
++      { withReason: true },
++    ),
++    lowConfidenceItems: nameItemsFromLowConfidence(sidePose.acceptedLandmarks),
++  });
+ 
+   return (
+     '<details class="body-evidence-qa-group body-tab-advanced-details">'
+     + '<summary class="body-evidence-qa-summary">Advanced Evidence Details</summary>'
+-    + `<div class="body-evidence-qa-body">${advancedRows.join('')}</div>`
+-    + `<div class="body-evidence-qa-sublists">${nameSubsections}</div>`
++    + `<div class="body-tab-advanced-body">${frontBreakdown}${sideBreakdown}${renderSegmentationDetails(result)}</div>`
+     + '</details>'
+   );
+ }
+ 
+ function renderBodyEvidenceStatus() {
+@@ -276,34 +358,30 @@ function renderBodyEvidenceStatus() {
+     return;
+   }
+ 
+   const loaded = result.loaded ?? {};
+   const qa = result.qa ?? {};
+-  const loadedCount = countLoadedFiles(loaded);
+-  const acceptedCore = formatCount(qa.renderableFrontLandmarks);
+-  const sideCandidates = formatCount(qa.sideAcceptedCount);
+ 
+   const loadedChips = [
+     renderLoadedIndicator('Front Pose', loaded.frontPose),
+     renderLoadedIndicator('Side Pose', loaded.sidePose),
+     renderLoadedIndicator('Front Seg', loaded.frontSeg),
+     renderLoadedIndicator('Side Seg', loaded.sideSeg),
+   ].join('');
+ 
+   sessionBodyEvidenceStatusEl.innerHTML = [
+     '<div class="body-tab-status-card">',
+-    renderSummaryRow('Evidence', renderBadge('Loaded', 'ok')),
+-    renderTextSummaryRow('Loaded files', `${loadedCount} / 4`),
+     `<div class="body-tab-loaded-chips" aria-label="Loaded file indicators">${loadedChips}</div>`,
+-    renderTextSummaryRow('Front core candidates', `${acceptedCore} / ${CORE_ANCHOR_TOTAL}`),
+-    renderTextSummaryRow('Front secondary candidates', formatCount(qa.secondaryFrontLandmarks)),
+-    renderTextSummaryRow('Side candidates', sideCandidates),
+-    renderTextSummaryRow('Ignored / deferred', formatCount(qa.frontIgnoredNonCoreLandmarks)),
+-    renderTextSummaryRow('Rejected face / head', formatCount(qa.frontRejectedFaceLandmarks)),
+-    renderTextSummaryRow('Low confidence', formatCount(qa.lowConfidenceLandmarks)),
+-    renderTextSummaryRow('Scale', '10 px/cm fixed'),
+-    renderTextSummaryRow('Segmentation', 'QA only'),
++    renderTextSummaryRow('Front Core', formatCoreCount(qa.frontCoreLandmarks)),
++    renderTextSummaryRow('Front Secondary', formatCount(qa.frontSecondaryLandmarks)),
++    renderTextSummaryRow('Side Core', formatCoreCount(qa.sideCoreLandmarks)),
++    renderTextSummaryRow('Side Secondary', formatCount(qa.sideSecondaryLandmarks)),
++    renderTextSummaryRow('Rejected Total', formatCount(qa.rejectedFaceLandmarks)),
++    renderTextSummaryRow('Ignored / Deferred Total', formatCount(qa.ignoredNonCoreLandmarks)),
++    renderTextSummaryRow('Low Confidence', formatCount(qa.lowConfidenceLandmarks)),
++    renderTextSummaryRow('Scale', formatScaleLabel(result.scale)),
++    renderTextSummaryRow('Segmentation', formatSegmentationStatus(qa, loaded)),
+     '</div>',
+     renderAdvancedEvidenceDetails(result),
+   ].join('');
+ }
+ 
+diff --git a/src/ui/viewControls.js b/src/ui/viewControls.js
+index b0b6160..fe3ee12 100644
+--- a/src/ui/viewControls.js
++++ b/src/ui/viewControls.js
+@@ -4,63 +4,296 @@ import {
+   show3dLatticePointsCheckbox,
+   show2dGridPointsCheckbox,
+   showSideGridPointsCheckbox,
+   showMeasurementLinesCheckbox,
+   showBodyMeasurementPreviewsCheckbox,
++  showBodyEvidenceOverlayCheckbox,
++  showSecondaryBodyCandidatesCheckbox,
++  showSideCoreCheckbox,
++  showSideSecondaryCheckbox,
+ } from './domRefs.js';
+ import { setReferenceMarkersVisible } from '../metrology/referenceMarkers.js';
+ import { setInternalVolumeGridVisible } from '../metrology/volumeGrid.js';
+ import { setAnnotationsVisible } from '../features/annotations.js';
+-import { setMeasurement3dLinesVisible } from '../features/measurement.js';
++import {
++  getMeasurement3dLinesVisible,
++  setMeasurement3dLinesVisible,
++} from '../features/measurement.js';
+ import { setBodyMeasurementPreviewVisible } from '../features/bodyMeasurementPreview.js';
+ import { setGrid2dPointsVisible } from './grid2dNavigator.js';
+ import { setSideGrid2dPointsVisible } from './sideGrid2dNavigator.js';
+ import {
+   setProjectedAnnotationsVisible,
+   setProjectedReferenceMarkersVisible,
+ } from '../features/projectionLinking.js';
++import {
++  getRenderableSideBodyLandmarks,
++  getSecondarySideBodyLandmarks,
++  hasAnalyzedBodyEvidence,
++  isBodyEvidenceOverlayVisible,
++  isSecondaryBodyEvidenceVisible,
++  isSideCoreBodyEvidenceVisible,
++  isSideSecondaryBodyEvidenceVisible,
++  setBodyEvidenceOverlayVisible,
++  setSecondaryBodyEvidenceVisible,
++  setSideCoreBodyEvidenceVisible,
++  setSideSecondaryBodyEvidenceVisible,
++} from '../features/bodyEvidence.js';
++import {
++  getFrontOverlayLandmarkCount,
++  getSecondaryCandidateLandmarkCount,
++} from './bodyEvidenceOverlay2d.js';
+ 
+-export function setupViewControls(referenceMarkers, volumeGrid, measurement) {
+-  showOriginCenterCheckbox.addEventListener('change', () => {
+-    const visible = showOriginCenterCheckbox.checked;
+-    setReferenceMarkersVisible(referenceMarkers, visible);
+-    setProjectedReferenceMarkersVisible(visible);
+-  });
++export const VIEW_SETTING_IDS = Object.freeze({
++  ORIGIN_CENTER: 'origin-center',
++  ANNOTATIONS: 'annotations',
++  MEASUREMENT_LINES: 'measurement-lines',
++  LATTICE_3D: 'lattice-3d',
++  FRONT_GRID: 'front-grid',
++  SIDE_GRID: 'side-grid',
++  FRONT_CORE: 'front-core',
++  FRONT_SECONDARY: 'front-secondary',
++  SIDE_CORE: 'side-core',
++  SIDE_SECONDARY: 'side-secondary',
++  BODY_PREVIEWS: 'body-previews',
++});
++
++/** @type {{ measurement: object, selectionHighlight: object, referenceMarkers: object, volumeGrid: object } | null} */
++let viewControlDeps = null;
++
++function syncCheckbox(checkbox, checked, disabled = false) {
++  if (!checkbox) {
++    return;
++  }
++  checkbox.checked = Boolean(checked);
++  checkbox.disabled = Boolean(disabled);
++  checkbox.setAttribute('aria-disabled', disabled ? 'true' : 'false');
++}
++
++function syncEvidenceCheckboxes() {
++  const analyzed = hasAnalyzedBodyEvidence();
++  const frontCoreCount = analyzed ? getFrontOverlayLandmarkCount() : 0;
++  const frontSecondaryCount = analyzed ? getSecondaryCandidateLandmarkCount() : 0;
++  const sideCoreCount = analyzed ? getRenderableSideBodyLandmarks().length : 0;
++  const sideSecondaryCount = analyzed ? getSecondarySideBodyLandmarks().length : 0;
+ 
+-  showAnnotationsCheckbox.addEventListener('change', () => {
+-    const visible = showAnnotationsCheckbox.checked;
+-    setAnnotationsVisible(visible);
+-    setProjectedAnnotationsVisible(visible);
+-  });
++  syncCheckbox(
++    showBodyEvidenceOverlayCheckbox,
++    isBodyEvidenceOverlayVisible(),
++    !analyzed || frontCoreCount === 0,
++  );
++  syncCheckbox(
++    showSecondaryBodyCandidatesCheckbox,
++    isSecondaryBodyEvidenceVisible(),
++    !analyzed || frontSecondaryCount === 0,
++  );
++  syncCheckbox(
++    showSideCoreCheckbox,
++    isSideCoreBodyEvidenceVisible(),
++    !analyzed || sideCoreCount === 0,
++  );
++  syncCheckbox(
++    showSideSecondaryCheckbox,
++    isSideSecondaryBodyEvidenceVisible(),
++    !analyzed || sideSecondaryCount === 0,
++  );
++}
++
++/**
++ * Apply a View setting. Checkboxes and menu commands both call this.
++ * @param {string} id
++ * @param {boolean} visible
++ * @param {{ measurement?: object, referenceMarkers?: object, volumeGrid?: object } | null} [deps]
++ */
++export function applyViewSetting(id, visible, deps = viewControlDeps) {
++  const next = Boolean(visible);
++  const measurement = deps?.measurement;
++  const referenceMarkers = deps?.referenceMarkers;
++  const volumeGrid = deps?.volumeGrid;
++
++  switch (id) {
++    case VIEW_SETTING_IDS.ORIGIN_CENTER:
++      if (referenceMarkers) {
++        setReferenceMarkersVisible(referenceMarkers, next);
++        setProjectedReferenceMarkersVisible(next);
++      }
++      syncCheckbox(showOriginCenterCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.ANNOTATIONS:
++      setAnnotationsVisible(next);
++      setProjectedAnnotationsVisible(next);
++      syncCheckbox(showAnnotationsCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.MEASUREMENT_LINES:
++      if (measurement) {
++        setMeasurement3dLinesVisible(measurement, next);
++      }
++      syncCheckbox(showMeasurementLinesCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.LATTICE_3D:
++      if (volumeGrid) {
++        setInternalVolumeGridVisible(volumeGrid, next);
++      }
++      syncCheckbox(show3dLatticePointsCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.FRONT_GRID:
++      setGrid2dPointsVisible(next);
++      syncCheckbox(show2dGridPointsCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.SIDE_GRID:
++      setSideGrid2dPointsVisible(next);
++      syncCheckbox(showSideGridPointsCheckbox, next);
++      break;
++    case VIEW_SETTING_IDS.FRONT_CORE:
++      setBodyEvidenceOverlayVisible(next);
++      syncEvidenceCheckboxes();
++      break;
++    case VIEW_SETTING_IDS.FRONT_SECONDARY:
++      setSecondaryBodyEvidenceVisible(next);
++      syncEvidenceCheckboxes();
++      break;
++    case VIEW_SETTING_IDS.SIDE_CORE:
++      setSideCoreBodyEvidenceVisible(next);
++      syncEvidenceCheckboxes();
++      break;
++    case VIEW_SETTING_IDS.SIDE_SECONDARY:
++      setSideSecondaryBodyEvidenceVisible(next);
++      syncEvidenceCheckboxes();
++      break;
++    case VIEW_SETTING_IDS.BODY_PREVIEWS:
++      setBodyMeasurementPreviewVisible(next);
++      syncCheckbox(showBodyMeasurementPreviewsCheckbox, next);
++      break;
++    default:
++      break;
++  }
++}
+ 
+-  show3dLatticePointsCheckbox.addEventListener('change', () => {
+-    setInternalVolumeGridVisible(volumeGrid, show3dLatticePointsCheckbox.checked);
+-  });
++/**
++ * @param {string} id
++ * @returns {{ checked: boolean, disabled: boolean }}
++ */
++export function getViewSetting(id) {
++  const analyzed = hasAnalyzedBodyEvidence();
++  const frontCoreCount = analyzed ? getFrontOverlayLandmarkCount() : 0;
++  const frontSecondaryCount = analyzed ? getSecondaryCandidateLandmarkCount() : 0;
++  const sideCoreCount = analyzed ? getRenderableSideBodyLandmarks().length : 0;
++  const sideSecondaryCount = analyzed ? getSecondarySideBodyLandmarks().length : 0;
+ 
+-  show2dGridPointsCheckbox.addEventListener('change', () => {
+-    setGrid2dPointsVisible(show2dGridPointsCheckbox.checked);
+-  });
++  switch (id) {
++    case VIEW_SETTING_IDS.ORIGIN_CENTER:
++      return { checked: Boolean(showOriginCenterCheckbox?.checked), disabled: false };
++    case VIEW_SETTING_IDS.ANNOTATIONS:
++      return { checked: Boolean(showAnnotationsCheckbox?.checked), disabled: false };
++    case VIEW_SETTING_IDS.MEASUREMENT_LINES:
++      return {
++        checked: showMeasurementLinesCheckbox
++          ? Boolean(showMeasurementLinesCheckbox.checked)
++          : getMeasurement3dLinesVisible(),
++        disabled: false,
++      };
++    case VIEW_SETTING_IDS.LATTICE_3D:
++      return { checked: Boolean(show3dLatticePointsCheckbox?.checked), disabled: false };
++    case VIEW_SETTING_IDS.FRONT_GRID:
++      return { checked: Boolean(show2dGridPointsCheckbox?.checked), disabled: false };
++    case VIEW_SETTING_IDS.SIDE_GRID:
++      return { checked: Boolean(showSideGridPointsCheckbox?.checked ?? true), disabled: false };
++    case VIEW_SETTING_IDS.FRONT_CORE:
++      return {
++        checked: isBodyEvidenceOverlayVisible(),
++        disabled: !analyzed || frontCoreCount === 0,
++      };
++    case VIEW_SETTING_IDS.FRONT_SECONDARY:
++      return {
++        checked: isSecondaryBodyEvidenceVisible(),
++        disabled: !analyzed || frontSecondaryCount === 0,
++      };
++    case VIEW_SETTING_IDS.SIDE_CORE:
++      return {
++        checked: isSideCoreBodyEvidenceVisible(),
++        disabled: !analyzed || sideCoreCount === 0,
++      };
++    case VIEW_SETTING_IDS.SIDE_SECONDARY:
++      return {
++        checked: isSideSecondaryBodyEvidenceVisible(),
++        disabled: !analyzed || sideSecondaryCount === 0,
++      };
++    case VIEW_SETTING_IDS.BODY_PREVIEWS:
++      return {
++        checked: Boolean(showBodyMeasurementPreviewsCheckbox?.checked ?? true),
++        disabled: false,
++      };
++    default:
++      return { checked: false, disabled: true };
++  }
++}
++
++/**
++ * @param {string} id
++ * @param {{ measurement?: object, referenceMarkers?: object, volumeGrid?: object } | null} [deps]
++ */
++export function toggleViewSetting(id, deps = viewControlDeps) {
++  const current = getViewSetting(id);
++  if (current.disabled) {
++    return;
++  }
++  applyViewSetting(id, !current.checked, deps);
++}
+ 
+-  showSideGridPointsCheckbox?.addEventListener('change', () => {
+-    setSideGrid2dPointsVisible(showSideGridPointsCheckbox.checked);
+-  });
++export function setupViewControls(referenceMarkers, volumeGrid, measurement) {
++  viewControlDeps = { referenceMarkers, volumeGrid, measurement };
+ 
+-  // One flag drives the 3D line/label and the front-surface 2D line/label.
+-  showMeasurementLinesCheckbox.addEventListener('change', () => {
+-    setMeasurement3dLinesVisible(measurement, showMeasurementLinesCheckbox.checked);
+-  });
++  const bindCheckbox = (checkbox, id) => {
++    checkbox?.addEventListener('change', () => {
++      applyViewSetting(id, Boolean(checkbox.checked), viewControlDeps);
++    });
++  };
+ 
+-  // Independent from A/B Measurement Lines â€” body preview overlay only.
+-  showBodyMeasurementPreviewsCheckbox?.addEventListener('change', () => {
+-    setBodyMeasurementPreviewVisible(showBodyMeasurementPreviewsCheckbox.checked);
+-  });
++  bindCheckbox(showOriginCenterCheckbox, VIEW_SETTING_IDS.ORIGIN_CENTER);
++  bindCheckbox(showAnnotationsCheckbox, VIEW_SETTING_IDS.ANNOTATIONS);
++  bindCheckbox(show3dLatticePointsCheckbox, VIEW_SETTING_IDS.LATTICE_3D);
++  bindCheckbox(show2dGridPointsCheckbox, VIEW_SETTING_IDS.FRONT_GRID);
++  bindCheckbox(showSideGridPointsCheckbox, VIEW_SETTING_IDS.SIDE_GRID);
++  bindCheckbox(showMeasurementLinesCheckbox, VIEW_SETTING_IDS.MEASUREMENT_LINES);
++  bindCheckbox(showBodyMeasurementPreviewsCheckbox, VIEW_SETTING_IDS.BODY_PREVIEWS);
++  bindCheckbox(showBodyEvidenceOverlayCheckbox, VIEW_SETTING_IDS.FRONT_CORE);
++  bindCheckbox(showSecondaryBodyCandidatesCheckbox, VIEW_SETTING_IDS.FRONT_SECONDARY);
++  bindCheckbox(showSideCoreCheckbox, VIEW_SETTING_IDS.SIDE_CORE);
++  bindCheckbox(showSideSecondaryCheckbox, VIEW_SETTING_IDS.SIDE_SECONDARY);
+ 
+-  setReferenceMarkersVisible(referenceMarkers, showOriginCenterCheckbox.checked);
+-  setProjectedReferenceMarkersVisible(showOriginCenterCheckbox.checked);
+-  setAnnotationsVisible(showAnnotationsCheckbox.checked);
+-  setProjectedAnnotationsVisible(showAnnotationsCheckbox.checked);
+-  setInternalVolumeGridVisible(volumeGrid, show3dLatticePointsCheckbox.checked);
+-  setGrid2dPointsVisible(show2dGridPointsCheckbox.checked);
+-  setSideGrid2dPointsVisible(showSideGridPointsCheckbox?.checked ?? true);
+-  setMeasurement3dLinesVisible(measurement, showMeasurementLinesCheckbox.checked);
+-  setBodyMeasurementPreviewVisible(showBodyMeasurementPreviewsCheckbox?.checked ?? true);
++  applyViewSetting(
++    VIEW_SETTING_IDS.ORIGIN_CENTER,
++    Boolean(showOriginCenterCheckbox?.checked),
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.ANNOTATIONS,
++    Boolean(showAnnotationsCheckbox?.checked),
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.LATTICE_3D,
++    Boolean(show3dLatticePointsCheckbox?.checked),
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.FRONT_GRID,
++    Boolean(show2dGridPointsCheckbox?.checked),
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.SIDE_GRID,
++    showSideGridPointsCheckbox?.checked ?? true,
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.MEASUREMENT_LINES,
++    Boolean(showMeasurementLinesCheckbox?.checked),
++    viewControlDeps,
++  );
++  applyViewSetting(
++    VIEW_SETTING_IDS.BODY_PREVIEWS,
++    showBodyMeasurementPreviewsCheckbox?.checked ?? true,
++    viewControlDeps,
++  );
++  syncEvidenceCheckboxes();
+ }
