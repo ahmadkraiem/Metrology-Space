@@ -1,8 +1,8 @@
 # Project Structure — Latent Space / REVacity Metrology Space
 
-This document describes the **current** file organization, module boundaries, and architectural responsibilities of the REVacity Metrology Space codebase.
+This document describes the **current** file organization, module boundaries, and architectural responsibilities of the REVacity Metrology Space codebase. It serves as the authoritative source of truth for architecture and file ownership.
 
-Behavioral details and specifications are aligned with `CURSOR.md` as the authoritative source of truth.
+Behavioral details, interaction contracts, and current-state specifications are defined in `PROJECT_CONTEXT.md` as the authoritative behavioral and current-state source of truth. `REFACTOR_PLAN.md` is historical refactor documentation only.
 
 ---
 
@@ -13,9 +13,9 @@ latent-space/
 ├── index.html                       # App shell, REVacity UI markup, script entry
 ├── package.json                     # Vite + Three.js dependencies and scripts
 ├── package-lock.json                # Locked dependency versions
-├── CURSOR.md                        # Behavioral source of truth for AI/dev sessions
-├── PROJECT_STRUCTURE.md             # This file — structural audit and component responsibilities
-├── REFACTOR_PLAN.md                 # Historical staged refactor documentation (reference only)
+├── PROJECT_CONTEXT.md               # Behavioral and current-state source of truth for AI/dev sessions
+├── PROJECT_STRUCTURE.md             # Architectural and file ownership source of truth (this file)
+├── REFACTOR_PLAN.md                 # Historical refactor documentation only (reference/archive)
 ├── .gitignore                       # Ignores node_modules, dist, .DS_Store
 ├── src/
 │   ├── main.js                      # Application entry; thin orchestrator

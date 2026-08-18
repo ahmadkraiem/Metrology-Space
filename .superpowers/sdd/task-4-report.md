@@ -101,7 +101,7 @@ node --test src/ui/bodyEvidenceCandidateList.test.js src/features/bodyEvidenceAd
 - [x] Obsolete stacked refs/rendering removed
 - [x] Front classification and Front promotion unchanged
 - [x] Side U/Y preserved; no Side promotion
-- [x] No commits; no CURSOR.md / PROJECT_STRUCTURE.md / REFACTOR_PLAN.md edits
+- [x] No commits; no PROJECT_CONTEXT.md / PROJECT_STRUCTURE.md / REFACTOR_PLAN.md edits
 
 ### Concerns / deferred
 

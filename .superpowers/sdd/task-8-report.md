@@ -237,7 +237,7 @@ Chunk-size warning only (pre-existing Three.js bundle). No linter issues on Task
 - [x] Adapter 9/9, Body Graph 5/5, `npm run build` PASS
 - [x] Manual QA code-inspected; live controller items listed
 - [x] No Task 8 linter issues
-- [x] No commits; no `CURSOR.md` / `PROJECT_STRUCTURE.md` / `REFACTOR_PLAN.md` edits
+- [x] No commits; no `PROJECT_CONTEXT.md` / `PROJECT_STRUCTURE.md` / `REFACTOR_PLAN.md` edits
 
 ---
 

@@ -97,7 +97,7 @@ TDD: status tests failed first (`ERR_MODULE_NOT_FOUND` for `sideEvidenceStatus.j
 - [x] Side navigator behavior listed in Step 4 unchanged
 - [x] Narrow-width CSS: wrap/ellipsis so headers and toolbars do not overlap
 - [x] `npm run build` PASS
-- [x] No commits; no CURSOR.md / PROJECT_STRUCTURE.md / REFACTOR_PLAN.md edits
+- [x] No commits; no PROJECT_CONTEXT.md / PROJECT_STRUCTURE.md / REFACTOR_PLAN.md edits
 
 ### Concerns / deferred
 

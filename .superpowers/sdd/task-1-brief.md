@@ -7,7 +7,7 @@
 - Side remains U/Y evidence. Do not add Side promotion, canonical Side annotations, Side-to-Body-Graph/readiness coupling, Front-Side Alignment, canonical Z, or depth inference.
 - Preserve existing Side navigator, local Side A/B measurement, region refinement, and coordinates; do not expand those behaviors.
 - Use exact normalized allowlists only. Do not mirror, infer, or fabricate Side landmarks.
-- Do not update `CURSOR.md`, `PROJECT_STRUCTURE.md`, or `REFACTOR_PLAN.md`.
+- Do not update `PROJECT_CONTEXT.md`, `PROJECT_STRUCTURE.md`, or `REFACTOR_PLAN.md`.
 - Do not create git commits unless the user explicitly authorizes them.
 
 ### Task 1: Lock the Body Evidence Classification Contract

@@ -76,7 +76,7 @@ npm run build
 - [x] Promoted/readiness remain annotation-only; helper inputs unchanged
 - [x] Side-only evidence does not fill Promoted Anchors or readiness
 - [x] Body Graph tests and build pass
-- [x] No commits; no CURSOR.md / PROJECT_STRUCTURE.md / REFACTOR_PLAN.md edits
+- [x] No commits; no PROJECT_CONTEXT.md / PROJECT_STRUCTURE.md / REFACTOR_PLAN.md edits
 
 ### Concerns / deferred
 

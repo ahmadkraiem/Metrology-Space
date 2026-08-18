@@ -5,7 +5,7 @@
 This document is **completed historical refactor documentation** — a planning-only record of the staged maintainability refactor (Phases 0–9). It does not implement any refactor by itself and is **not** an active source of truth for new feature work.
 
 **Active sources of truth (for future implementation prompts):**
-- [CURSOR.md](CURSOR.md) — behavioral contract (scale, interactions, UI, do-not-break rules)
+- [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) — behavioral contract (scale, interactions, UI, do-not-break rules)
 - [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) — current file layout and `main.js` / `style.css` breakdown
 
 This file remains useful as a phase-by-phase audit trail and regression checklist reference only.
@@ -760,7 +760,7 @@ Thin `main.js` to orchestration only: imports, scene assembly, interaction setup
 #### Files to modify
 
 - `src/main.js` — wiring only (target: roughly imports + `scene.add(...)` + `setupPointInteraction(...)` + `animate()` + resize listener)
-- [CURSOR.md](CURSOR.md) — Key Source Files table and any ownership notes
+- [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) — Key Source Files table and any ownership notes
 - [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) — full file tree, feature ownership map
 - `REFACTOR_PLAN.md` — mark all phases complete; note deviations
 
@@ -883,13 +883,13 @@ After each **accepted** refactor phase:
 
 | Document | When to update | What to update |
 |----------|----------------|----------------|
-| [CURSOR.md](CURSOR.md) | Behavior or file ownership changes | § Key Source Files table; interaction/UI sections only if wiring or timing changes |
+| [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Behavior or file ownership changes | § Key Source Files table; interaction/UI sections only if wiring or timing changes |
 | [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | Any structural change (new files/folders) | File tree (§1), `main.js` breakdown (§3), CSS breakdown (§4), feature ownership map (§7), coupling notes (§6) |
 | [REFACTOR_PLAN.md](REFACTOR_PLAN.md) | Every completed phase | Phase status table at top; date; short note if actual files differ from plan |
 
 ### Policy rules
 
-1. **Pure moves with identical behavior** — update `PROJECT_STRUCTURE.md` always; `CURSOR.md` only needs a path note in Key Source Files (no behavioral section rewrites).
+1. **Pure moves with identical behavior** — update `PROJECT_STRUCTURE.md` always; `PROJECT_CONTEXT.md` only needs a path note in Key Source Files (no behavioral section rewrites).
 2. **New files or folders** — `PROJECT_STRUCTURE.md` must reflect them before the phase is marked complete.
 3. **Behavior changes** — forbidden during this refactor plan unless explicitly instructed; if one occurs accidentally, fix before updating docs.
 4. **`REFACTOR_PLAN.md` is the phase tracker** — completed phases get status **Complete**, date, and optional “actual files created” note if the plan drifted.
@@ -923,4 +923,4 @@ Picking, raycasting, pointer events, hover pipeline, selection, measurement, ann
 
 ---
 
-*Staged refactor complete (Phases 0–9). Updated from [CURSOR.md](CURSOR.md) and [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).*
+*Staged refactor complete (Phases 0–9). Updated from [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) and [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).*

@@ -99,7 +99,7 @@ npm run build
 - [x] `main.js` one import + one setup call
 - [x] SIDE_CORE / SIDE_SECONDARY bound to Task 2 APIs
 - [x] No Undo/Redo / Reset Layout / Side Promote / Alignment / Z
-- [x] No commits; no CURSOR.md / PROJECT_STRUCTURE.md / REFACTOR_PLAN.md edits
+- [x] No commits; no PROJECT_CONTEXT.md / PROJECT_STRUCTURE.md / REFACTOR_PLAN.md edits
 
 ### Concerns / deferred
 

@@ -92,7 +92,7 @@ npm run build
 - [x] Checked/disabled sync from matching checkbox + evidence availability
 - [x] Visual-only toggles; Side layers isolated from Front and canonical state
 - [x] `npm run build` PASS
-- [x] No commits; no CURSOR.md / PROJECT_STRUCTURE.md / REFACTOR_PLAN.md edits
+- [x] No commits; no PROJECT_CONTEXT.md / PROJECT_STRUCTURE.md / REFACTOR_PLAN.md edits
 
 ### Concerns / deferred
 
