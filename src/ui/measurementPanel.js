@@ -9,6 +9,9 @@ import {
   subscribeSideMeasurementChange,
 } from '../features/sideMeasurement.js';
 import {
+  clearMeasurementBtn,
+  clearPointABtn,
+  clearPointBBtn,
   clearSideMeasurementBtn,
   clearSidePointABtn,
   clearSidePointBBtn,
@@ -29,23 +32,35 @@ import {
 } from '../core/frontSurface.js';
 
 export function updateMeasurementPanel(measurement) {
-  measurementPanel.hidden = false;
+  if (measurementPanel) {
+    measurementPanel.hidden = false;
+  }
 
-  if (measurement.pointA) {
+  if (measurement?.pointA) {
     renderMeasurementPointDisplay(pointACoordsEl, measurement.pointA);
-  } else {
+  } else if (pointACoordsEl) {
     pointACoordsEl.textContent = '—';
   }
 
-  if (measurement.pointB) {
+  if (measurement?.pointB) {
     renderMeasurementPointDisplay(pointBCoordsEl, measurement.pointB);
-    measurementDistanceEl.textContent = measurement.pointA
-      ? formatDistance(calculateDistance(measurement.pointA, measurement.pointB))
-      : '—';
+    if (measurementDistanceEl) {
+      measurementDistanceEl.textContent = measurement.pointA
+        ? formatDistance(calculateDistance(measurement.pointA, measurement.pointB))
+        : '—';
+    }
   } else {
-    pointBCoordsEl.textContent = '—';
-    measurementDistanceEl.textContent = '—';
+    if (pointBCoordsEl) {
+      pointBCoordsEl.textContent = '—';
+    }
+    if (measurementDistanceEl) {
+      measurementDistanceEl.textContent = '—';
+    }
   }
+
+  setClearEnabled(clearPointABtn, Boolean(measurement?.pointA));
+  setClearEnabled(clearPointBBtn, Boolean(measurement?.pointB));
+  setClearEnabled(clearMeasurementBtn, Boolean(measurement?.pointA || measurement?.pointB));
 
   updateSideMeasurementInspector();
   updateSceneGraph();

@@ -7,6 +7,7 @@ import {
   hasAnalyzedBodyEvidence,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
+import { subscribeAnnotationsChange } from '../features/annotations.js';
 import { openSceneStateFilePicker } from '../features/sceneImport.js';
 import { runExportSceneStateAction } from '../features/sceneExport.js';
 import {
@@ -330,6 +331,9 @@ export function setupAppMenuBar({
     refreshMenuState();
   });
   subscribeViewSettingChange(() => {
+    refreshMenuState();
+  });
+  subscribeAnnotationsChange(() => {
     refreshMenuState();
   });
   subscribeInspectorWorkflowChange(() => {

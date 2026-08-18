@@ -8,7 +8,7 @@ import { calculateDistance } from '../core/math.js';
 import { getAppMode } from './appMode.js';
 import { getAnnotations } from './annotations.js';
 import { getMeasurementHistory } from './measurement.js';
-import { exportSceneJsonBtn } from '../ui/domRefs.js';
+
 
 function exportPoint(point) {
   if (!point) {
@@ -132,5 +132,4 @@ export function runExportSceneStateAction() {
 
 export function setupSceneExport(measurement) {
   sceneExportMeasurement = measurement;
-  exportSceneJsonBtn.addEventListener('click', runExportSceneStateAction);
 }

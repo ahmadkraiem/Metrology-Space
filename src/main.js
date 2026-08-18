@@ -82,7 +82,7 @@ setupSceneImport(measurement, selectionHighlight);
 setupSceneGraphPanel(measurement);
 setupSessionTabs();
 setupFrontSurfaceMeasurement(measurement);
-setupGrid2dNavigator();
+setupGrid2dNavigator(selectionHighlight);
 setupSideGrid2dNavigator();
 setupProjectionLinking(refreshGrid2dNavigator);
 setupBodyMeasurementPreview(refreshGrid2dNavigator);

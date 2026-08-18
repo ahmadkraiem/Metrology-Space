@@ -37,15 +37,14 @@ export const sessionTabHistoryBtn = document.getElementById('session-tab-history
 export const sessionTabAnnotationsBtn = document.getElementById('session-tab-annotations');
 export const sessionTabBodyBtn = document.getElementById('session-tab-body');
 export const sessionTabGraphBtn = document.getElementById('session-tab-graph');
-export const sessionTabFilesBtn = document.getElementById('session-tab-files');
+
 export const tabPanelHistory = document.getElementById('tab-panel-history');
 export const tabPanelAnnotations = document.getElementById('tab-panel-annotations');
 export const tabPanelBody = document.getElementById('tab-panel-body');
 export const tabPanelGraph = document.getElementById('tab-panel-graph');
-export const tabPanelFiles = document.getElementById('tab-panel-files');
+
 export const statusModeValueEl = document.getElementById('status-mode-value');
 export const statusHintEl = document.getElementById('status-hint');
-export const inspectorWorkflowTitleEl = document.getElementById('inspector-workflow-title');
 export const appMenuBarEl = document.getElementById('app-menu-bar');
 export const workspaceTab3dBtn = document.getElementById('workspace-tab-3d');
 export const workspaceTabSplitBtn = document.getElementById('workspace-tab-split');
@@ -78,9 +77,6 @@ export const grid2dLegendEl = document.getElementById('grid2d-legend');
 export const grid2dNavViewModeEl = document.getElementById('grid2d-nav-view-mode');
 export const grid2dAxisLabelsEl = document.getElementById('grid2d-axis-labels');
 export const grid2dProjectionTooltipEl = document.getElementById('grid2d-projection-tooltip');
-export const exportSceneJsonBtn = document.getElementById('export-scene-json');
-export const loadSceneJsonInput = document.getElementById('load-scene-json');
-export const sceneImportStatusEl = document.getElementById('scene-import-status');
 export const sceneGraphTreeEl = document.getElementById('scene-graph-tree');
 export const loadFrontPoseJsonInput = document.getElementById('load-front-pose-json');
 export const loadSidePoseJsonInput = document.getElementById('load-side-pose-json');

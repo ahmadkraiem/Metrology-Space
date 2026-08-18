@@ -1,25 +1,22 @@
 import {
   sessionTabAnnotationsBtn,
   sessionTabBodyBtn,
-  sessionTabFilesBtn,
   sessionTabGraphBtn,
   sessionTabHistoryBtn,
   tabPanelAnnotations,
   tabPanelBody,
-  tabPanelFiles,
   tabPanelGraph,
   tabPanelHistory,
 } from './domRefs.js';
 import { clearGraphHighlight } from '../features/sceneGraphHighlight.js';
 
-const TAB_IDS = ['history', 'annotations', 'body', 'graph', 'files'];
+const TAB_IDS = ['history', 'annotations', 'body', 'graph'];
 
 const tabButtons = {
   history: sessionTabHistoryBtn,
   annotations: sessionTabAnnotationsBtn,
   body: sessionTabBodyBtn,
   graph: sessionTabGraphBtn,
-  files: sessionTabFilesBtn,
 };
 
 const tabPanels = {
@@ -27,7 +24,6 @@ const tabPanels = {
   annotations: tabPanelAnnotations,
   body: tabPanelBody,
   graph: tabPanelGraph,
-  files: tabPanelFiles,
 };
 
 let activeTab = 'history';

@@ -10,7 +10,21 @@ import { clearAnnotationValidationMessage } from '../ui/annotationValidationMess
 
 let selectedPoint = null;
 
+/** @type {Set<(point: { x: number, y: number, z: number } | null) => void>} */
+const selectionChangeListeners = new Set();
+
 export const ANNOTATE_POINT_COLOR = 0xffa726;
+
+export function subscribeSelectionChange(listener) {
+  selectionChangeListeners.add(listener);
+  return () => selectionChangeListeners.delete(listener);
+}
+
+function notifySelectionChange() {
+  for (const listener of selectionChangeListeners) {
+    listener(selectedPoint);
+  }
+}
 
 export function createSelectionHighlight() {
   const mesh = new THREE.Mesh(
@@ -37,18 +51,21 @@ export function isSamePoint(a, b) {
 
 export function selectPoint(x, y, z, highlight) {
   selectedPoint = { x, y, z };
-  highlight.position.set(x, y, z);
-  highlight.visible = true;
+  if (highlight) {
+    highlight.position.set(x, y, z);
+    highlight.visible = true;
+  }
   clearAnnotationValidationMessage();
   updateSelectionPanel(x, y, z);
+  notifySelectionChange();
 }
 
 export function clearSelection(highlight) {
   selectedPoint = null;
-  highlight.visible = false;
+  if (highlight) {
+    highlight.visible = false;
+  }
   clearAnnotationValidationMessage();
-  selectedXEl.textContent = '—';
-  selectedYEl.textContent = '—';
-  selectedZEl.textContent = '—';
-  selectionPanel.hidden = true;
+  updateSelectionPanel(null);
+  notifySelectionChange();
 }

@@ -75,12 +75,7 @@
       <aside id="left-sidebar" data-workflow="measurement">
         <div class="sidebar-title">Metrology Inspector</div>
         <div class="sidebar-scroll">
-          <section id="mode-panel" class="inspector-section inspector-section--mode">
-            <h2 class="section-title">Workflow</h2>
-            <div class="section-body">
-              <p id="inspector-workflow-title" class="inspector-workflow-title" aria-live="polite">Inspect &amp; Measure</p>
-            </div>
-          </section>
+
 
           <section id="body-evidence-panel" class="inspector-section inspector-section--body-evidence" data-collapsible>
             <h2 class="section-title">Body Evidence</h2>
@@ -161,7 +156,7 @@
             </div>
           </section>
 
-          <section id="selection-panel" class="inspector-section" data-collapsible hidden>
+          <section id="selection-panel" class="inspector-section" data-collapsible>
             <h2 class="section-title">Selected Point</h2>
             <div class="section-body">
               <div class="info-row"><span class="info-label">X</span><span class="info-value info-value--data"><span id="selected-x">—</span> cm</span></div>
@@ -200,50 +195,54 @@
             </div>
           </section>
 
-          <section id="measurement-panel" class="inspector-section" data-collapsible hidden>
+          <section id="measurement-panel" class="inspector-section" data-collapsible>
             <h2 class="section-title">Distance Measurement</h2>
             <div class="section-body">
-              <div class="inspector-subgroup measurement-context">
+              <div class="inspector-subgroup measurement-context" data-measurement-context="front" data-collapsible>
                 <h3 class="inspector-subgroup-label">Front / Canonical</h3>
-                <div class="info-row measurement-point-row">
-                  <span class="info-label measurement-point-label">Point A</span>
-                  <span class="info-value info-value--data measurement-point-value" id="point-a-coords">—</span>
+                <div class="inspector-subgroup-body">
+                  <div class="info-row measurement-point-row">
+                    <span class="info-label measurement-point-label">Point A</span>
+                    <span class="info-value info-value--data measurement-point-value" id="point-a-coords">—</span>
+                  </div>
+                  <div class="info-row measurement-point-row">
+                    <span class="info-label measurement-point-label">Point B</span>
+                    <span class="info-value info-value--data measurement-point-value" id="point-b-coords">—</span>
+                  </div>
+                  <div class="info-row info-row--highlight">
+                    <span class="info-label">Distance</span>
+                    <span class="info-value info-value--measure"><span id="measurement-distance">—</span> cm</span>
+                  </div>
+                  <div class="measurement-actions">
+                    <button type="button" id="clear-point-a" class="panel-button panel-button--compact">Clear A</button>
+                    <button type="button" id="clear-point-b" class="panel-button panel-button--compact">Clear B</button>
+                  </div>
+                  <button type="button" id="clear-measurement" class="panel-button">Clear Measurement</button>
+                  <p class="inspector-helper-text">Click two points in 3D or on the Front Surface grid to measure distance in cm.</p>
                 </div>
-                <div class="info-row measurement-point-row">
-                  <span class="info-label measurement-point-label">Point B</span>
-                  <span class="info-value info-value--data measurement-point-value" id="point-b-coords">—</span>
-                </div>
-                <div class="info-row info-row--highlight">
-                  <span class="info-label">Distance</span>
-                  <span class="info-value info-value--measure"><span id="measurement-distance">—</span> cm</span>
-                </div>
-                <div class="measurement-actions">
-                  <button type="button" id="clear-point-a" class="panel-button panel-button--compact">Clear A</button>
-                  <button type="button" id="clear-point-b" class="panel-button panel-button--compact">Clear B</button>
-                </div>
-                <button type="button" id="clear-measurement" class="panel-button">Clear Measurement</button>
-                <p class="inspector-helper-text">Click two points in 3D or on the Front Surface grid to measure distance in cm.</p>
               </div>
-              <div class="inspector-subgroup measurement-context measurement-context--side">
+              <div class="inspector-subgroup measurement-context measurement-context--side" data-measurement-context="side" data-collapsible>
                 <h3 class="inspector-subgroup-label">Side / U-Y</h3>
-                <div class="info-row measurement-point-row">
-                  <span class="info-label measurement-point-label">Point A</span>
-                  <span class="info-value info-value--data measurement-point-value" id="side-point-a-coords">—</span>
+                <div class="inspector-subgroup-body">
+                  <div class="info-row measurement-point-row">
+                    <span class="info-label measurement-point-label">Point A</span>
+                    <span class="info-value info-value--data measurement-point-value" id="side-point-a-coords">—</span>
+                  </div>
+                  <div class="info-row measurement-point-row">
+                    <span class="info-label measurement-point-label">Point B</span>
+                    <span class="info-value info-value--data measurement-point-value" id="side-point-b-coords">—</span>
+                  </div>
+                  <div class="info-row info-row--highlight">
+                    <span class="info-label">Distance</span>
+                    <span class="info-value info-value--measure"><span id="side-measurement-distance">—</span> cm</span>
+                  </div>
+                  <div class="measurement-actions">
+                    <button type="button" id="clear-side-point-a" class="panel-button panel-button--compact">Clear A</button>
+                    <button type="button" id="clear-side-point-b" class="panel-button panel-button--compact">Clear B</button>
+                  </div>
+                  <button type="button" id="clear-side-measurement" class="panel-button">Clear Measurement</button>
+                  <p class="inspector-helper-text">Click two points on the Side Evidence navigator to measure U/Y distance in cm.</p>
                 </div>
-                <div class="info-row measurement-point-row">
-                  <span class="info-label measurement-point-label">Point B</span>
-                  <span class="info-value info-value--data measurement-point-value" id="side-point-b-coords">—</span>
-                </div>
-                <div class="info-row info-row--highlight">
-                  <span class="info-label">Distance</span>
-                  <span class="info-value info-value--measure"><span id="side-measurement-distance">—</span> cm</span>
-                </div>
-                <div class="measurement-actions">
-                  <button type="button" id="clear-side-point-a" class="panel-button panel-button--compact">Clear A</button>
-                  <button type="button" id="clear-side-point-b" class="panel-button panel-button--compact">Clear B</button>
-                </div>
-                <button type="button" id="clear-side-measurement" class="panel-button">Clear Measurement</button>
-                <p class="inspector-helper-text">Click two points on the Side Evidence navigator to measure U/Y distance in cm.</p>
               </div>
             </div>
           </section>
@@ -442,7 +441,7 @@
           <button type="button" id="session-tab-annotations" class="session-tab-btn" role="tab" aria-selected="false" data-tab="annotations" title="Annotations" aria-label="Annotations">Annos</button>
           <button type="button" id="session-tab-body" class="session-tab-btn" role="tab" aria-selected="false" data-tab="body" title="Body Evidence" aria-label="Body Evidence">Body</button>
           <button type="button" id="session-tab-graph" class="session-tab-btn" role="tab" aria-selected="false" data-tab="graph">Graph</button>
-          <button type="button" id="session-tab-files" class="session-tab-btn" role="tab" aria-selected="false" data-tab="files">Files</button>
+
         </div>
         <div class="sidebar-scroll session-tab-content">
           <div id="tab-panel-history" class="session-tab-panel" role="tabpanel">
@@ -501,16 +500,7 @@
             </section>
           </div>
 
-          <div id="tab-panel-files" class="session-tab-panel tab-panel-hidden" role="tabpanel">
-            <section id="export-import-panel" class="inspector-section">
-              <div class="section-body">
-                <button type="button" id="export-scene-json" class="panel-button">Export Scene JSON</button>
-                <label for="load-scene-json" class="panel-button scene-import-label">Load Scene JSON</label>
-                <input type="file" id="load-scene-json" accept=".json,application/json" hidden />
-                <p id="scene-import-status" class="scene-import-status" hidden></p>
-              </div>
-            </section>
-          </div>
+
         </div>
       </aside>
 

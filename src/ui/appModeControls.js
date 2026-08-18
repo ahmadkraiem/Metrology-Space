@@ -27,14 +27,20 @@ const MODE_LABELS = {
 
 function updateModeUI(mode, selectionHighlight) {
   statusModeValueEl.textContent = MODE_LABELS[mode];
-  annotationAddControls.hidden = mode !== APP_MODE_ANNOTATE;
+  if (annotationAddControls) {
+    annotationAddControls.hidden = mode !== APP_MODE_ANNOTATE;
+  }
+  if (selectionPanel) {
+    selectionPanel.hidden = false;
+  }
+  if (measurementPanel) {
+    measurementPanel.hidden = false;
+  }
 
   if (mode === APP_MODE_INSPECT_MEASURE) {
-    selectionPanel.hidden = true;
-    selectionHighlight.visible = false;
-    measurementPanel.hidden = false;
-  } else {
-    measurementPanel.hidden = true;
+    if (selectionHighlight) {
+      selectionHighlight.visible = false;
+    }
   }
 
   setInspectorWorkflow(workflowForMode(mode));

@@ -9,7 +9,6 @@
 
 import { APP_MODE_ANNOTATE } from '../features/appMode.js';
 import {
-  inspectorWorkflowTitleEl,
   leftSidebarEl,
   statusHintEl,
 } from './domRefs.js';
@@ -46,10 +45,6 @@ function syncWorkflowChrome() {
 
   if (leftSidebarEl) {
     leftSidebarEl.dataset.workflow = workflow;
-  }
-
-  if (inspectorWorkflowTitleEl) {
-    inspectorWorkflowTitleEl.textContent = getWorkflowLabel(workflow);
   }
 
   if (statusHintEl) {

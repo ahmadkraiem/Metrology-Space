@@ -10,10 +10,7 @@ import {
 } from './measurement.js';
 import { applyImportedMode } from '../ui/appModeControls.js';
 import { clearGraphHighlight } from './sceneGraphHighlight.js';
-import {
-  loadSceneJsonInput,
-  sceneImportStatusEl,
-} from '../ui/domRefs.js';
+
 
 const APP_NAME = 'REVacity Metrology Space';
 const METADATA_VERSION = 1;
@@ -240,16 +237,19 @@ export function validateSceneState(data) {
   return { valid: true };
 }
 
-function showImportStatus(message, type = 'error') {
-  sceneImportStatusEl.textContent = message;
-  sceneImportStatusEl.hidden = false;
-  sceneImportStatusEl.dataset.status = type;
+/** Module-level hidden file input for scene state import. */
+const loadSceneJsonInput = document.createElement('input');
+loadSceneJsonInput.type = 'file';
+loadSceneJsonInput.accept = '.json,application/json';
+loadSceneJsonInput.hidden = true;
+document.body.appendChild(loadSceneJsonInput);
+
+function showImportStatus(message, _type = 'error') {
+  console.warn('[REVacity] Scene import status:', message);
 }
 
 function hideImportStatus() {
-  sceneImportStatusEl.hidden = true;
-  sceneImportStatusEl.textContent = '';
-  delete sceneImportStatusEl.dataset.status;
+  /* no-op: status was previously shown in Files tab */
 }
 
 export function importSceneState(data, measurement, selectionHighlight) {

@@ -2,12 +2,6 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { calculateDistance } from '../core/math.js';
 import { formatDistance } from '../core/formatters.js';
-import {
-  measurementDistanceEl,
-  measurementPanel,
-  pointACoordsEl,
-  pointBCoordsEl,
-} from '../ui/domRefs.js';
 import { getSelectedPoint, clearSelection, isSamePoint } from './selection.js';
 import {
   renderMeasurementHistory,
@@ -223,10 +217,7 @@ export function restoreActiveMeasurement(measurement, activeMeasurementData) {
   hideMeasurementDistanceLabel(measurement);
 
   if (!activeMeasurementData) {
-    measurementPanel.hidden = true;
-    pointACoordsEl.textContent = '—';
-    pointBCoordsEl.textContent = '—';
-    measurementDistanceEl.textContent = '—';
+    updateMeasurementPanel(measurement);
     updateSceneGraph();
     notifyMeasurement3dChanged();
     return;
@@ -248,17 +239,7 @@ export function restoreActiveMeasurement(measurement, activeMeasurementData) {
     updateMeasurementLine(measurement);
   }
 
-  if (measurement.pointA) {
-    updateMeasurementPanel(measurement);
-    updateSceneGraph();
-    notifyMeasurement3dChanged();
-    return;
-  }
-
-  measurementPanel.hidden = true;
-  pointACoordsEl.textContent = '—';
-  pointBCoordsEl.textContent = '—';
-  measurementDistanceEl.textContent = '—';
+  updateMeasurementPanel(measurement);
   updateSceneGraph();
   notifyMeasurement3dChanged();
 }
@@ -273,17 +254,6 @@ export function clearMeasurementPointB(measurement, selectionHighlight) {
   hideMeasurementMarker(measurement.markerB);
   measurement.line.visible = false;
   hideMeasurementDistanceLabel(measurement);
-
-  if (!measurement.pointA) {
-    measurementPanel.hidden = true;
-    pointACoordsEl.textContent = '—';
-    pointBCoordsEl.textContent = '—';
-    measurementDistanceEl.textContent = '—';
-    clearSelectionIfMatches(clearedPointB, selectionHighlight);
-    updateSceneGraph();
-    notifyMeasurement3dChanged();
-    return;
-  }
 
   updateMeasurementPanel(measurement);
   clearSelectionIfMatches(clearedPointB, selectionHighlight);
@@ -302,17 +272,6 @@ export function clearMeasurementPointA(measurement, selectionHighlight) {
   measurement.line.visible = false;
   hideMeasurementDistanceLabel(measurement);
 
-  if (!measurement.pointB) {
-    measurementPanel.hidden = true;
-    pointACoordsEl.textContent = '—';
-    pointBCoordsEl.textContent = '—';
-    measurementDistanceEl.textContent = '—';
-    clearSelectionIfMatches(clearedPointA, selectionHighlight);
-    updateSceneGraph();
-    notifyMeasurement3dChanged();
-    return;
-  }
-
   updateMeasurementPanel(measurement);
   clearSelectionIfMatches(clearedPointA, selectionHighlight);
   updateSceneGraph();
@@ -328,10 +287,8 @@ export function clearMeasurement(measurement, selectionHighlight) {
   hideMeasurementMarker(measurement.markerB);
   measurement.line.visible = false;
   hideMeasurementDistanceLabel(measurement);
-  measurementPanel.hidden = true;
-  pointACoordsEl.textContent = '—';
-  pointBCoordsEl.textContent = '—';
-  measurementDistanceEl.textContent = '—';
+
+  updateMeasurementPanel(measurement);
 
   const selected = getSelectedPoint();
   if (

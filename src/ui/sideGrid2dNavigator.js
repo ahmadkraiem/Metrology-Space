@@ -15,8 +15,15 @@ import {
   getSelectedSideEvidenceLandmark,
   hasAnalyzedBodyEvidence,
   hasSidePoseSource,
+  isSideCoreBodyEvidenceVisible,
+  isSideSecondaryBodyEvidenceVisible,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
+import { isInspectMeasureMode } from '../features/appMode.js';
+import {
+  WORKFLOW_MEASUREMENT,
+  getInspectorWorkflow,
+} from './inspectorWorkflowState.js';
 import {
   advanceSideMeasurement,
   clearSideMeasurement,
@@ -204,6 +211,60 @@ function clearPointSelection() {
 function clearAllSelection() {
   clearRegionSelection();
   clearPointSelection();
+}
+
+let lastSideMeasurement = { pointA: null, pointB: null };
+
+function isSelectedSidePoint(measurementPoint) {
+  return Boolean(
+    measurementPoint
+    && selectedPoint2d
+    && selectedPoint2d.h === measurementPoint.u
+    && selectedPoint2d.v === measurementPoint.y,
+  );
+}
+
+function clearPointSelectionForClearedMeasurement(measurementPoints) {
+  if (!measurementPoints.some((point) => isSelectedSidePoint(point))) {
+    return false;
+  }
+
+  clearPointSelection();
+  return true;
+}
+
+function isSameSideMeasurementPoint(a, b) {
+  return Boolean(a && b && a.u === b.u && a.y === b.y);
+}
+
+function syncPointSelectionWithMeasurementChange() {
+  const current = getActiveSideMeasurement();
+  const clearedPoints = [];
+
+  if (
+    lastSideMeasurement.pointA
+    && !isSameSideMeasurementPoint(lastSideMeasurement.pointA, current.pointA)
+    && !isSameSideMeasurementPoint(lastSideMeasurement.pointA, current.pointB)
+  ) {
+    clearedPoints.push(lastSideMeasurement.pointA);
+  }
+
+  if (
+    lastSideMeasurement.pointB
+    && !isSameSideMeasurementPoint(lastSideMeasurement.pointB, current.pointA)
+    && !isSameSideMeasurementPoint(lastSideMeasurement.pointB, current.pointB)
+  ) {
+    clearedPoints.push(lastSideMeasurement.pointB);
+  }
+
+  if (clearedPoints.length) {
+    clearPointSelectionForClearedMeasurement(clearedPoints);
+  }
+
+  lastSideMeasurement = {
+    pointA: current.pointA,
+    pointB: current.pointB,
+  };
 }
 
 function hideStatusMessage() {
@@ -420,7 +481,13 @@ function finalizePickSelection(clientX, clientY) {
   clearRegionSelection();
   clearSideEvidenceSelection();
   hideStatusMessage();
-  advanceSideMeasurement({ u: point.h, y: point.v });
+
+  if (isInspectMeasureMode() && getInspectorWorkflow() === WORKFLOW_MEASUREMENT) {
+    advanceSideMeasurement({ u: point.h, y: point.v });
+  } else {
+    showStatusMessage('Switch to Inspect & Measure to measure.');
+  }
+
   refreshSideGrid2dNavigator();
 }
 
@@ -451,22 +518,17 @@ function updateLegend() {
 
   const measurement = getActiveSideMeasurement();
   const show = {
-    lattice: true,
+    lattice: Boolean(sideGridPointsVisible),
     selected: Boolean(selectedPoint2d || selectedRegionPoints.length > 0),
     'measure-a': Boolean(measurement.pointA),
     'measure-b': Boolean(measurement.pointB),
-    landmark: true,
-    'landmark-secondary': true,
-  };
-
-  const dimmed = {
-    lattice: !sideGridPointsVisible,
+    landmark: Boolean(isSideCoreBodyEvidenceVisible()),
+    'landmark-secondary': Boolean(isSideSecondaryBodyEvidenceVisible()),
   };
 
   for (const item of sideEvidenceLegendEl.querySelectorAll('[data-legend-type]')) {
     const type = item.dataset.legendType;
     item.hidden = !show[type];
-    item.classList.toggle('grid2d-legend-item--dimmed', Boolean(show[type] && dimmed[type]));
   }
 }
 
@@ -726,6 +788,8 @@ export function refreshSideGrid2dNavigator() {
   if (!sideEvidenceViewportEl || !sideEvidenceFieldEl) {
     return;
   }
+
+  syncPointSelectionWithMeasurementChange();
 
   if (selectedPoint2d && !isInDomain(selectedPoint2d.h, selectedPoint2d.v)) {
     clearPointSelection();

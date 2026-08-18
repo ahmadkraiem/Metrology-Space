@@ -6,8 +6,11 @@ import {
 } from '../features/frontSurfaceMeasurement.js';
 import {
   formatFrontSurfacePointCoords,
+  frontSurfaceTo3d,
   isOnFrontSurface,
 } from '../core/frontSurface.js';
+import { isAnnotateMode } from '../features/appMode.js';
+import { selectPoint, subscribeSelectionChange } from '../features/selection.js';
 import { getMeasurement3dLinesVisible } from '../features/measurement.js';
 import {
   applyMarkerSizeStyle,
@@ -461,6 +464,8 @@ function finalizeDragSelection() {
   refreshGrid2dNavigator();
 }
 
+let activeSelectionHighlight = null;
+
 function finalizePickSelection(clientX, clientY) {
   const point = getPointAtScreenPosition(clientX, clientY);
 
@@ -472,7 +477,10 @@ function finalizePickSelection(clientX, clientY) {
   clearRegionSelection();
   hideStatusMessage();
 
-  if (!advanceFrontSurfaceMeasurement(point)) {
+  if (isAnnotateMode()) {
+    const point3d = frontSurfaceTo3d(point);
+    selectPoint(point3d.x, point3d.y, point3d.z, activeSelectionHighlight);
+  } else if (!advanceFrontSurfaceMeasurement(point)) {
     showStatusMessage('Switch to Inspect & Measure to measure.');
   }
 
@@ -502,30 +510,27 @@ function toggleActive2dMode() {
 }
 
 function updateLegend() {
+  if (!grid2dLegendEl) {
+    return;
+  }
+
   const measurement = getActiveFrontSurfaceMeasurement();
   const refVisible = getProjectedReferenceMarkersVisible();
   const annotationsVisible = getProjectedAnnotationsVisible();
   const hasSessionAnnotations = getAnnotations().length > 0;
 
   const show = {
-    lattice: true,
+    lattice: Boolean(grid2dPointsVisible),
     selected: Boolean(selectedPoint2d || selectedRegionPoints.length > 0),
     'measure-a': Boolean(measurement.pointA),
     'measure-b': Boolean(measurement.pointB),
-    ref: true,
-    annotation: hasSessionAnnotations,
-  };
-
-  const dimmed = {
-    lattice: !grid2dPointsVisible,
-    ref: !refVisible,
-    annotation: !annotationsVisible,
+    ref: Boolean(refVisible),
+    annotation: Boolean(annotationsVisible && hasSessionAnnotations),
   };
 
   for (const item of grid2dLegendEl.querySelectorAll('[data-legend-type]')) {
     const type = item.dataset.legendType;
     item.hidden = !show[type];
-    item.classList.toggle('grid2d-legend-item--dimmed', Boolean(show[type] && dimmed[type]));
   }
 }
 
@@ -1038,7 +1043,9 @@ function setupModeKeyboardToggle() {
   });
 }
 
-export function setupGrid2dNavigator() {
+export function setupGrid2dNavigator(selectionHighlight = null) {
+  activeSelectionHighlight = selectionHighlight;
+
   grid2dBackBtn.addEventListener('click', () => {
     undoLastRefinement();
   });
@@ -1076,6 +1083,20 @@ export function setupGrid2dNavigator() {
 
   setupPointerInteraction();
   setupModeKeyboardToggle();
+  subscribeSelectionChange((point) => {
+    if (!point) {
+      if (selectedPoint2d) {
+        clearPointSelection();
+        refreshGrid2dNavigator();
+      }
+    } else if (isOnFrontSurface(point)) {
+      selectedPoint2d = { h: point.x, v: point.y };
+      refreshGrid2dNavigator();
+    } else if (selectedPoint2d) {
+      clearPointSelection();
+      refreshGrid2dNavigator();
+    }
+  });
   resetVisualZoom();
   refreshGrid2dNavigator();
 }
