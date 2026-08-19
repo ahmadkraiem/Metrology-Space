@@ -23,7 +23,9 @@ import {
   createHighlightColorLookupTable,
 } from './segmentationOverlay2d.js';
 import {
+  getBodyEvidenceSegFilter,
   renderSegmentationClassList,
+  setBodyEvidenceSegFilter,
 } from './bodyEvidencePanel.js';
 
 // Helper for test synthetic base64 generation
@@ -266,7 +268,7 @@ test('both Front and Side segmentation cards can be active simultaneously with f
   assert.equal(side.pixelCount, 2);
   assert.equal(side.coverage, 0.5);
 
-  // Clearing Front leaves Side untouched
+// Clearing Front leaves Side untouched
   clearFrontSegClass();
   assert.equal(getSelectedFrontSegClass(), null);
   assert.notEqual(getSelectedSideSegClass(), null);
@@ -276,3 +278,25 @@ test('both Front and Side segmentation cards can be active simultaneously with f
   clearAllBodyEvidenceSelections();
   assert.equal(getSelectedSideSegClass(), null);
 });
+
+test('Segmentation Present/Absent filters switch cleanly', () => {
+  // Defaults to 'present'
+  assert.equal(getBodyEvidenceSegFilter('front'), 'present');
+  assert.equal(getBodyEvidenceSegFilter('side'), 'present');
+
+  // Switch front to absent
+  setBodyEvidenceSegFilter('front', 'absent');
+  assert.equal(getBodyEvidenceSegFilter('front'), 'absent');
+  assert.equal(getBodyEvidenceSegFilter('side'), 'present'); // Side unaffected
+
+  // Switch side to absent
+  setBodyEvidenceSegFilter('side', 'absent');
+  assert.equal(getBodyEvidenceSegFilter('side'), 'absent');
+
+  // Reset back to present
+  setBodyEvidenceSegFilter('front', 'present');
+  setBodyEvidenceSegFilter('side', 'present');
+  assert.equal(getBodyEvidenceSegFilter('front'), 'present');
+  assert.equal(getBodyEvidenceSegFilter('side'), 'present');
+});
+

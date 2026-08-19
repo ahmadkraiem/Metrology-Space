@@ -1050,7 +1050,7 @@
 .body-evidence-bounds-box {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   padding: 6px 7px;
   border-radius: 4px;
   border: 1px solid rgba(147, 51, 234, 0.1);
@@ -1066,26 +1066,49 @@
   color: var(--text-muted);
 }
 
-.body-evidence-bounds-row {
+.body-evidence-bounds-table {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-  font-size: 9px;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.body-evidence-bounds-label {
+.body-evidence-bounds-table-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 6px;
+  font-size: 9px;
+  min-width: 0;
+}
+
+.body-evidence-bounds-type {
   color: var(--text-muted);
   font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.body-evidence-bounds-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  color: var(--cyan-data);
+  font-size: 9px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body-evidence-bounds-axis {
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 500;
   flex-shrink: 0;
 }
 
-.body-evidence-bounds-val {
-  color: var(--cyan-data);
-  font-size: 9px;
-  text-align: right;
-  overflow-wrap: anywhere;
-}
 
 .body-evidence-qa-summary-box {
   display: flex;

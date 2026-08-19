@@ -89,7 +89,7 @@
               </div>
               <p id="body-evidence-status" class="body-evidence-status" hidden></p>
 
-              <div class="inspector-subgroup inspector-subgroup--body-actions">
+              <div class="inspector-subgroup inspector-subgroup--body-actions" data-collapsible>
                 <h3 class="inspector-subgroup-label">Actions</h3>
                 <div class="inspector-subgroup-body">
                   <div class="inspector-subgroup-actions">
@@ -123,8 +123,12 @@
                   <p class="body-evidence-candidates-empty">No front body landmark candidates.</p>
                 </div>
                 <div class="body-evidence-section-divider"></div>
+                <div class="body-evidence-layer-toggle" role="group" aria-label="Front segmentation filter">
+                  <button type="button" data-body-evidence-seg-source="front" data-body-evidence-seg-filter="present" class="is-active" aria-pressed="true">Present</button>
+                  <button type="button" data-body-evidence-seg-source="front" data-body-evidence-seg-filter="absent" aria-pressed="false">Absent</button>
+                </div>
                 <div class="body-evidence-list-heading">
-                  <span id="body-evidence-front-seg-label">Front Segmentation</span>
+                  <span id="body-evidence-front-seg-label">Front Seg (Present)</span>
                   <span id="body-evidence-front-seg-count">0</span>
                 </div>
                 <div
@@ -155,8 +159,12 @@
                   <p class="body-evidence-candidates-empty">No side body landmark candidates.</p>
                 </div>
                 <div class="body-evidence-section-divider"></div>
+                <div class="body-evidence-layer-toggle" role="group" aria-label="Side segmentation filter">
+                  <button type="button" data-body-evidence-seg-source="side" data-body-evidence-seg-filter="present" class="is-active" aria-pressed="true">Present</button>
+                  <button type="button" data-body-evidence-seg-source="side" data-body-evidence-seg-filter="absent" aria-pressed="false">Absent</button>
+                </div>
                 <div class="body-evidence-list-heading">
-                  <span id="body-evidence-side-seg-label">Side Segmentation</span>
+                  <span id="body-evidence-side-seg-label">Side Seg (Present)</span>
                   <span id="body-evidence-side-seg-count">0</span>
                 </div>
                 <div

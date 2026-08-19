@@ -59,6 +59,7 @@ import {
   bodyEvidenceFrontListLabelEl,
   bodyEvidenceFrontSegClassesEl,
   bodyEvidenceFrontSegCountEl,
+  bodyEvidenceFrontSegLabelEl,
   bodyEvidencePromoteStatusEl,
   bodyEvidenceSelectedEl,
   bodyEvidenceSideCandidatesEl,
@@ -66,6 +67,7 @@ import {
   bodyEvidenceSideListLabelEl,
   bodyEvidenceSideSegClassesEl,
   bodyEvidenceSideSegCountEl,
+  bodyEvidenceSideSegLabelEl,
   bodyEvidenceStatusEl,
   clearBodyEvidenceBtn,
   clearBodyLandmarkSelectionBtn,
@@ -79,6 +81,7 @@ import {
 
 const BODY_EVIDENCE_TABS = Object.freeze(['front', 'side', 'selection']);
 const CANDIDATE_LAYERS = Object.freeze(['core', 'secondary']);
+const SEGMENTATION_FILTERS = Object.freeze(['present', 'absent']);
 
 /** @type {'front'|'side'|'selection'} */
 let activeBodyEvidenceTab = 'front';
@@ -86,6 +89,10 @@ let activeBodyEvidenceTab = 'front';
 let frontCandidateLayer = 'core';
 /** @type {'core'|'secondary'} */
 let sideCandidateLayer = 'core';
+/** @type {'present'|'absent'} */
+let frontSegFilter = 'present';
+/** @type {'present'|'absent'} */
+let sideSegFilter = 'present';
 let lastSelectionKey = '';
 
 function escapeHtml(value) {
@@ -230,6 +237,20 @@ function syncLayerUi(source) {
   });
 }
 
+function syncSegFilterUi(source) {
+  if (typeof document === 'undefined') {
+    return;
+  }
+  const filter = source === 'side' ? sideSegFilter : frontSegFilter;
+  document.querySelectorAll(
+    `[data-body-evidence-seg-source="${source}"][data-body-evidence-seg-filter]`,
+  ).forEach((button) => {
+    const pressed = button.dataset.bodyEvidenceSegFilter === filter;
+    button.classList.toggle('is-active', pressed);
+    button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+  });
+}
+
 export function setBodyEvidencePanelTab(tab) {
   if (!BODY_EVIDENCE_TABS.includes(tab)) {
     return;
@@ -251,6 +272,25 @@ export function setBodyEvidenceCandidateLayer(source, layer) {
   }
   syncLayerUi(source);
   refreshCandidateLists();
+}
+
+export function setBodyEvidenceSegFilter(source, filter) {
+  if (!SEGMENTATION_FILTERS.includes(filter)) {
+    return;
+  }
+  if (source === 'front') {
+    frontSegFilter = filter;
+  } else if (source === 'side') {
+    sideSegFilter = filter;
+  } else {
+    return;
+  }
+  syncSegFilterUi(source);
+  refreshCandidateLists();
+}
+
+export function getBodyEvidenceSegFilter(source) {
+  return source === 'side' ? sideSegFilter : frontSegFilter;
 }
 
 function maybeFocusSelectionTab() {
@@ -337,13 +377,15 @@ export function renderSegmentationClassList({
   classes = [],
   view = 'front',
   selectedClassId = null,
+  emptyMessage,
   onSelect,
 }) {
   if (!container) {
     return;
   }
   if (!Array.isArray(classes) || classes.length === 0) {
-    container.innerHTML = `<p class="body-evidence-candidates-empty">No ${escapeHtml(view)} segmentation classes.</p>`;
+    const msg = emptyMessage || `No ${escapeHtml(view)} segmentation classes.`;
+    container.innerHTML = `<p class="body-evidence-candidates-empty">${escapeHtml(msg)}</p>`;
     return;
   }
 
@@ -421,16 +463,25 @@ function refreshCandidateLists() {
     layer: frontCandidateLayer,
   });
 
-  // 2. Front Segmentation Classes
-  const frontSegClasses = analyzed ? (qa?.views?.front?.segmentation?.classes ?? []) : [];
+  // 2. Front Segmentation Classes (Filtered by Present / Absent)
+  const allFrontSegClasses = analyzed ? (qa?.views?.front?.segmentation?.classes ?? []) : [];
+  const filteredFrontSegClasses = allFrontSegClasses.filter((c) => (
+    frontSegFilter === 'present' ? c.present : !c.present
+  ));
+  if (bodyEvidenceFrontSegLabelEl) {
+    bodyEvidenceFrontSegLabelEl.textContent = (
+      frontSegFilter === 'absent' ? 'Front Seg (Absent)' : 'Front Seg (Present)'
+    );
+  }
   if (bodyEvidenceFrontSegCountEl) {
-    bodyEvidenceFrontSegCountEl.textContent = String(frontSegClasses.length);
+    bodyEvidenceFrontSegCountEl.textContent = String(filteredFrontSegClasses.length);
   }
   renderSegmentationClassList({
     container: bodyEvidenceFrontSegClassesEl,
-    classes: frontSegClasses,
+    classes: filteredFrontSegClasses,
     view: 'front',
     selectedClassId: selectedFrontSegId,
+    emptyMessage: `No ${frontSegFilter} front segmentation classes.`,
     onSelect: (classId) => {
       if (selectedFrontSegId === classId) {
         clearFrontSegClass();
@@ -463,16 +514,25 @@ function refreshCandidateLists() {
     layer: sideCandidateLayer,
   });
 
-  // 4. Side Segmentation Classes
-  const sideSegClasses = analyzed ? (qa?.views?.side?.segmentation?.classes ?? []) : [];
+  // 4. Side Segmentation Classes (Filtered by Present / Absent)
+  const allSideSegClasses = analyzed ? (qa?.views?.side?.segmentation?.classes ?? []) : [];
+  const filteredSideSegClasses = allSideSegClasses.filter((c) => (
+    sideSegFilter === 'present' ? c.present : !c.present
+  ));
+  if (bodyEvidenceSideSegLabelEl) {
+    bodyEvidenceSideSegLabelEl.textContent = (
+      sideSegFilter === 'absent' ? 'Side Seg (Absent)' : 'Side Seg (Present)'
+    );
+  }
   if (bodyEvidenceSideSegCountEl) {
-    bodyEvidenceSideSegCountEl.textContent = String(sideSegClasses.length);
+    bodyEvidenceSideSegCountEl.textContent = String(filteredSideSegClasses.length);
   }
   renderSegmentationClassList({
     container: bodyEvidenceSideSegClassesEl,
-    classes: sideSegClasses,
+    classes: filteredSideSegClasses,
     view: 'side',
     selectedClassId: selectedSideSegId,
+    emptyMessage: `No ${sideSegFilter} side segmentation classes.`,
     onSelect: (classId) => {
       if (selectedSideSegId === classId) {
         clearSideSegClass();
@@ -557,15 +617,19 @@ function renderSegmentationCardHtml(segClass) {
     segClass.present ? 'ok' : 'muted',
   );
 
-  let boundsPxStr = 'n/a';
-  if (segClass.boundsPx) {
-    boundsPxStr = `X: [${segClass.boundsPx.minX} .. ${segClass.boundsPx.maxX}] · Y: [${segClass.boundsPx.minY} .. ${segClass.boundsPx.maxY}]`;
-  }
+  const pxX = segClass.boundsPx
+    ? `${segClass.boundsPx.minX} .. ${segClass.boundsPx.maxX}`
+    : '—';
+  const pxY = segClass.boundsPx
+    ? `${segClass.boundsPx.minY} .. ${segClass.boundsPx.maxY}`
+    : '—';
 
-  let boundsNormStr = 'n/a';
-  if (segClass.boundsNormalized) {
-    boundsNormStr = `X: [${segClass.boundsNormalized.minX.toFixed(3)} .. ${segClass.boundsNormalized.maxX.toFixed(3)}] · Y: [${segClass.boundsNormalized.minY.toFixed(3)} .. ${segClass.boundsNormalized.maxY.toFixed(3)}]`;
-  }
+  const normX = segClass.boundsNormalized
+    ? `${segClass.boundsNormalized.minX.toFixed(3)} .. ${segClass.boundsNormalized.maxX.toFixed(3)}`
+    : '—';
+  const normY = segClass.boundsNormalized
+    ? `${segClass.boundsNormalized.minY.toFixed(3)} .. ${segClass.boundsNormalized.maxY.toFixed(3)}`
+    : '—';
 
   const qa = segClass.qa;
   const qaValid = Boolean(qa?.valid);
@@ -596,9 +660,19 @@ function renderSegmentationCardHtml(segClass) {
     + renderCoordCell('Coverage', coveragePercent)
     + `</div>`
     + `<div class="body-evidence-bounds-box">`
-    + `<div class="body-evidence-bounds-title">Bounds</div>`
-    + `<div class="body-evidence-bounds-row"><span class="body-evidence-bounds-label">Pixels:</span> <span class="body-evidence-bounds-val">${escapeHtml(boundsPxStr)}</span></div>`
-    + `<div class="body-evidence-bounds-row"><span class="body-evidence-bounds-label">0..1:</span> <span class="body-evidence-bounds-val">${escapeHtml(boundsNormStr)}</span></div>`
+    + `<div class="body-evidence-bounds-title">Bounding Box</div>`
+    + `<div class="body-evidence-bounds-table">`
+    + `<div class="body-evidence-bounds-table-row">`
+    + `<span class="body-evidence-bounds-type">Pixels</span>`
+    + `<span class="body-evidence-bounds-cell"><span class="body-evidence-bounds-axis">X:</span>${escapeHtml(pxX)}</span>`
+    + `<span class="body-evidence-bounds-cell"><span class="body-evidence-bounds-axis">Y:</span>${escapeHtml(pxY)}</span>`
+    + `</div>`
+    + `<div class="body-evidence-bounds-table-row">`
+    + `<span class="body-evidence-bounds-type">0..1</span>`
+    + `<span class="body-evidence-bounds-cell"><span class="body-evidence-bounds-axis">X:</span>${escapeHtml(normX)}</span>`
+    + `<span class="body-evidence-bounds-cell"><span class="body-evidence-bounds-axis">Y:</span>${escapeHtml(normY)}</span>`
+    + `</div>`
+    + `</div>`
     + `</div>`
     + `<div class="body-evidence-qa-summary-box">`
     + `<div class="body-evidence-qa-summary-header">`
@@ -815,6 +889,15 @@ function onLayerButtonClick(event) {
   setBodyEvidenceCandidateLayer(source, layer);
 }
 
+function onSegFilterButtonClick(event) {
+  const source = event.currentTarget?.dataset?.bodyEvidenceSegSource;
+  const filter = event.currentTarget?.dataset?.bodyEvidenceSegFilter;
+  if (!SEGMENTATION_FILTERS.includes(filter)) {
+    return;
+  }
+  setBodyEvidenceSegFilter(source, filter);
+}
+
 export function setupBodyEvidencePanel() {
   wireFileInput(loadFrontPoseJsonInput, setFrontPoseSource, 'Front Pose JSON');
   wireFileInput(loadSidePoseJsonInput, setSidePoseSource, 'Side Pose JSON');
@@ -833,6 +916,9 @@ export function setupBodyEvidencePanel() {
     });
     document.querySelectorAll('[data-body-evidence-layer]').forEach((button) => {
       button.addEventListener('click', onLayerButtonClick);
+    });
+    document.querySelectorAll('[data-body-evidence-seg-filter]').forEach((button) => {
+      button.addEventListener('click', onSegFilterButtonClick);
     });
 
     document.addEventListener('body-evidence-selection-focus', () => {
@@ -857,9 +943,12 @@ export function setupBodyEvidencePanel() {
   syncTabUi();
   syncLayerUi('front');
   syncLayerUi('side');
+  syncSegFilterUi('front');
+  syncSegFilterUi('side');
   syncDownloadButton();
   refreshCandidateLists();
   renderSelectedLandmark();
   hidePromoteStatus();
 }
+
 
