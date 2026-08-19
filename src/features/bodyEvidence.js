@@ -789,16 +789,32 @@ function exportPoseView(pose) {
 }
 
 /**
- * View segmentation for diagnostics: class names, real pixel counts, and label
- * metadata only. Mask payloads (`base64`, raw label data) are never exported.
+ * View segmentation for diagnostics: class names, real pixel counts, label
+ * metadata, and normalized class metrics. Mask payloads (`base64`, raw label data)
+ * are never exported.
  */
 function exportSegmentationView(segmentation) {
   return {
+    view: segmentation?.view ?? null,
+    model: segmentation?.model ?? null,
+    widthPx: segmentation?.widthPx ?? null,
+    heightPx: segmentation?.heightPx ?? null,
+    dtype: segmentation?.dtype ?? segmentation?.labelDtype ?? null,
     classNames: [...(segmentation?.classNames ?? [])],
     classCounts: { ...(segmentation?.classCounts ?? {}) },
     rejectedClasses: [...(segmentation?.rejectedClasses ?? [])],
     labelShape: segmentation?.labelShape ? [...segmentation.labelShape] : null,
-    labelDtype: segmentation?.labelDtype ?? null,
+    labelDtype: segmentation?.labelDtype ?? segmentation?.dtype ?? null,
+    classes: (segmentation?.classes ?? []).map((c) => ({
+      classId: c.classId,
+      label: c.label,
+      pixelCount: c.pixelCount,
+      coverage: c.coverage,
+      present: c.present,
+      boundsPx: c.boundsPx ? { ...c.boundsPx } : null,
+      boundsNormalized: c.boundsNormalized ? { ...c.boundsNormalized } : null,
+    })),
+    qa: segmentation?.qa ? { ...segmentation.qa } : null,
   };
 }
 

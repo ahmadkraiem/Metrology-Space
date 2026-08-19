@@ -768,8 +768,7 @@ function readClassNames(data) {
 }
 
 /**
- * Pixel counts per class. Uses the source `class_counts` map verbatim when
- * present; never derives counts from class-name occurrences.
+ * Pixel counts per class from input metadata.
  */
 function readClassCounts(data) {
   const maps = [data.class_counts, data.classCounts, data.pixel_counts, data.pixelCounts];
@@ -814,93 +813,436 @@ function readClassCounts(data) {
 }
 
 /**
- * Label metadata only — mask payloads (`base64`, `data`) are never carried
- * into normalized body evidence.
+ * Universal base64 string to Uint8Array decoder.
+ * Compatible with Node.js test environment and browser.
+ *
+ * @param {unknown} base64String
+ * @returns {Uint8Array}
  */
-function readLabelMetadata(data) {
-  const candidates = [data.labels, data.label, data.mask, data.segmentation?.labels];
+export function decodeBase64ToUint8Array(base64String) {
+  if (typeof base64String !== 'string') {
+    throw new TypeError('Expected a base64 string');
+  }
 
-  for (const candidate of candidates) {
-    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
-      const shape = Array.isArray(candidate.shape)
-        ? candidate.shape.map((value) => asFiniteNumber(value)).filter((value) => value !== null)
-        : null;
-      const dtype = typeof candidate.dtype === 'string' ? candidate.dtype : null;
-      if ((shape && shape.length > 0) || dtype) {
-        return {
-          labelShape: shape && shape.length > 0 ? shape : null,
-          labelDtype: dtype,
-        };
+  let cleanBase64 = base64String.trim();
+  const commaIdx = cleanBase64.indexOf(',');
+  if (commaIdx !== -1 && cleanBase64.slice(0, commaIdx).includes('base64')) {
+    cleanBase64 = cleanBase64.slice(commaIdx + 1).trim();
+  }
+
+  cleanBase64 = cleanBase64.replace(/\s+/g, '');
+
+  if (cleanBase64.length === 0) {
+    return new Uint8Array(0);
+  }
+
+  // Validate base64 characters and structure
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(cleanBase64) || cleanBase64.length % 4 === 1) {
+    throw new Error('Invalid base64 string format.');
+  }
+
+  if (typeof Buffer !== 'undefined') {
+    const buf = Buffer.from(cleanBase64, 'base64');
+    return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+  }
+
+  if (typeof globalThis.atob === 'function') {
+    const binaryString = globalThis.atob(cleanBase64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i += 1) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  throw new Error('No base64 decoding mechanism available in current environment');
+}
+
+function getExpectedClassCount(inputCounts, classId, label) {
+  if (!inputCounts || typeof inputCounts !== 'object') {
+    return 0;
+  }
+  if (label in inputCounts) {
+    const val = asFiniteNumber(inputCounts[label]);
+    return val !== null ? val : 0;
+  }
+  const lower = label.toLowerCase();
+  for (const [k, v] of Object.entries(inputCounts)) {
+    if (k.toLowerCase() === lower) {
+      const val = asFiniteNumber(v);
+      return val !== null ? val : 0;
+    }
+  }
+  if (String(classId) in inputCounts) {
+    const val = asFiniteNumber(inputCounts[String(classId)]);
+    return val !== null ? val : 0;
+  }
+  return 0;
+}
+
+/**
+ * Build an empty normalized segmentation representation when no segmentation
+ * source is loaded for a view.
+ *
+ * @param {string|null} [view]
+ * @returns {object}
+ */
+export function emptyNormalizedSegmentation(view = null) {
+  const normalizedView = typeof view === 'string' ? view.trim().toLowerCase() : null;
+  return {
+    view: normalizedView,
+    model: null,
+    widthPx: null,
+    heightPx: null,
+    dtype: null,
+    classes: [],
+    classNames: [],
+    classCounts: {},
+    rejectedClasses: [],
+    labelShape: null,
+    labelDtype: null,
+    qa: {
+      valid: false,
+      validView: false,
+      numClassesMatches: false,
+      validShape: false,
+      validDtype: false,
+      decodeSuccess: false,
+      pixelCountMatchesShape: false,
+      classIdsInRange: false,
+      countsMatch: false,
+      issues: ['No segmentation source loaded.'],
+      warnings: [],
+      recomputedClassCounts: {},
+      inputClassCounts: {},
+      totalPixels: 0,
+      decodedPixels: 0,
+      outOfRangePixelCount: 0,
+    },
+  };
+}
+
+/**
+ * Normalizes a raw Front or Side segmentation JSON payload into the deterministic
+ * runtime representation with per-class derivations and QA validation.
+ *
+ * @param {unknown} raw
+ * @param {{ expectedView?: 'front'|'side' }} [options]
+ * @returns {object}
+ */
+export function normalizeSegmentation(raw, { expectedView } = {}) {
+  const data = unwrapPayload(raw);
+  if (!data || typeof data !== 'object') {
+    return emptyNormalizedSegmentation(expectedView);
+  }
+
+  const issues = [];
+  const warnings = [];
+
+  // 1. Model
+  const rawModel = data.model ?? data.model_name ?? data.modelName ?? null;
+  const model = typeof rawModel === 'string' && rawModel.trim() ? rawModel.trim() : null;
+
+  // 2. View QA check
+  const rawView = typeof data.view === 'string' && data.view.trim() ? data.view.trim() : null;
+  const normalizedView = rawView ? rawView.toLowerCase() : null;
+  const expectedViewNormalized = typeof expectedView === 'string' ? expectedView.trim().toLowerCase() : null;
+
+  let validView = false;
+  if (normalizedView === 'front' || normalizedView === 'side') {
+    if (expectedViewNormalized) {
+      if (normalizedView === expectedViewNormalized) {
+        validView = true;
+      } else {
+        issues.push(`View mismatch: expected '${expectedViewNormalized}', got '${normalizedView}'.`);
+      }
+    } else {
+      validView = true;
+    }
+  } else {
+    issues.push(`Invalid or missing view: expected '${expectedViewNormalized ?? 'front|side'}', got '${rawView ?? 'null'}'.`);
+  }
+  const view = normalizedView ?? expectedViewNormalized ?? null;
+
+  // 3. Class names and num_classes QA check
+  const classNames = readClassNames(data);
+  const rawNumClasses = data.num_classes ?? data.numClasses ?? null;
+  const numClasses = typeof rawNumClasses === 'number' && Number.isInteger(rawNumClasses) && rawNumClasses >= 0
+    ? rawNumClasses
+    : null;
+
+  let numClassesMatches = false;
+  if (numClasses !== null && numClasses === classNames.length) {
+    numClassesMatches = true;
+  } else {
+    issues.push(`num_classes (${rawNumClasses ?? 'missing'}) does not match class_names length (${classNames.length}).`);
+  }
+
+  // 4. Input class counts
+  const inputClassCounts = readClassCounts(data);
+
+  // 5. Label shape and dtype QA check
+  const labelsObj = data.labels ?? data.label ?? data.mask ?? data.segmentation?.labels ?? null;
+  const rawShape = Array.isArray(labelsObj?.shape)
+    ? labelsObj.shape
+    : (Array.isArray(data.shape) ? data.shape : null);
+  const rawDtype = typeof labelsObj?.dtype === 'string'
+    ? labelsObj.dtype
+    : (typeof data.dtype === 'string' ? data.dtype : null);
+
+  let validShape = false;
+  let widthPx = null;
+  let heightPx = null;
+  let totalPixels = 0;
+
+  if (
+    Array.isArray(rawShape)
+    && rawShape.length === 2
+    && typeof rawShape[0] === 'number'
+    && Number.isInteger(rawShape[0])
+    && rawShape[0] > 0
+    && typeof rawShape[1] === 'number'
+    && Number.isInteger(rawShape[1])
+    && rawShape[1] > 0
+  ) {
+    heightPx = rawShape[0];
+    widthPx = rawShape[1];
+    totalPixels = heightPx * widthPx;
+    validShape = true;
+  } else {
+    issues.push(`Invalid label shape: ${JSON.stringify(rawShape)} (expected [heightPx, widthPx]).`);
+  }
+
+  const dtype = rawDtype ? rawDtype.trim().toLowerCase() : null;
+  const validDtype = dtype === 'uint8';
+  if (!validDtype) {
+    issues.push(`Unsupported or missing label dtype: '${rawDtype ?? 'null'}' (expected 'uint8').`);
+  }
+
+  // 6. Base64 raster decode QA check
+  const rawBase64 = typeof labelsObj?.base64 === 'string'
+    ? labelsObj.base64
+    : (typeof data.base64 === 'string' ? data.base64 : null);
+
+  let decodeSuccess = false;
+  let decodedRaster = null;
+
+  if (typeof rawBase64 === 'string' && rawBase64.trim().length > 0) {
+    try {
+      decodedRaster = decodeBase64ToUint8Array(rawBase64);
+      decodeSuccess = true;
+    } catch (error) {
+      issues.push(`Base64 decode failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } else {
+    issues.push('Missing base64 label raster.');
+  }
+
+  // 7. Decoded pixel count matches width * height
+  let pixelCountMatchesShape = false;
+  const decodedPixels = decodedRaster ? decodedRaster.length : 0;
+  if (decodeSuccess && validShape) {
+    if (decodedPixels === totalPixels) {
+      pixelCountMatchesShape = true;
+    } else {
+      issues.push(`Decoded byte length (${decodedPixels}) does not match shape dimensions (${heightPx}x${widthPx} = ${totalPixels}).`);
+    }
+  }
+
+  // 8. Raster scan: recompute counts, presence, bounding boxes, class ID range check
+  const numClassesCount = classNames.length;
+  const recomputedCounts = new Uint32Array(numClassesCount);
+  const minXs = new Int32Array(numClassesCount).fill(-1);
+  const maxXs = new Int32Array(numClassesCount).fill(-1);
+  const minYs = new Int32Array(numClassesCount).fill(-1);
+  const maxYs = new Int32Array(numClassesCount).fill(-1);
+
+  let outOfRangePixelCount = 0;
+  let maxOutOfRangeId = null;
+
+  if (decodeSuccess && decodedRaster && validShape && pixelCountMatchesShape) {
+    const w = widthPx;
+    const len = decodedRaster.length;
+    for (let i = 0; i < len; i += 1) {
+      const classId = decodedRaster[i];
+      if (classId >= numClassesCount) {
+        outOfRangePixelCount += 1;
+        if (maxOutOfRangeId === null || classId > maxOutOfRangeId) {
+          maxOutOfRangeId = classId;
+        }
+        continue;
+      }
+      recomputedCounts[classId] += 1;
+      const x = i % w;
+      const y = (i / w) | 0;
+
+      if (minXs[classId] === -1) {
+        minXs[classId] = x;
+        maxXs[classId] = x;
+        minYs[classId] = y;
+        maxYs[classId] = y;
+      } else {
+        if (x < minXs[classId]) minXs[classId] = x;
+        if (x > maxXs[classId]) maxXs[classId] = x;
+        if (y < minYs[classId]) minYs[classId] = y;
+        if (y > maxYs[classId]) maxYs[classId] = y;
       }
     }
   }
 
-  return { labelShape: null, labelDtype: null };
-}
-
-/**
- * Normalize a segmentation payload into class names, pixel counts, and label
- * metadata. Base64 mask data is intentionally dropped.
- */
-export function extractSegmentation(raw) {
-  const data = unwrapPayload(raw);
-  if (!data || typeof data !== 'object') {
-    return {
-      classNames: [], classCounts: {}, labelShape: null, labelDtype: null,
-    };
+  let classIdsInRange = false;
+  if (decodeSuccess && decodedRaster) {
+    if (outOfRangePixelCount === 0) {
+      classIdsInRange = true;
+    } else {
+      issues.push(`Found ${outOfRangePixelCount} pixels with class ID out of range [0..${numClassesCount - 1}] (max invalid ID: ${maxOutOfRangeId}).`);
+    }
   }
 
+  // 9. Recomputed pixel counts match class_counts QA check
+  // Note: sparse count objects treat omitted classes as 0.
+  let countsMatch = false;
+  const recomputedClassCountsMap = {};
+  for (let c = 0; c < numClassesCount; c += 1) {
+    recomputedClassCountsMap[classNames[c]] = recomputedCounts[c];
+  }
+
+  if (decodeSuccess && pixelCountMatchesShape && classIdsInRange) {
+    let allMatched = true;
+    for (let c = 0; c < numClassesCount; c += 1) {
+      const label = classNames[c];
+      const recomputed = recomputedCounts[c];
+      const expected = getExpectedClassCount(inputClassCounts, c, label);
+      if (recomputed !== expected) {
+        allMatched = false;
+        issues.push(`Pixel count mismatch for class '${label}' (id ${c}): expected ${expected}, recomputed ${recomputed}.`);
+      }
+    }
+    countsMatch = allMatched;
+  }
+
+  // Check for any unexpected extra keys in inputClassCounts
+  if (inputClassCounts && typeof inputClassCounts === 'object') {
+    const knownNamesLower = new Set(classNames.map((n) => n.toLowerCase()));
+    for (const key of Object.keys(inputClassCounts)) {
+      if (!knownNamesLower.has(key.toLowerCase()) && !/^\d+$/.test(key)) {
+        warnings.push(`class_counts contains unknown class key: '${key}'.`);
+      }
+    }
+  }
+
+  // 10. Per-class derivation: classes[]
+  const classes = [];
+  const rejectedClasses = [];
+  const validOutputCounts = {};
+
+  for (let c = 0; c < numClassesCount; c += 1) {
+    const label = classNames[c];
+    const isRejected = isRejectedSegmentationClass(label);
+    if (isRejected) {
+      rejectedClasses.push(label);
+    }
+
+    const pixelCount = recomputedCounts[c];
+    const present = pixelCount > 0;
+    const coverage = totalPixels > 0 ? (pixelCount / totalPixels) : 0;
+
+    let boundsPx = null;
+    let boundsNormalized = null;
+
+    if (present && widthPx > 0 && heightPx > 0) {
+      const minX = minXs[c];
+      const maxX = maxXs[c];
+      const minY = minYs[c];
+      const maxY = maxYs[c];
+
+      boundsPx = {
+        minX,
+        minY,
+        maxX,
+        maxY,
+      };
+
+      boundsNormalized = {
+        minX: minX / widthPx,
+        minY: minY / heightPx,
+        maxX: maxX / widthPx,
+        maxY: maxY / heightPx,
+      };
+    }
+
+    validOutputCounts[label] = pixelCount;
+
+    classes.push({
+      classId: c,
+      label,
+      pixelCount,
+      coverage,
+      present,
+      boundsPx,
+      boundsNormalized,
+    });
+  }
+
+  const valid = validView
+    && numClassesMatches
+    && validShape
+    && validDtype
+    && decodeSuccess
+    && pixelCountMatchesShape
+    && classIdsInRange
+    && countsMatch;
+
   return {
-    classNames: readClassNames(data),
-    classCounts: readClassCounts(data),
-    ...readLabelMetadata(data),
+    view,
+    model,
+    widthPx,
+    heightPx,
+    dtype: dtype ?? rawDtype ?? null,
+    classes,
+    // Backward compatibility fields:
+    classNames,
+    classCounts: validOutputCounts,
+    rejectedClasses,
+    labelShape: validShape ? [heightPx, widthPx] : (rawShape ?? null),
+    labelDtype: dtype ?? rawDtype ?? null,
+    qa: {
+      valid,
+      validView,
+      numClassesMatches,
+      validShape,
+      validDtype,
+      decodeSuccess,
+      pixelCountMatchesShape,
+      classIdsInRange,
+      countsMatch,
+      issues,
+      warnings,
+      recomputedClassCounts: recomputedClassCountsMap,
+      inputClassCounts: { ...inputClassCounts },
+      totalPixels,
+      decodedPixels,
+      outOfRangePixelCount,
+    },
   };
 }
 
 /**
- * Split normalized segmentation classes into body classes and rejected
- * face/head classes. Masks are never rendered — counts and label metadata only.
- *
- * @param {{
- *   classNames?: string[],
- *   classCounts?: Record<string, number>,
- *   labelShape?: number[]|null,
- *   labelDtype?: string|null,
- * }} segmentation
+ * Backward-compatible wrapper for extracting segmentation.
+ */
+export function extractSegmentation(raw, options = {}) {
+  return normalizeSegmentation(raw, options);
+}
+
+/**
+ * Backward-compatible wrapper for classifying segmentation.
  */
 export function classifySegmentation(segmentation) {
-  const names = Array.isArray(segmentation?.classNames) ? segmentation.classNames : [];
-  const sourceCounts = segmentation?.classCounts ?? {};
-
-  const classNames = [];
-  const rejectedClasses = [];
-  const classCounts = {};
-
-  for (const entry of names) {
-    const name = String(entry ?? '');
-    if (!name) {
-      continue;
-    }
-
-    if (isRejectedSegmentationClass(name)) {
-      rejectedClasses.push(name);
-      continue;
-    }
-
-    classNames.push(name);
-    const count = asFiniteNumber(sourceCounts[name]);
-    if (count !== null) {
-      classCounts[name] = count;
-    }
+  if (segmentation && segmentation.classes && segmentation.qa) {
+    return segmentation;
   }
-
-  return {
-    classNames,
-    classCounts,
-    rejectedClasses,
-    labelShape: segmentation?.labelShape ?? null,
-    labelDtype: segmentation?.labelDtype ?? null,
-  };
+  return normalizeSegmentation(segmentation);
 }
 
 /**
@@ -958,16 +1300,6 @@ function emptyViewPose() {
   };
 }
 
-function emptyViewSeg() {
-  return {
-    classNames: [],
-    classCounts: {},
-    rejectedClasses: [],
-    labelShape: null,
-    labelDtype: null,
-  };
-}
-
 /** Sum per-class pixel counts across views. */
 function aggregateClassCounts(views) {
   const totals = {};
@@ -1006,8 +1338,12 @@ export function analyzeBodyEvidence(sources = {}) {
   const sidePoseStats = sidePose
     ? classifyPoseLandmarks(sideLandmarks, { view: 'side' })
     : emptyViewPose();
-  const frontSegStats = frontSeg ? classifySegmentation(extractSegmentation(frontSeg)) : emptyViewSeg();
-  const sideSegStats = sideSeg ? classifySegmentation(extractSegmentation(sideSeg)) : emptyViewSeg();
+  const frontSegStats = frontSeg
+    ? normalizeSegmentation(frontSeg, { expectedView: 'front' })
+    : emptyNormalizedSegmentation('front');
+  const sideSegStats = sideSeg
+    ? normalizeSegmentation(sideSeg, { expectedView: 'side' })
+    : emptyNormalizedSegmentation('side');
 
   const scale = createFixedBodyEvidenceScale();
 
