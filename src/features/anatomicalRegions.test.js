@@ -111,9 +111,11 @@ test('Face_Neck is categorized strictly as face_head and is NOT metrology-eligib
   assert.deepEqual(byLabel, faceNeck);
 });
 
-test('buildObservedAnatomicalRegions produces valid report with observed regions only and no boundsCm', () => {
+test('buildObservedAnatomicalRegions produces valid report with observed regions and accurate Front boundsCm', () => {
   const mockNormalizedSeg = {
     view: 'front',
+    widthPx: 2000,
+    heightPx: 2000,
     classes: [
       {
         classId: 0,
@@ -171,15 +173,26 @@ test('buildObservedAnatomicalRegions produces valid report with observed regions
   assert.equal(report.summary.contextCount, 1);
   assert.equal(report.regions.length, 29);
 
-  // Check that no region carries boundsCm or composite flags
+  // Check strict guardrails across all regions: no composite/derived flags, no z, no depth
   for (const region of report.regions) {
-    assert.equal('boundsCm' in region, false, 'boundsCm must not exist in v0');
     assert.equal('derived' in region, false, 'derived must not exist in v0');
     assert.equal('composite' in region, false, 'composite must not exist in v0');
+    assert.equal('z' in region, false, 'z must not exist in v0');
+    assert.equal('depth' in region, false, 'depth must not exist in v0');
     assert.equal(region.view, 'front');
   }
 
-  // 1. Left_Upper_Arm (class 11) - Present, Valid, Metrology-Eligible
+  // 1. Full-image Background (class 0) -> maps exactly to 0..200 cm
+  const bg = report.regions[0];
+  assert.equal(bg.present, true);
+  assert.deepEqual(bg.boundsCm, {
+    minX: 0.0,
+    maxX: 200.0,
+    minY: 0.0,
+    maxY: 200.0,
+  });
+
+  // 2. Left_Upper_Arm (class 11) - Present, Valid, Metrology-Eligible
   const arm = report.regions[11];
   assert.equal(arm.classId, 11);
   assert.equal(arm.label, 'Left_Upper_Arm');
@@ -192,7 +205,19 @@ test('buildObservedAnatomicalRegions produces valid report with observed regions
   assert.deepEqual(arm.boundsPx, { minX: 300, minY: 400, maxX: 450, maxY: 700 });
   assert.deepEqual(arm.boundsNormalized, { minX: 0.15, minY: 0.2, maxX: 0.225, maxY: 0.35 });
 
-  // 2. Hair (class 4) - Present, Valid, but NOT Metrology-Eligible
+  // boundsCm for Left_Upper_Arm:
+  // minX = 300 / 2000 * 200 = 30.0 cm
+  // maxX = (450 + 1) / 2000 * 200 = 45.1 cm
+  // minY = (2000 - 701) / 2000 * 200 = 1299 / 10 = 129.9 cm
+  // maxY = (2000 - 400) / 2000 * 200 = 1600 / 10 = 160.0 cm
+  assert.deepEqual(arm.boundsCm, {
+    minX: 30.0,
+    maxX: 45.1,
+    minY: 129.9,
+    maxY: 160.0,
+  });
+
+  // 3. Hair (class 4) - Present, Valid, but NOT Metrology-Eligible
   const hair = report.regions[4];
   assert.equal(hair.classId, 4);
   assert.equal(hair.label, 'Hair');
@@ -201,8 +226,14 @@ test('buildObservedAnatomicalRegions produces valid report with observed regions
   assert.equal(hair.pixelCount, 80000);
   assert.equal(hair.status, ANATOMICAL_REGION_STATUS.VALID);
   assert.equal(hair.isBodyMetrologyEligible, false);
+  assert.deepEqual(hair.boundsCm, {
+    minX: 50.0,
+    maxX: 70.1,
+    minY: 169.9,
+    maxY: 190.0,
+  });
 
-  // 3. Right_Upper_Arm (class 20) - Absent
+  // 4. Right_Upper_Arm (class 20) - Absent -> boundsCm is null
   const rightArm = report.regions[20];
   assert.equal(rightArm.classId, 20);
   assert.equal(rightArm.label, 'Right_Upper_Arm');
@@ -211,13 +242,124 @@ test('buildObservedAnatomicalRegions produces valid report with observed regions
   assert.equal(rightArm.pixelCount, 0);
   assert.equal(rightArm.boundsPx, null);
   assert.equal(rightArm.boundsNormalized, null);
+  assert.equal(rightArm.boundsCm, null);
   assert.equal(rightArm.status, ANATOMICAL_REGION_STATUS.ABSENT);
   assert.equal(rightArm.isBodyMetrologyEligible, true);
+});
+
+test('Side valid region produces correct boundsCm with U/Y semantics and no U->Z', () => {
+  const sideSeg = {
+    view: 'side',
+    widthPx: 2000,
+    heightPx: 2000,
+    classes: [
+      {
+        classId: 22,
+        label: 'Torso',
+        pixelCount: 90000,
+        coverage: 0.0225,
+        present: true,
+        boundsPx: { minX: 600, minY: 300, maxX: 900, maxY: 900 },
+        boundsNormalized: { minX: 0.3, minY: 0.15, maxX: 0.45, maxY: 0.45 },
+      },
+    ],
+  };
+
+  const sideReport = buildObservedAnatomicalRegions(sideSeg, { view: 'side' });
+  assert.equal(sideReport.view, 'side');
+
+  const torso = sideReport.regions[22];
+  assert.equal(torso.view, 'side');
+  assert.equal(torso.present, true);
+  assert.equal(torso.status, ANATOMICAL_REGION_STATUS.VALID);
+
+  // Side boundsCm must have minU, maxU, minY, maxY and NEVER minX, maxX, z, depth
+  assert.deepEqual(torso.boundsCm, {
+    minU: 60.0, // 600 / 2000 * 200
+    maxU: 90.1, // (900 + 1) / 2000 * 200
+    minY: 109.9, // (2000 - 901) / 2000 * 200
+    maxY: 170.0, // (2000 - 300) / 2000 * 200
+  });
+
+  assert.equal('minX' in torso.boundsCm, false);
+  assert.equal('maxX' in torso.boundsCm, false);
+  assert.equal('z' in torso.boundsCm, false);
+  assert.equal('depth' in torso.boundsCm, false);
+});
+
+test('Single-pixel region produces non-zero metric area and respects Y inversion', () => {
+  const singlePixelSeg = {
+    view: 'front',
+    widthPx: 2000,
+    heightPx: 2000,
+    classes: [
+      {
+        classId: 15,
+        label: 'Right_Hand',
+        pixelCount: 1,
+        coverage: 0.00000025,
+        present: true,
+        boundsPx: { minX: 100, minY: 200, maxX: 100, maxY: 200 },
+        boundsNormalized: { minX: 0.05, minY: 0.1, maxX: 0.05, maxY: 0.1 },
+      },
+    ],
+  };
+
+  const report = buildObservedAnatomicalRegions(singlePixelSeg, { view: 'front' });
+  const hand = report.regions[15];
+
+  assert.equal(hand.present, true);
+  assert.equal(hand.status, ANATOMICAL_REGION_STATUS.VALID);
+  assert.deepEqual(hand.boundsCm, {
+    minX: 10.0,
+    maxX: 10.1,
+    minY: 179.9,
+    maxY: 180.0,
+  });
+
+  const widthCm = hand.boundsCm.maxX - hand.boundsCm.minX;
+  const heightCm = hand.boundsCm.maxY - hand.boundsCm.minY;
+  assert.equal(Math.round(widthCm * 1000) / 1000, 0.1);
+  assert.equal(Math.round(heightCm * 1000) / 1000, 0.1);
+  assert.equal(widthCm > 0, true);
+  assert.equal(heightCm > 0, true);
+});
+
+test('Non-square raster scales each axis independently without geometric distortion', () => {
+  const nonSquareSeg = {
+    view: 'front',
+    widthPx: 1000,
+    heightPx: 500,
+    classes: [
+      {
+        classId: 22,
+        label: 'Torso',
+        pixelCount: 5000,
+        coverage: 0.01,
+        present: true,
+        boundsPx: { minX: 100, minY: 100, maxX: 200, maxY: 150 },
+        boundsNormalized: { minX: 0.1, minY: 0.2, maxX: 0.2, maxY: 0.3 },
+      },
+    ],
+  };
+
+  const report = buildObservedAnatomicalRegions(nonSquareSeg);
+  const torso = report.regions[22];
+
+  assert.equal(torso.present, true);
+  assert.deepEqual(torso.boundsCm, {
+    minX: 20.0, // 100 / 1000 * 200
+    maxX: 40.2, // (200 + 1) / 1000 * 200
+    minY: 139.6, // (500 - 151) / 500 * 200
+    maxY: 160.0, // (500 - 100) / 500 * 200
+  });
 });
 
 test('Preserves Front and Side spatial independence without cross-view interference', () => {
   const frontSeg = {
     view: 'front',
+    widthPx: 2000,
+    heightPx: 2000,
     classes: [
       {
         classId: 22,
@@ -233,6 +375,8 @@ test('Preserves Front and Side spatial independence without cross-view interfere
 
   const sideSeg = {
     view: 'side',
+    widthPx: 2000,
+    heightPx: 2000,
     classes: [
       {
         classId: 22,
@@ -263,23 +407,45 @@ test('Preserves Front and Side spatial independence without cross-view interfere
 
   assert.deepEqual(frontTorso.boundsPx, { minX: 400, minY: 300, maxX: 800, maxY: 900 });
   assert.deepEqual(sideTorso.boundsPx, { minX: 600, minY: 300, maxX: 900, maxY: 900 });
+
+  assert.deepEqual(frontTorso.boundsCm, {
+    minX: 40.0,
+    maxX: 80.1,
+    minY: 109.9,
+    maxY: 170.0,
+  });
+
+  assert.deepEqual(sideTorso.boundsCm, {
+    minU: 60.0,
+    maxU: 90.1,
+    minY: 109.9,
+    maxY: 170.0,
+  });
 });
 
-test('Handles empty and invalid segmentation inputs safely', () => {
-  // 1. null input
+test('Handles empty and invalid segmentation inputs safely with null boundsCm', () => {
+  // 1. null input -> all absent with boundsCm: null
   const nullReport = buildObservedAnatomicalRegions(null);
   assert.equal(nullReport.summary.totalClasses, 29);
   assert.equal(nullReport.summary.presentClasses, 0);
   assert.equal(nullReport.summary.absentCount, 29);
   assert.equal(nullReport.regions.length, 29);
+  for (const r of nullReport.regions) {
+    assert.equal(r.boundsCm, null);
+  }
 
-  // 2. empty object
+  // 2. empty object -> all absent with boundsCm: null
   const emptyReport = buildObservedAnatomicalRegions({});
   assert.equal(emptyReport.summary.presentClasses, 0);
+  for (const r of emptyReport.regions) {
+    assert.equal(r.boundsCm, null);
+  }
 
-  // 3. invalid bounds when pixels exist
+  // 3. invalid bounds when pixels exist -> status INVALID and boundsCm: null
   const corruptedSeg = {
     view: 'front',
+    widthPx: 2000,
+    heightPx: 2000,
     classes: [
       {
         classId: 5,
@@ -294,7 +460,27 @@ test('Handles empty and invalid segmentation inputs safely', () => {
   const foot = corruptedReport.regions[5];
   assert.equal(foot.present, false);
   assert.equal(foot.status, ANATOMICAL_REGION_STATUS.INVALID);
+  assert.equal(foot.boundsCm, null);
   assert.equal(corruptedReport.summary.invalidCount, 1);
+
+  // 4. missing raster dimensions when pixels and bounds exist -> status INVALID and boundsCm: null
+  const missingDimSeg = {
+    view: 'front',
+    classes: [
+      {
+        classId: 5,
+        label: 'Left_Foot',
+        pixelCount: 500,
+        present: true,
+        boundsPx: { minX: 10, minY: 10, maxX: 50, maxY: 50 },
+      },
+    ],
+  };
+  const missingDimReport = buildObservedAnatomicalRegions(missingDimSeg);
+  const foot2 = missingDimReport.regions[5];
+  assert.equal(foot2.present, false);
+  assert.equal(foot2.status, ANATOMICAL_REGION_STATUS.INVALID);
+  assert.equal(foot2.boundsCm, null);
 });
 
 test('getCanonicalSegmentationClass supports ID, string number, and case-insensitive label lookups', () => {

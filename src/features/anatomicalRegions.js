@@ -2,12 +2,18 @@
  * Anatomical Region Contract v0
  *
  * Pure deterministic domain contract that maps normalized Front/Side
- * segmentation classes into observed anatomical region records.
+ * segmentation classes into observed anatomical region records with
+ * metric outer bounds in centimeters.
  *
  * Grounded strictly in the authoritative 29-class segmentation ontology (0..28).
  * Contains observed segmentation regions only — no derived/composite regions,
- * no class unions, no boundsCm, no U->Z depth, and no 3D geometry fusion.
+ * no class unions, no U->Z depth, and no 3D geometry fusion.
  */
+
+import {
+  boundsPxToFrontMetrology,
+  boundsPxToSideMetrology,
+} from '../core/pixelMetrologyMapping.js';
 
 export const ANATOMICAL_REGION_CONTRACT_VERSION = 'anatomical-region-v0';
 export const ANATOMICAL_REGION_CONTRACT_NAME = 'anatomical-region-v0';
@@ -376,6 +382,7 @@ function sanitizeBoundsNormalized(bounds) {
  *   coverage: number,
  *   boundsPx: { minX: number, minY: number, maxX: number, maxY: number }|null,
  *   boundsNormalized: { minX: number, minY: number, maxX: number, maxY: number }|null,
+ *   boundsCm: { minX: number, maxX: number, minY: number, maxY: number }|{ minU: number, maxU: number, minY: number, maxY: number }|null,
  *   status: 'valid'|'absent'|'invalid',
  *   isBodyMetrologyEligible: boolean,
  * }} ObservedSegmentationRegionV0
@@ -406,15 +413,35 @@ function sanitizeBoundsNormalized(bounds) {
  * Builds deterministic observed anatomical region records from normalized segmentation output.
  *
  * @param {object|null|undefined} normalizedSegmentation - Output of normalizeSegmentation()
- * @param {{ view?: 'front'|'side' }} [options]
+ * @param {{ view?: 'front'|'side', widthPx?: number, heightPx?: number }} [options]
  * @returns {AnatomicalRegionReportV0}
  */
-export function buildObservedAnatomicalRegions(normalizedSegmentation, { view } = {}) {
+export function buildObservedAnatomicalRegions(normalizedSegmentation, { view, widthPx: optWidth, heightPx: optHeight } = {}) {
   const resolvedView = (typeof view === 'string' && view.trim())
     ? view.trim().toLowerCase()
     : (typeof normalizedSegmentation?.view === 'string' && normalizedSegmentation.view.trim()
       ? normalizedSegmentation.view.trim().toLowerCase()
       : 'front');
+
+  const widthPx = (typeof optWidth === 'number' && Number.isInteger(optWidth) && optWidth > 0)
+    ? optWidth
+    : (typeof normalizedSegmentation?.widthPx === 'number' && Number.isInteger(normalizedSegmentation.widthPx) && normalizedSegmentation.widthPx > 0)
+      ? normalizedSegmentation.widthPx
+      : (Array.isArray(normalizedSegmentation?.shape) && typeof normalizedSegmentation.shape[1] === 'number' && Number.isInteger(normalizedSegmentation.shape[1]) && normalizedSegmentation.shape[1] > 0)
+        ? normalizedSegmentation.shape[1]
+        : (Array.isArray(normalizedSegmentation?.labelShape) && typeof normalizedSegmentation.labelShape[1] === 'number' && Number.isInteger(normalizedSegmentation.labelShape[1]) && normalizedSegmentation.labelShape[1] > 0)
+          ? normalizedSegmentation.labelShape[1]
+          : null;
+
+  const heightPx = (typeof optHeight === 'number' && Number.isInteger(optHeight) && optHeight > 0)
+    ? optHeight
+    : (typeof normalizedSegmentation?.heightPx === 'number' && Number.isInteger(normalizedSegmentation.heightPx) && normalizedSegmentation.heightPx > 0)
+      ? normalizedSegmentation.heightPx
+      : (Array.isArray(normalizedSegmentation?.shape) && typeof normalizedSegmentation.shape[0] === 'number' && Number.isInteger(normalizedSegmentation.shape[0]) && normalizedSegmentation.shape[0] > 0)
+        ? normalizedSegmentation.shape[0]
+        : (Array.isArray(normalizedSegmentation?.labelShape) && typeof normalizedSegmentation.labelShape[0] === 'number' && Number.isInteger(normalizedSegmentation.labelShape[0]) && normalizedSegmentation.labelShape[0] > 0)
+          ? normalizedSegmentation.labelShape[0]
+          : null;
 
   const incomingClasses = Array.isArray(normalizedSegmentation?.classes)
     ? normalizedSegmentation.classes
@@ -455,6 +482,7 @@ export function buildObservedAnatomicalRegions(normalizedSegmentation, { view } 
     let coverage = 0;
     let boundsPx = null;
     let boundsNormalized = null;
+    let boundsCm = null;
     let present = false;
     let status = ANATOMICAL_REGION_STATUS.ABSENT;
 
@@ -487,6 +515,28 @@ export function buildObservedAnatomicalRegions(normalizedSegmentation, { view } 
       // Explicit QA error forwarding
       if (incoming.status === ANATOMICAL_REGION_STATUS.INVALID) {
         status = ANATOMICAL_REGION_STATUS.INVALID;
+        present = false;
+      }
+    }
+
+    // Compute metric outer bounds when region is valid
+    if (status === ANATOMICAL_REGION_STATUS.VALID && boundsPx !== null) {
+      if (widthPx !== null && heightPx !== null) {
+        try {
+          if (resolvedView === 'side') {
+            boundsCm = boundsPxToSideMetrology(boundsPx, widthPx, heightPx);
+          } else {
+            boundsCm = boundsPxToFrontMetrology(boundsPx, widthPx, heightPx);
+          }
+        } catch {
+          boundsCm = null;
+          status = ANATOMICAL_REGION_STATUS.INVALID;
+          present = false;
+        }
+      } else {
+        boundsCm = null;
+        status = ANATOMICAL_REGION_STATUS.INVALID;
+        present = false;
       }
     }
 
@@ -525,6 +575,7 @@ export function buildObservedAnatomicalRegions(normalizedSegmentation, { view } 
       coverage,
       boundsPx,
       boundsNormalized,
+      boundsCm,
       status,
       isBodyMetrologyEligible: canonical.isBodyMetrologyEligible,
     });

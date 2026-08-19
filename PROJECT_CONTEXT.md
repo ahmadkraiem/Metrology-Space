@@ -465,8 +465,8 @@ Grounds strictly in the project's actual 29-class segmentation vocabulary (exact
 - **Metrology Eligibility:** `isBodyMetrologyEligible: true` strictly for the 13 `body_anatomical` classes; `false` for all other 16 classes.
 - **`Face_Neck` Boundary:** `Face_Neck` is categorized as `face_head` (excluded from body metrology) and is **never treated or split as an isolated Neck region**.
 - **Decoupled Status:** Presence/QA status (`valid`, `absent`, `invalid`) is separate from semantic category. Face/head classes with positive pixels are `'valid'` segmentation evidence with `isBodyMetrologyEligible: false`.
-- **Bounds Scope:** Exposes `boundsPx` and `boundsNormalized` only. `boundsCm` is strictly deferred to the upcoming Pixel-to-Metrology Mapping Contract.
-- **View Independence:** Front $(X, Y\text{ px})$ and Side $(U, Y\text{ px})$ regions are evaluated independently without $U \to Z$ conversion or spatial fusion.
+- **Bounds Scope:** Exposes `boundsPx`, `boundsNormalized`, and metric outer envelope `boundsCm` (derived via Pixel-to-Metrology Mapping Core v0; `{ minX, maxX, minY, maxY }` for Front, `{ minU, maxU, minY, maxY }` for Side; `null` for absent/invalid regions).
+- **View Independence:** Front $(X, Y\text{ cm})$ and Side $(U, Y\text{ cm})$ regions are evaluated independently without $U \to Z$ conversion or spatial fusion.
 
 ---
 
