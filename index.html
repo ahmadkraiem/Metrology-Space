@@ -433,8 +433,23 @@
 
       <aside id="right-sidebar">
         <div class="sidebar-header">
-          <div class="sidebar-title">Session Data</div>
-          <p class="sidebar-subtitle">Saved measurements and annotations</p>
+          <div class="sidebar-header-main">
+            <div class="sidebar-title">Session Data</div>
+            <p class="sidebar-subtitle">Saved measurements and annotations</p>
+          </div>
+          <button
+            type="button"
+            id="right-sidebar-toggle"
+            class="sidebar-toggle-btn"
+            aria-label="Collapse Session Data"
+            title="Collapse Session Data"
+            aria-expanded="true"
+          >
+            <span class="sidebar-toggle-icon" aria-hidden="true">›</span>
+          </button>
+        </div>
+        <div class="sidebar-collapsed-rail" aria-hidden="true">
+          <span class="sidebar-collapsed-rail-text">Session Data</span>
         </div>
         <div id="session-tabs" class="session-tabs" role="tablist" aria-label="Session Data">
           <button type="button" id="session-tab-history" class="session-tab-btn session-tab-btn--active" role="tab" aria-selected="true" data-tab="history" title="History" aria-label="History">Hist</button>

@@ -1402,6 +1402,47 @@
   max-width: 45%;
 }
 
+/* ── Sidebar collapse/expand toggle button (right sidebar) ── */
+
+.sidebar-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(147, 51, 234, 0.25);
+  border-radius: var(--radius-sm);
+  background: rgba(147, 51, 234, 0.1);
+  color: var(--purple-bright);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(147, 51, 234, 0.25);
+  border-color: var(--glass-border-bright);
+  color: #fff;
+}
+
+.sidebar-toggle-btn:focus-visible {
+  outline: 1px solid var(--purple-bright);
+  outline-offset: 1px;
+}
+
+.sidebar-toggle-icon {
+  display: inline-block;
+  transform: translateY(-1px);
+}
+
 /* ── Session Data tabs (right sidebar) ── */
 
 .session-tabs {

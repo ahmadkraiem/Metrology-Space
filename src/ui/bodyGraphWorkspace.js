@@ -58,6 +58,15 @@ function clearElement(el) {
  * Rebuild the Body Graph diagram from the current annotation collection.
  */
 export function refreshBodyGraphWorkspace() {
+  if (
+    !bodyGraphSummaryNodesEl
+    || !bodyGraphSummaryEdgesEl
+    || !bodyGraphEdgesEl
+    || !bodyGraphNodesEl
+  ) {
+    return;
+  }
+
   const graph = buildBodyGraph(getAnnotations());
   const presentById = new Map(graph.nodes.map((node) => [node.id, node]));
 

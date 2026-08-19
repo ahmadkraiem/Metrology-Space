@@ -2,6 +2,8 @@ const el = (id) => (typeof document !== 'undefined' ? document.getElementById(id
 
 export const container = el('canvas-container');
 export const leftSidebarEl = el('left-sidebar');
+export const rightSidebarEl = el('right-sidebar');
+export const rightSidebarToggleBtn = el('right-sidebar-toggle');
 export const viewportEl = el('viewport');
 export const hoverTooltipEl = el('hover-coordinate-tooltip');
 export const selectionPanel = el('selection-panel');

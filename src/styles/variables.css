@@ -26,6 +26,7 @@
   --footer-height: 36px;
   --sidebar-left-width: 292px;
   --sidebar-right-width: 248px;
+  --sidebar-right-collapsed-width: 36px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --font-display: "Syne", system-ui, sans-serif;

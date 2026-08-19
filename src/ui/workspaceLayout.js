@@ -15,6 +15,8 @@ import {
   workspaceSplitDividerEl,
   grid2dGridWrapperEl,
   sideEvidenceViewportEl,
+  rightSidebarEl,
+  rightSidebarToggleBtn,
 } from './domRefs.js';
 
 export const WORKSPACE_3D = '3d';
@@ -29,6 +31,7 @@ const DEFAULT_SPLIT_RATIO = 0.36;
 let currentWorkspace = WORKSPACE_3D;
 let splitRatio = DEFAULT_SPLIT_RATIO;
 let dividerDragActive = false;
+let rightSidebarCollapsed = false;
 
 /** @type {Set<(mode: string) => void>} */
 const workspaceChangeListeners = new Set();
@@ -56,6 +59,9 @@ function updateTabStates(mode) {
   ];
 
   for (const tab of tabs) {
+    if (!tab.btn) {
+      continue;
+    }
     const isActive = tab.mode === mode;
     tab.btn.classList.toggle('workspace-tab-btn--active', isActive);
     tab.btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
@@ -64,8 +70,12 @@ function updateTabStates(mode) {
 
 function applySplitWidths() {
   if (currentWorkspace !== WORKSPACE_SPLIT) {
-    workspacePane3dEl.style.flex = '';
-    workspacePane2dEl.style.flex = '';
+    if (workspacePane3dEl) workspacePane3dEl.style.flex = '';
+    if (workspacePane2dEl) workspacePane2dEl.style.flex = '';
+    return;
+  }
+
+  if (!workspaceContentEl || !workspacePane3dEl || !workspacePane2dEl) {
     return;
   }
 
@@ -104,11 +114,17 @@ export function setWorkspace(mode) {
   }
 
   currentWorkspace = mode;
-  viewportEl.dataset.workspaceMode = mode;
+  if (viewportEl) {
+    viewportEl.dataset.workspaceMode = mode;
+  }
   updateTabStates(mode);
 
-  workspaceSplitDividerEl.hidden = mode !== WORKSPACE_SPLIT;
-  workspacePaneBodyGraphEl.hidden = mode !== WORKSPACE_BODY_GRAPH;
+  if (workspaceSplitDividerEl) {
+    workspaceSplitDividerEl.hidden = mode !== WORKSPACE_SPLIT;
+  }
+  if (workspacePaneBodyGraphEl) {
+    workspacePaneBodyGraphEl.hidden = mode !== WORKSPACE_BODY_GRAPH;
+  }
 
   applySplitWidths();
 
@@ -126,26 +142,78 @@ export function setWorkspace(mode) {
 
   notifyWorkspaceChange();
 
-  requestAnimationFrame(() => {
+  if (typeof requestAnimationFrame !== 'undefined') {
+    requestAnimationFrame(() => {
+      handleWorkspaceResize();
+    });
+  } else {
     handleWorkspaceResize();
-  });
+  }
 }
 
 export function getWorkspace() {
   return currentWorkspace;
 }
 
+export function isRightSidebarCollapsed() {
+  return rightSidebarCollapsed;
+}
+
+export function setRightSidebarCollapsed(collapsed) {
+  rightSidebarCollapsed = Boolean(collapsed);
+
+  const appLayoutEl = typeof document !== 'undefined' ? document.getElementById('app-layout') : null;
+  if (appLayoutEl) {
+    appLayoutEl.classList.toggle('has-right-sidebar-collapsed', rightSidebarCollapsed);
+  }
+
+  if (rightSidebarEl) {
+    rightSidebarEl.classList.toggle('is-collapsed', rightSidebarCollapsed);
+    rightSidebarEl.setAttribute('aria-expanded', rightSidebarCollapsed ? 'false' : 'true');
+  }
+
+  if (rightSidebarToggleBtn) {
+    rightSidebarToggleBtn.setAttribute('aria-expanded', rightSidebarCollapsed ? 'false' : 'true');
+    rightSidebarToggleBtn.setAttribute(
+      'aria-label',
+      rightSidebarCollapsed ? 'Expand Session Data' : 'Collapse Session Data',
+    );
+    rightSidebarToggleBtn.setAttribute(
+      'title',
+      rightSidebarCollapsed ? 'Expand Session Data' : 'Collapse Session Data',
+    );
+    const iconEl = rightSidebarToggleBtn.querySelector('.sidebar-toggle-icon');
+    if (iconEl) {
+      iconEl.textContent = rightSidebarCollapsed ? '‹' : '›';
+    }
+  }
+
+  handleWorkspaceResize();
+  if (typeof requestAnimationFrame !== 'undefined') {
+    requestAnimationFrame(() => {
+      handleWorkspaceResize();
+    });
+  }
+}
+
+export function toggleRightSidebar() {
+  setRightSidebarCollapsed(!rightSidebarCollapsed);
+}
+
 function startDividerDrag(event) {
-  if (currentWorkspace !== WORKSPACE_SPLIT) {
+  if (currentWorkspace !== WORKSPACE_SPLIT || !workspaceContentEl || !workspaceSplitDividerEl) {
     return;
   }
 
   event.preventDefault();
   dividerDragActive = true;
   workspaceSplitDividerEl.classList.add('workspace-split-divider--dragging');
-  document.body.classList.add('workspace-divider-dragging');
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.classList.add('workspace-divider-dragging');
+  }
 
   const onPointerMove = (moveEvent) => {
+    if (!workspaceContentEl) return;
     const contentRect = workspaceContentEl.getBoundingClientRect();
     const totalWidth = contentRect.width;
     if (totalWidth <= 0) {
@@ -163,47 +231,84 @@ function startDividerDrag(event) {
 
   const onPointerUp = () => {
     dividerDragActive = false;
-    workspaceSplitDividerEl.classList.remove('workspace-split-divider--dragging');
-    document.body.classList.remove('workspace-divider-dragging');
-    document.removeEventListener('pointermove', onPointerMove);
-    document.removeEventListener('pointerup', onPointerUp);
+    if (workspaceSplitDividerEl) {
+      workspaceSplitDividerEl.classList.remove('workspace-split-divider--dragging');
+    }
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.classList.remove('workspace-divider-dragging');
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+    }
   };
 
-  document.addEventListener('pointermove', onPointerMove);
-  document.addEventListener('pointerup', onPointerUp);
+  if (typeof document !== 'undefined') {
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+  }
 }
 
 export function setupWorkspaceLayout() {
-  viewportEl.dataset.workspaceMode = WORKSPACE_3D;
-  workspaceSplitDividerEl.hidden = true;
-  workspacePaneBodyGraphEl.hidden = true;
-
-  workspaceTab3dBtn.addEventListener('click', () => {
-    setWorkspace(WORKSPACE_3D);
-  });
-
-  workspaceTabSplitBtn.addEventListener('click', () => {
-    setWorkspace(WORKSPACE_SPLIT);
-  });
-
-  workspaceTabBodyGraphBtn.addEventListener('click', () => {
-    setWorkspace(WORKSPACE_BODY_GRAPH);
-  });
-
-  workspaceSplitDividerEl.addEventListener('pointerdown', startDividerDrag);
-
-  const resizeObserver = new ResizeObserver(() => {
-    if (dividerDragActive) {
-      return;
-    }
-    handleWorkspaceResize();
-  });
-
-  resizeObserver.observe(workspaceContentEl);
-  resizeObserver.observe(grid2dGridWrapperEl);
-  if (sideEvidenceViewportEl) {
-    resizeObserver.observe(sideEvidenceViewportEl);
+  if (viewportEl) {
+    viewportEl.dataset.workspaceMode = WORKSPACE_3D;
+  }
+  if (workspaceSplitDividerEl) {
+    workspaceSplitDividerEl.hidden = true;
+    workspaceSplitDividerEl.addEventListener('pointerdown', startDividerDrag);
+  }
+  if (workspacePaneBodyGraphEl) {
+    workspacePaneBodyGraphEl.hidden = true;
   }
 
-  window.addEventListener('resize', handleWorkspaceResize);
+  if (workspaceTab3dBtn) {
+    workspaceTab3dBtn.addEventListener('click', () => {
+      setWorkspace(WORKSPACE_3D);
+    });
+  }
+
+  if (workspaceTabSplitBtn) {
+    workspaceTabSplitBtn.addEventListener('click', () => {
+      setWorkspace(WORKSPACE_SPLIT);
+    });
+  }
+
+  if (workspaceTabBodyGraphBtn) {
+    workspaceTabBodyGraphBtn.addEventListener('click', () => {
+      setWorkspace(WORKSPACE_BODY_GRAPH);
+    });
+  }
+
+  if (rightSidebarToggleBtn) {
+    rightSidebarToggleBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      toggleRightSidebar();
+    });
+  }
+
+  if (rightSidebarEl) {
+    rightSidebarEl.addEventListener('click', () => {
+      if (rightSidebarCollapsed) {
+        setRightSidebarCollapsed(false);
+      }
+    });
+  }
+
+  if (typeof ResizeObserver !== 'undefined' && workspaceContentEl && grid2dGridWrapperEl) {
+    const resizeObserver = new ResizeObserver(() => {
+      if (dividerDragActive) {
+        return;
+      }
+      handleWorkspaceResize();
+    });
+
+    resizeObserver.observe(workspaceContentEl);
+    resizeObserver.observe(grid2dGridWrapperEl);
+    if (sideEvidenceViewportEl) {
+      resizeObserver.observe(sideEvidenceViewportEl);
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', handleWorkspaceResize);
+  }
 }
+
