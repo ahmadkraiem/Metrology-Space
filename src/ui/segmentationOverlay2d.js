@@ -9,6 +9,8 @@
 import {
   getBodyEvidenceQa,
   getFrontSegmentationRaster,
+  getSelectedFrontSegClassId,
+  getSelectedSideSegClassId,
   getSideSegmentationRaster,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
@@ -19,12 +21,14 @@ import {
 } from './viewControls.js';
 
 const SEGMENTATION_ALPHA = 95; // ~37% opacity (95 / 255) for translucent visibility
+const EMPHASIS_ALPHA = 220; // ~86% opacity for emphasized selected class
+const DIMMED_ALPHA = 20; // ~8% opacity for dimmed unselected classes
 
 /**
  * Curated, high-contrast, harmonious palette for semantic classes.
  * Background (class 0) is always fully transparent.
  */
-const BASE_PALETTE_RGB = [
+export const BASE_PALETTE_RGB = [
   [34, 211, 238],  // 1: Cyan
   [251, 146, 60],  // 2: Orange
   [232, 121, 249], // 3: Fuchsia
@@ -73,10 +77,57 @@ export function createColorLookupTable(alpha = SEGMENTATION_ALPHA) {
 
 export const COLOR_LOOKUP_TABLE = createColorLookupTable(SEGMENTATION_ALPHA);
 
+/**
+ * Creates a specialized lookup table where the selected class is emphasized
+ * and non-selected classes are dimmed. If selectedClassId is null, returns
+ * standard COLOR_LOOKUP_TABLE.
+ *
+ * @param {number|null|undefined} selectedClassId
+ * @returns {Uint32Array}
+ */
+export function createHighlightColorLookupTable(selectedClassId) {
+  if (selectedClassId === null || selectedClassId === undefined) {
+    return COLOR_LOOKUP_TABLE;
+  }
+
+  const targetId = Number(selectedClassId);
+  const table = new Uint32Array(256);
+  const buf = new ArrayBuffer(4);
+  const u8 = new Uint8ClampedArray(buf);
+  const u32 = new Uint32Array(buf);
+
+  // Background class 0
+  if (targetId === 0) {
+    u8[0] = 220;
+    u8[1] = 220;
+    u8[2] = 220;
+    u8[3] = 180;
+    table[0] = u32[0];
+  } else {
+    table[0] = 0;
+  }
+
+  for (let c = 1; c < 256; c += 1) {
+    const rgb = BASE_PALETTE_RGB[(c - 1) % BASE_PALETTE_RGB.length];
+    u8[0] = rgb[0];
+    u8[1] = rgb[1];
+    u8[2] = rgb[2];
+    u8[3] = c === targetId ? EMPHASIS_ALPHA : DIMMED_ALPHA;
+    table[c] = u32[0];
+  }
+
+  return table;
+}
+
 /** @type {Uint8Array | null} */
 let cachedFrontRaster = null;
+/** @type {number | null} */
+let cachedFrontSegClassId = null;
+
 /** @type {Uint8Array | null} */
 let cachedSideRaster = null;
+/** @type {number | null} */
+let cachedSideSegClassId = null;
 
 /** @type {(() => void) | null} */
 let requestFrontRefreshFn = null;
@@ -85,7 +136,9 @@ let requestSideRefreshFn = null;
 
 export function clearSegmentationOverlayCache() {
   cachedFrontRaster = null;
+  cachedFrontSegClassId = null;
   cachedSideRaster = null;
+  cachedSideSegClassId = null;
 }
 
 /**
@@ -100,6 +153,7 @@ export function renderFrontSegmentationOverlay(canvasEl) {
 
   const enabled = isFrontSegmentationSettingEnabled();
   const raster = getFrontSegmentationRaster();
+  const selectedClassId = getSelectedFrontSegClassId();
   const qa = getBodyEvidenceQa();
   const seg = qa?.views?.front?.segmentation;
 
@@ -113,6 +167,7 @@ export function renderFrontSegmentationOverlay(canvasEl) {
         ctx?.clearRect(0, 0, canvasEl.width, canvasEl.height);
       }
       cachedFrontRaster = null;
+      cachedFrontSegClassId = null;
     }
     return;
   }
@@ -120,24 +175,26 @@ export function renderFrontSegmentationOverlay(canvasEl) {
   const width = seg.widthPx;
   const height = seg.heightPx;
 
-  // Redraw into canvas only when raster payload changes
-  if (cachedFrontRaster !== raster) {
+  // Redraw into canvas when raster payload OR selected class changes
+  if (cachedFrontRaster !== raster || cachedFrontSegClassId !== selectedClassId) {
     if (typeof canvasEl.getContext === 'function') {
       if (canvasEl.width !== width) canvasEl.width = width;
       if (canvasEl.height !== height) canvasEl.height = height;
 
       const ctx = canvasEl.getContext('2d');
       if (ctx) {
+        const lut = createHighlightColorLookupTable(selectedClassId);
         const imgData = ctx.createImageData(width, height);
         const out = new Uint32Array(imgData.data.buffer);
         const len = raster.length;
         for (let i = 0; i < len; i += 1) {
-          out[i] = COLOR_LOOKUP_TABLE[raster[i]];
+          out[i] = lut[raster[i]];
         }
         ctx.putImageData(imgData, 0, 0);
       }
     }
     cachedFrontRaster = raster;
+    cachedFrontSegClassId = selectedClassId;
   }
 
   canvasEl.hidden = false;
@@ -155,6 +212,7 @@ export function renderSideSegmentationOverlay(canvasEl) {
 
   const enabled = isSideSegmentationSettingEnabled();
   const raster = getSideSegmentationRaster();
+  const selectedClassId = getSelectedSideSegClassId();
   const qa = getBodyEvidenceQa();
   const seg = qa?.views?.side?.segmentation;
 
@@ -168,6 +226,7 @@ export function renderSideSegmentationOverlay(canvasEl) {
         ctx?.clearRect(0, 0, canvasEl.width, canvasEl.height);
       }
       cachedSideRaster = null;
+      cachedSideSegClassId = null;
     }
     return;
   }
@@ -175,24 +234,26 @@ export function renderSideSegmentationOverlay(canvasEl) {
   const width = seg.widthPx;
   const height = seg.heightPx;
 
-  // Redraw into canvas only when raster payload changes
-  if (cachedSideRaster !== raster) {
+  // Redraw into canvas when raster payload OR selected class changes
+  if (cachedSideRaster !== raster || cachedSideSegClassId !== selectedClassId) {
     if (typeof canvasEl.getContext === 'function') {
       if (canvasEl.width !== width) canvasEl.width = width;
       if (canvasEl.height !== height) canvasEl.height = height;
 
       const ctx = canvasEl.getContext('2d');
       if (ctx) {
+        const lut = createHighlightColorLookupTable(selectedClassId);
         const imgData = ctx.createImageData(width, height);
         const out = new Uint32Array(imgData.data.buffer);
         const len = raster.length;
         for (let i = 0; i < len; i += 1) {
-          out[i] = COLOR_LOOKUP_TABLE[raster[i]];
+          out[i] = lut[raster[i]];
         }
         ctx.putImageData(imgData, 0, 0);
       }
     }
     cachedSideRaster = raster;
+    cachedSideSegClassId = selectedClassId;
   }
 
   canvasEl.hidden = false;

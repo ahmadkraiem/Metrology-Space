@@ -12,18 +12,28 @@
 
 import {
   analyzeLoadedBodyEvidence,
+  clearAllBodyEvidenceSelections,
   clearBodyEvidence,
   clearBodyEvidenceSelection,
+  clearFrontSegClass,
   clearSideEvidenceSelection,
+  clearSideSegClass,
   downloadBodyEvidenceJson,
   getBodyEvidenceError,
+  getBodyEvidenceQa,
   getSelectedBodyEvidenceLandmark,
+  getSelectedFrontSegClass,
+  getSelectedFrontSegClassId,
   getSelectedSideEvidenceLandmark,
+  getSelectedSideSegClass,
+  getSelectedSideSegClassId,
   hasAnalyzedBodyEvidence,
   isBodyLandmarkPromoted,
   promoteSelectedBodyEvidenceLandmark,
   selectBodyEvidenceLandmark,
+  selectFrontSegClass,
   selectSideEvidenceLandmark,
+  selectSideSegClass,
   setFrontPoseSource,
   setFrontSegSource,
   setSidePoseSource,
@@ -39,6 +49,7 @@ import {
 import {
   getSideCandidateLandmarks,
 } from './bodyEvidenceOverlaySide2d.js';
+import { BASE_PALETTE_RGB } from './segmentationOverlay2d.js';
 import { renderEvidenceCandidateList } from './bodyEvidenceCandidateList.js';
 import { focusBodyEvidenceWorkflow } from './inspectorWorkflow.js';
 import {
@@ -46,11 +57,15 @@ import {
   bodyEvidenceFrontCandidatesEl,
   bodyEvidenceFrontListCountEl,
   bodyEvidenceFrontListLabelEl,
+  bodyEvidenceFrontSegClassesEl,
+  bodyEvidenceFrontSegCountEl,
   bodyEvidencePromoteStatusEl,
   bodyEvidenceSelectedEl,
   bodyEvidenceSideCandidatesEl,
   bodyEvidenceSideListCountEl,
   bodyEvidenceSideListLabelEl,
+  bodyEvidenceSideSegClassesEl,
+  bodyEvidenceSideSegCountEl,
   bodyEvidenceStatusEl,
   clearBodyEvidenceBtn,
   clearBodyLandmarkSelectionBtn,
@@ -113,6 +128,14 @@ function renderBadge(label, tone = 'default', title = '') {
   return `<span class="${badgeClassForTone(tone)}"${titleAttr}>${escapeHtml(label)}</span>`;
 }
 
+function getSegClassSwatchColor(classId) {
+  if (classId === 0) {
+    return 'rgba(148, 163, 184, 0.6)';
+  }
+  const rgb = BASE_PALETTE_RGB[(classId - 1) % BASE_PALETTE_RGB.length];
+  return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+}
+
 function showStatus(message, type = 'info') {
   if (!bodyEvidenceStatusEl) {
     return;
@@ -158,18 +181,30 @@ function syncDownloadButton() {
 }
 
 function currentSelectionKey() {
+  const parts = [];
   const selectedFront = getSelectedBodyEvidenceLandmark();
   if (selectedFront) {
-    return `front:${selectedFront.id}`;
+    parts.push(`front-lm:${selectedFront.id}`);
   }
   const selectedSide = getSelectedSideEvidenceLandmark();
   if (selectedSide) {
-    return `side:${selectedSide.id}`;
+    parts.push(`side-lm:${selectedSide.id}`);
   }
-  return '';
+  const selectedFrontSeg = getSelectedFrontSegClassId();
+  if (selectedFrontSeg !== null) {
+    parts.push(`front-seg:${selectedFrontSeg}`);
+  }
+  const selectedSideSeg = getSelectedSideSegClassId();
+  if (selectedSideSeg !== null) {
+    parts.push(`side-seg:${selectedSideSeg}`);
+  }
+  return parts.join('|');
 }
 
 function syncTabUi() {
+  if (typeof document === 'undefined') {
+    return;
+  }
   document.querySelectorAll('[data-body-evidence-tab]').forEach((button) => {
     const selected = button.dataset.bodyEvidenceTab === activeBodyEvidenceTab;
     button.classList.toggle('is-active', selected);
@@ -182,6 +217,9 @@ function syncTabUi() {
 }
 
 function syncLayerUi(source) {
+  if (typeof document === 'undefined') {
+    return;
+  }
   const layer = source === 'side' ? sideCandidateLayer : frontCandidateLayer;
   document.querySelectorAll(
     `[data-body-evidence-source="${source}"][data-body-evidence-layer]`,
@@ -230,6 +268,8 @@ function syncClearSelectionButton() {
   const hasSelection = (
     getSelectedBodyEvidenceLandmark() != null
     || getSelectedSideEvidenceLandmark() != null
+    || getSelectedFrontSegClassId() != null
+    || getSelectedSideSegClassId() != null
   );
   clearBodyLandmarkSelectionBtn.disabled = !hasSelection;
   clearBodyLandmarkSelectionBtn.setAttribute('aria-disabled', hasSelection ? 'false' : 'true');
@@ -239,11 +279,11 @@ function syncPromoteButton() {
   if (!promoteSelectedBodyLandmarkBtn) {
     return;
   }
-  // Promote is Front-only. Side selection must never show or enable Promote.
-  const hasFrontSelection = getSelectedBodyEvidenceLandmark() != null;
-  promoteSelectedBodyLandmarkBtn.hidden = !hasFrontSelection;
-  promoteSelectedBodyLandmarkBtn.disabled = !hasFrontSelection;
-  promoteSelectedBodyLandmarkBtn.setAttribute('aria-disabled', hasFrontSelection ? 'false' : 'true');
+  // Promote is Front landmark only.
+  const hasFrontLandmarkSelection = getSelectedBodyEvidenceLandmark() != null;
+  promoteSelectedBodyLandmarkBtn.hidden = !hasFrontLandmarkSelection;
+  promoteSelectedBodyLandmarkBtn.disabled = !hasFrontLandmarkSelection;
+  promoteSelectedBodyLandmarkBtn.setAttribute('aria-disabled', hasFrontLandmarkSelection ? 'false' : 'true');
 }
 
 function promotedNamesFor(landmarks) {
@@ -288,11 +328,76 @@ function onSideCandidateSelect(landmark) {
   setBodyEvidencePanelTab('selection');
 }
 
+/**
+ * Renders a list of normalized segmentation classes with class swatch, label,
+ * pixel count, coverage percentage, and present/absent badge.
+ */
+export function renderSegmentationClassList({
+  container,
+  classes = [],
+  view = 'front',
+  selectedClassId = null,
+  onSelect,
+}) {
+  if (!container) {
+    return;
+  }
+  if (!Array.isArray(classes) || classes.length === 0) {
+    container.innerHTML = `<p class="body-evidence-candidates-empty">No ${escapeHtml(view)} segmentation classes.</p>`;
+    return;
+  }
+
+  const itemsHtml = classes.map((c) => {
+    const isSelected = selectedClassId !== null && selectedClassId === c.classId;
+    const isAbsent = !c.present;
+    const swatchColor = getSegClassSwatchColor(c.classId);
+    const displayName = formatLandmarkDisplayName(c.label) || c.label;
+    const metaText = `#${c.classId} · ${c.pixelCount.toLocaleString()} px · ${(c.coverage * 100).toFixed(1)}%`;
+    const presentBadge = c.present
+      ? renderBadge('Present', 'ok')
+      : renderBadge('Absent', 'muted');
+
+    const itemClasses = [
+      'body-evidence-class-item',
+      isAbsent ? 'body-evidence-class-item--absent' : '',
+      isSelected ? 'is-selected' : '',
+    ].filter(Boolean).join(' ');
+
+    return (
+      `<button type="button" class="${itemClasses}" data-seg-view="${escapeHtml(view)}" data-seg-class-id="${c.classId}" aria-selected="${isSelected ? 'true' : 'false'}" title="Class ${c.classId}: ${escapeHtml(c.label)} (${c.present ? 'Present' : 'Absent'})">`
+      + `<span class="body-evidence-class-swatch" style="background-color: ${swatchColor};"></span>`
+      + `<span class="body-evidence-class-info">`
+      + `<span class="body-evidence-class-name">${escapeHtml(displayName)}</span>`
+      + `<span class="body-evidence-class-meta">${escapeHtml(metaText)}</span>`
+      + `</span>`
+      + `${presentBadge}`
+      + `</button>`
+    );
+  }).join('');
+
+  container.innerHTML = itemsHtml;
+
+  container.querySelectorAll('[data-seg-class-id]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rawId = btn.dataset.segClassId;
+      const classId = rawId !== undefined ? Number(rawId) : null;
+      if (typeof onSelect === 'function') {
+        onSelect(classId);
+      }
+    });
+  });
+}
+
 function refreshCandidateLists() {
   const analyzed = hasAnalyzedBodyEvidence();
+  const qa = getBodyEvidenceQa();
   const selectedFront = getSelectedBodyEvidenceLandmark();
   const selectedSide = getSelectedSideEvidenceLandmark();
+  const selectedFrontSegId = getSelectedFrontSegClassId();
+  const selectedSideSegId = getSelectedSideSegClassId();
 
+  // 1. Front Pose Landmarks
   const frontLandmarks = !analyzed
     ? []
     : (frontCandidateLayer === 'secondary'
@@ -316,6 +421,27 @@ function refreshCandidateLists() {
     layer: frontCandidateLayer,
   });
 
+  // 2. Front Segmentation Classes
+  const frontSegClasses = analyzed ? (qa?.views?.front?.segmentation?.classes ?? []) : [];
+  if (bodyEvidenceFrontSegCountEl) {
+    bodyEvidenceFrontSegCountEl.textContent = String(frontSegClasses.length);
+  }
+  renderSegmentationClassList({
+    container: bodyEvidenceFrontSegClassesEl,
+    classes: frontSegClasses,
+    view: 'front',
+    selectedClassId: selectedFrontSegId,
+    onSelect: (classId) => {
+      if (selectedFrontSegId === classId) {
+        clearFrontSegClass();
+      } else {
+        selectFrontSegClass(classId);
+        setBodyEvidencePanelTab('selection');
+      }
+    },
+  });
+
+  // 3. Side Pose Landmarks
   const sideLandmarks = analyzed
     ? getSideCandidateLandmarks({ layer: sideCandidateLayer })
     : [];
@@ -336,6 +462,26 @@ function refreshCandidateLists() {
     onSelect: onSideCandidateSelect,
     layer: sideCandidateLayer,
   });
+
+  // 4. Side Segmentation Classes
+  const sideSegClasses = analyzed ? (qa?.views?.side?.segmentation?.classes ?? []) : [];
+  if (bodyEvidenceSideSegCountEl) {
+    bodyEvidenceSideSegCountEl.textContent = String(sideSegClasses.length);
+  }
+  renderSegmentationClassList({
+    container: bodyEvidenceSideSegClassesEl,
+    classes: sideSegClasses,
+    view: 'side',
+    selectedClassId: selectedSideSegId,
+    onSelect: (classId) => {
+      if (selectedSideSegId === classId) {
+        clearSideSegClass();
+      } else {
+        selectSideSegClass(classId);
+        setBodyEvidencePanelTab('selection');
+      }
+    },
+  });
 }
 
 function renderCoordCell(axisLabel, value) {
@@ -347,7 +493,139 @@ function renderCoordCell(axisLabel, value) {
   );
 }
 
-/** Compact inspect card: Front (promotable) or Side (evidence-only). */
+function renderFrontLandmarkCardHtml(selectedFront) {
+  const promoted = isBodyLandmarkPromoted(selectedFront.name);
+  const displayName = formatLandmarkDisplayName(selectedFront.name) || selectedFront.name;
+  const scoreLabel = formatScore(selectedFront.score);
+  const candidateType = resolveCandidateType(selectedFront, 'front');
+  const typeLabel = candidateType === 'secondary' ? 'Secondary' : 'Core';
+  const promotedBadge = renderBadge(
+    promoted ? 'Promoted' : 'Not promoted',
+    promoted ? 'ok' : 'muted',
+  );
+
+  return (
+    `<div class="body-evidence-inspect-card-section" data-inspect-target="front-landmark">`
+    + `<div class="body-evidence-inspect-header">`
+    + `<div class="body-evidence-inspect-name" title="${escapeHtml(selectedFront.name)}">${escapeHtml(displayName)}</div>`
+    + `<div class="body-evidence-inspect-header-badges">`
+    + `${renderBadge('Front Landmark', 'ok')}`
+    + `${renderBadge(typeLabel, candidateType === 'secondary' ? 'muted' : 'ok')}`
+    + `${renderBadge(scoreLabel, 'ok', 'Confidence')}`
+    + `${promotedBadge}`
+    + `</div>`
+    + `</div>`
+    + `<div class="body-evidence-coord-grid">`
+    + renderCoordCell('X', `${formatCmValue(selectedFront.spaceX)} cm`)
+    + renderCoordCell('Y', `${formatCmValue(selectedFront.spaceY)} cm`)
+    + `</div>`
+    + `</div>`
+  );
+}
+
+function renderSideLandmarkCardHtml(selectedSide) {
+  const displayName = formatLandmarkDisplayName(selectedSide.name) || selectedSide.name;
+  const scoreLabel = formatScore(selectedSide.score);
+  const candidateType = resolveCandidateType(selectedSide, 'side');
+  const typeLabel = candidateType === 'secondary' ? 'Secondary' : 'Core';
+
+  return (
+    `<div class="body-evidence-inspect-card-section" data-inspect-target="side-landmark">`
+    + `<div class="body-evidence-inspect-header">`
+    + `<div class="body-evidence-inspect-name" title="${escapeHtml(selectedSide.name)}">${escapeHtml(displayName)}</div>`
+    + `<div class="body-evidence-inspect-header-badges">`
+    + `${renderBadge('Side Landmark', 'muted')}`
+    + `${renderBadge(typeLabel, candidateType === 'secondary' ? 'muted' : 'ok')}`
+    + `${renderBadge(scoreLabel, 'ok', 'Confidence')}`
+    + `</div>`
+    + `</div>`
+    + `<div class="body-evidence-coord-grid">`
+    + renderCoordCell('U', `${formatCmValue(selectedSide.sideUcm)} cm`)
+    + renderCoordCell('Y', `${formatCmValue(selectedSide.sideYcm)} cm`)
+    + `</div>`
+    + `</div>`
+  );
+}
+
+function renderSegmentationCardHtml(segClass) {
+  const isFront = segClass.view === 'front';
+  const displayName = formatLandmarkDisplayName(segClass.label) || segClass.label;
+  const swatchColor = getSegClassSwatchColor(segClass.classId);
+  const coveragePercent = (segClass.coverage * 100).toFixed(2) + '%';
+  const presentBadge = renderBadge(
+    segClass.present ? 'Present' : 'Absent',
+    segClass.present ? 'ok' : 'muted',
+  );
+
+  let boundsPxStr = 'n/a';
+  if (segClass.boundsPx) {
+    boundsPxStr = `X: [${segClass.boundsPx.minX} .. ${segClass.boundsPx.maxX}] · Y: [${segClass.boundsPx.minY} .. ${segClass.boundsPx.maxY}]`;
+  }
+
+  let boundsNormStr = 'n/a';
+  if (segClass.boundsNormalized) {
+    boundsNormStr = `X: [${segClass.boundsNormalized.minX.toFixed(3)} .. ${segClass.boundsNormalized.maxX.toFixed(3)}] · Y: [${segClass.boundsNormalized.minY.toFixed(3)} .. ${segClass.boundsNormalized.maxY.toFixed(3)}]`;
+  }
+
+  const qa = segClass.qa;
+  const qaValid = Boolean(qa?.valid);
+  const qaStatusBadge = renderBadge(qaValid ? 'Valid' : 'Needs review', qaValid ? 'ok' : 'warn');
+
+  let qaIssuesHtml = '';
+  if (qa && Array.isArray(qa.issues) && qa.issues.length > 0) {
+    qaIssuesHtml = `<div class="body-evidence-qa-issues">`
+      + qa.issues.map((issue) => `<div class="body-evidence-qa-issue-item">⚠️ ${escapeHtml(issue)}</div>`).join('')
+      + `</div>`;
+  }
+
+  return (
+    `<div class="body-evidence-inspect-card-section" data-seg-inspect-view="${escapeHtml(segClass.view)}">`
+    + `<div class="body-evidence-inspect-header">`
+    + `<div class="body-evidence-inspect-name-row">`
+    + `<span class="body-evidence-class-swatch body-evidence-class-swatch--large" style="background-color: ${swatchColor};"></span>`
+    + `<div class="body-evidence-inspect-name" title="${escapeHtml(segClass.label)}">${escapeHtml(displayName)}</div>`
+    + `</div>`
+    + `<div class="body-evidence-inspect-header-badges">`
+    + `${renderBadge(isFront ? 'Front Seg' : 'Side Seg', isFront ? 'ok' : 'muted')}`
+    + `${renderBadge(`Class ${segClass.classId}`, 'ok')}`
+    + `${presentBadge}`
+    + `</div>`
+    + `</div>`
+    + `<div class="body-evidence-coord-grid">`
+    + renderCoordCell('Pixels', `${segClass.pixelCount.toLocaleString()} px`)
+    + renderCoordCell('Coverage', coveragePercent)
+    + `</div>`
+    + `<div class="body-evidence-bounds-box">`
+    + `<div class="body-evidence-bounds-title">Bounds</div>`
+    + `<div class="body-evidence-bounds-row"><span class="body-evidence-bounds-label">Pixels:</span> <span class="body-evidence-bounds-val">${escapeHtml(boundsPxStr)}</span></div>`
+    + `<div class="body-evidence-bounds-row"><span class="body-evidence-bounds-label">0..1:</span> <span class="body-evidence-bounds-val">${escapeHtml(boundsNormStr)}</span></div>`
+    + `</div>`
+    + `<div class="body-evidence-qa-summary-box">`
+    + `<div class="body-evidence-qa-summary-header">`
+    + `<span class="body-evidence-qa-summary-title">Segmentation QA · ${isFront ? 'Front' : 'Side'}</span>`
+    + `${qaStatusBadge}`
+    + `</div>`
+    + `<div class="body-evidence-qa-grid">`
+    + `<div class="body-evidence-qa-item"><span class="body-evidence-qa-key">Shape:</span> <span class="body-evidence-qa-val">${segClass.widthPx ?? '—'}×${segClass.heightPx ?? '—'}</span></div>`
+    + `<div class="body-evidence-qa-item"><span class="body-evidence-qa-key">Dtype:</span> <span class="body-evidence-qa-val">${escapeHtml(segClass.dtype ?? '—')}</span></div>`
+    + `<div class="body-evidence-qa-item"><span class="body-evidence-qa-key">Classes:</span> <span class="body-evidence-qa-val">${qa?.numClassesMatches ? 'Matches' : 'Mismatch'}</span></div>`
+    + `<div class="body-evidence-qa-item"><span class="body-evidence-qa-key">Counts:</span> <span class="body-evidence-qa-val">${qa?.countsMatch ? 'Matches' : 'Mismatch'}</span></div>`
+    + `</div>`
+    + qaIssuesHtml
+    + `</div>`
+    + `</div>`
+  );
+}
+
+/**
+ * Renders the inspection card in the Selection tab.
+ * Shows cards for whatever is currently selected:
+ * - Front Landmark (if selected)
+ * - Side Landmark (if selected)
+ * - Front Segmentation Class (if selected)
+ * - Side Segmentation Class (if selected)
+ * If both Front and Side are selected, renders both independently.
+ */
 function renderSelectedLandmark() {
   if (!bodyEvidenceSelectedEl) {
     return;
@@ -355,64 +633,39 @@ function renderSelectedLandmark() {
 
   const selectedFront = getSelectedBodyEvidenceLandmark();
   const selectedSide = getSelectedSideEvidenceLandmark();
+  const selectedFrontSeg = getSelectedFrontSegClass();
+  const selectedSideSeg = getSelectedSideSegClass();
 
-  if (!selectedFront && !selectedSide) {
-    bodyEvidenceSelectedEl.innerHTML = '<p class="body-evidence-selected-empty">No body landmark selected.</p>';
+  const hasAnySelection = (
+    selectedFront != null
+    || selectedSide != null
+    || selectedFrontSeg != null
+    || selectedSideSeg != null
+  );
+
+  if (!hasAnySelection) {
+    bodyEvidenceSelectedEl.innerHTML = '<p class="body-evidence-selected-empty">No body landmark or segmentation class selected.</p>';
     syncClearSelectionButton();
     syncPromoteButton();
     return;
   }
 
+  const cards = [];
+
   if (selectedFront) {
-    const promoted = isBodyLandmarkPromoted(selectedFront.name);
-    const displayName = formatLandmarkDisplayName(selectedFront.name) || selectedFront.name;
-    const scoreLabel = formatScore(selectedFront.score);
-    const candidateType = resolveCandidateType(selectedFront, 'front');
-    const typeLabel = candidateType === 'secondary' ? 'Secondary' : 'Core';
-    const promotedBadge = renderBadge(
-      promoted ? 'Promoted' : 'Not promoted',
-      promoted ? 'ok' : 'muted',
-    );
-
-    bodyEvidenceSelectedEl.innerHTML = (
-      `<div class="body-evidence-inspect-header">`
-      + `<div class="body-evidence-inspect-name" title="${escapeHtml(selectedFront.name)}">${escapeHtml(displayName)}</div>`
-      + `<div class="body-evidence-inspect-header-badges">`
-      + `${renderBadge('Front', 'ok')}`
-      + `${renderBadge(typeLabel, candidateType === 'secondary' ? 'muted' : 'ok')}`
-      + `${renderBadge(scoreLabel, 'ok', 'Confidence')}`
-      + `${promotedBadge}`
-      + `</div>`
-      + `</div>`
-      + `<div class="body-evidence-coord-grid">`
-      + renderCoordCell('X', `${formatCmValue(selectedFront.spaceX)} cm`)
-      + renderCoordCell('Y', `${formatCmValue(selectedFront.spaceY)} cm`)
-      + `</div>`
-    );
-  } else {
-    // Side is evidence-only — never show Front promote feedback on Selection.
-    hidePromoteStatus();
-
-    const displayName = formatLandmarkDisplayName(selectedSide.name) || selectedSide.name;
-    const scoreLabel = formatScore(selectedSide.score);
-    const candidateType = resolveCandidateType(selectedSide, 'side');
-    const typeLabel = candidateType === 'secondary' ? 'Secondary' : 'Core';
-
-    bodyEvidenceSelectedEl.innerHTML = (
-      `<div class="body-evidence-inspect-header">`
-      + `<div class="body-evidence-inspect-name" title="${escapeHtml(selectedSide.name)}">${escapeHtml(displayName)}</div>`
-      + `<div class="body-evidence-inspect-header-badges">`
-      + `${renderBadge('Side', 'muted')}`
-      + `${renderBadge(typeLabel, candidateType === 'secondary' ? 'muted' : 'ok')}`
-      + `${renderBadge(scoreLabel, 'ok', 'Confidence')}`
-      + `</div>`
-      + `</div>`
-      + `<div class="body-evidence-coord-grid">`
-      + renderCoordCell('U', `${formatCmValue(selectedSide.sideUcm)} cm`)
-      + renderCoordCell('Y', `${formatCmValue(selectedSide.sideYcm)} cm`)
-      + `</div>`
-    );
+    cards.push(renderFrontLandmarkCardHtml(selectedFront));
   }
+  if (selectedSide) {
+    cards.push(renderSideLandmarkCardHtml(selectedSide));
+  }
+  if (selectedFrontSeg) {
+    cards.push(renderSegmentationCardHtml(selectedFrontSeg));
+  }
+  if (selectedSideSeg) {
+    cards.push(renderSegmentationCardHtml(selectedSideSeg));
+  }
+
+  bodyEvidenceSelectedEl.innerHTML = cards.join('<div class="body-evidence-card-divider"></div>');
 
   syncClearSelectionButton();
   syncPromoteButton();
@@ -499,8 +752,7 @@ export function runClearBodyEvidenceAction() {
 }
 
 function onClearSelection() {
-  clearBodyEvidenceSelection();
-  clearSideEvidenceSelection();
+  clearAllBodyEvidenceSelections();
   hidePromoteStatus();
   refreshCandidateLists();
   renderSelectedLandmark();
@@ -575,16 +827,18 @@ export function setupBodyEvidencePanel() {
   promoteSelectedBodyLandmarkBtn?.addEventListener('click', runPromoteFrontEvidenceAction);
   downloadBodyEvidenceJsonBtn?.addEventListener('click', runDownloadBodyEvidenceAction);
 
-  document.querySelectorAll('[data-body-evidence-tab]').forEach((button) => {
-    button.addEventListener('click', onTabButtonClick);
-  });
-  document.querySelectorAll('[data-body-evidence-layer]').forEach((button) => {
-    button.addEventListener('click', onLayerButtonClick);
-  });
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('[data-body-evidence-tab]').forEach((button) => {
+      button.addEventListener('click', onTabButtonClick);
+    });
+    document.querySelectorAll('[data-body-evidence-layer]').forEach((button) => {
+      button.addEventListener('click', onLayerButtonClick);
+    });
 
-  document.addEventListener('body-evidence-selection-focus', () => {
-    setBodyEvidencePanelTab('selection');
-  });
+    document.addEventListener('body-evidence-selection-focus', () => {
+      setBodyEvidencePanelTab('selection');
+    });
+  }
 
   lastSelectionKey = currentSelectionKey();
 
@@ -608,3 +862,4 @@ export function setupBodyEvidencePanel() {
   renderSelectedLandmark();
   hidePromoteStatus();
 }
+

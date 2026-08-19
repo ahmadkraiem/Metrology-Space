@@ -126,3 +126,7 @@ export const bodyMeasurementReadinessEl = el('body-measurement-readiness');
 export const frontSideAlignmentQaEl = el('front-side-alignment-qa');
 export const promoteSelectedBodyLandmarkBtn = el('promote-selected-body-landmark');
 export const clearBodyLandmarkSelectionBtn = el('clear-body-landmark-selection');
+export const bodyEvidenceFrontSegClassesEl = el('body-evidence-front-seg-classes');
+export const bodyEvidenceFrontSegCountEl = el('body-evidence-front-seg-count');
+export const bodyEvidenceSideSegClassesEl = el('body-evidence-side-seg-classes');
+export const bodyEvidenceSideSegCountEl = el('body-evidence-side-seg-count');

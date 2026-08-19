@@ -99,6 +99,20 @@ let selectedBodyEvidenceLandmark = null;
  */
 let selectedSideEvidenceLandmark = null;
 
+/**
+ * UI-only Front Segmentation class selection (inspect v0).
+ * Independent from Side segmentation selection and landmark selections.
+ * @type {number|null}
+ */
+let selectedFrontSegClassId = null;
+
+/**
+ * UI-only Side Segmentation class selection (inspect v0).
+ * Independent from Front segmentation selection and landmark selections.
+ * @type {number|null}
+ */
+let selectedSideSegClassId = null;
+
 /** @type {Set<() => void>} */
 const changeListeners = new Set();
 
@@ -470,6 +484,135 @@ export function clearSideEvidenceSelection() {
 }
 
 /**
+ * Access the currently selected Front segmentation class ID.
+ * @returns {number|null}
+ */
+export function getSelectedFrontSegClassId() {
+  return selectedFrontSegClassId;
+}
+
+/**
+ * Access the currently selected Side segmentation class ID.
+ * @returns {number|null}
+ */
+export function getSelectedSideSegClassId() {
+  return selectedSideSegClassId;
+}
+
+/**
+ * Access the full normalized data of the selected Front segmentation class.
+ * @returns {object|null}
+ */
+export function getSelectedFrontSegClass() {
+  if (selectedFrontSegClassId === null || !qaResult?.views?.front?.segmentation) {
+    return null;
+  }
+  const seg = qaResult.views.front.segmentation;
+  const found = seg.classes.find((c) => c.classId === selectedFrontSegClassId);
+  if (!found) {
+    return null;
+  }
+  return {
+    ...found,
+    view: 'front',
+    model: seg.model,
+    widthPx: seg.widthPx,
+    heightPx: seg.heightPx,
+    dtype: seg.dtype,
+    qa: seg.qa,
+  };
+}
+
+/**
+ * Access the full normalized data of the selected Side segmentation class.
+ * @returns {object|null}
+ */
+export function getSelectedSideSegClass() {
+  if (selectedSideSegClassId === null || !qaResult?.views?.side?.segmentation) {
+    return null;
+  }
+  const seg = qaResult.views.side.segmentation;
+  const found = seg.classes.find((c) => c.classId === selectedSideSegClassId);
+  if (!found) {
+    return null;
+  }
+  return {
+    ...found,
+    view: 'side',
+    model: seg.model,
+    widthPx: seg.widthPx,
+    heightPx: seg.heightPx,
+    dtype: seg.dtype,
+    qa: seg.qa,
+  };
+}
+
+/**
+ * Select a Front segmentation class by its classId (0..num_classes-1).
+ * Passing null or undefined clears the Front segmentation selection.
+ * Independent from Side segmentation and landmark selections.
+ * @param {number|null|undefined} classId
+ */
+export function selectFrontSegClass(classId) {
+  const nextId = classId === null || classId === undefined ? null : Number(classId);
+  if (selectedFrontSegClassId === nextId) {
+    return;
+  }
+  selectedFrontSegClassId = nextId;
+  notifyBodyEvidenceChange();
+}
+
+/**
+ * Select a Side segmentation class by its classId (0..num_classes-1).
+ * Passing null or undefined clears the Side segmentation selection.
+ * Independent from Front segmentation and landmark selections.
+ * @param {number|null|undefined} classId
+ */
+export function selectSideSegClass(classId) {
+  const nextId = classId === null || classId === undefined ? null : Number(classId);
+  if (selectedSideSegClassId === nextId) {
+    return;
+  }
+  selectedSideSegClassId = nextId;
+  notifyBodyEvidenceChange();
+}
+
+/** Clears only the Front segmentation class selection. */
+export function clearFrontSegClass() {
+  if (selectedFrontSegClassId === null) {
+    return;
+  }
+  selectedFrontSegClassId = null;
+  notifyBodyEvidenceChange();
+}
+
+/** Clears only the Side segmentation class selection. */
+export function clearSideSegClass() {
+  if (selectedSideSegClassId === null) {
+    return;
+  }
+  selectedSideSegClassId = null;
+  notifyBodyEvidenceChange();
+}
+
+/**
+ * Clears all active Body Evidence inspection selections (Front/Side landmarks and Front/Side segmentation).
+ */
+export function clearAllBodyEvidenceSelections() {
+  const hadAny = (
+    selectedBodyEvidenceLandmark !== null
+    || selectedSideEvidenceLandmark !== null
+    || selectedFrontSegClassId !== null
+    || selectedSideSegClassId !== null
+  );
+  if (!hadAny) {
+    return;
+  }
+  clearBodyEvidenceSelectionSilent();
+  notifyBodyEvidenceChange();
+}
+
+/**
  * True when a saved annotation already exists for this landmark name
  * with type `body_landmark` (duplicate promotion guard).
  */
@@ -672,6 +815,8 @@ export function promoteSelectedBodyEvidenceLandmark() {
 function clearBodyEvidenceSelectionSilent() {
   selectedBodyEvidenceLandmark = null;
   selectedSideEvidenceLandmark = null;
+  selectedFrontSegClassId = null;
+  selectedSideSegClassId = null;
 }
 
 function hasBodyEvidencePoseOrSegSource() {

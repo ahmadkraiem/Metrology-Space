@@ -98,6 +98,9 @@ latent-space/
 │       ├── measurementContext.test.js # Measurement context unit tests
 │       ├── measurementPanel.js      # Distance Measurement inspector (Front/Canonical and Side/U-Y subgroups)
 │       ├── sceneGraphPanel.js       # Scene Graph tree DOM rendering
+│       ├── segmentationInspection.test.js # Segmentation inspection and QA UI unit tests
+│       ├── segmentationOverlay2d.js # Translucent dense semantic segmentation overlay & highlight LUTs
+│       ├── segmentationOverlay2d.test.js # Segmentation overlay rendering unit tests
 │       ├── selectionPanel.js        # Selected Point inspector panel helper
 │       ├── sessionTabs.js           # Session Data tab manager (Hist / Annos / Body / Graph)
 │       ├── sideEvidenceStatus.js    # Side Evidence status readout helper
