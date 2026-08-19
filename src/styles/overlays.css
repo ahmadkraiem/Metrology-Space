@@ -622,6 +622,23 @@
   z-index: 0;
 }
 
+.grid2d-segmentation-canvas {
+  position: absolute;
+  left: var(--grid2d-plot-left, 12%);
+  top: var(--grid2d-plot-top, 12%);
+  width: var(--grid2d-plot-width, 76%);
+  height: var(--grid2d-plot-height, 76%);
+  pointer-events: none;
+  z-index: 1;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  opacity: 0.9;
+}
+
+.grid2d-segmentation-canvas[hidden] {
+  display: none;
+}
+
 .grid2d-selection-rect {
   position: absolute;
   z-index: 5;

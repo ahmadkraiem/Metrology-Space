@@ -179,13 +179,13 @@ latent-space/
 | File | Responsibilities |
 |------|------------------|
 | `appMenuBar.js` | Manages the top application menu bar (File, View, Workflow dropdowns) and connects file pickers, view toggles, and workflow selection. |
-| `viewControls.js` | Defines the 11 view settings (`origin-center`, `annotations`, `measurement-lines`, `lattice-3d`, `front-grid`, `side-grid`, `front-core`, `front-secondary`, `side-core`, `side-secondary`, `body-previews`), queries authoritative state (`getViewSetting`), and executes toggles. |
+| `viewControls.js` | Defines the 13 view settings (`origin-center`, `annotations`, `measurement-lines`, `lattice-3d`, `front-grid`, `side-grid`, `front-core`, `front-secondary`, `side-core`, `side-secondary`, `front-seg`, `side-seg`, `body-previews`), queries authoritative state (`getViewSetting`), and executes toggles. |
 | `inspectorWorkflow.js` | Controls left Metrology Inspector panel visibility based on active workflow (`measurement`, `annotation`, `body-evidence`). |
 | `inspectorWorkflowState.js` | Authoritative state store and subscriber notification for active Metrology Inspector workflows; coordinates with App Menu Bar. |
 | `workspaceLayout.js` | Manages workspace navigation tabs (3D Space, 2D Workspace, Body Graph), combined 3D+2D split view (36% 3D / 64% 2D default), draggable split divider, and right Session Data sidebar collapse/expand layout state. |
 | `workspaceLayout.test.js` | Workspace layout tab switching and right sidebar collapse state unit tests. |
-| `grid2dNavigator.js` | Front Surface 2D Grid Navigator (0–200 cm X/Y), 10 cm base lattice, 5 cm regional refinement, shared measurement overlay, and projected markers. Manages active-only legend rendering. |
-| `sideGrid2dNavigator.js` | Side Evidence 2D Grid Navigator (0–200 cm U/Y), 10 cm base lattice, 5 cm regional refinement, Side Core and Secondary markers (shared Core/Secondary colors; diamond/dot shapes), and local Side A/B measurement. Manages active-only legend rendering. |
+| `grid2dNavigator.js` | Front Surface 2D Grid Navigator (0–200 cm X/Y), 10 cm base lattice, 5 cm regional refinement, shared measurement overlay, projected markers, and Front segmentation overlay. Manages active-only legend rendering. |
+| `sideGrid2dNavigator.js` | Side Evidence 2D Grid Navigator (0–200 cm U/Y), 10 cm base lattice, 5 cm regional refinement, Side Core and Secondary markers (shared Core/Secondary colors; diamond/dot shapes), local Side A/B measurement, and Side segmentation overlay. Manages active-only legend rendering. |
 | `grid2dNavShared.js` | Shared 2D navigator math, zoom/pan transforms, and lattice utilities. |
 | `grid2dPlotArea.js` | Shared 2D plot frame, axis labels, and CSS variable management. |
 | `grid2dMarkerSizing.js` | Computes zoom-dependent relative marker sizes for 2D navigators. |
@@ -193,6 +193,7 @@ latent-space/
 | `bodyEvidenceCandidateList.js` | Renders candidate lists with Core / Secondary filters and unified color semantics (Gold for Core, Purple for Secondary). |
 | `bodyEvidenceOverlay2d.js` | Renders Front Surface Body Evidence overlay markers and active selection highlight. |
 | `bodyEvidenceOverlaySide2d.js` | Renders Side Evidence overlay markers (shared Core/Secondary colors; diamond/dot shapes). |
+| `segmentationOverlay2d.js` | Renders read-only, translucent dense semantic segmentation overlays onto the Front and Side 2D navigators with deterministic color mapping and cached raster drawing. |
 | `frontSideAlignmentPanel.js` | Read-only Session Data → Body presentation for the current alignment report. Derives alignment report on demand from normalized Body Evidence runtime state; renders top summary card and collapsible Core Pairs, Secondary Pairs, and Issues groups with compact 2-line audit rows. |
 | `bodyGraphWorkspace.js` | Renders the read-only Core 13 Body Graph topology workspace and summary statistics. |
 | `bodyTabConsolidatedPanel.js` | Coordinates rendering of Session Data Body tab sections: Body Evidence Status counts, Front–Side Alignment QA, Promoted Body Anchors table, and Body Measurement Readiness audit. |

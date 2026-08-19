@@ -51,6 +51,8 @@
               <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="front-secondary">Front Secondary</button></li>
               <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="side-core">Side Core</button></li>
               <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="side-secondary">Side Secondary</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="front-seg">Front Segmentation</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="side-seg">Side Segmentation</button></li>
               <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="body-previews">Body Measurement Previews</button></li>
             </ul>
           </div>
@@ -287,6 +289,7 @@
                   <div id="grid2d-grid-wrapper" class="grid2d-grid-wrapper grid2d-grid-wrapper--pick">
                     <div id="grid2d-field" class="grid2d-field">
                       <div id="grid2d-axis-labels" class="grid2d-axis-labels" aria-hidden="true"></div>
+                      <canvas id="grid2d-segmentation-canvas" class="grid2d-segmentation-canvas" hidden></canvas>
                       <div id="grid2d-lattice-points" class="grid2d-lattice-points"></div>
                       <div id="grid2d-markers" class="grid2d-markers"></div>
                       <div id="grid2d-body-measurement-previews" class="grid2d-body-measurement-previews" aria-hidden="true"></div>
@@ -355,6 +358,7 @@
                   <div id="side-evidence-viewport" class="grid2d-grid-wrapper side-evidence-viewport grid2d-grid-wrapper--pick" tabindex="0">
                     <div id="side-evidence-field" class="grid2d-field side-evidence-field">
                       <div id="side-evidence-axis-labels" class="grid2d-axis-labels" aria-hidden="true"></div>
+                      <canvas id="side-segmentation-canvas" class="grid2d-segmentation-canvas" hidden></canvas>
                       <div id="side-evidence-lattice-points" class="grid2d-lattice-points"></div>
                       <div id="side-evidence-landmarks" class="side-evidence-landmarks"></div>
                       <div id="side-evidence-selected-region" class="grid2d-selected-region" hidden></div>

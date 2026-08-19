@@ -16,8 +16,10 @@ import {
   setProjectedReferenceMarkersVisible,
 } from '../features/projectionLinking.js';
 import {
+  getFrontSegmentationRaster,
   getRenderableSideBodyLandmarks,
   getSecondarySideBodyLandmarks,
+  getSideSegmentationRaster,
   hasAnalyzedBodyEvidence,
   isBodyEvidenceOverlayVisible,
   isSecondaryBodyEvidenceVisible,
@@ -44,11 +46,34 @@ export const VIEW_SETTING_IDS = Object.freeze({
   FRONT_SECONDARY: 'front-secondary',
   SIDE_CORE: 'side-core',
   SIDE_SECONDARY: 'side-secondary',
+  FRONT_SEGMENTATION: 'front-seg',
+  SIDE_SEGMENTATION: 'side-seg',
   BODY_PREVIEWS: 'body-previews',
 });
 
 /** @type {{ measurement: object, selectionHighlight: object, referenceMarkers: object, volumeGrid: object } | null} */
 let viewControlDeps = null;
+
+let frontSegSettingEnabled = true;
+let sideSegSettingEnabled = true;
+
+export function isFrontSegmentationSettingEnabled() {
+  return frontSegSettingEnabled;
+}
+
+export function isSideSegmentationSettingEnabled() {
+  return sideSegSettingEnabled;
+}
+
+export function setFrontSegmentationSettingEnabled(visible) {
+  frontSegSettingEnabled = Boolean(visible);
+  notifyViewSettingChange();
+}
+
+export function setSideSegmentationSettingEnabled(visible) {
+  sideSegSettingEnabled = Boolean(visible);
+  notifyViewSettingChange();
+}
 
 /** @type {Set<() => void>} */
 const viewSettingListeners = new Set();
@@ -66,12 +91,17 @@ function notifyViewSettingChange() {
 
 function evidenceAvailability() {
   const analyzed = hasAnalyzedBodyEvidence();
+  const frontRaster = analyzed ? getFrontSegmentationRaster() : null;
+  const sideRaster = analyzed ? getSideSegmentationRaster() : null;
+
   return {
     analyzed,
     frontCoreCount: analyzed ? getFrontOverlayLandmarkCount() : 0,
     frontSecondaryCount: analyzed ? getSecondaryCandidateLandmarkCount() : 0,
     sideCoreCount: analyzed ? getRenderableSideBodyLandmarks().length : 0,
     sideSecondaryCount: analyzed ? getSecondarySideBodyLandmarks().length : 0,
+    hasFrontRaster: Boolean(frontRaster && frontRaster.length > 0),
+    hasSideRaster: Boolean(sideRaster && sideRaster.length > 0),
   };
 }
 
@@ -125,6 +155,12 @@ export function applyViewSetting(id, visible, deps = viewControlDeps) {
       break;
     case VIEW_SETTING_IDS.SIDE_SECONDARY:
       setSideSecondaryBodyEvidenceVisible(next);
+      break;
+    case VIEW_SETTING_IDS.FRONT_SEGMENTATION:
+      frontSegSettingEnabled = next;
+      break;
+    case VIEW_SETTING_IDS.SIDE_SEGMENTATION:
+      sideSegSettingEnabled = next;
       break;
     case VIEW_SETTING_IDS.BODY_PREVIEWS:
       setBodyMeasurementPreviewVisible(next);
@@ -180,6 +216,16 @@ export function getViewSetting(id) {
         checked: isSideSecondaryBodyEvidenceVisible(),
         disabled: !evidence.analyzed || evidence.sideSecondaryCount === 0,
       };
+    case VIEW_SETTING_IDS.FRONT_SEGMENTATION:
+      return {
+        checked: frontSegSettingEnabled,
+        disabled: !evidence.analyzed || !evidence.hasFrontRaster,
+      };
+    case VIEW_SETTING_IDS.SIDE_SEGMENTATION:
+      return {
+        checked: sideSegSettingEnabled,
+        disabled: !evidence.analyzed || !evidence.hasSideRaster,
+      };
     case VIEW_SETTING_IDS.BODY_PREVIEWS:
       return { checked: isBodyMeasurementPreviewVisible(), disabled: false };
     default:
@@ -208,5 +254,7 @@ export function setupViewControls(referenceMarkers, volumeGrid, measurement) {
   applyViewSetting(VIEW_SETTING_IDS.FRONT_GRID, true, viewControlDeps);
   applyViewSetting(VIEW_SETTING_IDS.SIDE_GRID, true, viewControlDeps);
   applyViewSetting(VIEW_SETTING_IDS.MEASUREMENT_LINES, true, viewControlDeps);
+  applyViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION, true, viewControlDeps);
+  applyViewSetting(VIEW_SETTING_IDS.SIDE_SEGMENTATION, true, viewControlDeps);
   applyViewSetting(VIEW_SETTING_IDS.BODY_PREVIEWS, true, viewControlDeps);
 }

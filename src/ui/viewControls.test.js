@@ -9,7 +9,7 @@ import {
   toggleViewSetting,
 } from './viewControls.js';
 
-test('VIEW_SETTING_IDS contains all 11 view setting definitions', () => {
+test('VIEW_SETTING_IDS contains all 13 view setting definitions', () => {
   assert.equal(VIEW_SETTING_IDS.ORIGIN_CENTER, 'origin-center');
   assert.equal(VIEW_SETTING_IDS.ANNOTATIONS, 'annotations');
   assert.equal(VIEW_SETTING_IDS.MEASUREMENT_LINES, 'measurement-lines');
@@ -20,6 +20,8 @@ test('VIEW_SETTING_IDS contains all 11 view setting definitions', () => {
   assert.equal(VIEW_SETTING_IDS.FRONT_SECONDARY, 'front-secondary');
   assert.equal(VIEW_SETTING_IDS.SIDE_CORE, 'side-core');
   assert.equal(VIEW_SETTING_IDS.SIDE_SECONDARY, 'side-secondary');
+  assert.equal(VIEW_SETTING_IDS.FRONT_SEGMENTATION, 'front-seg');
+  assert.equal(VIEW_SETTING_IDS.SIDE_SEGMENTATION, 'side-seg');
   assert.equal(VIEW_SETTING_IDS.BODY_PREVIEWS, 'body-previews');
 });
 
@@ -88,4 +90,78 @@ test('evidence view settings are disabled before evidence analysis', () => {
   const sideSec = getViewSetting(VIEW_SETTING_IDS.SIDE_SECONDARY);
   assert.equal(sideSec.disabled, true);
   assert.equal(sideSec.checked, false);
+
+  const frontSeg = getViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION);
+  assert.equal(frontSeg.disabled, true);
+  assert.equal(frontSeg.checked, true); // default enabled when raster becomes available
+
+  const sideSeg = getViewSetting(VIEW_SETTING_IDS.SIDE_SEGMENTATION);
+  assert.equal(sideSeg.disabled, true);
+  assert.equal(sideSeg.checked, true); // default enabled when raster becomes available
+});
+
+function encodeUint8ArrayToBase64(uint8) {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(uint8).toString('base64');
+  }
+  let binary = '';
+  for (let i = 0; i < uint8.length; i += 1) {
+    binary += String.fromCharCode(uint8[i]);
+  }
+  return btoa(binary);
+}
+
+test('front-seg and side-seg become enabled after analyzing evidence and respect toggles', async () => {
+  const {
+    setFrontSegSource,
+    setSideSegSource,
+    analyzeLoadedBodyEvidence,
+    clearBodyEvidence,
+  } = await import('../features/bodyEvidence.js');
+
+  const raster = new Uint8Array([0, 0, 1, 1]);
+  const base64 = encodeUint8ArrayToBase64(raster);
+
+  setFrontSegSource({
+    model: 'schp',
+    view: 'front',
+    num_classes: 2,
+    class_names: ['background', 'skin'],
+    class_counts: { background: 2, skin: 2 },
+    labels: { shape: [2, 2], dtype: 'uint8', base64 },
+  });
+  setSideSegSource({
+    model: 'schp',
+    view: 'side',
+    num_classes: 2,
+    class_names: ['background', 'skin'],
+    class_counts: { background: 2, skin: 2 },
+    labels: { shape: [2, 2], dtype: 'uint8', base64 },
+  });
+
+  const res = analyzeLoadedBodyEvidence();
+  assert.equal(res.ok, true);
+
+  const frontSeg = getViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION);
+  assert.equal(frontSeg.disabled, false);
+  assert.equal(frontSeg.checked, true);
+
+  const sideSeg = getViewSetting(VIEW_SETTING_IDS.SIDE_SEGMENTATION);
+  assert.equal(sideSeg.disabled, false);
+  assert.equal(sideSeg.checked, true);
+
+  // Toggle front-seg off
+  toggleViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION);
+  assert.equal(getViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION).checked, false);
+  // Side-seg remains independent and checked
+  assert.equal(getViewSetting(VIEW_SETTING_IDS.SIDE_SEGMENTATION).checked, true);
+
+  // Toggle front-seg back on
+  toggleViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION);
+  assert.equal(getViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION).checked, true);
+
+  // Clear evidence disables settings again
+  clearBodyEvidence();
+  assert.equal(getViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION).disabled, true);
+  assert.equal(getViewSetting(VIEW_SETTING_IDS.SIDE_SEGMENTATION).disabled, true);
 });

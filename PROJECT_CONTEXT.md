@@ -334,6 +334,8 @@ View controls live in the **top application menu** under **View** (`#app-menu-ba
 | `front-secondary` | Front Secondary | Unchecked | Toggles Allowlisted Secondary Front Body Evidence markers (enabled after analysis) |
 | `side-core` | Side Core | Unchecked | Toggles Core Side Body Evidence overlay markers (enabled after analysis) |
 | `side-secondary` | Side Secondary | Unchecked | Toggles Secondary Side Body Evidence overlay markers (enabled after analysis) |
+| `front-seg` | Front Segmentation | Checked | Toggles Front dense semantic segmentation region preview overlay (enabled after analysis) |
+| `side-seg` | Side Segmentation | Checked | Toggles Side dense semantic segmentation region preview overlay (enabled after analysis) |
 | `body-previews` | Body Measurement Previews | Checked | Toggles visual-only Ready anatomical preview lines (3D and Front 2D) |
 
 View toggles are **presentation-only**. Toggling a view setting never clears measurement state, deletes annotations, clears Body Evidence sources, resets refinement, or alters Scene State JSON export schemas.

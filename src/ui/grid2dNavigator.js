@@ -32,6 +32,10 @@ import {
   isBodyEvidenceMarkerHovered,
   renderBodyEvidenceOverlay2d,
 } from './bodyEvidenceOverlay2d.js';
+import {
+  renderFrontSegmentationOverlay,
+  setupSegmentationOverlay2d,
+} from './segmentationOverlay2d.js';
 import { renderBodyMeasurementPreview2d } from '../features/bodyMeasurementPreview.js';
 import {
   FIELD_INSET_PX,
@@ -82,6 +86,7 @@ import {
   grid2dHoverTooltipEl,
   grid2dLegendEl,
   grid2dAxisLabelsEl,
+  grid2dSegmentationCanvasEl,
   viewportEl,
 } from './domRefs.js';
 import { updateSceneGraph } from './sceneGraphPanel.js';
@@ -554,6 +559,7 @@ function updateChrome() {
   const view = getActiveViewConfig();
   renderProjectionMarkers({ projectToPercent });
   renderBodyEvidenceOverlay2d({ projectToPercent });
+  renderFrontSegmentationOverlay(grid2dSegmentationCanvasEl);
   renderBodyMeasurementPreview2d({ worldToPlotPx });
   const selectionBounds = getSelectionBounds(selectedRegionPoints);
   const split = classifySplitSelection();
@@ -1102,5 +1108,6 @@ export function setupGrid2dNavigator(selectionHighlight = null) {
     }
   });
   resetVisualZoom();
+  setupSegmentationOverlay2d(refreshGrid2dNavigator, null);
   refreshGrid2dNavigator();
 }

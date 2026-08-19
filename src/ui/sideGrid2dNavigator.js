@@ -37,6 +37,10 @@ import {
   setupBodyEvidenceOverlaySide2d,
 } from './bodyEvidenceOverlaySide2d.js';
 import {
+  renderSideSegmentationOverlay,
+  setupSegmentationOverlay2d,
+} from './segmentationOverlay2d.js';
+import {
   FIELD_INSET_PX,
   applyPlotAreaCssVars,
   computePlotMetrics,
@@ -93,6 +97,7 @@ import {
   sideEvidenceStatusMessageEl,
   sideEvidenceViewReadoutEl,
   sideEvidenceViewportEl,
+  sideSegmentationCanvasEl,
   viewportEl,
 } from './domRefs.js';
 
@@ -804,6 +809,7 @@ export function refreshSideGrid2dNavigator() {
   renderAxisLabels();
   renderLatticePoints();
   renderSideBodyEvidenceOverlay({ projectToPercent });
+  renderSideSegmentationOverlay(sideSegmentationCanvasEl);
   renderSideMeasurementOverlay();
   renderSelectedRegionOutline();
   updateChrome();
@@ -1115,5 +1121,6 @@ export function setupSideGrid2dNavigator() {
   setupPointerInteraction();
   setupModeKeyboardToggle();
   resetVisualZoom();
+  setupSegmentationOverlay2d(null, refreshSideGrid2dNavigator);
   refreshSideGrid2dNavigator();
 }
