@@ -466,11 +466,16 @@ Workspace tabs (`#workspace-tabs`):
 - **Body Graph:** Dedicated read-only Core 13 topological diagram.
 
 ### Right Sidebar — Session Data (`#right-sidebar`)
-4 segmented tabs:
-- **Hist (`#tab-panel-history`):** Shared canonical measurement history list and Clear History button.
-- **Annos (`#tab-panel-annotations`):** Annotation list with type badges and delete buttons.
-- **Body (`#tab-panel-body`):** Body Evidence Status summary, Promoted Body Anchors table, and Body Measurement Readiness audit.
-- **Graph (`#tab-panel-graph`):** Read-only Scene Graph tree with 3D highlight preview.
+- **Collapsible sidebar behavior:** The entire right Session Data sidebar is collapsible via a dedicated collapse/expand toggle button (`#right-sidebar-toggle`) in the sidebar header.
+  - **Expanded state:** Default width (`248px`), displaying the full sidebar header, tab bar, and active tab content.
+  - **Collapsed state:** Reduces the sidebar to a narrow rail (`36px`) with a visible reopen control and subtle vertical rail label, automatically allocating freed horizontal space to the main workspace (`#viewport`).
+  - **Reopening:** Clicking the toggle button or clicking the collapsed sidebar rail restores the sidebar to its normal width.
+  - **State isolation:** Collapse/expand is strictly UI/layout-only. Toggling collapse preserves the currently active Session Data tab and never clears or mutates Measurement History, Annotations, Body tab data, Graph tab data, Body Evidence, Front/Side measurements, active app mode, inspector workflow, or Scene State JSON data. It does not change 3D, Front, Side, Body Graph, measurement, annotation, import/export, or evidence behavior.
+- 4 segmented tabs:
+  - **Hist (`#tab-panel-history`):** Shared canonical measurement history list and Clear History button.
+  - **Annos (`#tab-panel-annotations`):** Annotation list with type badges and delete buttons.
+  - **Body (`#tab-panel-body`):** Body Evidence Status summary, Promoted Body Anchors table, and Body Measurement Readiness audit.
+  - **Graph (`#tab-panel-graph`):** Read-only Scene Graph tree with 3D highlight preview.
 
 ### Bottom Status Bar (`#bottom-status-bar`)
 Passive readouts: Scale (1 unit = 1 cm), Grid (10 cm), Sampling (5 cm), Mode, and contextual hint text.
@@ -561,7 +566,7 @@ The following capabilities are deliberately **not implemented** in the current c
 | `src/ui/inspectorWorkflow.js` | Metrology Inspector workflow panel visibility manager |
 | `src/ui/inspectorWorkflowState.js` | Metrology Inspector workflow state store |
 | `src/ui/domRefs.js` | Safe cached DOM element references |
-| `src/ui/workspaceLayout.js` | Workspace tab management (3D / 2D / Body Graph) and split divider |
+| `src/ui/workspaceLayout.js` | Workspace tab management (3D / 2D / Body Graph), split divider, and right Session Data sidebar collapse/expand |
 | `src/ui/grid2dNavigator.js` | Front Surface 2D Grid Navigator (X/Y coordinates) |
 | `src/ui/sideGrid2dNavigator.js` | Side Evidence 2D Grid Navigator (U/Y coordinates) |
 | `src/ui/grid2dNavShared.js` | Shared 2D navigator geometry, zoom/pan transform, and lattice utilities |

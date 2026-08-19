@@ -101,7 +101,8 @@ latent-space/
 │       ├── sideGrid2dNavigator.js   # Side Evidence 2D Grid Navigator (U/Y coordinates)
 │       ├── viewControls.js          # View settings definitions, authoritative checked query, setting toggle
 │       ├── viewControls.test.js     # View controls unit tests
-│       └── workspaceLayout.js       # Workspace tab management (3D / 2D / Body Graph) and split divider
+│       ├── workspaceLayout.js       # Workspace tab management (3D / 2D / Body Graph), split divider, right sidebar collapse
+│       └── workspaceLayout.test.js  # Workspace layout and right sidebar collapse unit tests
 └── dist/                            # Vite production build output (generated)
 ```
 
@@ -176,7 +177,8 @@ latent-space/
 | `viewControls.js` | Defines the 11 view settings (`origin-center`, `annotations`, `measurement-lines`, `lattice-3d`, `front-grid`, `side-grid`, `front-core`, `front-secondary`, `side-core`, `side-secondary`, `body-previews`), queries authoritative state (`getViewSetting`), and executes toggles. |
 | `inspectorWorkflow.js` | Controls left Metrology Inspector panel visibility based on active workflow (`measurement`, `annotation`, `body-evidence`). |
 | `inspectorWorkflowState.js` | Authoritative state store and subscriber notification for active Metrology Inspector workflows; coordinates with App Menu Bar. |
-| `workspaceLayout.js` | Manages workspace navigation tabs (3D Space, 2D Workspace, Body Graph), combined 3D+2D split view (36% 3D / 64% 2D default), and draggable split divider. |
+| `workspaceLayout.js` | Manages workspace navigation tabs (3D Space, 2D Workspace, Body Graph), combined 3D+2D split view (36% 3D / 64% 2D default), draggable split divider, and right Session Data sidebar collapse/expand layout state. |
+| `workspaceLayout.test.js` | Workspace layout tab switching and right sidebar collapse state unit tests. |
 | `grid2dNavigator.js` | Front Surface 2D Grid Navigator (0–200 cm X/Y), 10 cm base lattice, 5 cm regional refinement, shared measurement overlay, and projected markers. Manages active-only legend rendering. |
 | `sideGrid2dNavigator.js` | Side Evidence 2D Grid Navigator (0–200 cm U/Y), 10 cm base lattice, 5 cm regional refinement, Side Core and Secondary markers (shared Core/Secondary colors; diamond/dot shapes), and local Side A/B measurement. Manages active-only legend rendering. |
 | `grid2dNavShared.js` | Shared 2D navigator math, zoom/pan transforms, and lattice utilities. |
@@ -203,8 +205,8 @@ latent-space/
 
 ## 3. Styling Architecture (`src/styles/`)
 
-- `variables.css`: Design tokens, colors (dark cosmic theme, purple/cyan/amber accents), typography (Syne display, JetBrains Mono data), spacing, and resets.
-- `layout.css`: Overall CSS grid layout (`#top-header`, `#left-sidebar`, `#viewport`, `#right-sidebar`, `#bottom-status-bar`), workspace panes, and split divider resizing.
-- `components.css`: Component-level styles for menus, sidebars, tabs, panels, candidate lists, inspect cards, badges, and action buttons.
+- `variables.css`: Design tokens, colors (dark cosmic theme, purple/cyan/amber accents), typography (Syne display, JetBrains Mono data), sidebar widths (left, right, right collapsed), spacing, and resets.
+- `layout.css`: Overall CSS grid layout (`#top-header`, `#left-sidebar`, `#viewport`, `#right-sidebar`, `#bottom-status-bar`), right sidebar collapse layout, workspace panes, and split divider resizing.
+- `components.css`: Component-level styles for menus, sidebars, sidebar toggle button, tabs, panels, candidate lists, inspect cards, badges, and action buttons.
 - `overlays.css`: Styles for 2D plot areas, lattices, markers, measurement overlays, legend items, and tooltips.
 - `style.css`: Entry point combining the stylesheet modules via `@import`.
