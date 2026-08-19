@@ -1167,143 +1167,113 @@
   font-weight: 500;
 }
 
-.front-side-alignment-pairs-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.front-side-alignment-row {
+.front-side-alignment-groups {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 6px 8px;
-  background: rgba(103, 232, 249, 0.02);
-  border: 1px solid rgba(147, 51, 234, 0.14);
-  border-radius: var(--radius-sm);
 }
 
-.front-side-alignment-row--aligned {
-  border-color: rgba(52, 211, 153, 0.2);
-}
-
-.front-side-alignment-row--warning {
-  border-color: rgba(245, 158, 11, 0.3);
-  background: rgba(245, 158, 11, 0.03);
-}
-
-.front-side-alignment-row--unavailable {
-  border-color: rgba(147, 51, 234, 0.1);
-  opacity: 0.8;
-}
-
-.front-side-alignment-row-header {
+.front-side-alignment-compact-list {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 0 2px;
 }
 
-.front-side-alignment-row-name {
-  font-weight: 600;
-  font-size: 9px;
-  color: var(--purple-bright);
-  overflow-wrap: anywhere;
-}
-
-.front-side-alignment-row-badges {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.front-side-alignment-row-details {
+.front-side-alignment-compact-row {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 8px;
+  padding: 4px 6px;
+  background: rgba(103, 232, 249, 0.02);
+  border: 1px solid rgba(147, 51, 234, 0.12);
+  border-radius: var(--radius-sm);
+}
+
+.front-side-alignment-compact-row--aligned {
+  border-color: rgba(52, 211, 153, 0.18);
+}
+
+.front-side-alignment-compact-row--warning {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.04);
+}
+
+.front-side-alignment-compact-row--unavailable {
+  border-color: rgba(147, 51, 234, 0.14);
+  opacity: 0.85;
+}
+
+.front-side-alignment-compact-line1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  line-height: 1.3;
+}
+
+.front-side-alignment-compact-name {
+  font-weight: 600;
+  font-size: 9px;
+  color: var(--purple-bright);
+  min-width: 70px;
+  flex: 1 1 auto;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.front-side-alignment-compact-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.front-side-alignment-compact-delta {
   font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.front-side-alignment-compact-delta--warn {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.front-side-alignment-compact-line2 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  line-height: 1.35;
   color: var(--text-muted);
 }
 
-.front-side-alignment-row-coords {
-  display: flex;
+.front-side-alignment-coord-segment {
+  display: inline-flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 3px;
+  white-space: nowrap;
 }
 
 .front-side-alignment-coord-tag {
   color: var(--text-muted);
   font-weight: 600;
-  min-width: 32px;
 }
 
 .front-side-alignment-coord-val {
   color: var(--cyan-dim);
 }
 
-.front-side-alignment-row-delta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-top: 2px;
-  padding-top: 2px;
-  border-top: 1px dashed rgba(147, 51, 234, 0.12);
-}
-
-.front-side-alignment-delta-label {
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.front-side-alignment-delta-value {
-  color: var(--text-secondary);
-}
-
-.front-side-alignment-delta-value--warn {
-  color: #fbbf24;
-  font-weight: 600;
-}
-
-.front-side-unmatched-subgroup {
-  margin-top: 2px;
-}
-
-.front-side-unmatched-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 4px 0 0;
-}
-
-.front-side-unmatched-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px 6px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(147, 51, 234, 0.1);
-  border-radius: var(--radius-sm);
-  font-size: 8px;
-}
-
-.front-side-unmatched-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-}
-
-.front-side-unmatched-name {
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.front-side-unmatched-coords {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  color: var(--cyan-dim);
+.front-side-alignment-coord-sep {
+  color: rgba(147, 51, 234, 0.3);
 }
 
 /* ── Body Measurement Readiness (Session Data → Body tab) ── */

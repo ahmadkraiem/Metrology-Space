@@ -2,10 +2,11 @@
  * Front–Side Alignment QA presentation panel (v0)
  *
  * Read-only Session Data → Body tab inspector section.
- * Renders the deterministic Front–Side Alignment v0 report:
- * - Summary counts & tolerance
- * - Pair-level vertical delta (ΔY) audit table
- * - Front-only & Side-only subsections
+ * Renders the deterministic Front–Side Alignment v0 report in compact form:
+ * - Summary counts & tolerance (always visible)
+ * - Collapsible Core Pairs (N)
+ * - Collapsible Secondary Pairs (N)
+ * - Collapsible Issues (N) (warnings, unavailables, front-only, side-only)
  *
  * STRICT GUARDRAIL:
  * Presentation only. Does not convert U to Z, infer depth, reconstruct 3D,
@@ -43,9 +44,9 @@ function formatCm(value) {
 
 function formatDelta(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return '—';
+    return 'ΔY —';
   }
-  return `${(Math.round(value * 10) / 10).toFixed(1)} cm`;
+  return `ΔY ${(Math.round(value * 10) / 10).toFixed(1)} cm`;
 }
 
 function badgeClassForTone(tone) {
@@ -110,116 +111,130 @@ function renderSummaryCard(report) {
   );
 }
 
-function renderMatchedPairRow(pair) {
+function renderCompactPairRow(pair) {
   const displayName = formatLandmarkDisplayName(pair.identity) || pair.name || pair.identity;
-  const frontCoords = `X ${formatCm(pair.front.x)} · Y ${formatCm(pair.front.y)}`;
-  const sideCoords = `U ${formatCm(pair.side.u)} · Y ${formatCm(pair.side.y)}`;
+  const frontCoords = `X ${formatCm(pair.front?.x)} · Y ${formatCm(pair.front?.y)}`;
+  const sideCoords = `U ${formatCm(pair.side?.u)} · Y ${formatCm(pair.side?.y)}`;
   const deltaText = formatDelta(pair.verticalDeltaCm);
 
   return (
-    `<div class="front-side-alignment-row front-side-alignment-row--${escapeHtml(pair.status)}" data-landmark="${escapeHtml(pair.identity)}">`
-    + '<div class="front-side-alignment-row-header">'
-    + `<span class="front-side-alignment-row-name">${escapeHtml(displayName)}</span>`
-    + '<div class="front-side-alignment-row-badges">'
+    `<div class="front-side-alignment-compact-row front-side-alignment-compact-row--${escapeHtml(pair.status)}" data-landmark="${escapeHtml(pair.identity)}">`
+    + '<div class="front-side-alignment-compact-line1">'
+    + `<span class="front-side-alignment-compact-name">${escapeHtml(displayName)}</span>`
+    + '<div class="front-side-alignment-compact-meta">'
     + renderClassificationBadge(pair.classification)
+    + `<span class="front-side-alignment-compact-delta${pair.status === 'warning' ? ' front-side-alignment-compact-delta--warn' : ''}">${escapeHtml(deltaText)}</span>`
     + renderStatusBadge(pair.status)
     + '</div>'
     + '</div>'
-    + '<div class="front-side-alignment-row-details">'
-    + '<div class="front-side-alignment-row-coords">'
-    + '<span class="front-side-alignment-coord-tag">Front:</span>'
-    + `<span class="front-side-alignment-coord-val">${escapeHtml(frontCoords)}</span>`
-    + '</div>'
-    + '<div class="front-side-alignment-row-coords">'
-    + '<span class="front-side-alignment-coord-tag">Side:</span>'
-    + `<span class="front-side-alignment-coord-val">${escapeHtml(sideCoords)}</span>`
-    + '</div>'
-    + '<div class="front-side-alignment-row-delta">'
-    + '<span class="front-side-alignment-delta-label">ΔY:</span>'
-    + `<span class="front-side-alignment-delta-value${pair.status === 'warning' ? ' front-side-alignment-delta-value--warn' : ''}">${escapeHtml(deltaText)}</span>`
-    + '</div>'
+    + '<div class="front-side-alignment-compact-line2">'
+    + `<span class="front-side-alignment-coord-segment"><span class="front-side-alignment-coord-tag">Front:</span> <span class="front-side-alignment-coord-val">${escapeHtml(frontCoords)}</span></span>`
+    + '<span class="front-side-alignment-coord-sep" aria-hidden="true">·</span>'
+    + `<span class="front-side-alignment-coord-segment"><span class="front-side-alignment-coord-tag">Side:</span> <span class="front-side-alignment-coord-val">${escapeHtml(sideCoords)}</span></span>`
     + '</div>'
     + '</div>'
   );
 }
 
-function renderMatchedPairsList(matchedPairs) {
-  if (!Array.isArray(matchedPairs) || matchedPairs.length === 0) {
-    return '<p class="session-empty-state">No matching landmark identities found between Front and Side.</p>';
-  }
-
-  return (
-    '<div class="front-side-alignment-pairs-list" role="feed" aria-label="Matched landmark alignment pairs">'
-    + matchedPairs.map(renderMatchedPairRow).join('')
-    + '</div>'
-  );
-}
-
-function renderFrontOnlyItem(item) {
+function renderFrontOnlyIssueRow(item) {
   const displayName = formatLandmarkDisplayName(item.identity) || item.name || item.identity;
-  const coords = `X ${formatCm(item.front.x)} · Y ${formatCm(item.front.y)}`;
+  const frontCoords = `X ${formatCm(item.front?.x)} · Y ${formatCm(item.front?.y)}`;
 
   return (
-    `<div class="front-side-unmatched-item" title="${escapeHtml(item.name || item.identity)}">`
-    + '<div class="front-side-unmatched-header">'
-    + `<span class="front-side-unmatched-name">${escapeHtml(displayName)}</span>`
-    + '<div class="front-side-alignment-row-badges">'
+    `<div class="front-side-alignment-compact-row front-side-alignment-compact-row--unavailable" data-landmark="${escapeHtml(item.identity)}">`
+    + '<div class="front-side-alignment-compact-line1">'
+    + `<span class="front-side-alignment-compact-name">${escapeHtml(displayName)}</span>`
+    + '<div class="front-side-alignment-compact-meta">'
     + renderClassificationBadge(item.classification)
-    + renderBadge(item.reason, 'muted')
+    + renderBadge(item.reason, 'warn', 'Missing in Side view')
+    + renderStatusBadge('unavailable')
     + '</div>'
     + '</div>'
-    + '<div class="front-side-unmatched-coords">'
-    + '<span class="front-side-alignment-coord-tag">Front:</span> '
-    + `<span class="front-side-alignment-coord-val">${escapeHtml(coords)}</span>`
+    + '<div class="front-side-alignment-compact-line2">'
+    + `<span class="front-side-alignment-coord-segment"><span class="front-side-alignment-coord-tag">Front:</span> <span class="front-side-alignment-coord-val">${escapeHtml(frontCoords)}</span></span>`
+    + '<span class="front-side-alignment-coord-sep" aria-hidden="true">·</span>'
+    + '<span class="front-side-alignment-coord-segment"><span class="front-side-alignment-coord-tag">Side:</span> <span class="front-side-alignment-coord-val">missing</span></span>'
     + '</div>'
     + '</div>'
   );
 }
 
-function renderSideOnlyItem(item) {
+function renderSideOnlyIssueRow(item) {
   const displayName = formatLandmarkDisplayName(item.identity) || item.name || item.identity;
-  const coords = `U ${formatCm(item.side.u)} · Y ${formatCm(item.side.y)}`;
+  const sideCoords = `U ${formatCm(item.side?.u)} · Y ${formatCm(item.side?.y)}`;
 
   return (
-    `<div class="front-side-unmatched-item" title="${escapeHtml(item.name || item.identity)}">`
-    + '<div class="front-side-unmatched-header">'
-    + `<span class="front-side-unmatched-name">${escapeHtml(displayName)}</span>`
-    + '<div class="front-side-alignment-row-badges">'
+    `<div class="front-side-alignment-compact-row front-side-alignment-compact-row--unavailable" data-landmark="${escapeHtml(item.identity)}">`
+    + '<div class="front-side-alignment-compact-line1">'
+    + `<span class="front-side-alignment-compact-name">${escapeHtml(displayName)}</span>`
+    + '<div class="front-side-alignment-compact-meta">'
     + renderClassificationBadge(item.classification)
-    + renderBadge(item.reason, 'muted')
+    + renderBadge(item.reason, 'warn', 'Missing in Front view')
+    + renderStatusBadge('unavailable')
     + '</div>'
     + '</div>'
-    + '<div class="front-side-unmatched-coords">'
-    + '<span class="front-side-alignment-coord-tag">Side:</span> '
-    + `<span class="front-side-alignment-coord-val">${escapeHtml(coords)}</span>`
+    + '<div class="front-side-alignment-compact-line2">'
+    + '<span class="front-side-alignment-coord-segment"><span class="front-side-alignment-coord-tag">Front:</span> <span class="front-side-alignment-coord-val">missing</span></span>'
+    + '<span class="front-side-alignment-coord-sep" aria-hidden="true">·</span>'
+    + `<span class="front-side-alignment-coord-segment"><span class="front-side-alignment-coord-tag">Side:</span> <span class="front-side-alignment-coord-val">${escapeHtml(sideCoords)}</span></span>`
     + '</div>'
     + '</div>'
   );
 }
 
-function renderUnmatchedSubsections(report) {
-  const { frontOnly = [], sideOnly = [] } = report;
-  const sections = [];
-
-  if (frontOnly.length > 0) {
-    sections.push(
-      '<details class="body-evidence-qa-subgroup front-side-unmatched-subgroup">'
-      + `<summary class="body-evidence-qa-subgroup-summary">Front Only (${frontOnly.length})</summary>`
-      + `<div class="front-side-unmatched-list">${frontOnly.map(renderFrontOnlyItem).join('')}</div>`
-      + '</details>',
-    );
+function renderIssueRow(issue) {
+  if (issue.issueType === 'frontOnly') {
+    return renderFrontOnlyIssueRow(issue);
   }
-
-  if (sideOnly.length > 0) {
-    sections.push(
-      '<details class="body-evidence-qa-subgroup front-side-unmatched-subgroup">'
-      + `<summary class="body-evidence-qa-subgroup-summary">Side Only (${sideOnly.length})</summary>`
-      + `<div class="front-side-unmatched-list">${sideOnly.map(renderSideOnlyItem).join('')}</div>`
-      + '</details>',
-    );
+  if (issue.issueType === 'sideOnly') {
+    return renderSideOnlyIssueRow(issue);
   }
+  return renderCompactPairRow(issue);
+}
 
-  return sections.join('');
+function renderCollapsibleGroup(title, count, innerHtml) {
+  return (
+    '<details class="body-evidence-qa-subgroup">'
+    + `<summary class="body-evidence-qa-subgroup-summary">${escapeHtml(title)} (${count})</summary>`
+    + `<div class="front-side-alignment-compact-list">${innerHtml}</div>`
+    + '</details>'
+  );
+}
+
+function renderGroupedSections(report) {
+  const matchedPairs = Array.isArray(report?.matchedPairs) ? report.matchedPairs : [];
+  const frontOnly = Array.isArray(report?.frontOnly) ? report.frontOnly : [];
+  const sideOnly = Array.isArray(report?.sideOnly) ? report.sideOnly : [];
+
+  const corePairs = matchedPairs.filter((pair) => pair.classification === 'core');
+  const secondaryPairs = matchedPairs.filter((pair) => pair.classification === 'secondary');
+
+  const matchedIssues = matchedPairs.filter((pair) => pair.status === 'warning' || pair.status === 'unavailable');
+  const issueItems = [
+    ...matchedIssues,
+    ...frontOnly.map((item) => ({ ...item, issueType: 'frontOnly' })),
+    ...sideOnly.map((item) => ({ ...item, issueType: 'sideOnly' })),
+  ];
+
+  const coreHtml = corePairs.length > 0
+    ? corePairs.map(renderCompactPairRow).join('')
+    : '<p class="session-empty-state">No core matched pairs.</p>';
+
+  const secondaryHtml = secondaryPairs.length > 0
+    ? secondaryPairs.map(renderCompactPairRow).join('')
+    : '<p class="session-empty-state">No secondary matched pairs.</p>';
+
+  const issuesHtml = issueItems.length > 0
+    ? issueItems.map(renderIssueRow).join('')
+    : '<p class="session-empty-state">No alignment issues found.</p>';
+
+  return (
+    '<div class="front-side-alignment-groups">'
+    + renderCollapsibleGroup('Core Pairs', corePairs.length, coreHtml)
+    + renderCollapsibleGroup('Secondary Pairs', secondaryPairs.length, secondaryHtml)
+    + renderCollapsibleGroup('Issues', issueItems.length, issuesHtml)
+    + '</div>'
+  );
 }
 
 /**
@@ -247,7 +262,7 @@ export function buildFrontSideAlignmentHtml(
       + `<p class="front-side-alignment-note">Front evidence analyzed (<strong>${frontCount}</strong> candidates), but no Side candidates available.</p>`
       + '<p class="front-side-alignment-note front-side-alignment-note--guardrail">Load Side Pose to evaluate vertical Y alignment.</p>'
       + '</div>'
-      + renderUnmatchedSubsections(report)
+      + renderGroupedSections(report)
     );
   }
 
@@ -257,14 +272,13 @@ export function buildFrontSideAlignmentHtml(
       + `<p class="front-side-alignment-note">Side evidence analyzed (<strong>${sideCount}</strong> candidates), but no Front candidates available.</p>`
       + '<p class="front-side-alignment-note front-side-alignment-note--guardrail">Load Front Pose to evaluate vertical Y alignment.</p>'
       + '</div>'
-      + renderUnmatchedSubsections(report)
+      + renderGroupedSections(report)
     );
   }
 
   return (
     renderSummaryCard(report)
-    + renderMatchedPairsList(report.matchedPairs)
-    + renderUnmatchedSubsections(report)
+    + renderGroupedSections(report)
   );
 }
 
