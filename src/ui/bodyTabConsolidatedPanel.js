@@ -25,6 +25,7 @@ import {
 } from '../features/bodyEvidence.js';
 import { CORE_FRONT_BODY_ANCHORS } from '../features/bodyEvidenceAdapter.js';
 import { buildAnatomicalMeasurementLines } from '../features/bodyMeasurementLines.js';
+import { renderFrontSideAlignmentQa } from './frontSideAlignmentPanel.js';
 import {
   sessionBodyEvidenceStatusEl,
   bodyMeasurementReadinessEl,
@@ -512,14 +513,19 @@ function renderBodyMeasurementReadiness() {
   ].join('');
 }
 
+function renderEvidenceDrivenBodySummaries() {
+  renderBodyEvidenceStatus();
+  renderFrontSideAlignmentQa();
+}
+
 function renderAnnotationDrivenBodySummaries() {
   renderPromotedBodyAnchors();
   renderBodyMeasurementReadiness();
 }
 
 export function setupBodyTabConsolidatedPanel() {
-  subscribeBodyEvidenceChange(renderBodyEvidenceStatus);
+  subscribeBodyEvidenceChange(renderEvidenceDrivenBodySummaries);
   subscribeAnnotationsChange(renderAnnotationDrivenBodySummaries);
-  renderBodyEvidenceStatus();
+  renderEvidenceDrivenBodySummaries();
   renderAnnotationDrivenBodySummaries();
 }

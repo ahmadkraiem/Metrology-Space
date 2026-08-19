@@ -121,5 +121,6 @@ export const promotedBodyAnchorsCountEl = el('promoted-body-anchors-count');
 export const promotedBodyAnchorsEmptyEl = el('promoted-body-anchors-empty');
 export const promotedBodyAnchorsListEl = el('promoted-body-anchors-list');
 export const bodyMeasurementReadinessEl = el('body-measurement-readiness');
+export const frontSideAlignmentQaEl = el('front-side-alignment-qa');
 export const promoteSelectedBodyLandmarkBtn = el('promote-selected-body-landmark');
 export const clearBodyLandmarkSelectionBtn = el('clear-body-landmark-selection');
