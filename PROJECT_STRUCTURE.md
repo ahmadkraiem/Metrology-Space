@@ -45,6 +45,8 @@ latent-space/
 │   │   ├── bodyMeasurementLevels.js # Measurement Reference Levels v0 compute
 │   │   ├── bodyMeasurementLines.js  # Anatomical Measurement Lines v0 compute
 │   │   ├── bodyMeasurementPreview.js # Measurement Line Preview Overlay v0 (3D + Front 2D preview lines)
+│   │   ├── frontSideAlignment.js    # Pure deterministic Front/Side semantic correspondence and vertical Y QA contract
+│   │   ├── frontSideAlignment.test.js # Front-Side alignment contract unit tests
 │   │   ├── frontSurfaceMeasurement.js # Front Surface advance/read helpers over shared measurement
 │   │   ├── linkedSelection.js       # Linked selection id for Scene Graph ↔ projected marker highlight sync
 │   │   ├── measurement.js           # Canonical shared Point A/B measurement state, markers, line, history
@@ -79,9 +81,11 @@ latent-space/
 │       ├── bodyEvidenceStatus.js    # Body Evidence status presentation helper
 │       ├── bodyEvidenceStatus.test.js # Body Evidence status presentation tests
 │       ├── bodyGraphWorkspace.js    # Body Graph Workspace v0 — Core 13 topological diagram
-│       ├── bodyTabConsolidatedPanel.js # Session Data Body tab (Status / Promoted Anchors / Readiness)
+│       ├── bodyTabConsolidatedPanel.js # Session Data Body tab coordinator (Status / Alignment QA / Promoted Anchors / Readiness)
 │       ├── collapsibleSections.js   # Left Metrology Inspector collapsible section/subgroup headers
 │       ├── domRefs.js               # Safe cached DOM element references
+│       ├── frontSideAlignmentPanel.js # Front–Side Alignment QA presentation panel (summary card, collapsible groups, compact rows)
+│       ├── frontSideAlignmentPanel.test.js # Front–Side Alignment QA presentation panel unit tests
 │       ├── grid2dMarkerSizing.js    # Relative 2D marker sizing helpers
 │       ├── grid2dNavShared.js       # Shared 2D navigator geometry, zoom/pan transform, lattice utils
 │       ├── grid2dNavigator.js       # Front Surface 2D Grid Navigator (X/Y coordinates)
@@ -141,6 +145,7 @@ latent-space/
 | `annotationValidation.js` | Validates annotation input (point selection, non-empty name, duplicate detection). |
 | `bodyEvidence.js` | State container for loaded Body Evidence sources, normalized candidates, analysis triggers, inspect selection, and manual promotion. |
 | `bodyEvidenceAdapter.js` | Body-only parsing, normalization, and QA classification. Applies face/head rejection, core 13 primary whitelist, and secondary allowlist. Fixed 2000×2000 px / 10 px/cm scale. |
+| `frontSideAlignment.js` | Pure deterministic Front/Side semantic correspondence and vertical Y QA contract (5.0 cm v0 QA threshold). No DOM, Three.js, global state, depth inference, or 3D reconstruction. |
 | `bodyGraph.js` | Body Graph Contract v0. Deterministic runtime topology derivation (`buildBodyGraph`) containing exactly 13 Core nodes and 13 structural edges from promoted Core 13 annotations. |
 | `bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute. |
 | `bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute. |
@@ -188,8 +193,9 @@ latent-space/
 | `bodyEvidenceCandidateList.js` | Renders candidate lists with Core / Secondary filters and unified color semantics (Gold for Core, Purple for Secondary). |
 | `bodyEvidenceOverlay2d.js` | Renders Front Surface Body Evidence overlay markers and active selection highlight. |
 | `bodyEvidenceOverlaySide2d.js` | Renders Side Evidence overlay markers (shared Core/Secondary colors; diamond/dot shapes). |
+| `frontSideAlignmentPanel.js` | Read-only Session Data → Body presentation for the current alignment report. Derives alignment report on demand from normalized Body Evidence runtime state; renders top summary card and collapsible Core Pairs, Secondary Pairs, and Issues groups with compact 2-line audit rows. |
 | `bodyGraphWorkspace.js` | Renders the read-only Core 13 Body Graph topology workspace and summary statistics. |
-| `bodyTabConsolidatedPanel.js` | Renders the Session Data Body tab: Body Evidence Status counts, Promoted Body Anchors table, and Body Measurement Readiness audit. |
+| `bodyTabConsolidatedPanel.js` | Coordinates rendering of Session Data Body tab sections: Body Evidence Status counts, Front–Side Alignment QA, Promoted Body Anchors table, and Body Measurement Readiness audit. |
 | `measurementPanel.js` | Renders the Distance Measurement inspector with independent collapsible Front / Canonical and Side / U-Y measurement subgroups. |
 | `selectionPanel.js` | Updates coordinate readouts in the Selected Point inspector panel. |
 | `annotationControls.js` | Wires Annotation Type and Landmark Preset dropdowns with auto-fill behavior. |
@@ -207,6 +213,6 @@ latent-space/
 
 - `variables.css`: Design tokens, colors (dark cosmic theme, purple/cyan/amber accents), typography (Syne display, JetBrains Mono data), sidebar widths (left, right, right collapsed), spacing, and resets.
 - `layout.css`: Overall CSS grid layout (`#top-header`, `#left-sidebar`, `#viewport`, `#right-sidebar`, `#bottom-status-bar`), right sidebar collapse layout, workspace panes, and split divider resizing.
-- `components.css`: Component-level styles for menus, sidebars, sidebar toggle button, tabs, panels, candidate lists, inspect cards, badges, and action buttons.
+- `components.css`: Component-level styles for menus, sidebars, sidebar toggle button, tabs, panels, candidate lists, inspect cards, badges, action buttons, and Front–Side Alignment QA summary cards, collapsible groups, and compact audit rows.
 - `overlays.css`: Styles for 2D plot areas, lattices, markers, measurement overlays, legend items, and tooltips.
 - `style.css`: Entry point combining the stylesheet modules via `@import`.

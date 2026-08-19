@@ -17,6 +17,7 @@ It renders an interactive **200 cm × 200 cm × 200 cm** coordinate cube used to
 - Annotate named 3D points in Annotate mode
 - Inspect Front Surface (X/Y) and Side Evidence (U/Y) 2D planes side-by-side
 - Promote verified front body landmarks into canonical 3D annotations
+- Inspect Front–Side Alignment v0 QA correspondence and vertical Y agreement in Session Data → Body
 - Inspect topological Body Graph v0 based on promoted Core 13 landmarks
 - Export the current metrology session as structured Scene State JSON
 - Load a previously exported Scene State JSON file to restore session data
@@ -391,6 +392,111 @@ The left Body Evidence panel is organized into three tabs:
 
 ---
 
+## Current Front–Side Alignment v0 Features
+
+### Purpose
+
+Front–Side Alignment v0 is a deterministic, read-only correspondence and QA layer between:
+- **Front normalized Body Evidence on `X/Y`**
+- **Side normalized Body Evidence on `U/Y`**
+
+It is strictly a QA and semantic correspondence evaluation stage. It does **NOT** reconstruct 3D geometry, estimate depth, or fuse 2D coordinates into 3D points.
+
+### Matching Rules
+
+- **Matching by Identity:** Matching is performed strictly by normalized semantic landmark identity (e.g. `left_shoulder` Front ↔ `left_shoulder` Side).
+- **No Spatial Guessing:** No nearest-neighbor matching, Euclidean clustering, or coordinate-proximity guessing is used.
+- **Single Source for Unmatched Items:** Missing identities in one view remain cleanly classified as `frontOnly` (reason: `missing-in-side`) or `sideOnly` (reason: `missing-in-front`).
+- **Preserved Classification:** Core vs Secondary classification is preserved directly from the normalized Body Evidence model (Core 13 primary anchors vs Secondary allowlist).
+
+### Alignment Calculation
+
+For matched identities:
+$$\Delta Y = |front.y - side.y|$$
+
+- **Shared Vertical Dimension Only:** Only the shared vertical `Y` coordinate is compared.
+- **Coordinate Separation:**
+  - Front coordinates: `{ x, y }` (transverse width $X$, vertical height $Y$)
+  - Side coordinates: `{ u, y }` (sagittal profile depth evidence $U$, vertical height $Y$)
+  - Side $U$ is profile evidence only and is never converted to $Z$ or combined with Front $X$.
+
+### QA Status Rules
+
+The QA evaluation uses a deterministic rule based on the shared vertical coordinate:
+- **Default Tolerance:** `5.0 cm` (`DEFAULT_ALIGNMENT_TOLERANCE_CM = 5.0`)
+- **`aligned`:** Finite Front and Side $Y$ values and $\Delta Y \le 5.0\text{ cm}$.
+- **`warning`:** Finite Front and Side $Y$ values and $\Delta Y > 5.0\text{ cm}$.
+- **`unavailable`:** Missing identity/view or missing/non-finite $Y$ coordinate.
+
+> [!IMPORTANT]
+> The `5.0 cm` threshold is a **v0 project QA threshold tied to the current sampling scale**, not an anatomical/medical tolerance standard.
+
+### Alignment Report Contract
+
+The report emitted by `computeFrontSideAlignment(frontCandidates, sideCandidates)` is clean, deterministic, and free of redundant derived identity lists:
+- `contract`: `'front-side-alignment-v0'`
+- `version`: `'front-side-alignment-v0'`
+- `toleranceCm`: `5.0`
+- `summary`:
+  - `totalFront`, `totalSide`, `totalMatched`
+  - `alignedCount`, `warningCount`, `unavailableCount`
+  - `frontOnlyCount`, `sideOnlyCount`
+  - `coreMatchedCount`, `secondaryMatchedCount`
+- `matchedPairs`: Sorted deterministically by canonical landmark order (Core 13 followed by Secondary allowlist). Each pair contains `identity`, `name`, `classification`, `front: { x, y }`, `side: { u, y }`, `verticalDeltaCm`, and `status`.
+- `frontOnly`: Array of items present only in Front evidence, each with `identity`, `name`, `classification`, `front: { x, y }`, `status: 'unavailable'`, and `reason: 'missing-in-side'`.
+- `sideOnly`: Array of items present only in Side evidence, each with `identity`, `name`, `classification`, `side: { u, y }`, `status: 'unavailable'`, and `reason: 'missing-in-front'`.
+
+### QA UI (Session Data → Body Tab)
+
+The Front–Side Alignment QA presentation is embedded read-only inside the **Session Data → Body** tab (`#tab-panel-body` / `#front-side-alignment-panel`).
+
+- **Top Summary Card (Always Visible):**
+  - Displays: Tolerance (`5.0 cm`), Matched, Aligned, Warnings, Unavailable, Core Matched, and Secondary Matched.
+  - Guardrail notes:
+    - *"Vertical Y agreement only · tolerance 5.0 cm"*
+    - *"Side U is profile evidence — NOT depth Z"*
+- **Collapsible Groups (Collapsed by Default):**
+  - **`Core Pairs (N)`**: Collapsible list of matched Core landmark pairs.
+  - **`Secondary Pairs (N)`**: Collapsible list of matched Secondary allowlist pairs.
+  - **`Issues (N)`**: Collapsible list collecting all warning pairs, unavailable pairs, Front-only records, and Side-only records without duplicate entries.
+- **Compact 2-Line Audit Rows:**
+  - **Line 1:** Landmark display name (Title Case), classification badge (`Core` / `Secondary`), $\Delta Y$ value (amber highlight on `warning`), and status badge (`aligned`, `warning`, `unavailable`).
+  - **Line 2:** Distinct coordinates: `Front: X ... · Y ...` · `Side: U ... · Y ...` (or `missing` for unmatched items).
+- **Runtime Derivation:** Derived directly on demand from normalized Body Evidence runtime state (`getFrontOverlayLandmarks()`, `getSecondaryCandidateLandmarks()`, `getSideCandidateLandmarks()`). No duplicate alignment state is stored.
+
+### Empty and Not-Ready States
+
+- **No Evidence Analyzed:** Displays `No body evidence analyzed.`
+- **Analyzed with Zero Candidates:** Displays `No body landmark candidates found in analyzed evidence.`
+- **Front-Only Evidence:** Displays Front candidate count with notice that Side pose is missing, followed by the grouped issues list.
+- **Side-Only Evidence:** Displays Side candidate count with notice that Front pose is missing, followed by the grouped issues list.
+- **Both Views Present with Zero Matches:** Displays the 0-match summary card and unmatched items under `Issues`.
+- **Complete Matched Alignment Report:** Displays the complete summary card and populated collapsible groups.
+
+### Strict Scope Boundary
+
+Front–Side Alignment v0 explicitly does **NOT** include:
+- $U \to Z$ conversion
+- Depth inference
+- 3D point or mesh reconstruction
+- Side candidate promotion (Front remains canonical/promotable; Side remains evidence-only)
+- Canonical Side annotations
+- Automatic coordinate correction or alignment transformation
+- Pose compensation or adjustment
+- Circumference calculation
+- Ellipse fitting
+- Body-volume inference
+- Segmentation fusion
+- Front↔Side 3D geometry connector lines
+
+### Future Scope Note
+
+> [!NOTE]
+> **Pose-aware Alignment QA is deferred to a future stage.**
+> Current warnings evaluate vertical coordinate agreement directly and do not distinguish between structural calibration disagreement and landmark movement caused by natural body pose variations between Front and Side capture images.
+
+---
+
 ## Current Body Graph Features
 
 ### Body Graph Contract v0
@@ -474,7 +580,7 @@ Workspace tabs (`#workspace-tabs`):
 - 4 segmented tabs:
   - **Hist (`#tab-panel-history`):** Shared canonical measurement history list and Clear History button.
   - **Annos (`#tab-panel-annotations`):** Annotation list with type badges and delete buttons.
-  - **Body (`#tab-panel-body`):** Body Evidence Status summary, Promoted Body Anchors table, and Body Measurement Readiness audit.
+  - **Body (`#tab-panel-body`):** Body Evidence Status summary, Front–Side Alignment QA report, Promoted Body Anchors table, and Body Measurement Readiness audit.
   - **Graph (`#tab-panel-graph`):** Read-only Scene Graph tree with 3D highlight preview.
 
 ### Bottom Status Bar (`#bottom-status-bar`)
@@ -505,6 +611,7 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Do not break two-point distance measurement** in Inspect & Measure mode
 - **Do not break Front/Side measurement separation** — Side measurement is local U/Y only and never enters canonical measurement history or Scene State
 - **Do not promote Side landmarks** — Side candidates are non-promotable and lack canonical 3D depth
+- **Do not break Front–Side Alignment v0 contract** — semantic landmark identity matching and vertical Y delta QA only; no 3D geometry reconstruction or U→Z conversion
 - **Do not break Body Graph Contract v0** — Core 13 nodes and 13 structural edges derived strictly from promoted Core 13 `body_landmark` annotations
 - **Do not serialize Body Graph or raw Body Evidence into Scene State JSON**
 - **Do not break View menu checked-state indicators** — indicators must reflect authoritative runtime query (`getViewSetting`)
@@ -515,7 +622,7 @@ When modifying this project, preserve the following unless explicitly instructed
 ### Explicitly NOT Implemented (Future Milestones)
 
 The following capabilities are deliberately **not implemented** in the current codebase and must not be simulated or added without explicit directive:
-1. **Front-Side Alignment / Registration:** No spatial fusion between Front X/Y and Side U/Y coordinates.
+1. **Spatial 3D Fusion / Registration:** No 3D spatial fusion between Front X/Y and Side U/Y coordinates; Front-Side Alignment v0 is pure semantic correspondence QA and vertical Y comparison only.
 2. **U → Z Conversion / Canonical Side Depth:** Side U coordinates are not mapped to 3D Z depth.
 3. **Side Landmark Promotion:** Side landmarks cannot be promoted to 3D annotations.
 4. **Segmentation Mask Rendering:** Segmentation JSONs are parsed for QA counts only; masks are not rendered.
@@ -549,6 +656,7 @@ The following capabilities are deliberately **not implemented** in the current c
 | `src/features/projectionLinking.js` | Read-only Front Surface projection of Origin/Center/annotations |
 | `src/features/bodyEvidence.js` | Body Evidence state store, analyze/clear, selection, manual promote |
 | `src/features/bodyEvidenceAdapter.js` | Body Evidence parsing, normalization, QA classification, secondary allowlist |
+| `src/features/frontSideAlignment.js` | Pure deterministic Front/Side semantic correspondence and vertical Y QA contract |
 | `src/features/bodyGraph.js` | Body Graph Contract v0 — deterministic Core 13 graph derivation |
 | `src/features/bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute |
 | `src/features/bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute |
@@ -575,8 +683,9 @@ The following capabilities are deliberately **not implemented** in the current c
 | `src/ui/bodyEvidenceCandidateList.js` | Candidate list DOM rendering with Core / Secondary filters and pill badges |
 | `src/ui/bodyEvidenceOverlay2d.js` | Front Surface Body Evidence overlay markers and inspect selection |
 | `src/ui/bodyEvidenceOverlaySide2d.js` | Side Evidence overlay markers (shared Core/Secondary colors; diamond/dot shapes) |
+| `src/ui/frontSideAlignmentPanel.js` | Front–Side Alignment QA presentation panel (summary card, collapsible groups, compact rows) |
 | `src/ui/bodyGraphWorkspace.js` | Body Graph Workspace v0 — Core 13 topological diagram |
-| `src/ui/bodyTabConsolidatedPanel.js` | Session Data Body tab (Status / Promoted Anchors / Readiness) |
+| `src/ui/bodyTabConsolidatedPanel.js` | Session Data Body tab coordinator (Status / Alignment QA / Promoted Anchors / Readiness) |
 | `src/ui/measurementPanel.js` | Distance Measurement inspector (Front/Canonical and Side/U-Y subgroups) |
 | `src/ui/selectionPanel.js` | Selected Point inspector panel helper |
 | `src/ui/annotationControls.js` | Landmark Preset dropdown wiring |
