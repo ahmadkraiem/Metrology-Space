@@ -470,6 +470,62 @@ Grounds strictly in the project's actual 29-class segmentation vocabulary (exact
 
 ---
 
+## Current Pixel-to-Metrology Mapping Core v0 Features
+
+Pixel-to-Metrology Mapping Core v0 is a pure, resolution-independent conversion layer implemented in [src/core/pixelMetrologyMapping.js](file:///c:/Users/VIP/Documents/Projects/latent-space/src/core/pixelMetrologyMapping.js) with companion test suite [src/core/pixelMetrologyMapping.test.js](file:///c:/Users/VIP/Documents/Projects/latent-space/src/core/pixelMetrologyMapping.test.js):
+
+### Coordinate Spaces & Semantic Distinctions
+- **Continuous Image Space:** $[0, W] \times [0, H]$ in pixels, origin at top-left $(0, 0)$.
+- **Discrete Pixel Grid:** $[0..W-1] \times [0..H-1]$ integer column and row indices.
+- **Front Metrology Space:** $X$ (width, transverse) and $Y$ (height) in centimeters, origin at floor corner $(0, 0)\text{ cm}$.
+- **Side Metrology Space:** $U$ (horizontal sagittal depth evidence) and $Y$ (height) in centimeters, origin at $(0, 0)\text{ cm}$.
+- **Workspace Extent:** Fixed $200\text{ cm}$ domain (`ROOM_SIZE = 200`).
+
+### Mapping Formulas
+1. **Continuous Image Point / Edge $\to$ Metrology Space:**
+   $$X = \frac{x}{W} \times L \quad (\text{Front}), \quad U = \frac{x}{W} \times L \quad (\text{Side})$$
+   $$Y = \left(\frac{H - y}{H}\right) \times L = \left(1 - \frac{y}{H}\right) \times L$$
+   - Top-left continuous edge $(0, 0) \to (0.0\text{ cm}, 200.0\text{ cm})$.
+   - Bottom-right continuous edge $(W, H) \to (200.0\text{ cm}, 0.0\text{ cm})$.
+
+2. **Discrete Pixel Center $\to$ Metrology Space:**
+   Setting $(x, y) = (col + 0.5, row + 0.5)$ for $col \in [0..W-1]$ and $row \in [0..H-1]$:
+   $$X_{\text{center}} = \frac{col + 0.5}{W} \times L \quad (\text{Front}), \quad U_{\text{center}} = \frac{col + 0.5}{W} \times L \quad (\text{Side})$$
+   $$Y_{\text{center}} = \left(\frac{H - (row + 0.5)}{H}\right) \times L$$
+   - First pixel center $(0, 0)$ on $2000 \times 2000 \to (0.05\text{ cm}, 199.95\text{ cm})$ (strictly interior).
+   - Last pixel center $(1999, 1999)$ on $2000 \times 2000 \to (1999.95\text{ cm}, 0.05\text{ cm})$ (strictly interior).
+
+3. **Inclusive Bounding Box $\to$ Outer Metric Bounds:**
+   Maps the **outer envelope** of inclusive pixel bounding box $\{ minX, minY, maxX, maxY \}$ ($minX \le maxX$, $minY \le maxY$):
+   $$minX_{\text{cm}} / minU_{\text{cm}} = \frac{minX}{W} \times L, \quad maxX_{\text{cm}} / maxU_{\text{cm}} = \frac{maxX + 1}{W} \times L$$
+   $$minY_{\text{cm}} = \left(\frac{H - (maxY + 1)}{H}\right) \times L, \quad maxY_{\text{cm}} = \left(\frac{H - minY}{H}\right) \times L$$
+   - Full-image bbox (`0..W-1`, `0..H-1`) maps exactly to $[0, 200] \times [0, 200]\text{ cm}$.
+   - Single-pixel bbox (`minX === maxX`, `minY === maxY`) yields non-zero metric area $\frac{L}{W} \times \frac{L}{H}\text{ cm}^2$ ($0.1 \times 0.1\text{ cm}$ on $2000 \times 2000$).
+
+4. **Continuous Inverse Conversions:**
+   $$x = \frac{X}{L} \times W \quad (\text{Front}) \quad \text{or} \quad x = \frac{U}{L} \times W \quad (\text{Side})$$
+   $$y = \left(\frac{L - Y}{L}\right) \times H$$
+
+### Input Validation & Error Handling
+- **No silent clamping:** Coordinates, indices, bounding boxes, or raster dimensions outside valid domains explicitly throw `TypeError` or `RangeError`.
+- Validates $W > 0, H > 0$ as positive integers, $L > 0$, continuous coordinates $0 \le x \le W, 0 \le y \le H$, metrology coordinates $0 \le X/U \le L, 0 \le Y \le L$, discrete pixel indices $0 \le col < W, 0 \le row < H$, and bounding box ranges $0 \le minX \le maxX < W, 0 \le minY \le maxY < H$.
+
+---
+
+## Current Anatomical Region Metric Bounds v0 Features
+
+Integrated into `buildObservedAnatomicalRegions` in [src/features/anatomicalRegions.js](file:///c:/Users/VIP/Documents/Projects/latent-space/src/features/anatomicalRegions.js):
+- **Runtime Derivation:** Converts valid observed segmentation regions to metric outer envelope `boundsCm` using actual runtime `widthPx` and `heightPx`.
+- **Front Region:** `boundsCm: { minX, maxX, minY, maxY } | null`
+- **Side Region:** `boundsCm: { minU, maxU, minY, maxY } | null`
+- **Status Behavior:**
+  - `status === 'valid'` with valid `boundsPx` and dimensions $\to$ returns computed `boundsCm`.
+  - `status === 'absent'` $\to$ `boundsCm: null`.
+  - `status === 'invalid'` $\to$ `boundsCm: null`.
+- **Strict Guardrails:** No $U \to Z$ conversion, no depth inference, no Front/Side geometry fusion, and no composite/derived regions.
+
+---
+
 ## Current Front–Side Alignment v0 Features
 
 ### Purpose
@@ -697,18 +753,19 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Do not break manual annotation workflow** or Landmark Preset dropdowns
 - **Do not break Body Measurement Readiness** calculations or Preview Overlay lines
 
-### Explicitly NOT Implemented (Future Milestones)
+### Explicitly NOT Implemented (Current Scope Boundaries)
 
 The following capabilities are deliberately **not implemented** in the current codebase and must not be simulated or added without explicit directive:
 1. **Spatial 3D Fusion / Registration:** No 3D spatial fusion between Front X/Y and Side U/Y coordinates; Front-Side Alignment v0 is pure semantic correspondence QA and vertical Y comparison only.
-2. **U → Z Conversion / Canonical Side Depth:** Side U coordinates are not mapped to 3D Z depth.
+2. **U → Z Conversion / Canonical Side Depth:** Side U coordinates are profile evidence only and are not mapped to 3D Z depth.
 3. **Side Landmark Promotion:** Side landmarks cannot be promoted to 3D annotations.
-4. **Derived / Composite Anatomical Regions:** No multi-class region unions or synthetic whole-body bounding volumes in v0.
-5. **Pixel-to-Centimeter Anatomical Region Mapping:** `boundsCm` is deferred until formal Pixel-to-Metrology coordinate conventions are established.
-6. **Segmentation-Derived Measurements:** No direct circumference, width, or distance measurements derived from segmentation masks.
-7. **Body-Region Inference:** No automatic mesh fitting or volumetric body partitioning.
-8. **Circumference / Cross-Section Inference:** No elliptical or convex hull circumference math.
-9. **Latent Space Conditioning / Features:** Metrology space is coordinate-pure; no latent representations.
+4. **Derived / Composite Anatomical Regions:** No multi-class region unions, synthetic whole-body bounding volumes, or derived anatomical zones (e.g. neck, chest, waist, hip) in v0.
+5. **Segmentation-Derived Measurements:** No direct circumference, width, cross-section, or distance measurements derived from segmentation masks.
+6. **Contour Extraction:** No polygon or bezier contour generation from segmentation rasters.
+7. **Pointmap / Normal 3D Promotion:** Pointmap and normal evidence packages are accepted future inputs but are not yet promoted into canonical 3D geometry.
+8. **Body-Region Inference:** No automatic mesh fitting or volumetric body partitioning.
+9. **Circumference / Cross-Section Inference:** No elliptical or convex hull circumference math.
+10. **Latent Space Conditioning / Features:** Metrology space is coordinate-pure; no latent representations.
 
 ---
 
@@ -727,19 +784,21 @@ The following capabilities are deliberately **not implemented** in the current c
 - **Segmentation Normalization + QA Contract v0 (Front/Side parsing, classes[], retained rasters, export safety)**
 - **Segmentation Region Preview / Inspection v0 (2D translucent overlays, View toggles, class lists, highlighting)**
 - **Anatomical Region Contract v0 (Deterministic 29-class observed ontology, categories, metrology eligibility)**
+- **Pixel-to-Metrology Mapping Core v0 (Pure resolution-independent mapping, center vs edge math, Y inversion, validation)**
+- **Anatomical Region Metric Bounds v0 (Observed region metric boundsCm derived from runtime raster dimensions)**
 
-### Next Planned Milestone: Pixel-to-Metrology Mapping Contract v0
-The upcoming milestone will establish a formal, deterministic coordinate mapping layer between 2D pixel space and metrology space (cm).
+### Next Planned Milestone: Full Body Evidence Package Contract v0
+Formalize the structured multi-modal input package per view:
+- `image`
+- `pose / landmarks`
+- `segmentation`
+- `pointmap XYZ`
+- `surface normals XYZ`
 
-**Scope & Responsibilities:**
-- Formal definition of **pixel center vs pixel edge** convention (e.g. $(0,0)$ top-left corner vs center offset).
-- Deterministic **image-to-metrology coordinate transformation** formulas for both Front $(X, Y)$ and Side $(U, Y)$.
-- Consistent **vertical Y-axis inversion** ($Y = (\text{canvasSize} - \text{imageY}) / \text{pixelsPerCm}$).
-- **Inclusive bounding-box conversion rules** ($\text{minPx} \to \text{minCm}$, $\text{maxPx} \to \text{maxCm}$).
-- **Resolution-independent mapping behavior** supporting arbitrary input resolutions beyond fixed $2000 \times 2000\text{ px}$.
-- Pure domain implementation with comprehensive unit test coverage before UI/metric integration.
+Define availability, schema, shape, dtype, units, model/view metadata, and QA validation without yet promoting pointmap or normals into canonical 3D geometry.
 
-*(Note: Do not implement this milestone until explicitly requested).*
+### Following Milestone: Pointmap + Normal Evidence Contract / QA v0
+Audit and formalize coordinate frames, scale semantics, valid body masking, and normal vector validity across Front and Side views.
 
 ---
 
@@ -754,12 +813,14 @@ The upcoming milestone will establish a formal, deterministic coordinate mapping
 | `src/core/landmarkDisplay.js` | Shared Title Case landmark / annotation display-name helper |
 | `src/core/formatters.js` | Coordinate, point, annotation, and distance formatting |
 | `src/core/math.js` | smoothstep and Euclidean distance helpers |
+| `src/core/pixelMetrologyMapping.js` | Pixel-to-Metrology Mapping Core v0 — pure, resolution-independent 2D raster ↔ metrology mapping |
+| `src/core/pixelMetrologyMapping.test.js` | Pixel-to-Metrology Mapping Core v0 unit tests |
 | `src/core/scene.js` | Three.js scene, camera, WebGL renderer, CSS2DRenderer, OrbitControls |
 | `src/metrology/roomShell.js` | Transparent room shell and 10 cm surface grid markers |
 | `src/metrology/volumeGrid.js` | 5 cm internal lattice, LOD layers, visibility controls |
 | `src/metrology/axes.js` | X/Y/Z axes and 20 cm tick labels |
 | `src/metrology/referenceMarkers.js` | Origin and Center markers, hover labels |
-| `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping |
+| `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
 | `src/features/selection.js` | Selected point state and highlight (Annotate mode) |
