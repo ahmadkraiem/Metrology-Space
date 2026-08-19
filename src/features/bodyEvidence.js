@@ -140,6 +140,24 @@ export function hasAnalyzedBodyEvidence() {
   return qaResult != null;
 }
 
+/**
+ * Access the decoded Front segmentation raster (Uint8Array) from runtime state.
+ * Returns null if no Front segmentation is analyzed or if raster is invalid.
+ * @returns {Uint8Array|null}
+ */
+export function getFrontSegmentationRaster() {
+  return qaResult?.views.front.segmentation.raster ?? null;
+}
+
+/**
+ * Access the decoded Side segmentation raster (Uint8Array) from runtime state.
+ * Returns null if no Side segmentation is analyzed or if raster is invalid.
+ * @returns {Uint8Array|null}
+ */
+export function getSideSegmentationRaster() {
+  return qaResult?.views.side.segmentation.raster ?? null;
+}
+
 /** Accepted (non-face) front landmarks, including low-confidence entries. */
 function getFrontAcceptedLandmarks() {
   return qaResult?.views.front.pose.acceptedLandmarks ?? [];

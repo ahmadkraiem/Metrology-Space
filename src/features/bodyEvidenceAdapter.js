@@ -896,6 +896,7 @@ export function emptyNormalizedSegmentation(view = null) {
     widthPx: null,
     heightPx: null,
     dtype: null,
+    raster: null,
     classes: [],
     classNames: [],
     classCounts: {},
@@ -1194,12 +1195,17 @@ export function normalizeSegmentation(raw, { expectedView } = {}) {
     && classIdsInRange
     && countsMatch;
 
+  const raster = (decodeSuccess && decodedRaster && validShape && pixelCountMatchesShape)
+    ? decodedRaster
+    : null;
+
   return {
     view,
     model,
     widthPx,
     heightPx,
     dtype: dtype ?? rawDtype ?? null,
+    raster,
     classes,
     // Backward compatibility fields:
     classNames,

@@ -256,6 +256,9 @@ test('normalizes valid Front and Side segmentation with deterministic classes an
   assert.equal(normalized.widthPx, 4);
   assert.equal(normalized.heightPx, 4);
   assert.equal(normalized.dtype, 'uint8');
+  assert.equal(normalized.raster instanceof Uint8Array, true);
+  assert.equal(normalized.raster.length, 16);
+  assert.deepEqual(Array.from(normalized.raster), Array.from(raster));
   assert.equal(normalized.classes.length, 4);
 
   // Class 0: background
@@ -575,7 +578,14 @@ test('analyzeBodyEvidence integrates Front and Side normalized segmentation with
 
   // Diagnostic export inspection
   // Simulate setting qaResult via setFrontSegSource/analyzeLoadedBodyEvidence or build export helper
-  const { setFrontSegSource, setSideSegSource, analyzeLoadedBodyEvidence } = await import('./bodyEvidence.js');
+  const {
+    setFrontSegSource,
+    setSideSegSource,
+    analyzeLoadedBodyEvidence,
+    getFrontSegmentationRaster,
+    getSideSegmentationRaster,
+    clearBodyEvidence,
+  } = await import('./bodyEvidence.js');
   setFrontSegSource({
     model: 'schp',
     view: 'front',
@@ -595,6 +605,12 @@ test('analyzeBodyEvidence integrates Front and Side normalized segmentation with
   const analyzeRes = analyzeLoadedBodyEvidence();
   assert.equal(analyzeRes.ok, true);
 
+  // Runtime raster access
+  assert.equal(getFrontSegmentationRaster() instanceof Uint8Array, true);
+  assert.equal(getSideSegmentationRaster() instanceof Uint8Array, true);
+  assert.equal(getFrontSegmentationRaster().length, 4);
+  assert.equal(getSideSegmentationRaster().length, 4);
+
   const exportData = buildBodyEvidenceExport();
   assert.equal(exportData.views.front.segmentation.view, 'front');
   assert.equal(exportData.views.front.segmentation.model, 'schp');
@@ -608,4 +624,35 @@ test('analyzeBodyEvidence integrates Front and Side normalized segmentation with
   assert.equal('base64' in exportData.views.front.segmentation, false);
   assert.equal('labels' in exportData.views.front.segmentation, false);
   assert.equal('raster' in exportData.views.front.segmentation, false);
+
+  // Clearing evidence clears the raster getters
+  clearBodyEvidence();
+  assert.equal(getFrontSegmentationRaster(), null);
+  assert.equal(getSideSegmentationRaster(), null);
+});
+
+test('empty and invalid segmentation sources expose raster: null', async () => {
+  const { emptyNormalizedSegmentation, normalizeSegmentation } = await import('./bodyEvidenceAdapter.js');
+
+  const empty = emptyNormalizedSegmentation('front');
+  assert.equal(empty.raster, null);
+
+  const nullInput = normalizeSegmentation(null);
+  assert.equal(nullInput.raster, null);
+
+  const corrupted = normalizeSegmentation({
+    view: 'front',
+    num_classes: 1,
+    class_names: ['background'],
+    labels: { shape: [2, 2], dtype: 'uint8', base64: '!!!bad!!!' },
+  });
+  assert.equal(corrupted.raster, null);
+
+  const badShape = normalizeSegmentation({
+    view: 'front',
+    num_classes: 1,
+    class_names: ['background'],
+    labels: { shape: [4], dtype: 'uint8', base64: encodeUint8ArrayToBase64(new Uint8Array([0, 0, 0, 0])) },
+  });
+  assert.equal(badShape.raster, null);
 });
