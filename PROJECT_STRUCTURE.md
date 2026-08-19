@@ -34,6 +34,8 @@ latent-space/
 │   │   ├── math.js                  # smoothstep and Euclidean distance helpers
 │   │   └── scene.js                 # Three.js scene, camera, WebGL renderer, CSS2DRenderer, OrbitControls
 │   ├── features/
+│   │   ├── anatomicalRegions.js     # Anatomical Region Contract v0 — deterministic 29-class observed region mapping
+│   │   ├── anatomicalRegions.test.js # Anatomical Region Contract v0 unit tests
 │   │   ├── annotations.js           # Annotation state, 3D visuals, CSS2D labels, promote path
 │   │   ├── annotationValidation.js  # Validates annotation input before saving
 │   │   ├── appMode.js               # App mode state (Inspect & Measure vs Annotate)
@@ -139,6 +141,7 @@ latent-space/
 
 | File | Responsibilities |
 |------|------------------|
+| `anatomicalRegions.js` | Anatomical Region Contract v0. Pure deterministic domain contract mapping normalized Front/Side segmentation `classes[]` into observed 29-class region records (`body_anatomical`, `clothing_apparel`, `face_head`, `accessory_other`, `context_background`). No DOM, Three.js, depth inference, boundsCm, or derived composites. |
 | `appMode.js` | Manages app interaction mode (`MODE_INSPECT_MEASURE` vs `MODE_ANNOTATE`). |
 | `selection.js` | Manages selected point state `{ x, y, z }` and selection highlight mesh in Annotate mode. Decoupled from direct DOM manipulation. |
 | `measurement.js` | Manages canonical 3D/Front Point A/B measurement state, markers, line, CSS2D label, measurement history, and clear/advance operations. |
