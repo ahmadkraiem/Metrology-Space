@@ -5,11 +5,16 @@ import {
   DENSE_LAYOUT_CHW_PLANAR,
   DENSE_LAYOUT_HWC_INTERLEAVED,
   DENSE_LAYOUT_UNKNOWN,
+  normalizeNormalsEvidence,
   normalizePointmapEvidence,
 } from './bodyEvidencePackage.js';
 import {
+  evaluateNormalsBufferNumericQa,
+  evaluateNormalsNumericQa,
   evaluatePointmapBufferNumericQa,
   evaluatePointmapNumericQa,
+  NORMAL_NUMERIC_QA_CONTRACT,
+  NORMAL_UNIT_TOLERANCE,
   POINTMAP_NUMERIC_QA_CONTRACT,
 } from './denseEvidenceQa.js';
 
@@ -408,3 +413,331 @@ test('evaluatePointmapNumericQa yields deterministic results on repeated calls',
 
   assert.deepEqual(res1, res2);
 });
+
+test('evaluateNormalsBufferNumericQa computes exact statistics and magnitude metrics for valid HWC Float32 unit normals', () => {
+  // 2 rows, 2 cols (4 pixels)
+  // Pixel 0: [0, 0, 1] -> mag 1.0
+  // Pixel 1: [1, 0, 0] -> mag 1.0
+  // Pixel 2: [0, 1, 0] -> mag 1.0
+  // Pixel 3: [0.57735, 0.57735, 0.57735] -> mag ~ 1.0
+  const norm3 = 1.0 / Math.sqrt(3);
+  const hwcBuffer = new Float32Array([
+    0.0, 0.0, 1.0,
+    1.0, 0.0, 0.0,
+    0.0, 1.0, 0.0,
+    norm3, norm3, norm3,
+  ]);
+
+  const report = evaluateNormalsBufferNumericQa(hwcBuffer, {
+    widthPx: 2,
+    heightPx: 2,
+    channels: 3,
+    denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+    model: 'surface-normals-net',
+    declaredRange: [-1.0, 1.0],
+    view: 'front',
+  });
+
+  assert.equal(report.contract, NORMAL_NUMERIC_QA_CONTRACT);
+  assert.equal(report.view, 'front');
+  assert.equal(report.availability, 'present');
+  assert.equal(report.status, 'pass');
+  assert.deepEqual(report.issues, []);
+  assert.deepEqual(report.warnings, []);
+
+  // Structural checks
+  assert.equal(report.structure.isInspectable, true);
+  assert.equal(report.structure.expectedElements, 12);
+  assert.equal(report.structure.actualElements, 12);
+
+  // Vector counts
+  assert.equal(report.numeric.vectors.totalVectorCount, 4);
+  assert.equal(report.numeric.vectors.fullyFiniteVectorCount, 4);
+  assert.equal(report.numeric.vectors.fullyFiniteVectorRatio, 1.0);
+
+  // Magnitude QA
+  const mag = report.numeric.magnitude;
+  assert.equal(mag.tolerance, NORMAL_UNIT_TOLERANCE);
+  assert.equal(mag.finiteMagnitudeVectorCount, 4);
+  assert.equal(mag.zeroMagnitudeCount, 0);
+  assert.equal(mag.nearUnitCount, 4);
+  assert.equal(mag.nearUnitRatio, 1.0);
+  assert.equal(Math.abs(mag.min - 1.0) < 1e-4, true);
+  assert.equal(Math.abs(mag.max - 1.0) < 1e-4, true);
+  assert.equal(Math.abs(mag.mean - 1.0) < 1e-4, true);
+  assert.equal(mag.standardDeviation < 1e-4, true);
+
+  // Declared range QA
+  assert.equal(report.declaredRangeQa.status, 'pass');
+  assert.deepEqual(report.declaredRangeQa.declaredRange, [-1.0, 1.0]);
+  assert.equal(report.declaredRangeQa.finiteValueCountChecked, 12);
+  assert.equal(report.declaredRangeQa.belowRangeCount, 0);
+  assert.equal(report.declaredRangeQa.aboveRangeCount, 0);
+  assert.equal(report.declaredRangeQa.violationCount, 0);
+  assert.equal(report.declaredRangeQa.violationRatio, 0);
+
+  // Semantics unvalidated markings
+  assert.equal(report.semantics.coordinateFrame, 'unvalidated');
+  assert.equal(report.semantics.orientationSemantics, 'unvalidated');
+  assert.equal(report.semantics.encodingSemantics, 'unvalidated');
+});
+
+test('evaluateNormalsBufferNumericQa yields identical results for HWC and CHW buffers with identical logical values', () => {
+  // Pixels: (0,0)=[0,0,1], (0,1)=[1,0,0], (1,0)=[0,1,0], (1,1)=[0.6, 0.8, 0.0]
+  const hwcBuffer = new Float32Array([
+    0.0, 0.0, 1.0,
+    1.0, 0.0, 0.0,
+    0.0, 1.0, 0.0,
+    0.6, 0.8, 0.0,
+  ]);
+
+  // In CHW:
+  // Plane 0 (X): [0.0, 1.0, 0.0, 0.6]
+  // Plane 1 (Y): [0.0, 0.0, 1.0, 0.8]
+  // Plane 2 (Z): [1.0, 0.0, 0.0, 0.0]
+  const chwBuffer = new Float32Array([
+    0.0, 1.0, 0.0, 0.6,
+    0.0, 0.0, 1.0, 0.8,
+    1.0, 0.0, 0.0, 0.0,
+  ]);
+
+  const hwcReport = evaluateNormalsBufferNumericQa(hwcBuffer, {
+    widthPx: 2,
+    heightPx: 2,
+    channels: 3,
+    denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+    declaredRange: [-1.0, 1.0],
+  });
+
+  const chwReport = evaluateNormalsBufferNumericQa(chwBuffer, {
+    widthPx: 2,
+    heightPx: 2,
+    channels: 3,
+    denseLayout: DENSE_LAYOUT_CHW_PLANAR,
+    declaredRange: [-1.0, 1.0],
+  });
+
+  assert.equal(hwcReport.status, 'pass');
+  assert.equal(chwReport.status, 'pass');
+
+  assert.deepEqual(hwcReport.numeric.elements, chwReport.numeric.elements);
+  assert.deepEqual(hwcReport.numeric.vectors, chwReport.numeric.vectors);
+  assert.deepEqual(hwcReport.numeric.magnitude, chwReport.numeric.magnitude);
+  assert.deepEqual(hwcReport.declaredRangeQa, chwReport.declaredRangeQa);
+});
+
+test('evaluateNormalsBufferNumericQa distinguishes near-unit vs non-unit magnitudes and detects zero vectors', () => {
+  // 4 vectors:
+  // Vector 0: [0, 0, 1.005] -> mag 1.005 (|1.005 - 1.0| = 0.005 <= 0.01 tolerance) -> nearUnit
+  // Vector 1: [0, 0, 1.05]  -> mag 1.05 (|1.05 - 1.0| = 0.05 > 0.01 tolerance) -> not nearUnit
+  // Vector 2: [0, 0, 0]     -> mag 0.0 -> zeroMagnitude
+  // Vector 3: [0, 1.0, 0]   -> mag 1.0 -> nearUnit
+  const buffer = new Float32Array([
+    0.0, 0.0, 1.005,
+    0.0, 0.0, 1.05,
+    0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0,
+  ]);
+
+  const report = evaluateNormalsBufferNumericQa(buffer, {
+    widthPx: 4,
+    heightPx: 1,
+    channels: 3,
+    denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+    declaredRange: [-2.0, 2.0],
+  });
+
+  // Zero-magnitude vector triggers warning
+  assert.equal(report.status, 'warning');
+  assert.equal(report.warnings.some((w) => w.includes('zero-length vector')), true);
+
+  const mag = report.numeric.magnitude;
+  assert.equal(mag.finiteMagnitudeVectorCount, 4);
+  assert.equal(mag.zeroMagnitudeCount, 1);
+  assert.equal(mag.nearUnitCount, 2); // Vector 0 and Vector 3
+  assert.equal(mag.nearUnitRatio, 2 / 4);
+  assert.equal(mag.min, 0.0);
+  assert.equal(Math.abs(mag.max - 1.05) < 1e-5, true);
+});
+
+test('evaluateNormalsBufferNumericQa excludes partially non-finite vectors from magnitude QA', () => {
+  // Vector 0: [0, 0, 1] -> fully finite (mag 1.0)
+  // Vector 1: [0, NaN, 1] -> partially non-finite (excluded from magnitude stats)
+  // Vector 2: [Infinity, -Infinity, NaN] -> fully non-finite (excluded from magnitude stats)
+  const buffer = new Float32Array([
+    0.0, 0.0, 1.0,
+    0.0, NaN, 1.0,
+    Infinity, -Infinity, NaN,
+  ]);
+
+  const report = evaluateNormalsBufferNumericQa(buffer, {
+    widthPx: 3,
+    heightPx: 1,
+    channels: 3,
+    denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+    declaredRange: [-1.0, 1.0],
+  });
+
+  assert.equal(report.status, 'warning');
+  assert.equal(report.numeric.vectors.totalVectorCount, 3);
+  assert.equal(report.numeric.vectors.fullyFiniteVectorCount, 1);
+  assert.equal(report.numeric.vectors.partiallyNonFiniteVectorCount, 1);
+  assert.equal(report.numeric.vectors.fullyNonFiniteVectorCount, 1);
+
+  // Magnitude evaluated on 1 fully-finite vector only
+  assert.equal(report.numeric.magnitude.finiteMagnitudeVectorCount, 1);
+  assert.equal(report.numeric.magnitude.nearUnitCount, 1);
+  assert.equal(report.numeric.magnitude.mean, 1.0);
+});
+
+test('evaluateNormalsBufferNumericQa audits declaredRange and flags below/above violations', () => {
+  // Vector 0: [-1.5, 0.0, 0.5] -> -1.5 is below min (-1.0)
+  // Vector 1: [0.0, 2.5, 0.5]  -> 2.5 is above max (1.0)
+  const buffer = new Float32Array([
+    -1.5, 0.0, 0.5,
+    0.0, 2.5, 0.5,
+  ]);
+
+  const report = evaluateNormalsBufferNumericQa(buffer, {
+    widthPx: 2,
+    heightPx: 1,
+    channels: 3,
+    denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+    declaredRange: [-1.0, 1.0],
+  });
+
+  assert.equal(report.status, 'warning');
+  assert.equal(report.warnings.some((w) => w.includes('declared range violation')), true);
+
+  const rangeQa = report.declaredRangeQa;
+  assert.equal(rangeQa.status, 'warning');
+  assert.equal(rangeQa.finiteValueCountChecked, 6);
+  assert.equal(rangeQa.belowRangeCount, 1);
+  assert.equal(rangeQa.aboveRangeCount, 1);
+  assert.equal(rangeQa.violationCount, 2);
+  assert.equal(rangeQa.violationRatio, 2 / 6);
+});
+
+test('evaluateNormalsBufferNumericQa marks declaredRange as unvalidated when range is missing', () => {
+  const buffer = new Float32Array([0.0, 0.0, 1.0]);
+
+  const report = evaluateNormalsBufferNumericQa(buffer, {
+    widthPx: 1,
+    heightPx: 1,
+    channels: 3,
+    denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+    declaredRange: null, // missing range
+  });
+
+  assert.equal(report.status, 'pass');
+  assert.equal(report.declaredRangeQa.status, 'unvalidated');
+  assert.equal(report.declaredRangeQa.declaredRange, null);
+  assert.equal(report.declaredRangeQa.violationCount, 0);
+  assert.equal(report.declaredRangeQa.note.includes('deferred'), true);
+});
+
+test('evaluateNormalsBufferNumericQa handles uint8 raw normals without semantic remapping', () => {
+  // Raw uint8 buffer with values [128, 128, 255]
+  const uint8Buffer = new Uint8Array([128, 128, 255]);
+
+  const report = evaluateNormalsBufferNumericQa(uint8Buffer, {
+    widthPx: 1,
+    heightPx: 1,
+    channels: 3,
+    denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+    dtype: 'uint8',
+    declaredRange: [0, 255],
+  });
+
+  // Raw values are inspected directly (no value / 127.5 - 1 remapping)
+  assert.equal(report.status, 'pass');
+  assert.equal(report.structure.dtype, 'uint8');
+  assert.equal(report.declaredRangeQa.status, 'pass');
+  assert.equal(report.declaredRangeQa.violationCount, 0);
+
+  // Channels hold raw uint8 values
+  assert.equal(report.numeric.channels[0].min, 128);
+  assert.equal(report.numeric.channels[1].min, 128);
+  assert.equal(report.numeric.channels[2].min, 255);
+
+  // Magnitude computes sqrt(128^2 + 128^2 + 255^2) ~ 312.69
+  assert.equal(report.numeric.magnitude.min > 300, true);
+  assert.equal(report.semantics.encodingSemantics, 'unvalidated');
+});
+
+test('evaluateNormalsBufferNumericQa never mutates the input normals buffer', () => {
+  const original = [0.0, -1.0, 0.0, 0.5, NaN, 1.0];
+  const buffer = new Float32Array(original);
+
+  evaluateNormalsBufferNumericQa(buffer, {
+    widthPx: 2,
+    heightPx: 1,
+    channels: 3,
+    denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+    declaredRange: [-1.0, 1.0],
+  });
+
+  assert.equal(buffer[0], 0.0);
+  assert.equal(buffer[1], -1.0);
+  assert.equal(buffer[2], 0.0);
+  assert.equal(buffer[3], 0.5);
+  assert.equal(Number.isNaN(buffer[4]), true);
+  assert.equal(buffer[5], 1.0);
+});
+
+test('evaluateNormalsNumericQa handles missing normals and lazy decoding gracefully', async () => {
+  // Missing normals
+  const missingReport = await evaluateNormalsNumericQa(null, { view: 'side' });
+  assert.equal(missingReport.contract, NORMAL_NUMERIC_QA_CONTRACT);
+  assert.equal(missingReport.view, 'side');
+  assert.equal(missingReport.availability, 'missing');
+  assert.equal(missingReport.status, 'pass');
+  assert.equal(missingReport.structure.present, false);
+  assert.equal(missingReport.numeric, null);
+
+  // Valid normalized normals
+  const floats = new Float32Array([0.0, 0.0, 1.0, 0.0, 1.0, 0.0]);
+  const uint8 = new Uint8Array(floats.buffer, floats.byteOffset, floats.byteLength);
+  let binary = '';
+  for (let i = 0; i < uint8.length; i += 1) {
+    binary += String.fromCharCode(uint8[i]);
+  }
+  const base64 = typeof Buffer !== 'undefined' ? Buffer.from(uint8).toString('base64') : globalThis.btoa(binary);
+
+  const normalized = normalizeNormalsEvidence({
+    model: 'surface-normals-v2',
+    view: 'side',
+    shape: [1, 2, 3],
+    dtype: 'float32',
+    range: [-1.0, 1.0],
+    base64,
+  }, { expectedView: 'side' });
+
+  const report = await evaluateNormalsNumericQa(normalized);
+  assert.equal(report.status, 'pass');
+  assert.equal(report.structure.isInspectable, true);
+  assert.equal(report.numeric.magnitude.nearUnitCount, 2);
+  assert.equal(report.numeric.magnitude.nearUnitRatio, 1.0);
+});
+
+test('evaluateNormalsNumericQa handles loader failure and reports status fail', async () => {
+  const badNormals = {
+    present: true,
+    view: 'front',
+    widthPx: 10,
+    heightPx: 10,
+    channels: 3,
+    shape: [10, 10, 3],
+    denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+    getDenseData: async () => {
+      throw new Error('IO read error');
+    },
+  };
+
+  const report = await evaluateNormalsNumericQa(badNormals);
+  assert.equal(report.status, 'fail');
+  assert.equal(report.structure.isInspectable, false);
+  assert.equal(report.numeric, null);
+  assert.equal(report.issues.some((i) => i.includes('IO read error')), true);
+});
+
