@@ -478,3 +478,99 @@ export function sideMetrologyToImagePoint(uOrPoint, yOrWidth, widthPx, heightPx,
 
   return { x, y };
 }
+
+/**
+ * Maps a canonical vertical coordinate (Y in cm) into a discrete image raster row index and normalized V.
+ *
+ * Mapping semantics:
+ * - Canonical Y increases upward in [0, workspaceExtentCm].
+ * - Image pixel row increases downward in [0, heightPx - 1].
+ * - Valid boundary Y=0 maps to row heightPx - 1.
+ * - Valid boundary Y=workspaceExtentCm maps to row 0.
+ * - Values outside [0, workspaceExtentCm] return null.
+ *
+ * @param {number} yCm
+ * @param {number} heightPx
+ * @param {number} [workspaceExtentCm]
+ * @returns {{ row: number, normalizedV: number }|null}
+ */
+export function canonicalYToPixelRow(yCm, heightPx, workspaceExtentCm = DEFAULT_WORKSPACE_EXTENT_CM) {
+  if (
+    typeof yCm !== 'number'
+    || !Number.isFinite(yCm)
+    || yCm < 0
+    || yCm > workspaceExtentCm
+    || typeof heightPx !== 'number'
+    || !Number.isFinite(heightPx)
+    || heightPx <= 0
+    || !Number.isInteger(heightPx)
+  ) {
+    return null;
+  }
+
+  const normalizedV = (workspaceExtentCm - yCm) / workspaceExtentCm;
+  const continuousY = normalizedV * heightPx;
+
+  let row = Math.floor(continuousY);
+  if (row >= heightPx) {
+    row = heightPx - 1;
+  }
+  if (row < 0) {
+    row = 0;
+  }
+
+  return { row, normalizedV };
+}
+
+/**
+ * Maps a discrete horizontal pixel column span [startCol, endCol] (inclusive) into Front Metrology coordinates.
+ *
+ * Outer pixel edges:
+ *   minU = startCol / widthPx
+ *   maxU = (endCol + 1) / widthPx
+ *   minX_cm = (startCol / widthPx) * workspaceExtentCm
+ *   maxX_cm = ((endCol + 1) / widthPx) * workspaceExtentCm
+ *
+ * @param {number} startCol
+ * @param {number} endCol
+ * @param {number} widthPx
+ * @param {number} [workspaceExtentCm]
+ * @returns {{
+ *   boundsNormalized: { minU: number, maxU: number },
+ *   boundsCm: { minX: number, maxX: number },
+ * }|null}
+ */
+export function pixelColumnSpanToFrontMetrology(
+  startCol,
+  endCol,
+  widthPx,
+  workspaceExtentCm = DEFAULT_WORKSPACE_EXTENT_CM,
+) {
+  if (
+    typeof startCol !== 'number'
+    || !Number.isFinite(startCol)
+    || !Number.isInteger(startCol)
+    || typeof endCol !== 'number'
+    || !Number.isFinite(endCol)
+    || !Number.isInteger(endCol)
+    || typeof widthPx !== 'number'
+    || !Number.isFinite(widthPx)
+    || widthPx <= 0
+    || !Number.isInteger(widthPx)
+    || startCol < 0
+    || endCol >= widthPx
+    || startCol > endCol
+  ) {
+    return null;
+  }
+
+  const minU = startCol / widthPx;
+  const maxU = (endCol + 1) / widthPx;
+  const minX = (startCol * workspaceExtentCm) / widthPx;
+  const maxX = ((endCol + 1) * workspaceExtentCm) / widthPx;
+
+  return {
+    boundsNormalized: { minU, maxU },
+    boundsCm: { minX, maxX },
+  };
+}

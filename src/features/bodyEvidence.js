@@ -23,6 +23,9 @@ import {
 import {
   buildAnatomicalRegionEvidence,
 } from './anatomicalRegionEvidence.js';
+import {
+  sampleFrontHorizontalRasterSlice,
+} from './frontRasterSlice.js';
 import { ROOM_SIZE } from '../core/constants.js';
 import { FRONT_SURFACE_DEPTH_CM, frontSurfaceTo3d, isOnFrontSurface } from '../core/frontSurface.js';
 import { addAnnotationFromPoint, getAnnotations } from './annotations.js';
@@ -1006,6 +1009,32 @@ export function getAnatomicalRegionEvidence() {
     return null;
   }
   return { front, side };
+}
+
+/**
+ * Samples the active Front segmentation raster at a canonical Y height (cm)
+ * for a target set of segmentation class IDs.
+ *
+ * Grounded in canonical fixed 200 cm metrology domain.
+ *
+ * @param {{
+ *   yCm: number,
+ *   targetClassIds: Iterable<number>,
+ * }} options
+ * @returns {object|null}
+ */
+export function getFrontHorizontalRasterSlice({ yCm, targetClassIds } = {}) {
+  const raster = getFrontSegmentationRaster();
+  const seg = qaResult?.views?.front?.segmentation ?? currentPackage?.front?.segmentation;
+  if (!raster || !seg?.widthPx || !seg?.heightPx) {
+    return null;
+  }
+  return sampleFrontHorizontalRasterSlice(raster, {
+    widthPx: seg.widthPx,
+    heightPx: seg.heightPx,
+    yCm,
+    targetClassIds,
+  });
 }
 
 export function analyzeLoadedBodyEvidence() {
