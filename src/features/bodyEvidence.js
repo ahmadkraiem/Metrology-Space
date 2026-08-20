@@ -26,6 +26,14 @@ import {
 import {
   sampleFrontHorizontalRasterSlice,
 } from './frontRasterSlice.js';
+import {
+  FRONT_TRANSVERSE_WIDTH_CONTRACT_VERSION,
+  SUPPORTED_FRONT_TRANSVERSE_WIDTH_DEFINITIONS_V0,
+  interpretFrontTransverseWidth,
+} from './frontTransverseWidth.js';
+import {
+  computeAnatomicalLevels,
+} from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
 import { FRONT_SURFACE_DEPTH_CM, frontSurfaceTo3d, isOnFrontSurface } from '../core/frontSurface.js';
 import { addAnnotationFromPoint, getAnnotations } from './annotations.js';
@@ -1035,6 +1043,59 @@ export function getFrontHorizontalRasterSlice({ yCm, targetClassIds } = {}) {
     yCm,
     targetClassIds,
   });
+}
+
+/**
+ * Evaluates a single Front transverse width observation from active runtime state.
+ *
+ * @param {{ id: string, annotations?: Array<object>|null }} options
+ * @returns {object|null}
+ */
+export function getFrontTransverseWidth({ id, annotations = null } = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_FRONT_TRANSVERSE_WIDTH_DEFINITIONS_V0[id];
+  if (!def) return null;
+
+  const resolvedAnnotations = annotations ?? (typeof getAnnotations === 'function' ? getAnnotations() : []);
+  const levelsReport = computeAnatomicalLevels(resolvedAnnotations);
+  const level = levelsReport?.levels?.find((l) => l.id === def.sourceLevel) ?? null;
+
+  if (!level || level.status !== 'ready' || typeof level.yCm !== 'number') {
+    return interpretFrontTransverseWidth(null, { definition: def, level });
+  }
+
+  const slice = getFrontHorizontalRasterSlice({
+    yCm: level.yCm,
+    targetClassIds: def.targetClassIds,
+  });
+
+  return interpretFrontTransverseWidth(slice, { definition: def, level });
+}
+
+/**
+ * Evaluates all supported Front transverse width observations from active runtime state.
+ *
+ * @param {{ annotations?: Array<object>|null }} [options]
+ * @returns {{
+ *   contract: 'front-transverse-widths-report-v0',
+ *   version: string,
+ *   view: 'front',
+ *   widths: Array<object>,
+ * }|null}
+ */
+export function getFrontTransverseWidths({ annotations = null } = {}) {
+  const raster = getFrontSegmentationRaster();
+  if (!raster) return null;
+
+  const definitions = Object.values(SUPPORTED_FRONT_TRANSVERSE_WIDTH_DEFINITIONS_V0);
+  const widths = definitions.map((def) => getFrontTransverseWidth({ id: def.id, annotations }));
+
+  return {
+    contract: 'front-transverse-widths-report-v0',
+    version: FRONT_TRANSVERSE_WIDTH_CONTRACT_VERSION,
+    view: 'front',
+    widths,
+  };
 }
 
 export function analyzeLoadedBodyEvidence() {
