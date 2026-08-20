@@ -17,7 +17,9 @@ import {
 } from '../features/projectionLinking.js';
 import {
   getFrontSegmentationRaster,
+  getRenderableFrontBodyLandmarks,
   getRenderableSideBodyLandmarks,
+  getSecondaryFrontBodyLandmarks,
   getSecondarySideBodyLandmarks,
   getSideSegmentationRaster,
   hasAnalyzedBodyEvidence,
@@ -30,10 +32,6 @@ import {
   setSideCoreBodyEvidenceVisible,
   setSideSecondaryBodyEvidenceVisible,
 } from '../features/bodyEvidence.js';
-import {
-  getFrontOverlayLandmarkCount,
-  getSecondaryCandidateLandmarkCount,
-} from './bodyEvidenceOverlay2d.js';
 
 export const VIEW_SETTING_IDS = Object.freeze({
   ORIGIN_CENTER: 'origin-center',
@@ -96,8 +94,8 @@ function evidenceAvailability() {
 
   return {
     analyzed,
-    frontCoreCount: analyzed ? getFrontOverlayLandmarkCount() : 0,
-    frontSecondaryCount: analyzed ? getSecondaryCandidateLandmarkCount() : 0,
+    frontCoreCount: analyzed ? getRenderableFrontBodyLandmarks().length : 0,
+    frontSecondaryCount: analyzed ? getSecondaryFrontBodyLandmarks().length : 0,
     sideCoreCount: analyzed ? getRenderableSideBodyLandmarks().length : 0,
     sideSecondaryCount: analyzed ? getSecondarySideBodyLandmarks().length : 0,
     hasFrontRaster: Boolean(frontRaster && frontRaster.length > 0),

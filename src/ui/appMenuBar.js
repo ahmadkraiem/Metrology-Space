@@ -12,10 +12,6 @@ import { openSceneStateFilePicker } from '../features/sceneImport.js';
 import { runExportSceneStateAction } from '../features/sceneExport.js';
 import {
   openBodyEvidencePackageFilePicker,
-  openFrontPoseFilePicker,
-  openFrontSegFilePicker,
-  openSidePoseFilePicker,
-  openSideSegFilePicker,
   runDownloadBodyEvidenceAction,
 } from './bodyEvidencePanel.js';
 import { appMenuBarEl } from './domRefs.js';
@@ -181,18 +177,6 @@ function runCommand(command) {
   switch (command) {
     case 'import-body-evidence-package':
       openBodyEvidencePackageFilePicker();
-      break;
-    case 'open-front-pose':
-      openFrontPoseFilePicker();
-      break;
-    case 'open-side-pose':
-      openSidePoseFilePicker();
-      break;
-    case 'open-front-seg':
-      openFrontSegFilePicker();
-      break;
-    case 'open-side-seg':
-      openSideSegFilePicker();
       break;
     case 'open-scene-state':
       openSceneStateFilePicker();

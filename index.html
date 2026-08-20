@@ -26,11 +26,6 @@
             <ul class="app-menu-dropdown" role="menu" hidden>
               <li role="none"><button type="button" role="menuitem" data-command="import-body-evidence-package">Upload Body Evidence Package…</button></li>
               <li role="separator" class="app-menu-separator"></li>
-              <li role="none"><button type="button" role="menuitem" data-command="open-front-pose">Load Front Pose JSON…</button></li>
-              <li role="none"><button type="button" role="menuitem" data-command="open-side-pose">Load Side Pose JSON…</button></li>
-              <li role="none"><button type="button" role="menuitem" data-command="open-front-seg">Load Front Seg JSON…</button></li>
-              <li role="none"><button type="button" role="menuitem" data-command="open-side-seg">Load Side Seg JSON…</button></li>
-              <li role="separator" class="app-menu-separator"></li>
               <li role="none"><button type="button" role="menuitem" data-command="open-scene-state">Import Scene State…</button></li>
               <li role="none"><button type="button" role="menuitem" data-command="export-scene-state">Export Scene State</button></li>
               <li role="separator" class="app-menu-separator"></li>
@@ -90,23 +85,7 @@
                 <button type="button" role="tab" data-body-evidence-tab="selection" aria-selected="false" aria-controls="body-evidence-tab-selection" id="body-evidence-tab-selection-btn">Selection</button>
               </div>
               <p id="body-evidence-status" class="body-evidence-status" hidden></p>
-              <div id="body-evidence-package-qa" class="body-evidence-package-qa" hidden></div>
 
-              <div class="inspector-subgroup inspector-subgroup--body-actions" data-collapsible>
-                <h3 class="inspector-subgroup-label">Actions</h3>
-                <div class="inspector-subgroup-body">
-                  <div class="inspector-subgroup-actions">
-                    <button type="button" id="analyze-body-evidence" class="panel-button">Analyze</button>
-                    <button type="button" id="download-body-evidence-json" class="panel-button" disabled aria-disabled="true">Download Evidence JSON</button>
-                    <button type="button" id="clear-body-evidence" class="panel-button panel-button--compact">Clear Evidence</button>
-                  </div>
-                </div>
-              </div>
-
-              <input type="file" id="load-front-pose-json" accept=".json,application/json" hidden />
-              <input type="file" id="load-side-pose-json" accept=".json,application/json" hidden />
-              <input type="file" id="load-front-seg-json" accept=".json,application/json" hidden />
-              <input type="file" id="load-side-seg-json" accept=".json,application/json" hidden />
               <input type="file" id="import-body-evidence-package-zip" accept=".zip,application/zip,application/x-zip-compressed" hidden />
 
               <div id="body-evidence-tab-front" class="body-evidence-tab-panel" data-body-evidence-panel="front" role="tabpanel" aria-labelledby="body-evidence-tab-front-btn">

@@ -19,6 +19,10 @@ import {
   isSideSegmentationSettingEnabled,
   subscribeViewSettingChange,
 } from './viewControls.js';
+import {
+  grid2dSegmentationCanvasEl,
+  sideSegmentationCanvasEl,
+} from './domRefs.js';
 
 const SEGMENTATION_ALPHA = 95; // ~37% opacity (95 / 255) for translucent visibility
 const EMPHASIS_ALPHA = 220; // ~86% opacity for emphasized selected class
@@ -260,20 +264,104 @@ export function renderSideSegmentationOverlay(canvasEl) {
 }
 
 /**
+ * Synchronizes the Front segmentation overlay visibility with view settings.
+ * If the raster is already cached and rendered, this simply toggles canvas
+ * visibility in O(1) time without re-rasterizing or triggering a full grid refresh.
+ *
+ * @param {HTMLCanvasElement | null} [canvasEl]
+ */
+export function syncFrontSegmentationVisibility(canvasEl = grid2dSegmentationCanvasEl) {
+  if (!canvasEl) {
+    return;
+  }
+
+  const enabled = isFrontSegmentationSettingEnabled();
+  const raster = getFrontSegmentationRaster();
+  const qa = getBodyEvidenceQa();
+  const seg = qa?.views?.front?.segmentation;
+  const shouldRender = Boolean(enabled && raster && raster.length > 0 && seg?.widthPx && seg?.heightPx);
+
+  if (!shouldRender) {
+    canvasEl.hidden = true;
+    return;
+  }
+
+  const selectedClassId = getSelectedFrontSegClassId();
+  if (cachedFrontRaster === raster && cachedFrontSegClassId === selectedClassId) {
+    canvasEl.hidden = false;
+    return;
+  }
+
+  renderFrontSegmentationOverlay(canvasEl);
+}
+
+/**
+ * Synchronizes the Side segmentation overlay visibility with view settings.
+ * If the raster is already cached and rendered, this simply toggles canvas
+ * visibility in O(1) time without re-rasterizing or triggering a full grid refresh.
+ *
+ * @param {HTMLCanvasElement | null} [canvasEl]
+ */
+export function syncSideSegmentationVisibility(canvasEl = sideSegmentationCanvasEl) {
+  if (!canvasEl) {
+    return;
+  }
+
+  const enabled = isSideSegmentationSettingEnabled();
+  const raster = getSideSegmentationRaster();
+  const qa = getBodyEvidenceQa();
+  const seg = qa?.views?.side?.segmentation;
+  const shouldRender = Boolean(enabled && raster && raster.length > 0 && seg?.widthPx && seg?.heightPx);
+
+  if (!shouldRender) {
+    canvasEl.hidden = true;
+    return;
+  }
+
+  const selectedClassId = getSelectedSideSegClassId();
+  if (cachedSideRaster === raster && cachedSideSegClassId === selectedClassId) {
+    canvasEl.hidden = false;
+    return;
+  }
+
+  renderSideSegmentationOverlay(canvasEl);
+}
+
+let isSubscribed = false;
+
+/**
  * Sets up change subscriptions for Body Evidence and View settings.
  *
  * @param {(() => void) | null} [requestFrontRefresh]
  * @param {(() => void) | null} [requestSideRefresh]
  */
 export function setupSegmentationOverlay2d(requestFrontRefresh = null, requestSideRefresh = null) {
-  requestFrontRefreshFn = typeof requestFrontRefresh === 'function' ? requestFrontRefresh : null;
-  requestSideRefreshFn = typeof requestSideRefresh === 'function' ? requestSideRefresh : null;
+  if (typeof requestFrontRefresh === 'function') {
+    requestFrontRefreshFn = requestFrontRefresh;
+  }
+  if (typeof requestSideRefresh === 'function') {
+    requestSideRefreshFn = requestSideRefresh;
+  }
 
-  const onUpdate = () => {
-    requestFrontRefreshFn?.();
-    requestSideRefreshFn?.();
-  };
+  if (!isSubscribed) {
+    isSubscribed = true;
 
-  subscribeBodyEvidenceChange(onUpdate);
-  subscribeViewSettingChange(onUpdate);
+    // Dedicated lightweight listener for View menu toggles (instant show/hide)
+    subscribeViewSettingChange(() => {
+      syncFrontSegmentationVisibility();
+      syncSideSegmentationVisibility();
+    });
+
+    // Listener for evidence source analysis / class selection changes (repaint canvas)
+    subscribeBodyEvidenceChange(() => {
+      if (grid2dSegmentationCanvasEl) {
+        renderFrontSegmentationOverlay(grid2dSegmentationCanvasEl);
+      }
+      if (sideSegmentationCanvasEl) {
+        renderSideSegmentationOverlay(sideSegmentationCanvasEl);
+      }
+      requestFrontRefreshFn?.();
+      requestSideRefreshFn?.();
+    });
+  }
 }

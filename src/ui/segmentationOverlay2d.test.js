@@ -7,6 +7,8 @@ import {
   clearSegmentationOverlayCache,
   renderFrontSegmentationOverlay,
   renderSideSegmentationOverlay,
+  syncFrontSegmentationVisibility,
+  syncSideSegmentationVisibility,
 } from './segmentationOverlay2d.js';
 import {
   setFrontSegSource,
@@ -161,4 +163,59 @@ test('renderFrontSegmentationOverlay and renderSideSegmentationOverlay paint whe
   assert.equal(frontCanvas.hidden, true);
   renderSideSegmentationOverlay(sideCanvas);
   assert.equal(sideCanvas.hidden, true);
+});
+
+test('syncFrontSegmentationVisibility and syncSideSegmentationVisibility toggle visibility in O(1) without re-rendering', () => {
+  clearBodyEvidence();
+  clearSegmentationOverlayCache();
+
+  const raster = new Uint8Array([0, 1, 1, 0]);
+  const base64 = encodeUint8ArrayToBase64(raster);
+
+  setFrontSegSource({
+    model: 'schp',
+    view: 'front',
+    num_classes: 2,
+    class_names: ['background', 'skin'],
+    class_counts: { background: 2, skin: 2 },
+    labels: { shape: [2, 2], dtype: 'uint8', base64 },
+  });
+
+  analyzeLoadedBodyEvidence();
+
+  let putImageDataCount = 0;
+  const mockCanvas = {
+    width: 0,
+    height: 0,
+    hidden: true,
+    getContext(type) {
+      if (type !== '2d') return null;
+      return {
+        createImageData(w, h) {
+          return { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) };
+        },
+        putImageData() {
+          putImageDataCount += 1;
+        },
+        clearRect() {},
+      };
+    },
+  };
+
+  // Initial paint
+  renderFrontSegmentationOverlay(mockCanvas);
+  assert.equal(mockCanvas.hidden, false);
+  assert.equal(putImageDataCount, 1);
+
+  // Toggle off via setting
+  applyViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION, false);
+  syncFrontSegmentationVisibility(mockCanvas);
+  assert.equal(mockCanvas.hidden, true);
+  assert.equal(putImageDataCount, 1); // No putImageData
+
+  // Toggle on via setting
+  applyViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION, true);
+  syncFrontSegmentationVisibility(mockCanvas);
+  assert.equal(mockCanvas.hidden, false);
+  assert.equal(putImageDataCount, 1); // Still 1, reused cached bitmap
 });

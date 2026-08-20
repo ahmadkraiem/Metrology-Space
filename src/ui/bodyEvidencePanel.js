@@ -36,10 +36,6 @@ import {
   selectSideEvidenceLandmark,
   selectSideSegClass,
   setBodyEvidencePackage,
-  setFrontPoseSource,
-  setFrontSegSource,
-  setSidePoseSource,
-  setSideSegSource,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
 import { importBodyEvidenceZip } from '../features/bodyEvidenceZipAdapter.js';
@@ -56,14 +52,12 @@ import { BASE_PALETTE_RGB } from './segmentationOverlay2d.js';
 import { renderEvidenceCandidateList } from './bodyEvidenceCandidateList.js';
 import { focusBodyEvidenceWorkflow } from './inspectorWorkflow.js';
 import {
-  analyzeBodyEvidenceBtn,
   bodyEvidenceFrontCandidatesEl,
   bodyEvidenceFrontListCountEl,
   bodyEvidenceFrontListLabelEl,
   bodyEvidenceFrontSegClassesEl,
   bodyEvidenceFrontSegCountEl,
   bodyEvidenceFrontSegLabelEl,
-  bodyEvidencePackageQaEl,
   bodyEvidencePromoteStatusEl,
   bodyEvidenceSelectedEl,
   bodyEvidenceSideCandidatesEl,
@@ -73,17 +67,10 @@ import {
   bodyEvidenceSideSegCountEl,
   bodyEvidenceSideSegLabelEl,
   bodyEvidenceStatusEl,
-  clearBodyEvidenceBtn,
   clearBodyLandmarkSelectionBtn,
-  downloadBodyEvidenceJsonBtn,
   importBodyEvidencePackageZipInput,
-  loadFrontPoseJsonInput,
-  loadFrontSegJsonInput,
-  loadSidePoseJsonInput,
-  loadSideSegJsonInput,
   promoteSelectedBodyLandmarkBtn,
 } from './domRefs.js';
-import { renderBodyEvidencePackageQaHtml } from './bodyEvidencePackageQaUi.js';
 
 const BODY_EVIDENCE_TABS = Object.freeze(['front', 'side', 'selection']);
 const CANDIDATE_LAYERS = Object.freeze(['core', 'secondary']);
@@ -181,16 +168,6 @@ function showPromoteStatus(message, type = 'info') {
 
 function hidePromoteStatus() {
   showPromoteStatus('');
-}
-
-function syncDownloadButton() {
-  if (!downloadBodyEvidenceJsonBtn) {
-    return;
-  }
-  const available = hasAnalyzedBodyEvidence();
-  downloadBodyEvidenceJsonBtn.disabled = !available;
-  downloadBodyEvidenceJsonBtn.hidden = false;
-  downloadBodyEvidenceJsonBtn.setAttribute('aria-disabled', available ? 'false' : 'true');
 }
 
 function currentSelectionKey() {
@@ -751,100 +728,14 @@ function renderSelectedLandmark() {
   syncPromoteButton();
 }
 
-async function readJsonFile(file) {
-  const text = await file.text();
-  return JSON.parse(text);
-}
-
-function wireFileInput(input, setter, label) {
-  if (!input) {
-    return;
-  }
-  input.addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) {
-      return;
-    }
-    try {
-      const hadAnalysis = hasAnalyzedBodyEvidence();
-      const data = await readJsonFile(file);
-      setter(data);
-      hideStatus();
-      // Sources changed — prior analysis is stale until Analyze runs again.
-      showStatus(
-        hadAnalysis ? `${label} loaded — re-run Analyze.` : `${label} loaded: ${file.name}`,
-        'ok',
-      );
-      syncDownloadButton();
-      refreshCandidateLists();
-      renderSelectedLandmark();
-    } catch (error) {
-      const message = error instanceof SyntaxError
-        ? `Invalid JSON in ${label}`
-        : `Failed to read ${label}`;
-      console.warn('[REVacity] Body evidence load failed:', message, error);
-      showStatus(message, 'error');
-    }
-  });
-}
-
 export function openBodyEvidencePackageFilePicker() {
   importBodyEvidencePackageZipInput?.click();
 }
 
-export function openFrontPoseFilePicker() {
-  loadFrontPoseJsonInput?.click();
-}
-
-export function openSidePoseFilePicker() {
-  loadSidePoseJsonInput?.click();
-}
-
-export function openFrontSegFilePicker() {
-  loadFrontSegJsonInput?.click();
-}
-
-export function openSideSegFilePicker() {
-  loadSideSegJsonInput?.click();
-}
-
-export function runAnalyzeBodyEvidenceAction() {
-  const { ok, error } = analyzeLoadedBodyEvidence();
-  if (!ok) {
-    showStatus(error ?? getBodyEvidenceError() ?? 'Analyze failed.', 'error');
-    syncDownloadButton();
-    refreshCandidateLists();
-    renderSelectedLandmark();
-    return;
-  }
-  hideStatus();
-  syncDownloadButton();
-  refreshCandidateLists();
-  renderSelectedLandmark();
-  showStatus('Body evidence analyzed.', 'ok');
-}
-
-function renderPackageQaSummary() {
-  if (!bodyEvidencePackageQaEl) {
-    return;
-  }
-  const pkg = getBodyEvidencePackage();
-  if (!pkg) {
-    bodyEvidencePackageQaEl.innerHTML = '';
-    bodyEvidencePackageQaEl.hidden = true;
-    return;
-  }
-  bodyEvidencePackageQaEl.innerHTML = renderBodyEvidencePackageQaHtml(pkg);
-  bodyEvidencePackageQaEl.hidden = false;
-}
-
 export function runClearBodyEvidenceAction() {
   clearBodyEvidence();
-  syncDownloadButton();
   refreshCandidateLists();
   renderSelectedLandmark();
-  renderPackageQaSummary();
   hideStatus();
   hidePromoteStatus();
   showStatus('Body evidence cleared.', 'ok');
@@ -924,11 +815,6 @@ function onSegFilterButtonClick(event) {
 }
 
 export function setupBodyEvidencePanel() {
-  wireFileInput(loadFrontPoseJsonInput, setFrontPoseSource, 'Front Pose JSON');
-  wireFileInput(loadSidePoseJsonInput, setSidePoseSource, 'Side Pose JSON');
-  wireFileInput(loadFrontSegJsonInput, setFrontSegSource, 'Front Seg JSON');
-  wireFileInput(loadSideSegJsonInput, setSideSegSource, 'Side Seg JSON');
-
   if (importBodyEvidencePackageZipInput) {
     importBodyEvidencePackageZipInput.addEventListener('change', async (event) => {
       const file = event.target.files?.[0];
@@ -952,7 +838,6 @@ export function setupBodyEvidencePanel() {
           const sampleTag = res.sampleId ? ` [${res.sampleId}]` : '';
           showStatus(`Body Evidence Package loaded${sampleTag}.`, 'ok');
         }
-        syncDownloadButton();
         refreshCandidateLists();
         renderSelectedLandmark();
       } catch (err) {
@@ -963,11 +848,8 @@ export function setupBodyEvidencePanel() {
     });
   }
 
-  analyzeBodyEvidenceBtn?.addEventListener('click', runAnalyzeBodyEvidenceAction);
-  clearBodyEvidenceBtn?.addEventListener('click', runClearBodyEvidenceAction);
   clearBodyLandmarkSelectionBtn?.addEventListener('click', onClearSelection);
   promoteSelectedBodyLandmarkBtn?.addEventListener('click', runPromoteFrontEvidenceAction);
-  downloadBodyEvidenceJsonBtn?.addEventListener('click', runDownloadBodyEvidenceAction);
 
   if (typeof document !== 'undefined') {
     document.querySelectorAll('[data-body-evidence-tab]').forEach((button) => {
@@ -990,7 +872,6 @@ export function setupBodyEvidencePanel() {
   subscribeBodyEvidenceChange(() => {
     refreshCandidateLists();
     renderSelectedLandmark();
-    renderPackageQaSummary();
     maybeFocusSelectionTab();
   });
 
@@ -1005,10 +886,8 @@ export function setupBodyEvidencePanel() {
   syncLayerUi('side');
   syncSegFilterUi('front');
   syncSegFilterUi('side');
-  syncDownloadButton();
   refreshCandidateLists();
   renderSelectedLandmark();
-  renderPackageQaSummary();
   hidePromoteStatus();
 }
 
