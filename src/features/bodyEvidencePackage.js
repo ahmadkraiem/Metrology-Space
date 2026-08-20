@@ -29,10 +29,293 @@ export const PACKAGE_VERSION = 'body-evidence-package-v0';
 export const DEFAULT_SOURCE_FORMAT = 'body-pipeline-v0';
 export const VALID_POINTMAP_DTYPES = Object.freeze(['float32', 'float64', 'float16']);
 
+export const DENSE_LAYOUT_HWC_INTERLEAVED = 'HWC_INTERLEAVED';
+export const DENSE_LAYOUT_CHW_PLANAR = 'CHW_PLANAR';
+export const DENSE_LAYOUT_UNKNOWN = 'UNKNOWN';
+
 /**
  * Standard QA Status values.
  * @typedef {'pass'|'warning'|'fail'|'unvalidated'} QaStatus
  */
+
+/**
+ * Resolves tensor layout, channel count, raster dimensions, and validity from declared shape.
+ *
+ * @param {any} rawShape - e.g. [H, W, 3] or [3, H, W] or [H, W]
+ * @param {object} [options]
+ * @param {string|null} [options.explicitLayout] - Optional explicit layout override
+ * @param {number|null} [options.explicitChannels] - Optional explicit channels override
+ * @returns {{
+ *   valid: boolean,
+ *   declaredShape: number[] | null,
+ *   normalizedShape: number[] | null,
+ *   denseLayout: 'HWC_INTERLEAVED'|'CHW_PLANAR'|'UNKNOWN',
+ *   heightPx: number | null,
+ *   widthPx: number | null,
+ *   channels: number,
+ *   expectedElements: number,
+ *   issues: string[],
+ *   warnings: string[],
+ * }}
+ */
+export function resolveDenseTensorLayout(rawShape, { explicitLayout = null, explicitChannels = null } = {}) {
+  const issues = [];
+  const warnings = [];
+
+  const declaredShape = Array.isArray(rawShape) ? [...rawShape] : null;
+
+  if (!declaredShape || declaredShape.length < 2) {
+    issues.push(`Missing or invalid dense tensor shape: ${JSON.stringify(rawShape)}.`);
+    return {
+      valid: false,
+      declaredShape,
+      normalizedShape: null,
+      denseLayout: DENSE_LAYOUT_UNKNOWN,
+      heightPx: null,
+      widthPx: null,
+      channels: 3,
+      expectedElements: 0,
+      issues,
+      warnings,
+    };
+  }
+
+  let heightPx = null;
+  let widthPx = null;
+  let channels = 3;
+  let denseLayout = DENSE_LAYOUT_UNKNOWN;
+
+  const cleanExplicitLayout = typeof explicitLayout === 'string'
+    ? explicitLayout.trim().toUpperCase()
+    : null;
+
+  if (declaredShape.length === 3) {
+    const d0 = declaredShape[0];
+    const d1 = declaredShape[1];
+    const d2 = declaredShape[2];
+
+    if (cleanExplicitLayout === DENSE_LAYOUT_CHW_PLANAR || cleanExplicitLayout === 'CHW') {
+      channels = d0;
+      heightPx = d1;
+      widthPx = d2;
+      denseLayout = DENSE_LAYOUT_CHW_PLANAR;
+    } else if (cleanExplicitLayout === DENSE_LAYOUT_HWC_INTERLEAVED || cleanExplicitLayout === 'HWC') {
+      heightPx = d0;
+      widthPx = d1;
+      channels = d2;
+      denseLayout = DENSE_LAYOUT_HWC_INTERLEAVED;
+    } else if (d2 === 3 && d0 !== 3) {
+      // [H, W, 3] -> standard interleaved HWC
+      heightPx = d0;
+      widthPx = d1;
+      channels = 3;
+      denseLayout = DENSE_LAYOUT_HWC_INTERLEAVED;
+    } else if (d0 === 3 && d2 !== 3) {
+      // [3, H, W] -> planar CHW
+      channels = 3;
+      heightPx = d1;
+      widthPx = d2;
+      denseLayout = DENSE_LAYOUT_CHW_PLANAR;
+    } else if (d0 === 3 && d2 === 3 && d1 === 3) {
+      // [3, 3, 3] -> default HWC_INTERLEAVED
+      heightPx = 3;
+      widthPx = 3;
+      channels = 3;
+      denseLayout = DENSE_LAYOUT_HWC_INTERLEAVED;
+    } else {
+      heightPx = d0;
+      widthPx = d1;
+      channels = d2;
+      denseLayout = DENSE_LAYOUT_UNKNOWN;
+      warnings.push(`Dense tensor declared non-standard 3D shape [${d0}, ${d1}, ${d2}]; layout cannot be proven (layout is UNKNOWN).`);
+    }
+  } else if (declaredShape.length === 2) {
+    // 2D shape [H, W]
+    heightPx = declaredShape[0];
+    widthPx = declaredShape[1];
+    channels = typeof explicitChannels === 'number' && Number.isInteger(explicitChannels) && explicitChannels > 0
+      ? explicitChannels
+      : 1;
+    denseLayout = DENSE_LAYOUT_UNKNOWN;
+    warnings.push(`Dense tensor declared 2D shape [${heightPx}, ${widthPx}]; dense 3-channel layout cannot be proven (layout is UNKNOWN).`);
+  } else {
+    issues.push(`Dense tensor declared unsupported shape dimension count (${declaredShape.length}): ${JSON.stringify(declaredShape)}.`);
+    return {
+      valid: false,
+      declaredShape,
+      normalizedShape: null,
+      denseLayout: DENSE_LAYOUT_UNKNOWN,
+      heightPx: null,
+      widthPx: null,
+      channels: 3,
+      expectedElements: 0,
+      issues,
+      warnings,
+    };
+  }
+
+  const validDimensions = (
+    typeof heightPx === 'number' && Number.isInteger(heightPx) && heightPx > 0
+    && typeof widthPx === 'number' && Number.isInteger(widthPx) && widthPx > 0
+    && typeof channels === 'number' && Number.isInteger(channels) && channels > 0
+  );
+
+  if (!validDimensions) {
+    issues.push(`Invalid dense tensor dimensions: heightPx=${heightPx}, widthPx=${widthPx}, channels=${channels}.`);
+    return {
+      valid: false,
+      declaredShape,
+      normalizedShape: null,
+      denseLayout,
+      heightPx,
+      widthPx,
+      channels,
+      expectedElements: 0,
+      issues,
+      warnings,
+    };
+  }
+
+  const normalizedShape = declaredShape.length === 3 ? [heightPx, widthPx, channels] : [heightPx, widthPx];
+  const expectedElements = heightPx * widthPx * channels;
+
+  return {
+    valid: true,
+    declaredShape,
+    normalizedShape,
+    denseLayout,
+    heightPx,
+    widthPx,
+    channels,
+    expectedElements,
+    issues,
+    warnings,
+  };
+}
+
+/**
+ * Computes the 1D buffer element index for a specific pixel (row, col) and channel
+ * based on the verified tensor layout.
+ *
+ * @param {number} row - 0-indexed row index (0 <= row < heightPx)
+ * @param {number} col - 0-indexed column index (0 <= col < widthPx)
+ * @param {number} channel - 0-indexed channel index (0 <= channel < channels)
+ * @param {{
+ *   heightPx: number,
+ *   widthPx: number,
+ *   channels?: number,
+ *   denseLayout: 'HWC_INTERLEAVED'|'CHW_PLANAR'|string,
+ * }} options
+ * @returns {number} 1D element offset in the buffer
+ */
+export function getDenseElementIndex(row, col, channel, {
+  heightPx,
+  widthPx,
+  channels = 3,
+  denseLayout = DENSE_LAYOUT_HWC_INTERLEAVED,
+} = {}) {
+  if (!Number.isInteger(row) || !Number.isInteger(col) || !Number.isInteger(channel)) {
+    throw new TypeError(`Indices must be integers: row=${row}, col=${col}, channel=${channel}.`);
+  }
+  if (!Number.isInteger(heightPx) || heightPx <= 0 || !Number.isInteger(widthPx) || widthPx <= 0 || !Number.isInteger(channels) || channels <= 0) {
+    throw new TypeError(`Dimensions must be positive integers: heightPx=${heightPx}, widthPx=${widthPx}, channels=${channels}.`);
+  }
+  if (row < 0 || row >= heightPx || col < 0 || col >= widthPx) {
+    throw new RangeError(`Pixel coordinates out of bounds: row=${row}, col=${col} for raster [${heightPx}x${widthPx}].`);
+  }
+  if (channel < 0 || channel >= channels) {
+    throw new RangeError(`Channel index out of bounds: channel=${channel} for channels=${channels}.`);
+  }
+
+  if (denseLayout === DENSE_LAYOUT_HWC_INTERLEAVED) {
+    return (row * widthPx + col) * channels + channel;
+  }
+  if (denseLayout === DENSE_LAYOUT_CHW_PLANAR) {
+    return channel * (heightPx * widthPx) + (row * widthPx + col);
+  }
+
+  throw new Error(`Cannot compute dense element index for unsupported or unknown layout: '${denseLayout}'.`);
+}
+
+/**
+ * Computes the 1D buffer element indices [idx0, idx1, idx2] for a 3-channel vector at (row, col).
+ *
+ * @param {number} row - 0-indexed row index
+ * @param {number} col - 0-indexed column index
+ * @param {{
+ *   heightPx: number,
+ *   widthPx: number,
+ *   channels?: number,
+ *   denseLayout: 'HWC_INTERLEAVED'|'CHW_PLANAR'|string,
+ * }} options
+ * @returns {[number, number, number]}
+ */
+export function getDenseVectorIndices(row, col, {
+  heightPx,
+  widthPx,
+  channels = 3,
+  denseLayout = DENSE_LAYOUT_HWC_INTERLEAVED,
+} = {}) {
+  if (channels < 3) {
+    throw new RangeError(`Vector indexing requires at least 3 channels, got ${channels}.`);
+  }
+  const idx0 = getDenseElementIndex(row, col, 0, { heightPx, widthPx, channels, denseLayout });
+  const idx1 = getDenseElementIndex(row, col, 1, { heightPx, widthPx, channels, denseLayout });
+  const idx2 = getDenseElementIndex(row, col, 2, { heightPx, widthPx, channels, denseLayout });
+  return [idx0, idx1, idx2];
+}
+
+/**
+ * Reads a 3-channel vector at (row, col) from a dense buffer according to its layout
+ * without mutating the source buffer.
+ *
+ * @param {ArrayLike<number>} buffer - The 1D TypedArray or array-like buffer
+ * @param {number} row - 0-indexed row index
+ * @param {number} col - 0-indexed column index
+ * @param {{
+ *   heightPx: number,
+ *   widthPx: number,
+ *   channels?: number,
+ *   denseLayout: 'HWC_INTERLEAVED'|'CHW_PLANAR'|string,
+ *   target?: number[] | Float64Array | Float32Array | null,
+ * }} options
+ * @returns {[number, number, number] | Float64Array | Float32Array}
+ */
+export function readDenseVector(buffer, row, col, {
+  heightPx,
+  widthPx,
+  channels = 3,
+  denseLayout = DENSE_LAYOUT_HWC_INTERLEAVED,
+  target = null,
+} = {}) {
+  if (!buffer || typeof buffer.length !== 'number') {
+    throw new TypeError('Expected indexed buffer with length property.');
+  }
+  const expectedElements = heightPx * widthPx * channels;
+  if (buffer.length < expectedElements) {
+    throw new RangeError(`Dense buffer length (${buffer.length}) is smaller than required elements (${expectedElements}) for layout '${denseLayout}'.`);
+  }
+
+  const [idx0, idx1, idx2] = getDenseVectorIndices(row, col, {
+    heightPx,
+    widthPx,
+    channels,
+    denseLayout,
+  });
+
+  const v0 = buffer[idx0];
+  const v1 = buffer[idx1];
+  const v2 = buffer[idx2];
+
+  if (target && typeof target.length === 'number' && target.length >= 3) {
+    target[0] = v0;
+    target[1] = v1;
+    target[2] = v2;
+    return target;
+  }
+
+  return [v0, v1, v2];
+}
 
 /**
  * Universal base64 to typed array decoder for dense tensors.
@@ -207,6 +490,8 @@ export function normalizePointmapEvidence(rawPointmap, {
       view: expectedView ?? null,
       channels: 3,
       shape: null,
+      declaredShape: null,
+      denseLayout: DENSE_LAYOUT_UNKNOWN,
       widthPx: null,
       heightPx: null,
       dtype: null,
@@ -218,7 +503,14 @@ export function normalizePointmapEvidence(rawPointmap, {
       qa: {
         status: 'pass',
         schemaCheck: { status: 'pass', issues: [] },
-        shapeCheck: { status: 'pass', issues: [] },
+        shapeCheck: {
+          status: 'pass',
+          shape: null,
+          declaredShape: null,
+          denseLayout: DENSE_LAYOUT_UNKNOWN,
+          expectedElements: 0,
+          issues: [],
+        },
         dtypeCheck: { status: 'pass', issues: [] },
         numericValues: {
           status: 'unvalidated',
@@ -257,57 +549,34 @@ export function normalizePointmapEvidence(rawPointmap, {
   }
   const view = rawView ?? expectedViewNormalized ?? null;
 
-  // Shape validation
-  const shapeData = rawPointmap.shape
+  // Layout and Shape validation
+  const explicitLayout = typeof rawPointmap.denseLayout === 'string'
+    ? rawPointmap.denseLayout
+    : (typeof rawPointmap.layout === 'string' ? rawPointmap.layout : null);
+
+  const rawShape = rawPointmap.shape
     ?? rawPointmap.data?.shape
     ?? rawPointmap.pointmap?.shape
     ?? null;
 
-  let validShape = false;
-  let shape = null;
-  let heightPx = null;
-  let widthPx = null;
-  let channels = 3;
-  let expectedElements = 0;
+  const layoutInfo = resolveDenseTensorLayout(rawShape, {
+    explicitLayout,
+    explicitChannels: typeof rawPointmap.channels === 'number' ? rawPointmap.channels : null,
+  });
 
-  if (Array.isArray(shapeData) && shapeData.length >= 2) {
-    const is3d = shapeData.length === 3;
-    if (is3d) {
-      if (shapeData[2] === 3) {
-        // [H, W, 3]
-        heightPx = shapeData[0];
-        widthPx = shapeData[1];
-        channels = shapeData[2];
-      } else if (shapeData[0] === 3) {
-        // [3, H, W]
-        channels = shapeData[0];
-        heightPx = shapeData[1];
-        widthPx = shapeData[2];
-      } else {
-        heightPx = shapeData[0];
-        widthPx = shapeData[1];
-        channels = shapeData[2];
-      }
-    } else {
-      // [H, W] with implicit channels = 3
-      heightPx = shapeData[0];
-      widthPx = shapeData[1];
-      channels = 3;
-    }
+  issues.push(...layoutInfo.issues);
+  warnings.push(...layoutInfo.warnings);
 
-    if (
-      typeof heightPx === 'number' && Number.isInteger(heightPx) && heightPx > 0
-      && typeof widthPx === 'number' && Number.isInteger(widthPx) && widthPx > 0
-    ) {
-      validShape = true;
-      shape = is3d ? [heightPx, widthPx, channels] : [heightPx, widthPx];
-      expectedElements = heightPx * widthPx * (typeof channels === 'number' ? channels : 3);
-    } else {
-      issues.push(`Invalid pointmap dimensions: ${JSON.stringify(shapeData)}.`);
-    }
-  } else {
-    issues.push(`Pointmap missing or invalid shape: ${JSON.stringify(shapeData)}.`);
-  }
+  const {
+    valid: validShape,
+    declaredShape,
+    normalizedShape: shape,
+    denseLayout,
+    heightPx,
+    widthPx,
+    channels,
+    expectedElements,
+  } = layoutInfo;
 
   // Dtype validation
   const rawDtype = rawPointmap.dtype
@@ -399,6 +668,8 @@ export function normalizePointmapEvidence(rawPointmap, {
     view,
     channels,
     shape,
+    declaredShape,
+    denseLayout,
     widthPx,
     heightPx,
     dtype,
@@ -410,7 +681,14 @@ export function normalizePointmapEvidence(rawPointmap, {
     qa: {
       status: overallStatus,
       schemaCheck: { status: 'pass', issues: [] },
-      shapeCheck: { status: validShape ? 'pass' : 'fail', shape, expectedElements },
+      shapeCheck: {
+        status: validShape ? 'pass' : 'fail',
+        shape,
+        declaredShape,
+        denseLayout,
+        expectedElements,
+        issues: layoutInfo.issues,
+      },
       dtypeCheck: { status: dtypeStatus, dtype },
       numericValues: {
         status: 'unvalidated',
@@ -449,6 +727,8 @@ export function normalizeNormalsEvidence(rawNormals, {
       view: expectedView ?? null,
       channels: 3,
       shape: null,
+      declaredShape: null,
+      denseLayout: DENSE_LAYOUT_UNKNOWN,
       widthPx: null,
       heightPx: null,
       dtype: null,
@@ -458,7 +738,14 @@ export function normalizeNormalsEvidence(rawNormals, {
       qa: {
         status: 'pass',
         schemaCheck: { status: 'pass', issues: [] },
-        shapeCheck: { status: 'pass', issues: [] },
+        shapeCheck: {
+          status: 'pass',
+          shape: null,
+          declaredShape: null,
+          denseLayout: DENSE_LAYOUT_UNKNOWN,
+          expectedElements: 0,
+          issues: [],
+        },
         dtypeCheck: { status: 'pass', issues: [] },
         numericValues: {
           status: 'unvalidated',
@@ -496,54 +783,34 @@ export function normalizeNormalsEvidence(rawNormals, {
   }
   const view = rawView ?? expectedViewNormalized ?? null;
 
-  // Shape validation
-  const shapeData = rawNormals.shape
+  // Layout and Shape validation
+  const explicitLayout = typeof rawNormals.denseLayout === 'string'
+    ? rawNormals.denseLayout
+    : (typeof rawNormals.layout === 'string' ? rawNormals.layout : null);
+
+  const rawShape = rawNormals.shape
     ?? rawNormals.data?.shape
     ?? rawNormals.normals?.shape
     ?? null;
 
-  let validShape = false;
-  let shape = null;
-  let heightPx = null;
-  let widthPx = null;
-  let channels = 3;
-  let expectedElements = 0;
+  const layoutInfo = resolveDenseTensorLayout(rawShape, {
+    explicitLayout,
+    explicitChannels: typeof rawNormals.channels === 'number' ? rawNormals.channels : null,
+  });
 
-  if (Array.isArray(shapeData) && shapeData.length >= 2) {
-    const is3d = shapeData.length === 3;
-    if (is3d) {
-      if (shapeData[2] === 3) {
-        heightPx = shapeData[0];
-        widthPx = shapeData[1];
-        channels = shapeData[2];
-      } else if (shapeData[0] === 3) {
-        channels = shapeData[0];
-        heightPx = shapeData[1];
-        widthPx = shapeData[2];
-      } else {
-        heightPx = shapeData[0];
-        widthPx = shapeData[1];
-        channels = shapeData[2];
-      }
-    } else {
-      heightPx = shapeData[0];
-      widthPx = shapeData[1];
-      channels = 3;
-    }
+  issues.push(...layoutInfo.issues);
+  warnings.push(...layoutInfo.warnings);
 
-    if (
-      typeof heightPx === 'number' && Number.isInteger(heightPx) && heightPx > 0
-      && typeof widthPx === 'number' && Number.isInteger(widthPx) && widthPx > 0
-    ) {
-      validShape = true;
-      shape = is3d ? [heightPx, widthPx, channels] : [heightPx, widthPx];
-      expectedElements = heightPx * widthPx * (typeof channels === 'number' ? channels : 3);
-    } else {
-      issues.push(`Invalid surface normals dimensions: ${JSON.stringify(shapeData)}.`);
-    }
-  } else {
-    issues.push(`Surface normals missing or invalid shape: ${JSON.stringify(shapeData)}.`);
-  }
+  const {
+    valid: validShape,
+    declaredShape,
+    normalizedShape: shape,
+    denseLayout,
+    heightPx,
+    widthPx,
+    channels,
+    expectedElements,
+  } = layoutInfo;
 
   // Dtype validation
   const rawDtype = rawNormals.dtype
@@ -591,7 +858,7 @@ export function normalizeNormalsEvidence(rawNormals, {
     let decoded = null;
     if (directLoader) {
       const raw = await directLoader();
-      if (raw instanceof Float32Array || raw instanceof Uint8Array) {
+      if (raw instanceof Float32Array || raw instanceof Float64Array) {
         decoded = raw;
       } else if (raw instanceof Uint8Array || (typeof Buffer !== 'undefined' && Buffer.isBuffer(raw))) {
         if (raw.length > 0 && raw[0] === 0x7B) { // '{' JSON character
@@ -629,6 +896,8 @@ export function normalizeNormalsEvidence(rawNormals, {
     view,
     channels,
     shape,
+    declaredShape,
+    denseLayout,
     widthPx,
     heightPx,
     dtype,
@@ -638,7 +907,14 @@ export function normalizeNormalsEvidence(rawNormals, {
     qa: {
       status: overallStatus,
       schemaCheck: { status: 'pass', issues: [] },
-      shapeCheck: { status: validShape ? 'pass' : 'fail', shape, expectedElements },
+      shapeCheck: {
+        status: validShape ? 'pass' : 'fail',
+        shape,
+        declaredShape,
+        denseLayout,
+        expectedElements,
+        issues: layoutInfo.issues,
+      },
       dtypeCheck: { status: 'pass', dtype },
       numericValues: {
         status: 'unvalidated',
