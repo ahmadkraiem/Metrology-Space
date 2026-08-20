@@ -1,0 +1,178 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as fflate from 'fflate';
+
+import {
+  discoverSampleIds,
+  importBodyEvidenceZip,
+  resolvePackageArtifacts,
+  unzipArchive,
+} from './bodyEvidenceZipAdapter.js';
+
+function createSyntheticZip(files) {
+  const zipInput = {};
+  for (const [path, content] of Object.entries(files)) {
+    if (typeof content === 'string') {
+      zipInput[path] = fflate.strToU8(content);
+    } else if (content instanceof Uint8Array) {
+      zipInput[path] = content;
+    } else {
+      zipInput[path] = fflate.strToU8(JSON.stringify(content));
+    }
+  }
+  return fflate.zipSync(zipInput);
+}
+
+test('discoverSampleIds detects sample subdirectories across result prefixes', () => {
+  const filesMap = new Map([
+    ['pose_results/subject_001/front_pose.json', new Uint8Array()],
+    ['seg_result/subject_001/front_seg.json', new Uint8Array()],
+    ['pointmap_results/subject_001/front_pointmap.json', new Uint8Array()],
+  ]);
+
+  const samples = discoverSampleIds(filesMap);
+  assert.deepEqual(samples, ['subject_001']);
+});
+
+test('discoverSampleIds detects multiple samples when present', () => {
+  const filesMap = new Map([
+    ['pose_results/subject_001/front_pose.json', new Uint8Array()],
+    ['pose_results/subject_002/front_pose.json', new Uint8Array()],
+  ]);
+
+  const samples = discoverSampleIds(filesMap);
+  assert.equal(samples.length, 2);
+  assert.equal(samples.includes('subject_001'), true);
+  assert.equal(samples.includes('subject_002'), true);
+});
+
+test('resolvePackageArtifacts filters preview PNGs and resolves Front/Side artifacts', () => {
+  const frontPoseJson = {
+    view: 'front',
+    keypoints_named: [{ name: 'neck', x: 100, y: 100, score: 0.9 }],
+  };
+  const sidePoseJson = {
+    view: 'side',
+    keypoints_named: [{ name: 'neck', x: 100, y: 100, score: 0.9 }],
+  };
+
+  const filesMap = new Map([
+    ['pose_results/sub_1/front_pose.json', fflate.strToU8(JSON.stringify(frontPoseJson))],
+    ['pose_results/sub_1/side_pose.json', fflate.strToU8(JSON.stringify(sidePoseJson))],
+    ['pose_results/sub_1/front_pose_overlay.png', new Uint8Array([1, 2, 3])], // preview png to ignore
+    ['seg_result/sub_1/seg_preview.png', new Uint8Array([1, 2, 3])], // preview png to ignore
+    ['images/front_input.png', new Uint8Array([10, 20])],
+    ['images/side_input.png', new Uint8Array([30, 40])],
+  ]);
+
+  const { front, side } = resolvePackageArtifacts(filesMap, 'sub_1');
+
+  assert.equal(Boolean(front.pose), true);
+  assert.equal(Boolean(side.pose), true);
+  assert.equal(Boolean(front.image), true);
+  assert.equal(front.image.filename, 'front_input.png');
+  assert.equal(Boolean(side.image), true);
+  assert.equal(side.image.filename, 'side_input.png');
+});
+
+test('importBodyEvidenceZip rejects multiple samples in archive with descriptive error', async () => {
+  const zipBytes = createSyntheticZip({
+    'pose_results/sample_A/front.json': { view: 'front', keypoints: [] },
+    'pose_results/sample_B/front.json': { view: 'front', keypoints: [] },
+  });
+
+  const result = await importBodyEvidenceZip(zipBytes);
+  assert.equal(result.ok, false);
+  assert.equal(result.package, null);
+  assert.equal(result.error.includes('Multiple sample directories found in ZIP archive'), true);
+  assert.equal(result.error.includes('Batch import is deferred in v0'), true);
+});
+
+test('importBodyEvidenceZip successfully imports valid single-sample ZIP into normalized package', async () => {
+  const frontPose = {
+    view: 'front',
+    keypoints_named: [
+      { name: 'neck', x: 1000, y: 500, score: 0.95 },
+      { name: 'left_shoulder', x: 800, y: 600, score: 0.9 },
+    ],
+  };
+
+  const frontSeg = {
+    model: 'schp',
+    view: 'front',
+    num_classes: 2,
+    class_names: ['background', 'skin'],
+    class_counts: { background: 4, skin: 0 },
+    labels: { shape: [2, 2], dtype: 'uint8', base64: 'AAAAAA==' },
+  };
+
+  const frontPointmap = {
+    model: 'pointmap-v1',
+    view: 'front',
+    shape: [2, 2, 3],
+    dtype: 'float32',
+    units: 'meters',
+    scale: 0.001,
+  };
+
+  const frontNormals = {
+    model: 'normals-v1',
+    view: 'front',
+    shape: [2, 2, 3],
+    dtype: 'float32',
+    range: [-1, 1],
+  };
+
+  const sidePose = {
+    view: 'side',
+    keypoints_named: [
+      { name: 'neck', x: 1000, y: 500, score: 0.95 },
+    ],
+  };
+
+  const zipBytes = createSyntheticZip({
+    'pose_results/subject_01/front_pose.json': frontPose,
+    'pose_results/subject_01/side_pose.json': sidePose,
+    'seg_result/subject_01/front_seg.json': frontSeg,
+    'pointmap_results/subject_01/front_pointmap.json': frontPointmap,
+    'normal_results/subject_01/front_normals.json': frontNormals,
+    'images/subject_01_front.png': new Uint8Array([1, 2, 3, 4]),
+    'images/subject_01_side.jpg': new Uint8Array([5, 6, 7, 8]),
+  });
+
+  const result = await importBodyEvidenceZip(zipBytes);
+  assert.equal(result.ok, true);
+  assert.equal(result.sampleId, 'subject_01');
+  assert.equal(result.error, null);
+
+  const pkg = result.package;
+  assert.equal(pkg.sampleId, 'subject_01');
+  assert.equal(pkg.front.image.present, true);
+  assert.equal(pkg.front.pose.core, 2);
+  assert.equal(pkg.front.segmentation.qa.valid, true);
+  assert.equal(pkg.front.pointmap.present, true);
+  assert.equal(pkg.front.pointmap.declaredUnits, 'meters');
+  assert.equal(pkg.front.pointmap.coordinateFrame, 'unvalidated');
+  assert.equal(pkg.front.normals.present, true);
+  assert.equal(pkg.front.normals.coordinateFrame, 'unvalidated');
+  assert.equal(pkg.side.image.present, true);
+  assert.equal(pkg.side.pose.core, 1);
+
+  assert.equal(pkg.qa.status, 'pass');
+  assert.equal(pkg.qa.views.front, true);
+  assert.equal(pkg.qa.views.side, true);
+});
+
+test('importBodyEvidenceZip returns error on empty ZIP or ZIP with no evidence', async () => {
+  const emptyZip = createSyntheticZip({});
+  const res1 = await importBodyEvidenceZip(emptyZip);
+  assert.equal(res1.ok, false);
+  assert.equal(res1.error.includes('empty'), true);
+
+  const noEvidenceZip = createSyntheticZip({
+    'readme.txt': 'Hello World',
+  });
+  const res2 = await importBodyEvidenceZip(noEvidenceZip);
+  assert.equal(res2.ok, false);
+  assert.equal(res2.error.includes('No matching Body Evidence artifacts'), true);
+});

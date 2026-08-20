@@ -24,6 +24,8 @@
           <div class="app-menu" data-menu="file">
             <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">File</button>
             <ul class="app-menu-dropdown" role="menu" hidden>
+              <li role="none"><button type="button" role="menuitem" data-command="import-body-evidence-package">Upload Body Evidence Package…</button></li>
+              <li role="separator" class="app-menu-separator"></li>
               <li role="none"><button type="button" role="menuitem" data-command="open-front-pose">Load Front Pose JSON…</button></li>
               <li role="none"><button type="button" role="menuitem" data-command="open-side-pose">Load Side Pose JSON…</button></li>
               <li role="none"><button type="button" role="menuitem" data-command="open-front-seg">Load Front Seg JSON…</button></li>
@@ -104,6 +106,7 @@
               <input type="file" id="load-side-pose-json" accept=".json,application/json" hidden />
               <input type="file" id="load-front-seg-json" accept=".json,application/json" hidden />
               <input type="file" id="load-side-seg-json" accept=".json,application/json" hidden />
+              <input type="file" id="import-body-evidence-package-zip" accept=".zip,application/zip,application/x-zip-compressed" hidden />
 
               <div id="body-evidence-tab-front" class="body-evidence-tab-panel" data-body-evidence-panel="front" role="tabpanel" aria-labelledby="body-evidence-tab-front-btn">
                 <div class="body-evidence-layer-toggle" role="group" aria-label="Front candidate layer">

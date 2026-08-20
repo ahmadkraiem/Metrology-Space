@@ -20,6 +20,7 @@ import {
   clearSideSegClass,
   downloadBodyEvidenceJson,
   getBodyEvidenceError,
+  getBodyEvidencePackage,
   getBodyEvidenceQa,
   getSelectedBodyEvidenceLandmark,
   getSelectedFrontSegClass,
@@ -34,12 +35,14 @@ import {
   selectFrontSegClass,
   selectSideEvidenceLandmark,
   selectSideSegClass,
+  setBodyEvidencePackage,
   setFrontPoseSource,
   setFrontSegSource,
   setSidePoseSource,
   setSideSegSource,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
+import { importBodyEvidenceZip } from '../features/bodyEvidenceZipAdapter.js';
 import { subscribeAnnotationsChange } from '../features/annotations.js';
 import { formatLandmarkDisplayName } from '../core/landmarkDisplay.js';
 import {
@@ -72,6 +75,7 @@ import {
   clearBodyEvidenceBtn,
   clearBodyLandmarkSelectionBtn,
   downloadBodyEvidenceJsonBtn,
+  importBodyEvidencePackageZipInput,
   loadFrontPoseJsonInput,
   loadFrontSegJsonInput,
   loadSidePoseJsonInput,
@@ -783,6 +787,10 @@ function wireFileInput(input, setter, label) {
   });
 }
 
+export function openBodyEvidencePackageFilePicker() {
+  importBodyEvidencePackageZipInput?.click();
+}
+
 export function openFrontPoseFilePicker() {
   loadFrontPoseJsonInput?.click();
 }
@@ -903,6 +911,40 @@ export function setupBodyEvidencePanel() {
   wireFileInput(loadSidePoseJsonInput, setSidePoseSource, 'Side Pose JSON');
   wireFileInput(loadFrontSegJsonInput, setFrontSegSource, 'Front Seg JSON');
   wireFileInput(loadSideSegJsonInput, setSideSegSource, 'Side Seg JSON');
+
+  if (importBodyEvidencePackageZipInput) {
+    importBodyEvidencePackageZipInput.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) {
+        return;
+      }
+      showStatus(`Importing ${file.name}…`, 'info');
+      try {
+        const res = await importBodyEvidenceZip(file);
+        if (!res.ok) {
+          showStatus(res.error || 'Failed to import Body Evidence package.', 'error');
+          console.warn('[REVacity] Body evidence package import failed:', res.error);
+          return;
+        }
+        setBodyEvidencePackage(res.package);
+        const analyzeRes = analyzeLoadedBodyEvidence();
+        if (!analyzeRes.ok) {
+          showStatus(analyzeRes.error ?? 'Analyze failed after package import.', 'error');
+        } else {
+          const sampleTag = res.sampleId ? ` [${res.sampleId}]` : '';
+          showStatus(`Body Evidence Package loaded${sampleTag}.`, 'ok');
+        }
+        syncDownloadButton();
+        refreshCandidateLists();
+        renderSelectedLandmark();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Error importing ZIP package.';
+        console.warn('[REVacity] Body evidence ZIP import failed:', err);
+        showStatus(msg, 'error');
+      }
+    });
+  }
 
   analyzeBodyEvidenceBtn?.addEventListener('click', runAnalyzeBodyEvidenceAction);
   clearBodyEvidenceBtn?.addEventListener('click', runClearBodyEvidenceAction);

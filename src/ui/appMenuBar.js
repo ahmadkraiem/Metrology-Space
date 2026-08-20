@@ -11,6 +11,7 @@ import { subscribeAnnotationsChange } from '../features/annotations.js';
 import { openSceneStateFilePicker } from '../features/sceneImport.js';
 import { runExportSceneStateAction } from '../features/sceneExport.js';
 import {
+  openBodyEvidencePackageFilePicker,
   openFrontPoseFilePicker,
   openFrontSegFilePicker,
   openSidePoseFilePicker,
@@ -178,6 +179,9 @@ function runCommand(command) {
   }
 
   switch (command) {
+    case 'import-body-evidence-package':
+      openBodyEvidencePackageFilePicker();
+      break;
     case 'open-front-pose':
       openFrontPoseFilePicker();
       break;

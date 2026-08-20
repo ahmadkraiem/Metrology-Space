@@ -83,6 +83,7 @@ export const loadFrontPoseJsonInput = el('load-front-pose-json');
 export const loadSidePoseJsonInput = el('load-side-pose-json');
 export const loadFrontSegJsonInput = el('load-front-seg-json');
 export const loadSideSegJsonInput = el('load-side-seg-json');
+export const importBodyEvidencePackageZipInput = el('import-body-evidence-package-zip');
 export const analyzeBodyEvidenceBtn = el('analyze-body-evidence');
 export const downloadBodyEvidenceJsonBtn = el('download-body-evidence-json');
 export const clearBodyEvidenceBtn = el('clear-body-evidence');

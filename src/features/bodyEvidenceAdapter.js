@@ -461,6 +461,7 @@ function landmarksFromContainer(container, fallbackNames) {
     container.keypoints,
     container.pose_landmarks,
     container.body_landmarks,
+    container.acceptedLandmarks,
   ];
 
   for (const arr of landmarkArrays) {
@@ -516,6 +517,8 @@ function isLandmarkLikeObject(item) {
     || 'label' in item
     || 'x' in item
     || 'y' in item
+    || 'imageX' in item
+    || 'imageY' in item
     || Array.isArray(item.position)
     || Array.isArray(item.xy)
   );
@@ -561,14 +564,14 @@ function landmarksFromObjectArray(arr) {
       };
     }
     const position = item.position ?? item.xy ?? item.point;
-    let x = asFiniteNumber(item.x);
-    let y = asFiniteNumber(item.y);
+    let x = asFiniteNumber(item.x ?? item.imageX);
+    let y = asFiniteNumber(item.y ?? item.imageY);
     if (Array.isArray(position)) {
       x = asFiniteNumber(position[0]);
       y = asFiniteNumber(position[1]);
     } else if (position && typeof position === 'object') {
-      x = asFiniteNumber(position.x);
-      y = asFiniteNumber(position.y);
+      x = asFiniteNumber(position.x ?? position.imageX);
+      y = asFiniteNumber(position.y ?? position.imageY);
     }
     return {
       name: item.name ?? item.label ?? item.id ?? `landmark_${index}`,
@@ -933,6 +936,9 @@ export function emptyNormalizedSegmentation(view = null) {
  * @returns {object}
  */
 export function normalizeSegmentation(raw, { expectedView } = {}) {
+  if (raw && typeof raw === 'object' && raw.classes && raw.qa && (raw.raster instanceof Uint8Array || raw.raster === null)) {
+    return raw;
+  }
   const data = unwrapPayload(raw);
   if (!data || typeof data !== 'object') {
     return emptyNormalizedSegmentation(expectedView);

@@ -40,6 +40,9 @@ const emptySources = () => ({
  * }} */
 let sources = emptySources();
 
+/** @type {object|null} */
+let currentPackage = null;
+
 /** @type {ReturnType<typeof analyzeBodyEvidence>|null} */
 let qaResult = null;
 
@@ -865,7 +868,56 @@ export function setFrontSegSource(data) {
 
 export function setSideSegSource(data) {
   sources.sideSeg = data;
+  currentPackage = null;
   resetAnalysisForNewSource();
+}
+
+/**
+ * Sets the active Full Body Evidence Package in runtime state.
+ * @param {object|null} pkg
+ */
+export function setBodyEvidencePackage(pkg) {
+  currentPackage = pkg;
+  if (!pkg) {
+    sources = emptySources();
+    resetAnalysisForNewSource();
+    return;
+  }
+  sources = {
+    frontPose: pkg.front?.pose ? pkg.front.pose : null,
+    sidePose: pkg.side?.pose ? pkg.side.pose : null,
+    frontSeg: pkg.front?.segmentation ? pkg.front.segmentation : null,
+    sideSeg: pkg.side?.segmentation ? pkg.side.segmentation : null,
+  };
+  resetAnalysisForNewSource();
+}
+
+export function getBodyEvidencePackage() {
+  return currentPackage;
+}
+
+export function getFrontPointmapEvidence() {
+  return currentPackage?.front?.pointmap ?? null;
+}
+
+export function getSidePointmapEvidence() {
+  return currentPackage?.side?.pointmap ?? null;
+}
+
+export function getFrontNormalEvidence() {
+  return currentPackage?.front?.normals ?? null;
+}
+
+export function getSideNormalEvidence() {
+  return currentPackage?.side?.normals ?? null;
+}
+
+export function getFrontImageEvidence() {
+  return currentPackage?.front?.image ?? null;
+}
+
+export function getSideImageEvidence() {
+  return currentPackage?.side?.image ?? null;
 }
 
 export function analyzeLoadedBodyEvidence() {
@@ -907,6 +959,7 @@ export function analyzeLoadedBodyEvidence() {
 
 export function clearBodyEvidence() {
   sources = emptySources();
+  currentPackage = null;
   qaResult = null;
   lastError = null;
   overlayVisible = false;
@@ -998,6 +1051,44 @@ function exportScale(scale) {
   };
 }
 
+function exportPointmapSummary(pointmap) {
+  if (!pointmap || !pointmap.present) {
+    return null;
+  }
+  return {
+    present: true,
+    model: pointmap.model ?? null,
+    view: pointmap.view ?? null,
+    channels: pointmap.channels ?? 3,
+    shape: pointmap.shape ? [...pointmap.shape] : null,
+    dtype: pointmap.dtype ?? null,
+    declaredUnits: pointmap.declaredUnits ?? null,
+    declaredScale: pointmap.declaredScale ?? null,
+    coordinateFrame: pointmap.coordinateFrame ?? 'unvalidated',
+    scaleSemantics: pointmap.scaleSemantics ?? 'unvalidated',
+    canonicalAxisMeaning: pointmap.canonicalAxisMeaning ?? 'unvalidated',
+    qa: pointmap.qa ? { ...pointmap.qa } : null,
+  };
+}
+
+function exportNormalsSummary(normals) {
+  if (!normals || !normals.present) {
+    return null;
+  }
+  return {
+    present: true,
+    model: normals.model ?? null,
+    view: normals.view ?? null,
+    channels: normals.channels ?? 3,
+    shape: normals.shape ? [...normals.shape] : null,
+    dtype: normals.dtype ?? null,
+    declaredRange: normals.declaredRange ? [...normals.declaredRange] : null,
+    coordinateFrame: normals.coordinateFrame ?? 'unvalidated',
+    orientationSemantics: normals.orientationSemantics ?? 'unvalidated',
+    qa: normals.qa ? { ...normals.qa } : null,
+  };
+}
+
 /**
  * Build a diagnostic Body Evidence JSON payload from the analyzed QA result.
  * Excludes raw uploaded sources, images, and segmentation mask/base64 payloads.
@@ -1022,14 +1113,24 @@ export function buildBodyEvidenceExport(exportedAt = new Date()) {
     scaleDetected: qaResult.scaleDetected,
     scaleStatus: qaResult.scaleStatus ?? qaResult.scale?.status ?? SCALE_STATUS_FIXED,
     loaded: { ...qaResult.loaded },
+    package: currentPackage ? {
+      version: currentPackage.version,
+      sampleId: currentPackage.sampleId,
+      sourceFormat: currentPackage.sourceFormat,
+      qa: currentPackage.qa ? { ...currentPackage.qa } : null,
+    } : null,
     views: {
       front: {
         pose: exportPoseView(qaResult.views.front.pose),
         segmentation: frontSeg,
+        pointmap: exportPointmapSummary(currentPackage?.front?.pointmap),
+        normals: exportNormalsSummary(currentPackage?.front?.normals),
       },
       side: {
         pose: exportPoseView(qaResult.views.side.pose),
         segmentation: sideSeg,
+        pointmap: exportPointmapSummary(currentPackage?.side?.pointmap),
+        normals: exportNormalsSummary(currentPackage?.side?.normals),
       },
     },
     qa: {
