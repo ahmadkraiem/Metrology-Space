@@ -270,6 +270,21 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
   }),
 ]);
 
+export const BODY_ANATOMICAL_CLASS_IDS = Object.freeze(new Set(
+  CANONICAL_SEGMENTATION_CLASSES_V0
+    .filter((c) => c.category === ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL)
+    .map((c) => c.classId),
+));
+
+/**
+ * Checks whether a given class ID belongs strictly to the body_anatomical category.
+ * @param {number} classId
+ * @returns {boolean}
+ */
+export function isBodyAnatomicalClass(classId) {
+  return BODY_ANATOMICAL_CLASS_IDS.has(classId);
+}
+
 const CLASS_BY_ID = new Map(
   CANONICAL_SEGMENTATION_CLASSES_V0.map((entry) => [entry.classId, entry]),
 );

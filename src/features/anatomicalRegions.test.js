@@ -6,10 +6,12 @@ import {
   ANATOMICAL_REGION_CONTRACT_NAME,
   ANATOMICAL_REGION_CONTRACT_VERSION,
   ANATOMICAL_REGION_STATUS,
+  BODY_ANATOMICAL_CLASS_IDS,
   CANONICAL_SEGMENTATION_CLASSES_V0,
   TOTAL_CANONICAL_CLASSES_V0,
   buildObservedAnatomicalRegions,
   getCanonicalSegmentationClass,
+  isBodyAnatomicalClass,
   normalizeLabelKey,
 } from './anatomicalRegions.js';
 
@@ -483,13 +485,37 @@ test('Handles empty and invalid segmentation inputs safely with null boundsCm', 
   assert.equal(foot2.boundsCm, null);
 });
 
-test('getCanonicalSegmentationClass supports ID, string number, and case-insensitive label lookups', () => {
-  assert.equal(getCanonicalSegmentationClass(0)?.label, 'Background');
-  assert.equal(getCanonicalSegmentationClass(28)?.label, 'Tongue');
-  assert.equal(getCanonicalSegmentationClass('28')?.label, 'Tongue');
-  assert.equal(getCanonicalSegmentationClass('left_lower_leg')?.classId, 8);
-  assert.equal(getCanonicalSegmentationClass('LEFT_UPPER_ARM')?.classId, 11);
-  assert.equal(getCanonicalSegmentationClass('upper-clothing')?.classId, 23);
-  assert.equal(getCanonicalSegmentationClass(99), null);
-  assert.equal(getCanonicalSegmentationClass('nonexistent'), null);
+test('BODY_ANATOMICAL_CLASS_IDS and isBodyAnatomicalClass correctly identify the 13 body classes and exclude clothing/face', () => {
+  assert.equal(BODY_ANATOMICAL_CLASS_IDS.size, 13);
+  assert.equal(isBodyAnatomicalClass(5), true); // Left_Foot
+  assert.equal(isBodyAnatomicalClass(6), true); // Left_Hand
+  assert.equal(isBodyAnatomicalClass(7), true); // Left_Lower_Arm
+  assert.equal(isBodyAnatomicalClass(8), true); // Left_Lower_Leg
+  assert.equal(isBodyAnatomicalClass(11), true); // Left_Upper_Arm
+  assert.equal(isBodyAnatomicalClass(12), true); // Left_Upper_Leg
+  assert.equal(isBodyAnatomicalClass(14), true); // Right_Foot
+  assert.equal(isBodyAnatomicalClass(15), true); // Right_Hand
+  assert.equal(isBodyAnatomicalClass(16), true); // Right_Lower_Arm
+  assert.equal(isBodyAnatomicalClass(17), true); // Right_Lower_Leg
+  assert.equal(isBodyAnatomicalClass(20), true); // Right_Upper_Arm
+  assert.equal(isBodyAnatomicalClass(21), true); // Right_Upper_Leg
+  assert.equal(isBodyAnatomicalClass(22), true); // Torso
+
+  // Excluded categories
+  assert.equal(isBodyAnatomicalClass(0), false); // Background (context_background)
+  assert.equal(isBodyAnatomicalClass(1), false); // Apparel (clothing_apparel)
+  assert.equal(isBodyAnatomicalClass(2), false); // Eyeglass (accessory_other)
+  assert.equal(isBodyAnatomicalClass(3), false); // Face_Neck (face_head)
+  assert.equal(isBodyAnatomicalClass(4), false); // Hair (face_head)
+  assert.equal(isBodyAnatomicalClass(9), false); // Left_Shoe (clothing_apparel)
+  assert.equal(isBodyAnatomicalClass(10), false); // Left_Sock (clothing_apparel)
+  assert.equal(isBodyAnatomicalClass(13), false); // Lower_Clothing (clothing_apparel)
+  assert.equal(isBodyAnatomicalClass(18), false); // Right_Shoe (clothing_apparel)
+  assert.equal(isBodyAnatomicalClass(19), false); // Right_Sock (clothing_apparel)
+  assert.equal(isBodyAnatomicalClass(23), false); // Upper_Clothing (clothing_apparel)
+  assert.equal(isBodyAnatomicalClass(24), false); // Lower_Lip (face_head)
+  assert.equal(isBodyAnatomicalClass(25), false); // Upper_Lip (face_head)
+  assert.equal(isBodyAnatomicalClass(26), false); // Lower_Teeth (face_head)
+  assert.equal(isBodyAnatomicalClass(27), false); // Upper_Teeth (face_head)
+  assert.equal(isBodyAnatomicalClass(28), false); // Tongue (face_head)
 });

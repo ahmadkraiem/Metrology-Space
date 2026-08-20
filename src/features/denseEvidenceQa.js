@@ -19,8 +19,7 @@
  */
 
 import {
-  ANATOMICAL_REGION_CATEGORIES,
-  CANONICAL_SEGMENTATION_CLASSES_V0,
+  BODY_ANATOMICAL_CLASS_IDS,
 } from './anatomicalRegions.js';
 import {
   DENSE_LAYOUT_CHW_PLANAR,
@@ -28,20 +27,12 @@ import {
   DENSE_LAYOUT_UNKNOWN,
 } from './bodyEvidencePackage.js';
 
+export { BODY_ANATOMICAL_CLASS_IDS };
+
 export const POINTMAP_NUMERIC_QA_CONTRACT = 'pointmap-numeric-qa-v0';
 export const NORMAL_NUMERIC_QA_CONTRACT = 'normal-numeric-qa-v0';
 export const SAME_VIEW_DENSE_CROSS_MODAL_QA_CONTRACT = 'same-view-dense-cross-modal-qa-v0';
 export const NORMAL_UNIT_TOLERANCE = 0.01;
-
-/**
- * Authoritative set of Class IDs strictly categorized as 'body_anatomical' in the 29-class ontology.
- * Excludes clothing_apparel, face_head, accessory_other, and context_background.
- */
-export const BODY_ANATOMICAL_CLASS_IDS = Object.freeze(new Set(
-  CANONICAL_SEGMENTATION_CLASSES_V0
-    .filter((c) => c.category === ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL)
-    .map((c) => c.classId),
-));
 
 /**
  * Shared core streaming scanner for 3-channel dense tensor buffers.
@@ -986,11 +977,143 @@ export async function evaluateSameViewDenseCrossModalQa(viewEvidence, {
     && (!segmentation || segInspectable)
   );
 
-  // Execute independent Pointmap and Normal Numeric QA
-  const [pointmapQa, normalsQa] = await Promise.all([
-    pointmap ? evaluatePointmapNumericQa(pointmap, { view: resolvedView, cache }) : Promise.resolve(null),
-    normals ? evaluateNormalsNumericQa(normals, { view: resolvedView, cache }) : Promise.resolve(null),
-  ]);
+  // Load dense buffers at most once per view analysis
+  let pmBuffer = null;
+  let pmLoadError = null;
+  if (pointmap && typeof pointmap.getDenseData === 'function') {
+    try {
+      pmBuffer = await pointmap.getDenseData({ cache });
+    } catch (err) {
+      pmLoadError = err;
+    }
+  }
+
+  let normBuffer = null;
+  let normLoadError = null;
+  if (normals && typeof normals.getDenseData === 'function') {
+    try {
+      normBuffer = await normals.getDenseData({ cache });
+    } catch (err) {
+      normLoadError = err;
+    }
+  }
+
+  // Evaluate Pointmap Numeric QA using pre-loaded buffer
+  let pointmapQa = null;
+  if (pointmap) {
+    if (pmLoadError) {
+      pointmapQa = {
+        contract: POINTMAP_NUMERIC_QA_CONTRACT,
+        view: resolvedView,
+        availability: 'present',
+        status: 'fail',
+        structure: {
+          present: true,
+          model: pointmap.model ?? null,
+          view: resolvedView,
+          widthPx: pointmap.widthPx ?? null,
+          heightPx: pointmap.heightPx ?? null,
+          channels: pointmap.channels ?? null,
+          dtype: pointmap.dtype ?? null,
+          declaredShape: pointmap.declaredShape ? [...pointmap.declaredShape] : null,
+          normalizedShape: pointmap.shape ? [...pointmap.shape] : null,
+          denseLayout: pointmap.denseLayout ?? DENSE_LAYOUT_UNKNOWN,
+          expectedElements: (pointmap.heightPx && pointmap.widthPx && pointmap.channels)
+            ? pointmap.heightPx * pointmap.widthPx * pointmap.channels
+            : 0,
+          actualElements: 0,
+          elementCountMatch: false,
+          isInspectable: false,
+        },
+        numeric: null,
+        declarations: {
+          declaredUnits: pointmap.declaredUnits ?? null,
+          declaredScale: pointmap.declaredScale ?? null,
+          unitsSemantics: 'unvalidated',
+          scaleSemantics: 'unvalidated',
+          scaleApplicationState: 'unvalidated',
+          coordinateFrame: 'unvalidated',
+          canonicalAxisMeaning: 'unvalidated',
+        },
+        issues: [`Failed to load dense pointmap buffer: ${pmLoadError instanceof Error ? pmLoadError.message : String(pmLoadError)}`],
+        warnings: [],
+      };
+    } else {
+      pointmapQa = evaluatePointmapBufferNumericQa(pmBuffer, {
+        widthPx: pointmap.widthPx,
+        heightPx: pointmap.heightPx,
+        channels: pointmap.channels ?? 3,
+        denseLayout: pointmap.denseLayout ?? DENSE_LAYOUT_UNKNOWN,
+        model: pointmap.model,
+        dtype: pointmap.dtype,
+        declaredShape: pointmap.declaredShape,
+        declaredUnits: pointmap.declaredUnits,
+        declaredScale: pointmap.declaredScale,
+        view: resolvedView,
+      });
+    }
+  }
+
+  // Evaluate Surface Normal Numeric QA using pre-loaded buffer
+  let normalsQa = null;
+  if (normals) {
+    if (normLoadError) {
+      normalsQa = {
+        contract: NORMAL_NUMERIC_QA_CONTRACT,
+        view: resolvedView,
+        availability: 'present',
+        status: 'fail',
+        structure: {
+          present: true,
+          model: normals.model ?? null,
+          view: resolvedView,
+          widthPx: normals.widthPx ?? null,
+          heightPx: normals.heightPx ?? null,
+          channels: normals.channels ?? null,
+          dtype: normals.dtype ?? null,
+          declaredShape: normals.declaredShape ? [...normals.declaredShape] : null,
+          normalizedShape: normals.shape ? [...normals.shape] : null,
+          denseLayout: normals.denseLayout ?? DENSE_LAYOUT_UNKNOWN,
+          expectedElements: (normals.heightPx && normals.widthPx && normals.channels)
+            ? normals.heightPx * normals.widthPx * normals.channels
+            : 0,
+          actualElements: 0,
+          elementCountMatch: false,
+          isInspectable: false,
+        },
+        numeric: null,
+        declaredRangeQa: {
+          status: 'unvalidated',
+          declaredRange: null,
+          finiteValueCountChecked: 0,
+          belowRangeCount: 0,
+          aboveRangeCount: 0,
+          violationCount: 0,
+          violationRatio: 0,
+          note: 'Failed to load buffer; range audit skipped.',
+        },
+        semantics: {
+          coordinateFrame: 'unvalidated',
+          orientationSemantics: 'unvalidated',
+          encodingSemantics: 'unvalidated',
+        },
+        issues: [`Failed to load dense surface normals buffer: ${normLoadError instanceof Error ? normLoadError.message : String(normLoadError)}`],
+        warnings: [],
+      };
+    } else {
+      normalsQa = evaluateNormalsBufferNumericQa(normBuffer, {
+        widthPx: normals.widthPx,
+        heightPx: normals.heightPx,
+        channels: normals.channels ?? 3,
+        denseLayout: normals.denseLayout ?? DENSE_LAYOUT_UNKNOWN,
+        model: normals.model,
+        dtype: normals.dtype,
+        declaredShape: normals.declaredShape,
+        declaredRange: normals.declaredRange,
+        view: resolvedView,
+      });
+    }
+  }
 
   if (pointmapQa?.issues?.length) {
     issues.push(...pointmapQa.issues);
@@ -1013,30 +1136,18 @@ export async function evaluateSameViewDenseCrossModalQa(viewEvidence, {
     && segInspectable
     && sharedWidthPx
     && sharedHeightPx
-    && ((pointmap && pointmapQa?.structure?.isInspectable) || (normals && normalsQa?.structure?.isInspectable))
+    && ((pmBuffer && pointmapQa?.structure?.isInspectable) || (normBuffer && normalsQa?.structure?.isInspectable))
   ) {
     const totalPixels = sharedHeightPx * sharedWidthPx;
     const segRaster = segmentation.raster;
 
-    let pmBuffer = null;
-    let pmIsHwc = false;
-    let pmPlaneSize = totalPixels;
-    let pmChannels = 3;
-    if (pointmap && pointmapQa?.structure?.isInspectable) {
-      pmBuffer = await pointmap.getDenseData({ cache });
-      pmIsHwc = pointmap.denseLayout === DENSE_LAYOUT_HWC_INTERLEAVED;
-      pmChannels = pointmap.channels ?? 3;
-    }
+    const pmIsHwc = pointmap ? pointmap.denseLayout === DENSE_LAYOUT_HWC_INTERLEAVED : false;
+    const pmPlaneSize = totalPixels;
+    const pmChannels = pointmap?.channels ?? 3;
 
-    let normBuffer = null;
-    let normIsHwc = false;
-    let normPlaneSize = totalPixels;
-    let normChannels = 3;
-    if (normals && normalsQa?.structure?.isInspectable) {
-      normBuffer = await normals.getDenseData({ cache });
-      normIsHwc = normals.denseLayout === DENSE_LAYOUT_HWC_INTERLEAVED;
-      normChannels = normals.channels ?? 3;
-    }
+    const normIsHwc = normals ? normals.denseLayout === DENSE_LAYOUT_HWC_INTERLEAVED : false;
+    const normPlaneSize = totalPixels;
+    const normChannels = normals?.channels ?? 3;
 
     // Mask accumulators: 0: background, 1: nonBackground, 2: bodyAnatomical
     const maskCounts = [0, 0, 0];

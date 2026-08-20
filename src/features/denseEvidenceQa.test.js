@@ -1037,19 +1037,248 @@ test('evaluateSameViewDenseCrossModalQa guarantees Front and Side reports remain
   assert.equal(sideReport.availability.normals, true);
 });
 
-test('BODY_ANATOMICAL_CLASS_IDS includes exactly the 13 canonical body_anatomical classes and excludes clothing/face', () => {
-  assert.equal(BODY_ANATOMICAL_CLASS_IDS.size, 13);
-  // Torso (22), Left_Upper_Leg (12), Right_Foot (14) must be present
-  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(22), true);
-  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(12), true);
-  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(14), true);
+test('evaluateSameViewDenseCrossModalQa decodes pointmap and normals at most once per view analysis', async () => {
+  let pmDecodeCount = 0;
+  let normDecodeCount = 0;
 
-  // Background (0), Apparel (1), Eyeglass (2), Face_Neck (3), Upper_Clothing (23) must NOT be present
-  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(0), false);
-  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(1), false);
-  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(2), false);
-  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(3), false);
-  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(23), false);
+  const segRaster = new Uint8Array([0, 22]);
+  const pmBuffer = new Float32Array([1, 2, 3, 4, 5, 6]);
+  const normBuffer = new Float32Array([0, 0, 1, 0, 1, 0]);
+
+  const viewEvidence = {
+    view: 'front',
+    segmentation: {
+      present: true,
+      widthPx: 2,
+      heightPx: 1,
+      raster: segRaster,
+    },
+    pointmap: {
+      present: true,
+      widthPx: 2,
+      heightPx: 1,
+      channels: 3,
+      shape: [1, 2, 3],
+      denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+      getDenseData: async () => {
+        pmDecodeCount += 1;
+        return pmBuffer;
+      },
+    },
+    normals: {
+      present: true,
+      widthPx: 2,
+      heightPx: 1,
+      channels: 3,
+      shape: [1, 2, 3],
+      denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+      declaredRange: [-1.0, 1.0],
+      getDenseData: async () => {
+        normDecodeCount += 1;
+        return normBuffer;
+      },
+    },
+  };
+
+  const report = await evaluateSameViewDenseCrossModalQa(viewEvidence, { cache: false });
+
+  assert.equal(report.status, 'pass');
+  assert.equal(pmDecodeCount, 1, 'Pointmap getDenseData should be called exactly once');
+  assert.equal(normDecodeCount, 1, 'Normals getDenseData should be called exactly once');
+  assert.equal(report.masks.background.pixelCount, 1);
+  assert.equal(report.masks.bodyAnatomical.pixelCount, 1);
 });
+
+test('bodyEvidence.js runtime integration populates front and side dense QA and exports sanitized summary', async () => {
+  const {
+    analyzeLoadedBodyEvidenceAsync,
+    buildBodyEvidenceExport,
+    clearBodyEvidence,
+    getDenseEvidenceQa,
+    getFrontDenseEvidenceQa,
+    getSideDenseEvidenceQa,
+    setBodyEvidencePackage,
+  } = await import('./bodyEvidence.js');
+  const { buildBodyEvidencePackage } = await import('./bodyEvidencePackage.js');
+
+  const pmFront = new Float32Array([1, 2, 3, 4, 5, 6]);
+  const normFront = new Float32Array([0, 0, 1, 0, 1, 0]);
+  const segFront = new Uint8Array([0, 22]); // 1 row, 2 cols
+
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      pose: {
+        model: 'mediapipe',
+        view: 'front',
+        landmarks: [
+          { name: 'nose', x: 0.5, y: 0.2, score: 0.99 },
+          { name: 'left_shoulder', x: 0.4, y: 0.4, score: 0.99 },
+          { name: 'right_shoulder', x: 0.6, y: 0.4, score: 0.99 },
+        ],
+      },
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 23,
+        class_names: ['Background', 'Torso'],
+        class_counts: { Background: 1, Torso: 1 },
+        labels: { shape: [1, 2], dtype: 'uint8', base64: 'AAA=' },
+      },
+      pointmap: {
+        model: 'pointmap-v1',
+        view: 'front',
+        channels: 3,
+        shape: [1, 2, 3],
+        denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+        dtype: 'float32',
+        declaredUnits: 'cm',
+        declaredScale: 1.0,
+        getDenseData: async () => pmFront,
+      },
+      normals: {
+        model: 'normal-v1',
+        view: 'front',
+        channels: 3,
+        shape: [1, 2, 3],
+        denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+        dtype: 'float32',
+        declaredRange: [-1.0, 1.0],
+        getDenseData: async () => normFront,
+      },
+    },
+    side: {
+      pose: {
+        model: 'mediapipe',
+        view: 'side',
+        landmarks: [
+          { name: 'left_shoulder', x: 0.5, y: 0.4, score: 0.99 },
+        ],
+      },
+    },
+  });
+
+  // Verify Package QA separation: pointmap.qa.numericValues remains unvalidated/deferred
+  assert.equal(pkg.front.pointmap.qa.numericValues.status, 'unvalidated');
+  assert.equal(pkg.front.pointmap.qa.numericValues.validationMode, 'deferred');
+  assert.equal(pkg.front.normals.qa.numericValues.status, 'unvalidated');
+  assert.equal(pkg.front.normals.qa.numericValues.validationMode, 'deferred');
+
+  setBodyEvidencePackage(pkg);
+
+  const res = await analyzeLoadedBodyEvidenceAsync();
+  assert.equal(res.ok, true);
+
+  const denseQa = getDenseEvidenceQa();
+  assert.ok(denseQa, 'denseEvidenceQa should be populated');
+
+  const frontDense = getFrontDenseEvidenceQa();
+  assert.ok(frontDense);
+  assert.equal(frontDense.pointmap.contract, POINTMAP_NUMERIC_QA_CONTRACT);
+  assert.equal(frontDense.pointmap.status, 'pass');
+  assert.equal(frontDense.normals.contract, NORMAL_NUMERIC_QA_CONTRACT);
+  assert.equal(frontDense.normals.status, 'pass');
+  assert.equal(frontDense.crossModal.contract, SAME_VIEW_DENSE_CROSS_MODAL_QA_CONTRACT);
+  assert.equal(frontDense.crossModal.status, 'pass');
+
+  const sideDense = getSideDenseEvidenceQa();
+  assert.ok(sideDense);
+  // Side has no pointmap or normals
+  assert.equal(sideDense.pointmap, null);
+  assert.equal(sideDense.normals, null);
+
+  // Check diagnostic export
+  const exportData = buildBodyEvidenceExport();
+  assert.ok(exportData.denseQa);
+  assert.ok(exportData.denseQa.front);
+  assert.equal(exportData.denseQa.front.pointmap.contract, POINTMAP_NUMERIC_QA_CONTRACT);
+  assert.equal(exportData.denseQa.front.normals.contract, NORMAL_NUMERIC_QA_CONTRACT);
+  assert.equal(exportData.denseQa.front.crossModal.contract, SAME_VIEW_DENSE_CROSS_MODAL_QA_CONTRACT);
+  assert.equal(exportData.views.front.denseQa.crossModal.contract, SAME_VIEW_DENSE_CROSS_MODAL_QA_CONTRACT);
+
+  // Ensure JSON-safety: no TypedArrays, buffers, or functions
+  const jsonStr = JSON.stringify(exportData);
+  assert.ok(jsonStr.length > 0);
+  const parsed = JSON.parse(jsonStr);
+  assert.equal(parsed.denseQa.front.pointmap.status, 'pass');
+
+  // Verify reset on clearBodyEvidence
+  clearBodyEvidence();
+  assert.equal(getDenseEvidenceQa(), null);
+  assert.equal(getFrontDenseEvidenceQa(), null);
+  assert.equal(getSideDenseEvidenceQa(), null);
+});
+
+test('bodyEvidence.js stale async analysis result cannot overwrite newer package state', async () => {
+  const {
+    analyzeLoadedBodyEvidence,
+    clearBodyEvidence,
+    getDenseEvidenceQa,
+    setBodyEvidencePackage,
+  } = await import('./bodyEvidence.js');
+  const { buildBodyEvidencePackage } = await import('./bodyEvidencePackage.js');
+
+  // Package A has slow getDenseData (50ms delay)
+  const pkgA = buildBodyEvidencePackage({
+    front: {
+      pose: {
+        model: 'mediapipe',
+        view: 'front',
+        landmarks: [{ name: 'nose', x: 0.5, y: 0.2, score: 0.99 }],
+      },
+      pointmap: {
+        model: 'pointmap-slow-A',
+        view: 'front',
+        channels: 3,
+        shape: [1, 1, 3],
+        denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+        getDenseData: async () => {
+          await new Promise((r) => setTimeout(r, 50));
+          return new Float32Array([100, 200, 300]);
+        },
+      },
+    },
+  });
+
+  // Package B has fast getDenseData (immediate)
+  const pkgB = buildBodyEvidencePackage({
+    front: {
+      pose: {
+        model: 'mediapipe',
+        view: 'front',
+        landmarks: [{ name: 'nose', x: 0.5, y: 0.2, score: 0.99 }],
+      },
+      pointmap: {
+        model: 'pointmap-fast-B',
+        view: 'front',
+        channels: 3,
+        shape: [1, 1, 3],
+        denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+        getDenseData: async () => new Float32Array([1, 2, 3]),
+      },
+    },
+  });
+
+  // 1. Load and trigger Package A
+  setBodyEvidencePackage(pkgA);
+  analyzeLoadedBodyEvidence();
+
+  // 2. Immediately switch to Package B and analyze
+  setBodyEvidencePackage(pkgB);
+  analyzeLoadedBodyEvidence();
+
+  // 3. Wait for Package B and the delayed Package A to both settle
+  await new Promise((r) => setTimeout(r, 80));
+
+  const currentDense = getDenseEvidenceQa();
+  assert.ok(currentDense);
+  assert.equal(
+    currentDense.front.pointmap.structure.model,
+    'pointmap-fast-B',
+    'Stale Package A async result must NOT overwrite Package B QA state',
+  );
+
+  clearBodyEvidence();
+});
+
 
 

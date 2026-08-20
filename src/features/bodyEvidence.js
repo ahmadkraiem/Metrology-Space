@@ -17,6 +17,9 @@ import {
   isSecondaryBodyAnchorCandidate,
   normalizeLandmarkName,
 } from './bodyEvidenceAdapter.js';
+import {
+  evaluateSameViewDenseCrossModalQa,
+} from './denseEvidenceQa.js';
 import { ROOM_SIZE } from '../core/constants.js';
 import { FRONT_SURFACE_DEPTH_CM, frontSurfaceTo3d, isOnFrontSurface } from '../core/frontSurface.js';
 import { addAnnotationFromPoint, getAnnotations } from './annotations.js';
@@ -45,6 +48,27 @@ let currentPackage = null;
 
 /** @type {ReturnType<typeof analyzeBodyEvidence>|null} */
 let qaResult = null;
+
+/**
+ * Derived runtime Dense Evidence QA state (Milestone 3.2).
+ * Separate from immutable package schema and landmark QA.
+ * @type {{
+ *   front: {
+ *     pointmap: object|null,
+ *     normals: object|null,
+ *     crossModal: object|null,
+ *   },
+ *   side: {
+ *     pointmap: object|null,
+ *     normals: object|null,
+ *     crossModal: object|null,
+ *   },
+ * }|null}
+ */
+let denseEvidenceQa = null;
+
+/** Session counter to guarantee stale async dense QA results cannot overwrite newer state. */
+let currentAnalysisSessionId = 0;
 
 /** @type {string|null} */
 let lastError = null;
@@ -838,6 +862,8 @@ export function hasSidePoseSource() {
 /** Setting a new package invalidates the previous analysis, overlay, and selection. */
 function resetAnalysisForNewSource() {
   qaResult = null;
+  denseEvidenceQa = null;
+  currentAnalysisSessionId += 1;
   lastError = null;
   overlayVisible = false;
   secondaryCandidatesVisible = false;
@@ -895,10 +921,39 @@ export function getSideImageEvidence() {
   return currentPackage?.side?.image ?? null;
 }
 
+/**
+ * Returns the active derived Dense Evidence QA runtime state.
+ * @returns {{
+ *   front: { pointmap: object|null, normals: object|null, crossModal: object|null },
+ *   side: { pointmap: object|null, normals: object|null, crossModal: object|null },
+ * }|null}
+ */
+export function getDenseEvidenceQa() {
+  return denseEvidenceQa;
+}
+
+/**
+ * Returns the Front derived Dense Evidence QA runtime state.
+ * @returns {{ pointmap: object|null, normals: object|null, crossModal: object|null }|null}
+ */
+export function getFrontDenseEvidenceQa() {
+  return denseEvidenceQa?.front ?? null;
+}
+
+/**
+ * Returns the Side derived Dense Evidence QA runtime state.
+ * @returns {{ pointmap: object|null, normals: object|null, crossModal: object|null }|null}
+ */
+export function getSideDenseEvidenceQa() {
+  return denseEvidenceQa?.side ?? null;
+}
+
 export function analyzeLoadedBodyEvidence() {
   if (!hasBodyEvidencePoseOrSegSource()) {
     lastError = 'Load at least one pose or segmentation JSON before analyzing.';
     qaResult = null;
+    denseEvidenceQa = null;
+    currentAnalysisSessionId += 1;
     overlayVisible = false;
     secondaryCandidatesVisible = false;
     sideCoreOverlayVisible = false;
@@ -911,17 +966,67 @@ export function analyzeLoadedBodyEvidence() {
   try {
     qaResult = analyzeBodyEvidence(getBodyEvidenceSources());
     lastError = null;
+    denseEvidenceQa = null;
+    const sessionId = (currentAnalysisSessionId += 1);
+
     overlayVisible = getRenderableFrontBodyLandmarks().length > 0;
     secondaryCandidatesVisible = getSecondaryFrontBodyLandmarks().length > 0;
     sideCoreOverlayVisible = getRenderableSideBodyLandmarks().length > 0;
     sideSecondaryOverlayVisible = getSecondarySideBodyLandmarks().length > 0;
     // Re-analyze replaces the landmark set — drop any prior inspect selection.
     clearBodyEvidenceSelectionSilent();
+
+    // Asynchronously trigger derived dense evidence QA
+    const frontView = currentPackage?.front ? {
+      view: 'front',
+      segmentation: qaResult?.views?.front?.segmentation ?? currentPackage.front.segmentation ?? null,
+      pointmap: currentPackage.front.pointmap ?? null,
+      normals: currentPackage.front.normals ?? null,
+    } : null;
+
+    const sideView = currentPackage?.side ? {
+      view: 'side',
+      segmentation: qaResult?.views?.side?.segmentation ?? currentPackage.side.segmentation ?? null,
+      pointmap: currentPackage.side.pointmap ?? null,
+      normals: currentPackage.side.normals ?? null,
+    } : null;
+
+    if (frontView || sideView) {
+      Promise.all([
+        frontView ? evaluateSameViewDenseCrossModalQa(frontView, { view: 'front', cache: false }) : Promise.resolve(null),
+        sideView ? evaluateSameViewDenseCrossModalQa(sideView, { view: 'side', cache: false }) : Promise.resolve(null),
+      ]).then(([frontCrossModal, sideCrossModal]) => {
+        if (sessionId !== currentAnalysisSessionId) {
+          return;
+        }
+        denseEvidenceQa = {
+          front: {
+            pointmap: frontCrossModal?.modalityQa?.pointmap ?? null,
+            normals: frontCrossModal?.modalityQa?.normals ?? null,
+            crossModal: frontCrossModal ?? null,
+          },
+          side: {
+            pointmap: sideCrossModal?.modalityQa?.pointmap ?? null,
+            normals: sideCrossModal?.modalityQa?.normals ?? null,
+            crossModal: sideCrossModal ?? null,
+          },
+        };
+        notifyBodyEvidenceChange();
+      }).catch((err) => {
+        if (sessionId !== currentAnalysisSessionId) {
+          return;
+        }
+        console.warn('[REVacity] Dense Evidence QA evaluation error:', err);
+      });
+    }
+
     notifyBodyEvidenceChange();
     return { ok: true, error: null, result: qaResult };
   } catch (error) {
     lastError = error instanceof Error ? error.message : 'Body evidence analysis failed.';
     qaResult = null;
+    denseEvidenceQa = null;
+    currentAnalysisSessionId += 1;
     overlayVisible = false;
     secondaryCandidatesVisible = false;
     sideCoreOverlayVisible = false;
@@ -932,10 +1037,73 @@ export function analyzeLoadedBodyEvidence() {
   }
 }
 
+/**
+ * Asynchronous analysis entrypoint that executes landmark/segmentation QA and awaits
+ * derived Dense Evidence QA completion.
+ */
+export async function analyzeLoadedBodyEvidenceAsync() {
+  const syncResult = analyzeLoadedBodyEvidence();
+  if (!syncResult.ok) {
+    return { ...syncResult, denseQa: null };
+  }
+  const sessionId = currentAnalysisSessionId;
+
+  const frontView = currentPackage?.front ? {
+    view: 'front',
+    segmentation: qaResult?.views?.front?.segmentation ?? currentPackage.front.segmentation ?? null,
+    pointmap: currentPackage.front.pointmap ?? null,
+    normals: currentPackage.front.normals ?? null,
+  } : null;
+
+  const sideView = currentPackage?.side ? {
+    view: 'side',
+    segmentation: qaResult?.views?.side?.segmentation ?? currentPackage.side.segmentation ?? null,
+    pointmap: currentPackage.side.pointmap ?? null,
+    normals: currentPackage.side.normals ?? null,
+  } : null;
+
+  if (frontView || sideView) {
+    try {
+      const [frontCrossModal, sideCrossModal] = await Promise.all([
+        frontView ? evaluateSameViewDenseCrossModalQa(frontView, { view: 'front', cache: false }) : Promise.resolve(null),
+        sideView ? evaluateSameViewDenseCrossModalQa(sideView, { view: 'side', cache: false }) : Promise.resolve(null),
+      ]);
+      if (sessionId === currentAnalysisSessionId) {
+        denseEvidenceQa = {
+          front: {
+            pointmap: frontCrossModal?.modalityQa?.pointmap ?? null,
+            normals: frontCrossModal?.modalityQa?.normals ?? null,
+            crossModal: frontCrossModal ?? null,
+          },
+          side: {
+            pointmap: sideCrossModal?.modalityQa?.pointmap ?? null,
+            normals: sideCrossModal?.modalityQa?.normals ?? null,
+            crossModal: sideCrossModal ?? null,
+          },
+        };
+        notifyBodyEvidenceChange();
+      }
+    } catch (err) {
+      if (sessionId === currentAnalysisSessionId) {
+        console.warn('[REVacity] Dense Evidence QA async evaluation error:', err);
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    error: null,
+    result: qaResult,
+    denseQa: denseEvidenceQa,
+  };
+}
+
 export function clearBodyEvidence() {
   sources = emptySources();
   currentPackage = null;
   qaResult = null;
+  denseEvidenceQa = null;
+  currentAnalysisSessionId += 1;
   lastError = null;
   overlayVisible = false;
   secondaryCandidatesVisible = false;
@@ -1068,6 +1236,77 @@ function exportNormalsSummary(normals) {
   };
 }
 
+function exportDenseQaSummary(viewDenseQa) {
+  if (!viewDenseQa) {
+    return null;
+  }
+  return {
+    pointmap: viewDenseQa.pointmap ? {
+      contract: viewDenseQa.pointmap.contract,
+      view: viewDenseQa.pointmap.view,
+      availability: viewDenseQa.pointmap.availability,
+      status: viewDenseQa.pointmap.status,
+      structure: viewDenseQa.pointmap.structure ? { ...viewDenseQa.pointmap.structure } : null,
+      numeric: viewDenseQa.pointmap.numeric ? {
+        elements: { ...viewDenseQa.pointmap.numeric.elements },
+        channels: (viewDenseQa.pointmap.numeric.channels ?? []).map((c) => ({ ...c })),
+        vectors: { ...viewDenseQa.pointmap.numeric.vectors },
+      } : null,
+      declarations: viewDenseQa.pointmap.declarations ? { ...viewDenseQa.pointmap.declarations } : null,
+      issues: [...(viewDenseQa.pointmap.issues ?? [])],
+      warnings: [...(viewDenseQa.pointmap.warnings ?? [])],
+    } : null,
+    normals: viewDenseQa.normals ? {
+      contract: viewDenseQa.normals.contract,
+      view: viewDenseQa.normals.view,
+      availability: viewDenseQa.normals.availability,
+      status: viewDenseQa.normals.status,
+      structure: viewDenseQa.normals.structure ? { ...viewDenseQa.normals.structure } : null,
+      numeric: viewDenseQa.normals.numeric ? {
+        elements: { ...viewDenseQa.normals.numeric.elements },
+        channels: (viewDenseQa.normals.numeric.channels ?? []).map((c) => ({ ...c })),
+        vectors: { ...viewDenseQa.normals.numeric.vectors },
+        magnitude: viewDenseQa.normals.numeric.magnitude ? { ...viewDenseQa.normals.numeric.magnitude } : null,
+      } : null,
+      declaredRangeQa: viewDenseQa.normals.declaredRangeQa ? { ...viewDenseQa.normals.declaredRangeQa } : null,
+      semantics: viewDenseQa.normals.semantics ? { ...viewDenseQa.normals.semantics } : null,
+      issues: [...(viewDenseQa.normals.issues ?? [])],
+      warnings: [...(viewDenseQa.normals.warnings ?? [])],
+    } : null,
+    crossModal: viewDenseQa.crossModal ? {
+      contract: viewDenseQa.crossModal.contract,
+      view: viewDenseQa.crossModal.view,
+      status: viewDenseQa.crossModal.status,
+      availability: { ...viewDenseQa.crossModal.availability },
+      rasterCompatibility: { ...viewDenseQa.crossModal.rasterCompatibility },
+      pixelAddressing: { ...viewDenseQa.crossModal.pixelAddressing },
+      masks: viewDenseQa.crossModal.masks ? {
+        background: viewDenseQa.crossModal.masks.background ? {
+          pixelCount: viewDenseQa.crossModal.masks.background.pixelCount,
+          pointmap: viewDenseQa.crossModal.masks.background.pointmap ? { ...viewDenseQa.crossModal.masks.background.pointmap } : null,
+          normals: viewDenseQa.crossModal.masks.background.normals ? { ...viewDenseQa.crossModal.masks.background.normals } : null,
+          joint: viewDenseQa.crossModal.masks.background.joint ? { ...viewDenseQa.crossModal.masks.background.joint } : null,
+        } : null,
+        nonBackground: viewDenseQa.crossModal.masks.nonBackground ? {
+          pixelCount: viewDenseQa.crossModal.masks.nonBackground.pixelCount,
+          pointmap: viewDenseQa.crossModal.masks.nonBackground.pointmap ? { ...viewDenseQa.crossModal.masks.nonBackground.pointmap } : null,
+          normals: viewDenseQa.crossModal.masks.nonBackground.normals ? { ...viewDenseQa.crossModal.masks.nonBackground.normals } : null,
+          joint: viewDenseQa.crossModal.masks.nonBackground.joint ? { ...viewDenseQa.crossModal.masks.nonBackground.joint } : null,
+        } : null,
+        bodyAnatomical: viewDenseQa.crossModal.masks.bodyAnatomical ? {
+          pixelCount: viewDenseQa.crossModal.masks.bodyAnatomical.pixelCount,
+          pointmap: viewDenseQa.crossModal.masks.bodyAnatomical.pointmap ? { ...viewDenseQa.crossModal.masks.bodyAnatomical.pointmap } : null,
+          normals: viewDenseQa.crossModal.masks.bodyAnatomical.normals ? { ...viewDenseQa.crossModal.masks.bodyAnatomical.normals } : null,
+          joint: viewDenseQa.crossModal.masks.bodyAnatomical.joint ? { ...viewDenseQa.crossModal.masks.bodyAnatomical.joint } : null,
+        } : null,
+      } : null,
+      semantics: { ...viewDenseQa.crossModal.semantics },
+      issues: [...(viewDenseQa.crossModal.issues ?? [])],
+      warnings: [...(viewDenseQa.crossModal.warnings ?? [])],
+    } : null,
+  };
+}
+
 /**
  * Build a diagnostic Body Evidence JSON payload from the analyzed QA result.
  * Excludes raw uploaded sources, images, and segmentation mask/base64 payloads.
@@ -1104,14 +1343,20 @@ export function buildBodyEvidenceExport(exportedAt = new Date()) {
         segmentation: frontSeg,
         pointmap: exportPointmapSummary(currentPackage?.front?.pointmap),
         normals: exportNormalsSummary(currentPackage?.front?.normals),
+        denseQa: exportDenseQaSummary(denseEvidenceQa?.front),
       },
       side: {
         pose: exportPoseView(qaResult.views.side.pose),
         segmentation: sideSeg,
         pointmap: exportPointmapSummary(currentPackage?.side?.pointmap),
         normals: exportNormalsSummary(currentPackage?.side?.normals),
+        denseQa: exportDenseQaSummary(denseEvidenceQa?.side),
       },
     },
+    denseQa: denseEvidenceQa ? {
+      front: exportDenseQaSummary(denseEvidenceQa.front),
+      side: exportDenseQaSummary(denseEvidenceQa.side),
+    } : null,
     qa: {
       totalLandmarks: qaResult.qa.totalLandmarks,
       acceptedBodyLandmarks: qaResult.qa.acceptedBodyLandmarks,

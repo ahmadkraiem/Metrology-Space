@@ -620,7 +620,7 @@ export function normalizePointmapEvidence(rawPointmap, {
 
   const directLoader = typeof rawPointmap.loadDenseBuffer === 'function'
     ? rawPointmap.loadDenseBuffer
-    : null;
+    : (typeof rawPointmap.getDenseData === 'function' ? rawPointmap.getDenseData : null);
 
   let cachedDense = null;
   const getDenseData = async ({ cache = false } = {}) => {
@@ -848,7 +848,7 @@ export function normalizeNormalsEvidence(rawNormals, {
 
   const directLoader = typeof rawNormals.loadDenseBuffer === 'function'
     ? rawNormals.loadDenseBuffer
-    : null;
+    : (typeof rawNormals.getDenseData === 'function' ? rawNormals.getDenseData : null);
 
   let cachedDense = null;
   const getDenseData = async ({ cache = false } = {}) => {
