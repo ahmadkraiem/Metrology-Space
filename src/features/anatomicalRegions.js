@@ -45,11 +45,22 @@ export const ANATOMICAL_REGION_STATUS = Object.freeze({
 });
 
 /**
+ * Laterality definitions for anatomical regions.
+ * @readonly
+ * @enum {string}
+ */
+export const ANATOMICAL_REGION_LATERALITY = Object.freeze({
+  LEFT: 'left',
+  RIGHT: 'right',
+  CENTRAL: 'central',
+});
+
+/**
  * Canonical 29-Class Segmentation Ontology Definition (v0).
  * Exact class ID ordering 0..28 from runtime segmentation inputs.
  *
  * Partition counts:
- * - body_anatomical: 13
+ * - body_anatomical: 13 (6 left, 6 right, 1 central)
  * - clothing_apparel: 7
  * - face_head: 7
  * - accessory_other: 1
@@ -61,6 +72,7 @@ export const ANATOMICAL_REGION_STATUS = Object.freeze({
  *   label: string,
  *   regionId: string,
  *   category: 'body_anatomical'|'clothing_apparel'|'face_head'|'accessory_other'|'context_background',
+ *   laterality: 'left'|'right'|'central',
  *   isBodyMetrologyEligible: boolean,
  * }>}
  */
@@ -70,6 +82,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Background',
     regionId: 'background',
     category: ANATOMICAL_REGION_CATEGORIES.CONTEXT_BACKGROUND,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -77,6 +90,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Apparel',
     regionId: 'apparel',
     category: ANATOMICAL_REGION_CATEGORIES.CLOTHING_APPAREL,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -84,6 +98,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Eyeglass',
     regionId: 'eyeglass',
     category: ANATOMICAL_REGION_CATEGORIES.ACCESSORY_OTHER,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -91,6 +106,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Face_Neck',
     regionId: 'face_neck',
     category: ANATOMICAL_REGION_CATEGORIES.FACE_HEAD,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -98,6 +114,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Hair',
     regionId: 'hair',
     category: ANATOMICAL_REGION_CATEGORIES.FACE_HEAD,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -105,6 +122,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Left_Foot',
     regionId: 'left_foot',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.LEFT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -112,6 +130,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Left_Hand',
     regionId: 'left_hand',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.LEFT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -119,6 +138,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Left_Lower_Arm',
     regionId: 'left_lower_arm',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.LEFT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -126,6 +146,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Left_Lower_Leg',
     regionId: 'left_lower_leg',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.LEFT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -133,6 +154,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Left_Shoe',
     regionId: 'left_shoe',
     category: ANATOMICAL_REGION_CATEGORIES.CLOTHING_APPAREL,
+    laterality: ANATOMICAL_REGION_LATERALITY.LEFT,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -140,6 +162,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Left_Sock',
     regionId: 'left_sock',
     category: ANATOMICAL_REGION_CATEGORIES.CLOTHING_APPAREL,
+    laterality: ANATOMICAL_REGION_LATERALITY.LEFT,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -147,6 +170,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Left_Upper_Arm',
     regionId: 'left_upper_arm',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.LEFT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -154,6 +178,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Left_Upper_Leg',
     regionId: 'left_upper_leg',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.LEFT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -161,6 +186,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Lower_Clothing',
     regionId: 'lower_clothing',
     category: ANATOMICAL_REGION_CATEGORIES.CLOTHING_APPAREL,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -168,6 +194,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Right_Foot',
     regionId: 'right_foot',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.RIGHT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -175,6 +202,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Right_Hand',
     regionId: 'right_hand',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.RIGHT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -182,6 +210,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Right_Lower_Arm',
     regionId: 'right_lower_arm',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.RIGHT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -189,6 +218,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Right_Lower_Leg',
     regionId: 'right_lower_leg',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.RIGHT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -196,6 +226,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Right_Shoe',
     regionId: 'right_shoe',
     category: ANATOMICAL_REGION_CATEGORIES.CLOTHING_APPAREL,
+    laterality: ANATOMICAL_REGION_LATERALITY.RIGHT,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -203,6 +234,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Right_Sock',
     regionId: 'right_sock',
     category: ANATOMICAL_REGION_CATEGORIES.CLOTHING_APPAREL,
+    laterality: ANATOMICAL_REGION_LATERALITY.RIGHT,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -210,6 +242,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Right_Upper_Arm',
     regionId: 'right_upper_arm',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.RIGHT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -217,6 +250,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Right_Upper_Leg',
     regionId: 'right_upper_leg',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.RIGHT,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -224,6 +258,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Torso',
     regionId: 'torso',
     category: ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: true,
   }),
   Object.freeze({
@@ -231,6 +266,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Upper_Clothing',
     regionId: 'upper_clothing',
     category: ANATOMICAL_REGION_CATEGORIES.CLOTHING_APPAREL,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -238,6 +274,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Lower_Lip',
     regionId: 'lower_lip',
     category: ANATOMICAL_REGION_CATEGORIES.FACE_HEAD,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -245,6 +282,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Upper_Lip',
     regionId: 'upper_lip',
     category: ANATOMICAL_REGION_CATEGORIES.FACE_HEAD,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -252,6 +290,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Lower_Teeth',
     regionId: 'lower_teeth',
     category: ANATOMICAL_REGION_CATEGORIES.FACE_HEAD,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -259,6 +298,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Upper_Teeth',
     regionId: 'upper_teeth',
     category: ANATOMICAL_REGION_CATEGORIES.FACE_HEAD,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
   Object.freeze({
@@ -266,6 +306,7 @@ export const CANONICAL_SEGMENTATION_CLASSES_V0 = Object.freeze([
     label: 'Tongue',
     regionId: 'tongue',
     category: ANATOMICAL_REGION_CATEGORIES.FACE_HEAD,
+    laterality: ANATOMICAL_REGION_LATERALITY.CENTRAL,
     isBodyMetrologyEligible: false,
   }),
 ]);
@@ -330,6 +371,16 @@ export function getCanonicalSegmentationClass(classIdOrLabel) {
 }
 
 /**
+ * Look up authoritative laterality for a canonical class ID or label string.
+ * @param {number|string} classIdOrLabel
+ * @returns {'left'|'right'|'central'|null}
+ */
+export function getCanonicalRegionLaterality(classIdOrLabel) {
+  const canonical = getCanonicalSegmentationClass(classIdOrLabel);
+  return canonical?.laterality ?? null;
+}
+
+/**
  * Validates a 2D pixel bounding box object.
  * @param {unknown} bounds
  * @returns {{ minX: number, minY: number, maxX: number, maxY: number }|null}
@@ -364,10 +415,10 @@ function sanitizeBoundsNormalized(bounds) {
   if (!bounds || typeof bounds !== 'object') {
     return null;
   }
-  const minX = bounds.minX;
-  const minY = bounds.minY;
-  const maxX = bounds.maxX;
-  const maxY = bounds.maxY;
+  const minX = bounds.minX ?? bounds.minU;
+  const minY = bounds.minY ?? bounds.minV;
+  const maxX = bounds.maxX ?? bounds.maxU;
+  const maxY = bounds.maxY ?? bounds.maxV;
   if (
     typeof minX === 'number' && Number.isFinite(minX)
     && typeof minY === 'number' && Number.isFinite(minY)
@@ -583,6 +634,7 @@ export function buildObservedAnatomicalRegions(normalizedSegmentation, { view, w
       regionId: canonical.regionId,
       label: canonical.label,
       category: canonical.category,
+      laterality: canonical.laterality,
       view: resolvedView,
       classId: canonical.classId,
       present,

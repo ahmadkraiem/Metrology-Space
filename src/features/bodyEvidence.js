@@ -20,6 +20,9 @@ import {
 import {
   evaluateSameViewDenseCrossModalQa,
 } from './denseEvidenceQa.js';
+import {
+  buildAnatomicalRegionEvidence,
+} from './anatomicalRegionEvidence.js';
 import { ROOM_SIZE } from '../core/constants.js';
 import { FRONT_SURFACE_DEPTH_CM, frontSurfaceTo3d, isOnFrontSurface } from '../core/frontSurface.js';
 import { addAnnotationFromPoint, getAnnotations } from './annotations.js';
@@ -946,6 +949,61 @@ export function getFrontDenseEvidenceQa() {
  */
 export function getSideDenseEvidenceQa() {
   return denseEvidenceQa?.side ?? null;
+}
+
+/**
+ * Access Front Anatomical Region Evidence report from current runtime state.
+ * @returns {object|null}
+ */
+export function getFrontAnatomicalRegionEvidence() {
+  const seg = qaResult?.views?.front?.segmentation ?? currentPackage?.front?.segmentation;
+  if (!seg) {
+    return null;
+  }
+  const dense = denseEvidenceQa?.front;
+  return buildAnatomicalRegionEvidence(seg, {
+    view: 'front',
+    denseQa: dense,
+    crossModalQa: dense?.crossModal,
+    pointmap: currentPackage?.front?.pointmap,
+    normals: currentPackage?.front?.normals,
+    widthPx: seg.widthPx,
+    heightPx: seg.heightPx,
+  });
+}
+
+/**
+ * Access Side Anatomical Region Evidence report from current runtime state.
+ * @returns {object|null}
+ */
+export function getSideAnatomicalRegionEvidence() {
+  const seg = qaResult?.views?.side?.segmentation ?? currentPackage?.side?.segmentation;
+  if (!seg) {
+    return null;
+  }
+  const dense = denseEvidenceQa?.side;
+  return buildAnatomicalRegionEvidence(seg, {
+    view: 'side',
+    denseQa: dense,
+    crossModalQa: dense?.crossModal,
+    pointmap: currentPackage?.side?.pointmap,
+    normals: currentPackage?.side?.normals,
+    widthPx: seg.widthPx,
+    heightPx: seg.heightPx,
+  });
+}
+
+/**
+ * Access combined Front and Side Anatomical Region Evidence reports.
+ * @returns {{ front: object|null, side: object|null }|null}
+ */
+export function getAnatomicalRegionEvidence() {
+  const front = getFrontAnatomicalRegionEvidence();
+  const side = getSideAnatomicalRegionEvidence();
+  if (!front && !side) {
+    return null;
+  }
+  return { front, side };
 }
 
 export function analyzeLoadedBodyEvidence() {
