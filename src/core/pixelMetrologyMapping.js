@@ -574,3 +574,57 @@ export function pixelColumnSpanToFrontMetrology(
     boundsCm: { minX, maxX },
   };
 }
+
+/**
+ * Maps a discrete horizontal pixel column span [startCol, endCol] (inclusive) into Side Metrology coordinates.
+ *
+ * Outer pixel edges:
+ *   minU = startCol / widthPx
+ *   maxU = (endCol + 1) / widthPx
+ *   minU_cm = (startCol / widthPx) * workspaceExtentCm
+ *   maxU_cm = ((endCol + 1) / widthPx) * workspaceExtentCm
+ *
+ * @param {number} startCol
+ * @param {number} endCol
+ * @param {number} widthPx
+ * @param {number} [workspaceExtentCm]
+ * @returns {{
+ *   boundsNormalized: { minU: number, maxU: number },
+ *   boundsCm: { minU: number, maxU: number },
+ * }|null}
+ */
+export function pixelColumnSpanToSideMetrology(
+  startCol,
+  endCol,
+  widthPx,
+  workspaceExtentCm = DEFAULT_WORKSPACE_EXTENT_CM,
+) {
+  if (
+    typeof startCol !== 'number'
+    || !Number.isFinite(startCol)
+    || !Number.isInteger(startCol)
+    || typeof endCol !== 'number'
+    || !Number.isFinite(endCol)
+    || !Number.isInteger(endCol)
+    || typeof widthPx !== 'number'
+    || !Number.isFinite(widthPx)
+    || widthPx <= 0
+    || !Number.isInteger(widthPx)
+    || startCol < 0
+    || endCol >= widthPx
+    || startCol > endCol
+  ) {
+    return null;
+  }
+
+  const minU = startCol / widthPx;
+  const maxU = (endCol + 1) / widthPx;
+  const minU_cm = (startCol * workspaceExtentCm) / widthPx;
+  const maxU_cm = ((endCol + 1) * workspaceExtentCm) / widthPx;
+
+  return {
+    boundsNormalized: { minU, maxU },
+    boundsCm: { minU: minU_cm, maxU: maxU_cm },
+  };
+}
+

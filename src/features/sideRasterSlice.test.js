@@ -2,31 +2,31 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  FRONT_HORIZONTAL_RASTER_SLICE_CONTRACT,
-  FRONT_HORIZONTAL_RASTER_SLICE_CONTRACT_VERSION,
-  FRONT_RASTER_SLICE_POLICIES,
-  sampleFrontHorizontalRasterSlice,
-} from './frontRasterSlice.js';
+  SIDE_HORIZONTAL_RASTER_SLICE_CONTRACT,
+  SIDE_HORIZONTAL_RASTER_SLICE_CONTRACT_VERSION,
+  SIDE_RASTER_SLICE_POLICIES,
+  sampleSideHorizontalRasterSlice,
+} from './sideRasterSlice.js';
 import {
   canonicalYToPixelRow,
-  pixelColumnSpanToFrontMetrology,
+  pixelColumnSpanToSideMetrology,
 } from '../core/pixelMetrologyMapping.js';
 import {
   BODY_ANATOMICAL_CLASS_IDS,
   CANONICAL_SEGMENTATION_CLASSES_V0,
 } from './anatomicalRegions.js';
 
-test('Front Horizontal Raster Slice Contract v0 exports contract metadata and authoritative policies', () => {
-  assert.equal(FRONT_HORIZONTAL_RASTER_SLICE_CONTRACT, 'front-horizontal-raster-slice-v0');
-  assert.equal(FRONT_HORIZONTAL_RASTER_SLICE_CONTRACT_VERSION, 'front-horizontal-raster-slice-v0');
+test('Side Horizontal Raster Slice Contract v0 exports contract metadata and authoritative policies', () => {
+  assert.equal(SIDE_HORIZONTAL_RASTER_SLICE_CONTRACT, 'side-horizontal-raster-slice-v0');
+  assert.equal(SIDE_HORIZONTAL_RASTER_SLICE_CONTRACT_VERSION, 'side-horizontal-raster-slice-v0');
 
-  assert.deepEqual(FRONT_RASTER_SLICE_POLICIES.TORSO_ONLY, [22]);
-  assert.deepEqual(FRONT_RASTER_SLICE_POLICIES.BODY_ANATOMICAL, Array.from(BODY_ANATOMICAL_CLASS_IDS));
-  assert.equal(FRONT_RASTER_SLICE_POLICIES.BODY_ANATOMICAL.length, 13);
-  assert.deepEqual(FRONT_RASTER_SLICE_POLICIES.BODY_ANATOMICAL, [5, 6, 7, 8, 11, 12, 14, 15, 16, 17, 20, 21, 22]);
+  assert.deepEqual(SIDE_RASTER_SLICE_POLICIES.TORSO_ONLY, [22]);
+  assert.deepEqual(SIDE_RASTER_SLICE_POLICIES.BODY_ANATOMICAL, Array.from(BODY_ANATOMICAL_CLASS_IDS));
+  assert.equal(SIDE_RASTER_SLICE_POLICIES.BODY_ANATOMICAL.length, 13);
+  assert.deepEqual(SIDE_RASTER_SLICE_POLICIES.BODY_ANATOMICAL, [5, 6, 7, 8, 11, 12, 14, 15, 16, 17, 20, 21, 22]);
 
   // Prove BODY_ANATOMICAL excludes apparel, face/head, accessory, and background classes
-  const bodyClassSet = new Set(FRONT_RASTER_SLICE_POLICIES.BODY_ANATOMICAL);
+  const bodyClassSet = new Set(SIDE_RASTER_SLICE_POLICIES.BODY_ANATOMICAL);
   const backgroundClasses = CANONICAL_SEGMENTATION_CLASSES_V0.filter((c) => c.category === 'context_background').map((c) => c.classId);
   const apparelClasses = CANONICAL_SEGMENTATION_CLASSES_V0.filter((c) => c.category === 'clothing_apparel').map((c) => c.classId);
   const faceHeadClasses = CANONICAL_SEGMENTATION_CLASSES_V0.filter((c) => c.category === 'face_head').map((c) => c.classId);
@@ -43,8 +43,8 @@ test('Front Horizontal Raster Slice Contract v0 exports contract metadata and au
   assert.ok(accessoryClasses.every((id) => !bodyClassSet.has(id)));
 
   const expectedForeground = CANONICAL_SEGMENTATION_CLASSES_V0.filter((c) => c.classId !== 0).map((c) => c.classId);
-  assert.deepEqual(FRONT_RASTER_SLICE_POLICIES.FOREGROUND, expectedForeground);
-  assert.equal(FRONT_RASTER_SLICE_POLICIES.FOREGROUND.length, 28);
+  assert.deepEqual(SIDE_RASTER_SLICE_POLICIES.FOREGROUND, expectedForeground);
+  assert.equal(SIDE_RASTER_SLICE_POLICIES.FOREGROUND.length, 28);
 });
 
 test('canonicalYToPixelRow maps vertical heights to image pixel rows correctly with exact boundary handling', () => {
@@ -81,27 +81,27 @@ test('canonicalYToPixelRow maps vertical heights to image pixel rows correctly w
   assert.equal(canonicalYToPixelRow(Infinity, heightPx, 200), null);
 });
 
-test('pixelColumnSpanToFrontMetrology computes exact normalized and metric X bounds', () => {
+test('pixelColumnSpanToSideMetrology computes exact normalized and metric U bounds', () => {
   const widthPx = 2000;
 
   // Single pixel column [500, 500]
-  const single = pixelColumnSpanToFrontMetrology(500, 500, widthPx, 200);
+  const single = pixelColumnSpanToSideMetrology(500, 500, widthPx, 200);
   assert.ok(single);
   assert.equal(single.boundsNormalized.minU, 500 / 2000); // 0.25
   assert.equal(single.boundsNormalized.maxU, 501 / 2000); // 0.2505
-  assert.equal(single.boundsCm.minX, 50.0); // 500 / 2000 * 200
-  assert.equal(single.boundsCm.maxX, 50.1); // 501 / 2000 * 200
+  assert.equal(single.boundsCm.minU, 50.0); // 500 / 2000 * 200
+  assert.equal(single.boundsCm.maxU, 50.1); // 501 / 2000 * 200
 
   // Multi-column span [200, 799] (600 pixels)
-  const span = pixelColumnSpanToFrontMetrology(200, 799, widthPx, 200);
+  const span = pixelColumnSpanToSideMetrology(200, 799, widthPx, 200);
   assert.ok(span);
   assert.equal(span.boundsNormalized.minU, 0.1); // 200 / 2000
   assert.equal(span.boundsNormalized.maxU, 0.4); // 800 / 2000
-  assert.equal(span.boundsCm.minX, 20.0); // 200 / 2000 * 200
-  assert.equal(span.boundsCm.maxX, 80.0); // 800 / 2000 * 200
+  assert.equal(span.boundsCm.minU, 20.0); // 200 / 2000 * 200
+  assert.equal(span.boundsCm.maxU, 80.0); // 800 / 2000 * 200
 });
 
-test('detects a single contiguous horizontal run on a sampled raster row', () => {
+test('detects a single contiguous horizontal run on a sampled Side raster row', () => {
   const widthPx = 10;
   const heightPx = 4;
   // 4 rows of 10 pixels: row 1 (yCm = 150) has Torso (22) from col 3 to 6
@@ -112,15 +112,15 @@ test('detects a single contiguous horizontal run on a sampled raster row', () =>
   }
 
   // yCm = 150 maps to normalizedV = (200 - 150)/200 = 0.25 -> row 0.25 * 4 = 1
-  const result = sampleFrontHorizontalRasterSlice(raster, {
+  const result = sampleSideHorizontalRasterSlice(raster, {
     widthPx,
     heightPx,
     yCm: 150,
-    targetClassIds: FRONT_RASTER_SLICE_POLICIES.TORSO_ONLY,
+    targetClassIds: SIDE_RASTER_SLICE_POLICIES.TORSO_ONLY,
   });
 
-  assert.equal(result.contract, 'front-horizontal-raster-slice-v0');
-  assert.equal(result.view, 'front');
+  assert.equal(result.contract, 'side-horizontal-raster-slice-v0');
+  assert.equal(result.view, 'side');
   assert.equal(result.requestedYcm, 150);
   assert.equal(result.sampledRow, 1);
   assert.equal(result.rowNormalizedV, 0.25);
@@ -135,8 +135,8 @@ test('detects a single contiguous horizontal run on a sampled raster row', () =>
   assert.equal(run.pixelCount, 4);
   assert.equal(run.boundsNormalized.minU, 0.3); // 3 / 10
   assert.equal(run.boundsNormalized.maxU, 0.7); // 7 / 10
-  assert.equal(run.boundsCm.minX, 60.0); // 3 / 10 * 200
-  assert.equal(run.boundsCm.maxX, 140.0); // 7 / 10 * 200
+  assert.equal(run.boundsCm.minU, 60.0); // 3 / 10 * 200
+  assert.equal(run.boundsCm.maxU, 140.0); // 7 / 10 * 200
 });
 
 test('detects multiple separated runs without implicit merging or filtering', () => {
@@ -149,36 +149,36 @@ test('detects multiple separated runs without implicit merging or filtering', ()
   for (let c = 16; c <= 18; c += 1) raster[c] = 20;
 
   // yCm = 200 maps to row 0
-  const result = sampleFrontHorizontalRasterSlice(raster, {
+  const result = sampleSideHorizontalRasterSlice(raster, {
     widthPx,
     heightPx,
     yCm: 200,
-    targetClassIds: FRONT_RASTER_SLICE_POLICIES.BODY_ANATOMICAL,
+    targetClassIds: SIDE_RASTER_SLICE_POLICIES.BODY_ANATOMICAL,
   });
 
   assert.equal(result.summary.runCount, 3);
   assert.equal(result.summary.totalMatchedPixels, 3 + 5 + 3); // 11
 
-  // Run 1: Left arm
+  // Run 1: Left arm / limb
   assert.equal(result.runs[0].startCol, 2);
   assert.equal(result.runs[0].endCol, 4);
   assert.equal(result.runs[0].pixelCount, 3);
-  assert.equal(result.runs[0].boundsCm.minX, 20.0); // 2/20 * 200
-  assert.equal(result.runs[0].boundsCm.maxX, 50.0); // 5/20 * 200
+  assert.equal(result.runs[0].boundsCm.minU, 20.0); // 2/20 * 200
+  assert.equal(result.runs[0].boundsCm.maxU, 50.0); // 5/20 * 200
 
   // Run 2: Torso
   assert.equal(result.runs[1].startCol, 8);
   assert.equal(result.runs[1].endCol, 12);
   assert.equal(result.runs[1].pixelCount, 5);
-  assert.equal(result.runs[1].boundsCm.minX, 80.0); // 8/20 * 200
-  assert.equal(result.runs[1].boundsCm.maxX, 130.0); // 13/20 * 200
+  assert.equal(result.runs[1].boundsCm.minU, 80.0); // 8/20 * 200
+  assert.equal(result.runs[1].boundsCm.maxU, 130.0); // 13/20 * 200
 
-  // Run 3: Right arm
+  // Run 3: Right arm / limb
   assert.equal(result.runs[2].startCol, 16);
   assert.equal(result.runs[2].endCol, 18);
   assert.equal(result.runs[2].pixelCount, 3);
-  assert.equal(result.runs[2].boundsCm.minX, 160.0); // 16/20 * 200
-  assert.equal(result.runs[2].boundsCm.maxX, 190.0); // 19/20 * 200
+  assert.equal(result.runs[2].boundsCm.minU, 160.0); // 16/20 * 200
+  assert.equal(result.runs[2].boundsCm.maxU, 190.0); // 19/20 * 200
 });
 
 test('handles no matching pixels on sampled row cleanly with runCount 0', () => {
@@ -186,11 +186,11 @@ test('handles no matching pixels on sampled row cleanly with runCount 0', () => 
   const heightPx = 2;
   const raster = new Uint8Array(20); // all 0 (Background)
 
-  const result = sampleFrontHorizontalRasterSlice(raster, {
+  const result = sampleSideHorizontalRasterSlice(raster, {
     widthPx,
     heightPx,
     yCm: 100,
-    targetClassIds: FRONT_RASTER_SLICE_POLICIES.TORSO_ONLY,
+    targetClassIds: SIDE_RASTER_SLICE_POLICIES.TORSO_ONLY,
   });
 
   assert.equal(result.sampledRow, 1);
@@ -205,7 +205,7 @@ test('handles out-of-range yCm without silent clamping or scanning', () => {
   const heightPx = 2;
   const raster = new Uint8Array(20);
 
-  const resBelow = sampleFrontHorizontalRasterSlice(raster, {
+  const resBelow = sampleSideHorizontalRasterSlice(raster, {
     widthPx,
     heightPx,
     yCm: -10,
@@ -216,7 +216,7 @@ test('handles out-of-range yCm without silent clamping or scanning', () => {
   assert.equal(resBelow.summary.runCount, 0);
   assert.ok(resBelow.issues.some((i) => i.includes('outside valid metrology domain')));
 
-  const resAbove = sampleFrontHorizontalRasterSlice(raster, {
+  const resAbove = sampleSideHorizontalRasterSlice(raster, {
     widthPx,
     heightPx,
     yCm: 250,
@@ -229,7 +229,7 @@ test('handles out-of-range yCm without silent clamping or scanning', () => {
 
 test('handles missing or invalid inputs gracefully', () => {
   // Missing raster
-  const resNoRaster = sampleFrontHorizontalRasterSlice(null, {
+  const resNoRaster = sampleSideHorizontalRasterSlice(null, {
     widthPx: 10,
     heightPx: 10,
     yCm: 100,
@@ -239,7 +239,7 @@ test('handles missing or invalid inputs gracefully', () => {
   assert.ok(resNoRaster.issues.some((i) => i.includes('Invalid or missing raster buffer')));
 
   // Invalid dimensions
-  const resBadDim = sampleFrontHorizontalRasterSlice(new Uint8Array(10), {
+  const resBadDim = sampleSideHorizontalRasterSlice(new Uint8Array(10), {
     widthPx: -1,
     heightPx: 0,
     yCm: 100,
@@ -249,7 +249,7 @@ test('handles missing or invalid inputs gracefully', () => {
   assert.ok(resBadDim.issues.some((i) => i.includes('Invalid raster dimensions')));
 
   // Empty targetClassIds
-  const resNoClasses = sampleFrontHorizontalRasterSlice(new Uint8Array(100), {
+  const resNoClasses = sampleSideHorizontalRasterSlice(new Uint8Array(100), {
     widthPx: 10,
     heightPx: 10,
     yCm: 100,
@@ -265,7 +265,7 @@ test('does not mutate input raster buffer', () => {
   const raster = new Uint8Array([0, 22, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
   const copy = new Uint8Array(raster);
 
-  sampleFrontHorizontalRasterSlice(raster, {
+  sampleSideHorizontalRasterSlice(raster, {
     widthPx,
     heightPx,
     yCm: 180,
@@ -275,11 +275,11 @@ test('does not mutate input raster buffer', () => {
   assert.deepEqual(raster, copy);
 });
 
-test('bodyEvidence.js getFrontHorizontalRasterSlice integrates with active Front runtime state', async () => {
+test('bodyEvidence.js getSideHorizontalRasterSlice integrates with active Side runtime state', async () => {
   const {
     setBodyEvidencePackage,
     analyzeLoadedBodyEvidenceAsync,
-    getFrontHorizontalRasterSlice,
+    getSideHorizontalRasterSlice,
   } = await import('./bodyEvidence.js');
   const { buildBodyEvidencePackage } = await import('./bodyEvidencePackage.js');
 
@@ -293,7 +293,7 @@ test('bodyEvidence.js getFrontHorizontalRasterSlice integrates with active Front
 
   // 4x4 image
   // Row 1 (yCm = 150): [0, 22, 22, 0]
-  const rasterFront = new Uint8Array([
+  const rasterSide = new Uint8Array([
     0, 0, 0, 0,
     0, 22, 22, 0,
     0, 22, 22, 0,
@@ -305,14 +305,14 @@ test('bodyEvidence.js getFrontHorizontalRasterSlice integrates with active Front
   classNames[22] = 'Torso';
 
   const pkg = buildBodyEvidencePackage({
-    front: {
+    side: {
       segmentation: {
         model: 'schp',
-        view: 'front',
+        view: 'side',
         num_classes: 29,
         class_names: classNames,
         class_counts: { Background: 12, Torso: 4 },
-        labels: { shape: [4, 4], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+        labels: { shape: [4, 4], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterSide) },
       },
     },
   });
@@ -322,22 +322,23 @@ test('bodyEvidence.js getFrontHorizontalRasterSlice integrates with active Front
   assert.equal(res.ok, true);
 
   // yCm = 150 -> row 1
-  const slice = getFrontHorizontalRasterSlice({
+  const slice = getSideHorizontalRasterSlice({
     yCm: 150,
-    targetClassIds: FRONT_RASTER_SLICE_POLICIES.TORSO_ONLY,
+    targetClassIds: SIDE_RASTER_SLICE_POLICIES.TORSO_ONLY,
   });
 
   assert.ok(slice);
-  assert.equal(slice.contract, 'front-horizontal-raster-slice-v0');
+  assert.equal(slice.contract, 'side-horizontal-raster-slice-v0');
+  assert.equal(slice.view, 'side');
   assert.equal(slice.sampledRow, 1);
   assert.equal(slice.summary.runCount, 1);
   assert.equal(slice.summary.totalMatchedPixels, 2);
   assert.equal(slice.runs[0].startCol, 1);
   assert.equal(slice.runs[0].endCol, 2);
-  assert.equal(slice.runs[0].boundsCm.minX, 50.0); // 1/4 * 200
-  assert.equal(slice.runs[0].boundsCm.maxX, 150.0); // 3/4 * 200
+  assert.equal(slice.runs[0].boundsCm.minU, 50.0); // 1/4 * 200
+  assert.equal(slice.runs[0].boundsCm.maxU, 150.0); // 3/4 * 200
 
   // Clear package
   setBodyEvidencePackage(null);
-  assert.equal(getFrontHorizontalRasterSlice({ yCm: 150, targetClassIds: [22] }), null);
+  assert.equal(getSideHorizontalRasterSlice({ yCm: 150, targetClassIds: [22] }), null);
 });

@@ -7,11 +7,14 @@ import {
   PIXEL_METROLOGY_CONTRACT_VERSION,
   boundsPxToFrontMetrology,
   boundsPxToSideMetrology,
+  canonicalYToPixelRow,
   frontMetrologyToImagePoint,
   imagePointToFrontMetrology,
   imagePointToSideMetrology,
   pixelCenterToFrontMetrology,
   pixelCenterToSideMetrology,
+  pixelColumnSpanToFrontMetrology,
+  pixelColumnSpanToSideMetrology,
   sideMetrologyToImagePoint,
   validateBoundsPx,
 } from './pixelMetrologyMapping.js';
@@ -465,3 +468,63 @@ test('Validation: rejects non-positive workspaceExtentCm', () => {
     RangeError,
   );
 });
+
+test('canonicalYToPixelRow: maps canonical vertical heights to discrete image rows and normalized V', () => {
+  const heightPx = 2000;
+
+  // yCm = 200 (top of canonical domain) -> row 0, normalizedV = 0
+  const top = canonicalYToPixelRow(200, heightPx, 200);
+  assert.ok(top);
+  assert.equal(top.row, 0);
+  assert.equal(top.normalizedV, 0);
+
+  // yCm = 0 (bottom of canonical domain) -> row 1999, normalizedV = 1
+  const bottom = canonicalYToPixelRow(0, heightPx, 200);
+  assert.ok(bottom);
+  assert.equal(bottom.row, 1999);
+  assert.equal(bottom.normalizedV, 1);
+
+  // Midpoint yCm = 100 -> row 1000, normalizedV = 0.5
+  const mid = canonicalYToPixelRow(100, heightPx, 200);
+  assert.ok(mid);
+  assert.equal(mid.row, 1000);
+  assert.equal(mid.normalizedV, 0.5);
+
+  // Out of bounds / invalid inputs return null (no silent clamping)
+  assert.equal(canonicalYToPixelRow(-1, heightPx, 200), null);
+  assert.equal(canonicalYToPixelRow(201, heightPx, 200), null);
+  assert.equal(canonicalYToPixelRow(NaN, heightPx, 200), null);
+  assert.equal(canonicalYToPixelRow(Infinity, heightPx, 200), null);
+  assert.equal(canonicalYToPixelRow(100, -10, 200), null);
+  assert.equal(canonicalYToPixelRow(100, 0, 200), null);
+  assert.equal(canonicalYToPixelRow(100, 2000.5, 200), null);
+});
+
+test('pixelColumnSpanToSideMetrology: maps column spans to normalized U and metric U cm bounds', () => {
+  const widthPx = 2000;
+
+  // Single pixel column [500, 500]
+  const single = pixelColumnSpanToSideMetrology(500, 500, widthPx, 200);
+  assert.ok(single);
+  assert.equal(single.boundsNormalized.minU, 500 / 2000); // 0.25
+  assert.equal(single.boundsNormalized.maxU, 501 / 2000); // 0.2505
+  assert.equal(single.boundsCm.minU, 50.0);
+  assert.equal(single.boundsCm.maxU, 50.1);
+
+  // Multi-column span [200, 799] (600 pixels)
+  const span = pixelColumnSpanToSideMetrology(200, 799, widthPx, 200);
+  assert.ok(span);
+  assert.equal(span.boundsNormalized.minU, 0.1);
+  assert.equal(span.boundsNormalized.maxU, 0.4);
+  assert.equal(span.boundsCm.minU, 20.0);
+  assert.equal(span.boundsCm.maxU, 80.0);
+
+  // Invalid spans return null
+  assert.equal(pixelColumnSpanToSideMetrology(-1, 500, widthPx, 200), null);
+  assert.equal(pixelColumnSpanToSideMetrology(500, 2000, widthPx, 200), null);
+  assert.equal(pixelColumnSpanToSideMetrology(600, 500, widthPx, 200), null);
+  assert.equal(pixelColumnSpanToSideMetrology(NaN, 500, widthPx, 200), null);
+  assert.equal(pixelColumnSpanToSideMetrology(500, NaN, widthPx, 200), null);
+  assert.equal(pixelColumnSpanToSideMetrology(500, 500, 0, 200), null);
+});
+

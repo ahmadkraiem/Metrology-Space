@@ -27,6 +27,9 @@ import {
   sampleFrontHorizontalRasterSlice,
 } from './frontRasterSlice.js';
 import {
+  sampleSideHorizontalRasterSlice,
+} from './sideRasterSlice.js';
+import {
   FRONT_TRANSVERSE_WIDTH_CONTRACT_VERSION,
   SUPPORTED_FRONT_TRANSVERSE_WIDTH_DEFINITIONS_V0,
   interpretFrontTransverseWidth,
@@ -1038,6 +1041,32 @@ export function getFrontHorizontalRasterSlice({ yCm, targetClassIds } = {}) {
     return null;
   }
   return sampleFrontHorizontalRasterSlice(raster, {
+    widthPx: seg.widthPx,
+    heightPx: seg.heightPx,
+    yCm,
+    targetClassIds,
+  });
+}
+
+/**
+ * Samples the active Side segmentation raster at a canonical Y height (cm)
+ * for a target set of segmentation class IDs.
+ *
+ * Grounded in canonical fixed 200 cm metrology domain.
+ *
+ * @param {{
+ *   yCm: number,
+ *   targetClassIds: Iterable<number>,
+ * }} options
+ * @returns {object|null}
+ */
+export function getSideHorizontalRasterSlice({ yCm, targetClassIds } = {}) {
+  const raster = getSideSegmentationRaster();
+  const seg = qaResult?.views?.side?.segmentation ?? currentPackage?.side?.segmentation;
+  if (!raster || !seg?.widthPx || !seg?.heightPx) {
+    return null;
+  }
+  return sampleSideHorizontalRasterSlice(raster, {
     widthPx: seg.widthPx,
     heightPx: seg.heightPx,
     yCm,
