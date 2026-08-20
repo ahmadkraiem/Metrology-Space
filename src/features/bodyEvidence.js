@@ -961,6 +961,7 @@ export function getFrontAnatomicalRegionEvidence() {
     return null;
   }
   const dense = denseEvidenceQa?.front;
+  const annotations = getAnnotations();
   return buildAnatomicalRegionEvidence(seg, {
     view: 'front',
     denseQa: dense,
@@ -969,6 +970,7 @@ export function getFrontAnatomicalRegionEvidence() {
     normals: currentPackage?.front?.normals,
     widthPx: seg.widthPx,
     heightPx: seg.heightPx,
+    annotations,
   });
 }
 

@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import {
   ANATOMICAL_REGION_EVIDENCE_CONTRACT,
   ANATOMICAL_REGION_EVIDENCE_CONTRACT_VERSION,
+  AUTHORITATIVE_REGION_LANDMARK_ASSOCIATIONS_V0,
+  AUTHORITATIVE_REGION_LEVEL_ASSOCIATIONS_V0,
   ELIGIBLE_ANATOMICAL_REGION_CLASSES_V0,
   TOTAL_ELIGIBLE_ANATOMICAL_REGIONS_V0,
   buildAnatomicalRegionEvidence,
@@ -430,5 +432,182 @@ test('bodyEvidence.js runtime getters expose Front and Side anatomical region ev
   assert.equal(getSideAnatomicalRegionEvidence(), null);
   assert.equal(getAnatomicalRegionEvidence(), null);
 });
+
+test('authoritative landmark and level association taxonomies cover all 13 regions with adjacent relation', () => {
+  const report = buildAnatomicalRegionEvidence(null, { view: 'front' });
+  assert.equal(report.regions.length, 13);
+
+  // Left Upper Arm (11)
+  const leftUpperArm = report.regions.find((r) => r.classId === 11);
+  assert.deepEqual(
+    leftUpperArm.landmarkAssociations.map((a) => a.landmarkId),
+    ['left_shoulder', 'left_elbow'],
+  );
+  assert.ok(leftUpperArm.landmarkAssociations.every((a) => a.relation === 'adjacent'));
+  assert.deepEqual(
+    leftUpperArm.levelAssociations.map((a) => a.levelId),
+    ['shoulder', 'elbow'],
+  );
+  assert.ok(leftUpperArm.levelAssociations.every((a) => a.relation === 'adjacent'));
+
+  // Right Upper Arm (20)
+  const rightUpperArm = report.regions.find((r) => r.classId === 20);
+  assert.deepEqual(
+    rightUpperArm.landmarkAssociations.map((a) => a.landmarkId),
+    ['right_shoulder', 'right_elbow'],
+  );
+  assert.deepEqual(
+    rightUpperArm.levelAssociations.map((a) => a.levelId),
+    ['shoulder', 'elbow'],
+  );
+
+  // Lower Arms (7 & 16)
+  const leftLowerArm = report.regions.find((r) => r.classId === 7);
+  assert.deepEqual(leftLowerArm.landmarkAssociations.map((a) => a.landmarkId), ['left_elbow', 'left_wrist']);
+  assert.deepEqual(leftLowerArm.levelAssociations.map((a) => a.levelId), ['elbow', 'wrist']);
+
+  const rightLowerArm = report.regions.find((r) => r.classId === 16);
+  assert.deepEqual(rightLowerArm.landmarkAssociations.map((a) => a.landmarkId), ['right_elbow', 'right_wrist']);
+  assert.deepEqual(rightLowerArm.levelAssociations.map((a) => a.levelId), ['elbow', 'wrist']);
+
+  // Hands (6 & 15)
+  const leftHand = report.regions.find((r) => r.classId === 6);
+  assert.deepEqual(leftHand.landmarkAssociations.map((a) => a.landmarkId), ['left_wrist']);
+  assert.deepEqual(leftHand.levelAssociations.map((a) => a.levelId), ['wrist']);
+
+  const rightHand = report.regions.find((r) => r.classId === 15);
+  assert.deepEqual(rightHand.landmarkAssociations.map((a) => a.landmarkId), ['right_wrist']);
+  assert.deepEqual(rightHand.levelAssociations.map((a) => a.levelId), ['wrist']);
+
+  // Upper Legs (12 & 21)
+  const leftUpperLeg = report.regions.find((r) => r.classId === 12);
+  assert.deepEqual(leftUpperLeg.landmarkAssociations.map((a) => a.landmarkId), ['left_hip', 'left_knee']);
+  assert.deepEqual(leftUpperLeg.levelAssociations.map((a) => a.levelId), ['hip', 'knee']);
+
+  const rightUpperLeg = report.regions.find((r) => r.classId === 21);
+  assert.deepEqual(rightUpperLeg.landmarkAssociations.map((a) => a.landmarkId), ['right_hip', 'right_knee']);
+  assert.deepEqual(rightUpperLeg.levelAssociations.map((a) => a.levelId), ['hip', 'knee']);
+
+  // Lower Legs (8 & 17)
+  const leftLowerLeg = report.regions.find((r) => r.classId === 8);
+  assert.deepEqual(leftLowerLeg.landmarkAssociations.map((a) => a.landmarkId), ['left_knee', 'left_ankle']);
+  assert.deepEqual(leftLowerLeg.levelAssociations.map((a) => a.levelId), ['knee', 'ankle']);
+
+  const rightLowerLeg = report.regions.find((r) => r.classId === 17);
+  assert.deepEqual(rightLowerLeg.landmarkAssociations.map((a) => a.landmarkId), ['right_knee', 'right_ankle']);
+  assert.deepEqual(rightLowerLeg.levelAssociations.map((a) => a.levelId), ['knee', 'ankle']);
+
+  // Feet (5 & 14)
+  const leftFoot = report.regions.find((r) => r.classId === 5);
+  assert.deepEqual(leftFoot.landmarkAssociations.map((a) => a.landmarkId), ['left_ankle']);
+  assert.deepEqual(leftFoot.levelAssociations.map((a) => a.levelId), ['ankle']);
+
+  const rightFoot = report.regions.find((r) => r.classId === 14);
+  assert.deepEqual(rightFoot.landmarkAssociations.map((a) => a.landmarkId), ['right_ankle']);
+  assert.deepEqual(rightFoot.levelAssociations.map((a) => a.levelId), ['ankle']);
+
+  // Torso (22)
+  const torso = report.regions.find((r) => r.classId === 22);
+  assert.deepEqual(
+    torso.landmarkAssociations.map((a) => a.landmarkId),
+    ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip'],
+  );
+  assert.deepEqual(
+    torso.levelAssociations.map((a) => a.levelId),
+    ['shoulder', 'hip'],
+  );
+
+  // Explicit check: neck is NOT associated to Torso as confirmed boundary in v0
+  assert.equal(torso.landmarkAssociations.some((a) => a.landmarkId === 'neck'), false);
+  assert.equal(torso.levelAssociations.some((a) => a.levelId === 'neck'), false);
+});
+
+test('evaluates Front landmark availability accurately (present, ambiguous, invalid, missing)', () => {
+  const annotations = [
+    // present: single unique finite coordinate
+    { type: 'body_landmark', name: 'left_shoulder', point: { x: 30, y: 150, z: 200 } },
+    // ambiguous: duplicate promoted annotations
+    { type: 'body_landmark', name: 'left_elbow', point: { x: 25, y: 120, z: 200 } },
+    { type: 'body_landmark', name: 'left_elbow', point: { x: 26, y: 121, z: 200 } },
+    // invalid: non-finite coordinate
+    { type: 'body_landmark', name: 'left_wrist', point: { x: 20, y: NaN, z: 200 } },
+    // missing: left_hip, left_knee, left_ankle etc are not promoted
+  ];
+
+  const report = buildAnatomicalRegionEvidence(null, {
+    view: 'front',
+    annotations,
+  });
+
+  const arm = report.regions.find((r) => r.classId === 11); // Left_Upper_Arm: left_shoulder, left_elbow
+  assert.deepEqual(arm.landmarkAssociations, [
+    { landmarkId: 'left_shoulder', relation: 'adjacent', availability: 'present' },
+    { landmarkId: 'left_elbow', relation: 'adjacent', availability: 'ambiguous' },
+  ]);
+
+  const lowerArm = report.regions.find((r) => r.classId === 7); // Left_Lower_Arm: left_elbow, left_wrist
+  assert.deepEqual(lowerArm.landmarkAssociations, [
+    { landmarkId: 'left_elbow', relation: 'adjacent', availability: 'ambiguous' },
+    { landmarkId: 'left_wrist', relation: 'adjacent', availability: 'invalid' },
+  ]);
+
+  const hand = report.regions.find((r) => r.classId === 6); // Left_Hand: left_wrist
+  assert.deepEqual(hand.landmarkAssociations, [
+    { landmarkId: 'left_wrist', relation: 'adjacent', availability: 'invalid' },
+  ]);
+
+  const leg = report.regions.find((r) => r.classId === 12); // Left_Upper_Leg: left_hip, left_knee
+  assert.deepEqual(leg.landmarkAssociations, [
+    { landmarkId: 'left_hip', relation: 'adjacent', availability: 'missing' },
+    { landmarkId: 'left_knee', relation: 'adjacent', availability: 'missing' },
+  ]);
+});
+
+test('evaluates Anatomical Level statuses accurately (ready, partial, missing) and never promotes partial to ready', () => {
+  const annotations = [
+    // shoulder: bilateral complete -> ready
+    { type: 'body_landmark', name: 'left_shoulder', point: { x: 30, y: 150, z: 200 } },
+    { type: 'body_landmark', name: 'right_shoulder', point: { x: 70, y: 150, z: 200 } },
+    // elbow: only left elbow -> partial
+    { type: 'body_landmark', name: 'left_elbow', point: { x: 25, y: 120, z: 200 } },
+    // wrist: missing both -> missing
+  ];
+
+  const report = buildAnatomicalRegionEvidence(null, {
+    view: 'front',
+    annotations,
+  });
+
+  const upperArm = report.regions.find((r) => r.classId === 11); // shoulder, elbow
+  assert.deepEqual(upperArm.levelAssociations, [
+    { levelId: 'shoulder', relation: 'adjacent', status: 'ready' },
+    { levelId: 'elbow', relation: 'adjacent', status: 'partial' },
+  ]);
+
+  const lowerArm = report.regions.find((r) => r.classId === 7); // elbow, wrist
+  assert.deepEqual(lowerArm.levelAssociations, [
+    { levelId: 'elbow', relation: 'adjacent', status: 'partial' },
+    { levelId: 'wrist', relation: 'adjacent', status: 'missing' },
+  ]);
+});
+
+test('Side region evidence isolates Front evidence and exposes empty associations arrays', () => {
+  const annotations = [
+    { type: 'body_landmark', name: 'left_shoulder', point: { x: 30, y: 150, z: 200 } },
+    { type: 'body_landmark', name: 'right_shoulder', point: { x: 70, y: 150, z: 200 } },
+  ];
+
+  const report = buildAnatomicalRegionEvidence(null, {
+    view: 'side',
+    annotations,
+  });
+
+  assert.equal(report.view, 'side');
+  for (const region of report.regions) {
+    assert.deepEqual(region.landmarkAssociations, []);
+    assert.deepEqual(region.levelAssociations, []);
+  }
+});
+
 
 

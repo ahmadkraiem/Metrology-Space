@@ -3,7 +3,8 @@
  *
  * Pure deterministic domain contract that assembles already-existing
  * anatomical region evidence (segmentation observations, metric bounds,
- * and view-level dense QA qualification) for each view independently.
+ * view-level dense QA qualification, and topological landmark / level associations)
+ * for each view independently.
  *
  * Contract: 'anatomical-region-evidence-v0'
  * Scope: Strictly the 13 canonical metrology-eligible body_anatomical classes
@@ -15,13 +16,17 @@
  * - Preserves Front X/Y and Side U/Y independence.
  * - Side U is never labeled or treated as canonical Z.
  * - Does not extract width/depth/circumference measurements or infer 3D geometry.
- * - Landmark and Anatomical Level associations remain deferred to Milestone 4.2B.
+ * - Landmark and level associations are strictly topological ('adjacent');
+ *   they do NOT claim segmentation boundary clipping or precise passing.
+ * - Side region evidence does NOT masquerade Front landmarks or Front levels as Side evidence.
  */
 
 import {
   CANONICAL_SEGMENTATION_CLASSES_V0,
   buildObservedAnatomicalRegions,
 } from './anatomicalRegions.js';
+import { normalizeLandmarkName } from './bodyEvidenceAdapter.js';
+import { computeAnatomicalLevels } from './anatomicalLevels.js';
 
 export const ANATOMICAL_REGION_EVIDENCE_CONTRACT_VERSION = 'anatomical-region-evidence-v0';
 export const ANATOMICAL_REGION_EVIDENCE_CONTRACT = 'anatomical-region-evidence-v0';
@@ -35,6 +40,52 @@ export const ELIGIBLE_ANATOMICAL_REGION_CLASSES_V0 = Object.freeze(
 );
 
 export const TOTAL_ELIGIBLE_ANATOMICAL_REGIONS_V0 = ELIGIBLE_ANATOMICAL_REGION_CLASSES_V0.length; // 13
+
+/**
+ * Authoritative mapping of landmark topological adjacency per anatomical region classId.
+ * Grounded in promoted Front body landmarks only.
+ * Neck is intentionally excluded from Torso region boundary in v0.
+ *
+ * @type {Readonly<Record<number, readonly string[]>>}
+ */
+export const AUTHORITATIVE_REGION_LANDMARK_ASSOCIATIONS_V0 = Object.freeze({
+  5: Object.freeze(['left_ankle']), // Left_Foot
+  6: Object.freeze(['left_wrist']), // Left_Hand
+  7: Object.freeze(['left_elbow', 'left_wrist']), // Left_Lower_Arm
+  8: Object.freeze(['left_knee', 'left_ankle']), // Left_Lower_Leg
+  11: Object.freeze(['left_shoulder', 'left_elbow']), // Left_Upper_Arm
+  12: Object.freeze(['left_hip', 'left_knee']), // Left_Upper_Leg
+  14: Object.freeze(['right_ankle']), // Right_Foot
+  15: Object.freeze(['right_wrist']), // Right_Hand
+  16: Object.freeze(['right_elbow', 'right_wrist']), // Right_Lower_Arm
+  17: Object.freeze(['right_knee', 'right_ankle']), // Right_Lower_Leg
+  20: Object.freeze(['right_shoulder', 'right_elbow']), // Right_Upper_Arm
+  21: Object.freeze(['right_hip', 'right_knee']), // Right_Upper_Leg
+  22: Object.freeze(['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']), // Torso
+});
+
+/**
+ * Authoritative mapping of anatomical level topological adjacency per anatomical region classId.
+ * Grounded strictly in anatomical-levels-v0 (shoulder, elbow, wrist, hip, knee, ankle).
+ * Neck level is intentionally excluded from Torso region association in v0.
+ *
+ * @type {Readonly<Record<number, readonly string[]>>}
+ */
+export const AUTHORITATIVE_REGION_LEVEL_ASSOCIATIONS_V0 = Object.freeze({
+  5: Object.freeze(['ankle']), // Left_Foot
+  6: Object.freeze(['wrist']), // Left_Hand
+  7: Object.freeze(['elbow', 'wrist']), // Left_Lower_Arm
+  8: Object.freeze(['knee', 'ankle']), // Left_Lower_Leg
+  11: Object.freeze(['shoulder', 'elbow']), // Left_Upper_Arm
+  12: Object.freeze(['hip', 'knee']), // Left_Upper_Leg
+  14: Object.freeze(['ankle']), // Right_Foot
+  15: Object.freeze(['wrist']), // Right_Hand
+  16: Object.freeze(['elbow', 'wrist']), // Right_Lower_Arm
+  17: Object.freeze(['knee', 'ankle']), // Right_Lower_Leg
+  20: Object.freeze(['shoulder', 'elbow']), // Right_Upper_Arm
+  21: Object.freeze(['hip', 'knee']), // Right_Upper_Leg
+  22: Object.freeze(['shoulder', 'hip']), // Torso
+});
 
 function formatBoundsNormalized(bounds) {
   if (!bounds || typeof bounds !== 'object') {
@@ -75,6 +126,85 @@ function sanitizeBoundsPx(bounds) {
 }
 
 /**
+ * Evaluates the availability of a required landmark identity from promoted Front annotations.
+ *
+ * @param {string} landmarkId
+ * @param {Array<object>|null|undefined} annotations
+ * @returns {'present'|'missing'|'ambiguous'|'invalid'}
+ */
+function evaluateLandmarkAvailability(landmarkId, annotations) {
+  if (!Array.isArray(annotations) || annotations.length === 0) {
+    return 'missing';
+  }
+  const normTarget = normalizeLandmarkName(landmarkId);
+  const matches = annotations.filter((ann) => {
+    if (!ann || typeof ann !== 'object') return false;
+    const type = ann.type ?? ann.annotationType;
+    if (type !== 'body_landmark') return false;
+    const name = ann.name ?? ann.label ?? ann.id;
+    return normalizeLandmarkName(name) === normTarget;
+  });
+
+  if (matches.length === 0) {
+    return 'missing';
+  }
+  if (matches.length > 1) {
+    return 'ambiguous';
+  }
+
+  const single = matches[0];
+  const point = single.point ?? single.position;
+  const y = (point && typeof point.y === 'number')
+    ? point.y
+    : (typeof single.y === 'number' ? single.y : null);
+
+  if (typeof y === 'number' && Number.isFinite(y)) {
+    return 'present';
+  }
+  return 'invalid';
+}
+
+/**
+ * Evaluates the status of an anatomical level association from anatomical-levels-v0 report.
+ *
+ * @param {string} levelId
+ * @param {object|null|undefined} levelsReport
+ * @returns {'ready'|'partial'|'missing'}
+ */
+function evaluateLevelStatus(levelId, levelsReport) {
+  if (!levelsReport || !Array.isArray(levelsReport.levels)) {
+    return 'missing';
+  }
+  const found = levelsReport.levels.find((l) => l.id === levelId);
+  if (!found) {
+    return 'missing';
+  }
+  if (found.status === 'ready') {
+    return 'ready';
+  }
+  if (found.status === 'partial') {
+    return 'partial';
+  }
+  return 'missing';
+}
+
+/**
+ * @typedef {{
+ *   landmarkId: string,
+ *   relation: 'adjacent',
+ *   availability: 'present'|'missing'|'ambiguous'|'invalid',
+ * }} RegionLandmarkAssociationV0
+ */
+
+/**
+ * @typedef {{
+ *   levelId: 'shoulder'|'elbow'|'wrist'|'hip'|'knee'|'ankle',
+ *   relation: 'adjacent',
+ *   status: 'ready'|'partial'|'missing',
+ * }} RegionLevelAssociationV0
+ */
+
+/**
  * @typedef {{
  *   classId: number,
  *   label: string,
@@ -104,6 +234,8 @@ function sanitizeBoundsPx(bounds) {
  *     pixelCorrespondence: 'unvalidated',
  *     denseGeometryMeaning: 'unvalidated',
  *   },
+ *   landmarkAssociations: RegionLandmarkAssociationV0[],
+ *   levelAssociations: RegionLevelAssociationV0[],
  *   issues: string[],
  * }} AnatomicalRegionEvidenceRecordV0
  */
@@ -134,6 +266,8 @@ function sanitizeBoundsPx(bounds) {
  *   normals?: object|null,
  *   widthPx?: number|null,
  *   heightPx?: number|null,
+ *   annotations?: Array<object>|null,
+ *   levels?: object|null,
  * }} [options]
  * @returns {AnatomicalRegionEvidenceReportV0}
  */
@@ -145,12 +279,16 @@ export function buildAnatomicalRegionEvidence(normalizedSegmentation, {
   normals = null,
   widthPx = null,
   heightPx = null,
+  annotations = null,
+  levels = null,
 } = {}) {
   const resolvedView = (typeof view === 'string' && view.trim())
     ? view.trim().toLowerCase()
     : (typeof normalizedSegmentation?.view === 'string' && normalizedSegmentation.view.trim()
       ? normalizedSegmentation.view.trim().toLowerCase()
       : 'front');
+
+  const isFront = resolvedView === 'front';
 
   // Obtain observed regions report (handles metric bounds conversion cleanly)
   const observedReport = (
@@ -203,6 +341,11 @@ export function buildAnatomicalRegionEvidence(normalizedSegmentation, {
     }
   }
 
+  // Precompute anatomical levels report if annotations supplied for Front
+  const effectiveLevels = isFront
+    ? (levels ?? (annotations ? computeAnatomicalLevels(annotations) : null))
+    : null;
+
   let presentCount = 0;
   let absentCount = 0;
 
@@ -227,6 +370,28 @@ export function buildAnatomicalRegionEvidence(normalizedSegmentation, {
     const boundsPx = isPresent ? sanitizeBoundsPx(observed.boundsPx) : null;
     const boundsNormalized = isPresent ? formatBoundsNormalized(observed.boundsNormalized) : null;
     const boundsCm = isPresent && observed.boundsCm ? { ...observed.boundsCm } : null;
+
+    // Landmark Associations (Front-only reference)
+    let landmarkAssociations = [];
+    if (isFront) {
+      const associatedLandmarkIds = AUTHORITATIVE_REGION_LANDMARK_ASSOCIATIONS_V0[canonical.classId] ?? [];
+      landmarkAssociations = associatedLandmarkIds.map((landmarkId) => ({
+        landmarkId,
+        relation: 'adjacent',
+        availability: evaluateLandmarkAvailability(landmarkId, annotations),
+      }));
+    }
+
+    // Level Associations (Front-only reference)
+    let levelAssociations = [];
+    if (isFront) {
+      const associatedLevelIds = AUTHORITATIVE_REGION_LEVEL_ASSOCIATIONS_V0[canonical.classId] ?? [];
+      levelAssociations = associatedLevelIds.map((levelId) => ({
+        levelId,
+        relation: 'adjacent',
+        status: evaluateLevelStatus(levelId, effectiveLevels),
+      }));
+    }
 
     const issues = [];
 
@@ -259,6 +424,8 @@ export function buildAnatomicalRegionEvidence(normalizedSegmentation, {
         pixelCorrespondence: 'unvalidated',
         denseGeometryMeaning: 'unvalidated',
       },
+      landmarkAssociations,
+      levelAssociations,
       issues,
     };
   });
