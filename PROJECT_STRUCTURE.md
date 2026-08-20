@@ -15,15 +15,16 @@ latent-space/
 ├── package-lock.json                # Locked dependency versions
 ├── PROJECT_CONTEXT.md               # Behavioral and current-state source of truth for AI/dev sessions
 ├── PROJECT_STRUCTURE.md             # Architectural and file ownership source of truth (this file)
+├── METROLOGY_ROADMAP.md             # Active development roadmap and milestone planning
 ├── REFACTOR_PLAN.md                 # Historical refactor documentation only (reference/archive)
 ├── .gitignore                       # Ignores node_modules, dist, .DS_Store
 ├── src/
-│   ├── main.js                      # Application entry; thin orchestrator
+│   ├── main.js                      # Application entry; thin orchestrator (~118 lines)
 │   ├── style.css                    # Stylesheet entry point (@import chain)
 │   ├── styles/
 │   │   ├── variables.css            # Design tokens, color themes, resets
 │   │   ├── layout.css               # CSS grid layout, workspace panes, split divider
-│   │   ├── components.css           # Menus, sidebars, tabs, panels, cards, candidate lists, buttons
+│   │   ├── components.css           # Menus, sidebars, tabs, panels, cards, candidate lists, buttons, QA cards
 │   │   └── overlays.css             # 2D navigators, plot grids, markers, measurement overlays, tooltips
 │   ├── core/
 │   │   ├── constants.js             # Shared scale, grid, LOD, and tooltip constants
@@ -41,9 +42,13 @@ latent-space/
 │   │   ├── annotations.js           # Annotation state, 3D visuals, CSS2D labels, promote path
 │   │   ├── annotationValidation.js  # Validates annotation input before saving
 │   │   ├── appMode.js               # App mode state (Inspect & Measure vs Annotate)
-│   │   ├── bodyEvidence.js          # Body Evidence state store, analyze/clear, selection, manual promote
-│   │   ├── bodyEvidenceAdapter.js   # Body Evidence parsing, normalization, QA classification, secondary allowlist
+│   │   ├── bodyEvidence.js          # Body Evidence runtime store: active package, selections, change notifications, sanitized export
+│   │   ├── bodyEvidenceAdapter.js   # Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization
 │   │   ├── bodyEvidenceAdapter.test.js # Body Evidence adapter unit tests
+│   │   ├── bodyEvidencePackage.js   # Full Body Evidence Package Contract v0 — normalized multi-modal package schema and QA contract
+│   │   ├── bodyEvidencePackage.test.js # Body Evidence Package Contract v0 unit tests
+│   │   ├── bodyEvidenceZipAdapter.js # Body Evidence ZIP Import Adapter v0 — transport & file resolution only
+│   │   ├── bodyEvidenceZipAdapter.test.js # Body Evidence ZIP Import Adapter unit tests
 │   │   ├── bodyGraph.js             # Body Graph Contract v0 — deterministic Core 13 graph derivation
 │   │   ├── bodyGraph.test.js        # Body Graph Contract v0 unit tests
 │   │   ├── bodyMeasurementLevels.js # Measurement Reference Levels v0 compute
@@ -81,11 +86,13 @@ latent-space/
 │       ├── bodyEvidenceCandidateList.test.js # Candidate list rendering unit tests
 │       ├── bodyEvidenceOverlay2d.js # Front Surface Body Evidence overlay markers and inspect selection
 │       ├── bodyEvidenceOverlaySide2d.js # Side Evidence overlay markers (shared Core/Secondary colors; diamond/dot shapes)
-│       ├── bodyEvidencePanel.js     # Body Evidence left workflow panel (Front / Side / Selection tabs)
+│       ├── bodyEvidencePackageQaUi.js # Body Evidence Package QA summary UI component (Session Data > Body tab)
+│       ├── bodyEvidencePackageQaUi.test.js # Package QA summary UI unit tests
+│       ├── bodyEvidencePanel.js     # Body Evidence left workflow panel (Front / Side / Selection tabs, segmentation class lists, promote)
 │       ├── bodyEvidenceStatus.js    # Body Evidence status presentation helper
 │       ├── bodyEvidenceStatus.test.js # Body Evidence status presentation tests
 │       ├── bodyGraphWorkspace.js    # Body Graph Workspace v0 — Core 13 topological diagram
-│       ├── bodyTabConsolidatedPanel.js # Session Data Body tab coordinator (Status / Alignment QA / Promoted Anchors / Readiness)
+│       ├── bodyTabConsolidatedPanel.js # Session Data Body tab coordinator (Package QA / Status / Alignment QA / Promoted Anchors / Readiness)
 │       ├── collapsibleSections.js   # Left Metrology Inspector collapsible section/subgroup headers
 │       ├── domRefs.js               # Safe cached DOM element references
 │       ├── frontSideAlignmentPanel.js # Front–Side Alignment QA presentation panel (summary card, collapsible groups, compact rows)
@@ -98,13 +105,12 @@ latent-space/
 │       ├── inspectorWorkflow.js     # Metrology Inspector workflow panel visibility manager
 │       ├── inspectorWorkflow.test.js # Inspector workflow unit tests
 │       ├── inspectorWorkflowState.js # Metrology Inspector workflow state store and menu sync
-│       ├── measurementContext.js    # Active measurement context helpers
 │       ├── measurementContext.test.js # Measurement context unit tests
 │       ├── measurementPanel.js      # Distance Measurement inspector (Front/Canonical and Side/U-Y subgroups)
 │       ├── sceneGraphPanel.js       # Scene Graph tree DOM rendering
 │       ├── segmentationInspection.test.js # Segmentation inspection and QA UI unit tests
-│       ├── segmentationOverlay2d.js # Translucent dense semantic segmentation overlay & highlight LUTs
-│       ├── segmentationOverlay2d.test.js # Segmentation overlay rendering unit tests
+│       ├── segmentationOverlay2d.js # Translucent dense semantic segmentation overlay & highlight LUTs with isolated per-view caches
+│       ├── segmentationOverlay2d.test.js # Segmentation overlay rendering, cache isolation, and LUT unit tests
 │       ├── selectionPanel.js        # Selected Point inspector panel helper
 │       ├── sessionTabs.js           # Session Data tab manager (Hist / Annos / Body / Graph)
 │       ├── sideEvidenceStatus.js    # Side Evidence status readout helper
@@ -125,7 +131,7 @@ latent-space/
 
 | File | Responsibilities |
 |------|------------------|
-| `src/main.js` | Thin orchestrator. Imports core, features, interactions, metrology, and UI modules; assembles the Three.js scene graph; registers event listeners; and runs the `requestAnimationFrame` render loop (`animate()`). |
+| `src/main.js` | Thin app orchestrator (~118 lines in current implementation). Imports core, features, interactions, metrology, and UI modules; assembles the Three.js scene graph; registers top-level event listeners; and runs the `requestAnimationFrame` render loop (`animate()`). Contains zero ZIP transport or Body Evidence business logic. |
 
 ### Core Infrastructure (`src/core/`)
 
@@ -144,7 +150,11 @@ latent-space/
 
 | File | Responsibilities |
 |------|------------------|
-| `anatomicalRegions.js` | Anatomical Region Contract v0. Pure deterministic domain contract mapping normalized Front/Side segmentation `classes[]` into observed 29-class region records with metric `boundsCm` (`body_anatomical`, `clothing_apparel`, `face_head`, `accessory_other`, `context_background`). No DOM, Three.js, depth inference, or derived composites. |
+| `bodyEvidencePackage.js` | **Full Body Evidence Package Contract v0.** Pure normalized multi-modal domain schema and QA contract across independent Front and Side views (`image`, `pose`, `segmentation`, `pointmap`, `normals`). Evaluates per-view and package-level QA, raster compatibility, and modality availability. |
+| `bodyEvidenceZipAdapter.js` | **Body Evidence ZIP Import Adapter v0.** Temporary transport and discovery adapter. Unzips archives, detects single-sample subdirectories, filters debug/preview artifacts, matches Front and Side modalities, and builds normalized packages. Zero UI or scene coupling. |
+| `bodyEvidenceAdapter.js` | **Landmark & Segmentation Normalization.** Pure stateless algorithms for Core 13 / Secondary allowlist pose classification, face/head rejection, and 29-class segmentation decoding and validation. |
+| `bodyEvidence.js` | **Body Evidence Runtime Store.** Retains active package, landmark/seg selections, analysis integration (`analyzeLoadedBodyEvidence`), subscriber notifications, and sanitized diagnostic export (`buildBodyEvidenceExport`). |
+| `anatomicalRegions.js` | **Anatomical Region Contract v0.** Pure deterministic domain contract mapping normalized Front/Side segmentation `classes[]` into observed 29-class region records with metric `boundsCm` (`body_anatomical`, `clothing_apparel`, `face_head`, `accessory_other`, `context_background`). No DOM, Three.js, depth inference, or derived composites. |
 | `appMode.js` | Manages app interaction mode (`MODE_INSPECT_MEASURE` vs `MODE_ANNOTATE`). |
 | `selection.js` | Manages selected point state `{ x, y, z }` and selection highlight mesh in Annotate mode. Decoupled from direct DOM manipulation. |
 | `measurement.js` | Manages canonical 3D/Front Point A/B measurement state, markers, line, CSS2D label, measurement history, and clear/advance operations. |
@@ -152,8 +162,6 @@ latent-space/
 | `frontSurfaceMeasurement.js` | Coordinates Front Surface 2D clicks with the canonical shared 3D measurement. |
 | `annotations.js` | Annotation CRUD operations, 3D box marker and CSS2D label management, visibility toggles, and programmatic promotion path for body landmarks. |
 | `annotationValidation.js` | Validates annotation input (point selection, non-empty name, duplicate detection). |
-| `bodyEvidence.js` | State container for loaded Body Evidence sources, normalized candidates, analysis triggers, inspect selection, and manual promotion. |
-| `bodyEvidenceAdapter.js` | Body-only parsing, normalization, and QA classification. Applies face/head rejection, core 13 primary whitelist, and secondary allowlist. Fixed 2000×2000 px / 10 px/cm scale. |
 | `frontSideAlignment.js` | Pure deterministic Front/Side semantic correspondence and vertical Y QA contract (5.0 cm v0 QA threshold). No DOM, Three.js, global state, depth inference, or 3D reconstruction. |
 | `bodyGraph.js` | Body Graph Contract v0. Deterministic runtime topology derivation (`buildBodyGraph`) containing exactly 13 Core nodes and 13 structural edges from promoted Core 13 annotations. |
 | `bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute. |
@@ -187,25 +195,25 @@ latent-space/
 
 | File | Responsibilities |
 |------|------------------|
-| `appMenuBar.js` | Manages the top application menu bar (File, View, Workflow dropdowns) and connects file pickers, view toggles, and workflow selection. |
-| `viewControls.js` | Defines the 13 view settings (`origin-center`, `annotations`, `measurement-lines`, `lattice-3d`, `front-grid`, `side-grid`, `front-core`, `front-secondary`, `side-core`, `side-secondary`, `front-seg`, `side-seg`, `body-previews`), queries authoritative state (`getViewSetting`), and executes toggles. |
+| `appMenuBar.js` | Top application menu bar (File, View, Workflow dropdowns). Connects package import (`Upload Body Evidence Package…`), scene import/export, diagnostic export (`Download Body Evidence JSON`), view toggles, and workflow switches. |
+| `viewControls.js` | Defines the 13 view settings, queries authoritative state (`getViewSetting`), and executes toggles. |
 | `inspectorWorkflow.js` | Controls left Metrology Inspector panel visibility based on active workflow (`measurement`, `annotation`, `body-evidence`). |
 | `inspectorWorkflowState.js` | Authoritative state store and subscriber notification for active Metrology Inspector workflows; coordinates with App Menu Bar. |
 | `workspaceLayout.js` | Manages workspace navigation tabs (3D Space, 2D Workspace, Body Graph), combined 3D+2D split view (36% 3D / 64% 2D default), draggable split divider, and right Session Data sidebar collapse/expand layout state. |
-| `workspaceLayout.test.js` | Workspace layout tab switching and right sidebar collapse state unit tests. |
 | `grid2dNavigator.js` | Front Surface 2D Grid Navigator (0–200 cm X/Y), 10 cm base lattice, 5 cm regional refinement, shared measurement overlay, projected markers, and Front segmentation overlay. Manages active-only legend rendering. |
-| `sideGrid2dNavigator.js` | Side Evidence 2D Grid Navigator (0–200 cm U/Y), 10 cm base lattice, 5 cm regional refinement, Side Core and Secondary markers (shared Core/Secondary colors; diamond/dot shapes), local Side A/B measurement, and Side segmentation overlay. Manages active-only legend rendering. |
+| `sideGrid2dNavigator.js` | Side Evidence 2D Grid Navigator (0–200 cm U/Y), 10 cm base lattice, 5 cm regional refinement, Side Core and Secondary markers, local Side A/B measurement, and Side segmentation overlay. Manages active-only legend rendering. |
 | `grid2dNavShared.js` | Shared 2D navigator math, zoom/pan transforms, and lattice utilities. |
 | `grid2dPlotArea.js` | Shared 2D plot frame, axis labels, and CSS variable management. |
 | `grid2dMarkerSizing.js` | Computes zoom-dependent relative marker sizes for 2D navigators. |
-| `bodyEvidencePanel.js` | Manages the left Body Evidence panel with Actions subgroup and Front / Side / Selection tabs. Handles candidate selection, inspect card, and Front promotion. |
+| `bodyEvidencePackageQaUi.js` | **Package QA Summary UI Component.** Renders read-only package QA status card in Session Data → Body tab, showing overall status, Front/Side modality status pills, raster compatibility, and deferred geometry semantics flags (`UNVALIDATED`). |
+| `bodyEvidencePanel.js` | Left Body Evidence workflow panel (Front / Side / Selection tabs). Manages candidate list filtering, segmentation class list filtering, inspect cards, and Front candidate promotion. Analysis runs automatically upon package upload. |
 | `bodyEvidenceCandidateList.js` | Renders candidate lists with Core / Secondary filters and unified color semantics (Gold for Core, Purple for Secondary). |
 | `bodyEvidenceOverlay2d.js` | Renders Front Surface Body Evidence overlay markers and active selection highlight. |
 | `bodyEvidenceOverlaySide2d.js` | Renders Side Evidence overlay markers (shared Core/Secondary colors; diamond/dot shapes). |
-| `segmentationOverlay2d.js` | Renders read-only, translucent dense semantic segmentation overlays onto the Front and Side 2D navigators with deterministic color mapping and cached raster drawing. |
+| `segmentationOverlay2d.js` | Renders read-only, translucent dense semantic segmentation overlays onto Front and Side 2D navigators using shared internal helpers, isolated per-view caches (`viewState.front`, `viewState.side`), and $O(1)$ visibility toggles. |
 | `frontSideAlignmentPanel.js` | Read-only Session Data → Body presentation for the current alignment report. Derives alignment report on demand from normalized Body Evidence runtime state; renders top summary card and collapsible Core Pairs, Secondary Pairs, and Issues groups with compact 2-line audit rows. |
 | `bodyGraphWorkspace.js` | Renders the read-only Core 13 Body Graph topology workspace and summary statistics. |
-| `bodyTabConsolidatedPanel.js` | Coordinates rendering of Session Data Body tab sections: Body Evidence Status counts, Front–Side Alignment QA, Promoted Body Anchors table, and Body Measurement Readiness audit. |
+| `bodyTabConsolidatedPanel.js` | Coordinates rendering of Session Data Body tab sections: Package QA Summary card, Body Evidence Status counts, Front–Side Alignment QA, Promoted Body Anchors table, and Body Measurement Readiness audit. |
 | `measurementPanel.js` | Renders the Distance Measurement inspector with independent collapsible Front / Canonical and Side / U-Y measurement subgroups. |
 | `selectionPanel.js` | Updates coordinate readouts in the Selected Point inspector panel. |
 | `annotationControls.js` | Wires Annotation Type and Landmark Preset dropdowns with auto-fill behavior. |
@@ -223,6 +231,6 @@ latent-space/
 
 - `variables.css`: Design tokens, colors (dark cosmic theme, purple/cyan/amber accents), typography (Syne display, JetBrains Mono data), sidebar widths (left, right, right collapsed), spacing, and resets.
 - `layout.css`: Overall CSS grid layout (`#top-header`, `#left-sidebar`, `#viewport`, `#right-sidebar`, `#bottom-status-bar`), right sidebar collapse layout, workspace panes, and split divider resizing.
-- `components.css`: Component-level styles for menus, sidebars, sidebar toggle button, tabs, panels, candidate lists, inspect cards, badges, action buttons, and Front–Side Alignment QA summary cards, collapsible groups, and compact audit rows.
+- `components.css`: Component-level styles for menus, sidebars, sidebar toggle button, tabs, panels, candidate lists, inspect cards, badges, action buttons, Front–Side Alignment QA summary cards, and Session Data Package QA cards (`.body-evidence-package-qa-card`, `.body-package-qa-*`, `.body-evidence-qa-pill*`).
 - `overlays.css`: Styles for 2D plot areas, lattices, markers, measurement overlays, legend items, and tooltips.
 - `style.css`: Entry point combining the stylesheet modules via `@import`.

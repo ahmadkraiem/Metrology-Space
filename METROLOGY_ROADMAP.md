@@ -19,35 +19,41 @@ Purpose: Keep the project aligned with the current architecture and evidence str
 - Pixel-to-Metrology Mapping Core v0
 - Anatomical Region Metric Bounds v0
 
-## 3. New Evidence Foundation — Next
+## 3. New Evidence Foundation
 
-### 3.1 Full Body Evidence Package Contract v0
+### 3.1 Full Body Evidence Package Contract v0 — COMPLETED
 
-Formalize the input package for each view:
+Formalized the canonical multi-modal input package contract across independent Front and Side views:
 
-- image
-- pose / landmarks
-- segmentation
-- pointmap
-- surface normals
+- `image`
+- `pose / landmarks`
+- `segmentation`
+- `pointmap XYZ`
+- `surface normals XYZ`
 
-The contract should define availability, schema, shape, dtype, units, model/view metadata, and QA without yet promoting pointmap or normals into canonical 3D geometry.
+Key achievements:
+- Normalized package domain contract (`body-evidence-package-v0`) and per-view schema.
+- Structural readability, modality availability, and raster dimension compatibility QA.
+- Lightweight lazy dense buffer access (`loadDenseBuffer`) without eager memory duplication.
+- In-memory ZIP transport adapter (`importBodyEvidenceZip`) for pipeline/testing workflows.
+- Authoritative Package QA presentation in Session Data → Body.
+- Automatic analysis triggered upon package upload.
+- Strict preservation of geometry boundaries (no pointmap Z → canonical Z, no U → Z, no Front/Side 3D fusion).
 
-### 3.2 Pointmap + Normal Evidence Contract / QA v0
+### 3.2 Pointmap + Normal Evidence Contract / QA v0 — NEXT
 
-Audit and formalize:
+Audit and formalize coordinate frames and dense numerical validity:
 
-- coordinate frame
-- units
-- meaning of `scale`
-- pixel-to-point correspondence
-- valid foreground / body masking
-- normal-vector validity
-- whether values are already scaled
+- Pointmap coordinate frame and units validation (`declaredUnits`, `declaredScale`)
+- Numeric validity: NaN / Infinity guards, finite min/max distributions
+- Meaning of `scale` and whether values are pre-scaled or unscaled
+- Pixel-to-point correspondence and valid foreground body masking
+- Cross-modal consistency: segmentation ↔ pointmap ↔ normals alignment
+- Surface normal vector magnitude validity ($\approx 1.0$) and range verification (`declaredRange`)
+- Surface normal coordinate frame and orientation semantics
 - Front/Side frame independence
-- relationship between segmentation, pointmap, and normals
 
-Guardrail: Do not assume pointmap Z is canonical metrology Z and do not fuse Front and Side until the coordinate frames are explicitly validated.
+Guardrail: Do not assume pointmap Z is canonical metrology Z, and do not fuse Front and Side geometry until coordinate frames and orientations are explicitly validated.
 
 ## 4. Anatomical / Metrology Layer — Planned
 
@@ -126,6 +132,7 @@ Use the validated canonical evidence/latent representation in later body, garmen
 Do not silently introduce:
 
 - direct U → Z conversion
+- Pointmap Z → canonical metrology Z
 - unvalidated depth inference
 - Front/Side geometry fusion
 - circumference before cross-section evidence is validated
@@ -137,7 +144,7 @@ Do not silently introduce:
 
 ## 7. Current Input Strategy
 
-The preferred body evidence package is:
+The canonical body evidence package is:
 
 ### Front
 - image
@@ -154,10 +161,10 @@ The preferred body evidence package is:
 - surface normals XYZ
 
 Current usage:
-- Pose: active
-- Segmentation: active
-- Pointmap: accepted input evidence, usage deferred pending QA/coordinate-frame contract
-- Normals: accepted input evidence, usage deferred pending QA/coordinate-frame contract
+- Pose: active & normalized
+- Segmentation: active & normalized
+- Pointmap: accepted normalized evidence modality; geometry semantics unvalidated pending Milestone 3.2
+- Normals: accepted normalized evidence modality; geometry semantics unvalidated pending Milestone 3.2
 
 ## 8. Roadmap Change Policy
 
@@ -166,14 +173,10 @@ This roadmap may evolve as stronger model outputs or validated evidence become a
 When changing direction:
 1. preserve completed stable contracts unless there is a proven reason to revise them;
 2. document why the roadmap changed;
-3. update PROJECT_CONTEXT.md and PROJECT_STRUCTURE.md where relevant;
+3. update `PROJECT_CONTEXT.md` and `PROJECT_STRUCTURE.md` where relevant;
 4. keep deferred geometry assumptions explicit;
 5. avoid silently replacing the current source-of-truth architecture.
 
 ## 9. Immediate Next Milestone
-
-**Full Body Evidence Package Contract v0**
-
-After that:
 
 **Pointmap + Normal Evidence Contract / QA v0**

@@ -17,6 +17,8 @@ It renders an interactive **200 cm × 200 cm × 200 cm** coordinate cube used to
 - Annotate named 3D points in Annotate mode
 - Inspect Front Surface (X/Y) and Side Evidence (U/Y) 2D planes side-by-side
 - Promote verified front body landmarks into canonical 3D annotations
+- Import structured multi-modal Full Body Evidence Packages (`.zip`) with automatic analysis
+- Inspect Package QA metrics, modality availability, and raster compatibility in Session Data → Body
 - Inspect Front–Side Alignment v0 QA correspondence and vertical Y agreement in Session Data → Body
 - Inspect topological Body Graph v0 based on promoted Core 13 landmarks
 - Export the current metrology session as structured Scene State JSON
@@ -284,7 +286,7 @@ The left Metrology Inspector **Distance Measurement** panel (`#measurement-panel
 
 ---
 
-## Current Point Annotation Features
+## 8. Current Point Annotation Features
 
 > **Annotation input validation:** Annotation input is validated before saving. Invalid annotation input (e.g. no selected point, empty name, or duplicate) shows a UI validation message and does **not** create an annotation.
 
@@ -316,7 +318,7 @@ The left Metrology Inspector **Distance Measurement** panel (`#measurement-panel
 
 ---
 
-## Current View Controls Features
+## 9. Current View Controls Features
 
 View controls live in the **top application menu** under **View** (`#app-menu-bar [data-menu="view"]`), with authoritative checked indicators derived directly from runtime state (`getViewSetting`).
 
@@ -349,78 +351,118 @@ Dynamic legends on both the Front Surface (`#grid2d-legend`) and Side Evidence (
 
 ---
 
-## Current Body Evidence Features
+## 10. Current Full Body Evidence Package & Pipeline Architecture
 
-Body Evidence is a dedicated left Metrology Inspector **workflow / panel** (`#body-evidence-panel`, workflow `data-workflow="body-evidence"`). It is a separate **evidence layer** — **body-only**. Face/head landmarks are rejected/excluded.
+### Canonical Runtime Flow
 
-### Candidate Visual & Color Semantics
+The application processes body evidence exclusively through the **Full Body Evidence Package Contract v0**:
 
-Candidate visualization across Front and Side navigators and lists follows unified color semantics:
-- **Core Candidates:** **Side Core** uses the exact same semantic color as **Front Core** (`#facc15` gold / yellow).
-- **Secondary Candidates:** **Side Secondary** uses the exact same semantic color as **Front Secondary** (`#c084fc` purple / magenta).
-- **Selected Candidate:** The selected candidate uses the strongest highlight (`#22d3ee` cyan border / glow with bright yellow/white interior emphasis) regardless of source (Front or Side) or classification (Core or Secondary).
-- **Semantic Principle:** **Color identifies Core vs Secondary, NOT Front vs Side.** (Overlay marker shape differentiates geometry: diamonds for Core, circles for Secondary).
+```text
+Upload Body Evidence Package (.zip)
+        ↓
+ZIP transport adapter (importBodyEvidenceZip)
+        ↓
+buildBodyEvidencePackage()
+        ↓
+setBodyEvidencePackage()
+        ↓
+automatic Body Evidence analysis (analyzeLoadedBodyEvidence)
+        ↓
+Front / Side evidence + Session Data Package QA
+```
 
-### File Pickers (File Menu)
-Evidence files are loaded via the **File** top application menu (`#app-menu-bar [data-menu="file"]`):
-- **Load Front Pose JSON…** (`#load-front-pose-json`)
-- **Load Side Pose JSON…** (`#load-side-pose-json`)
-- **Load Front Seg JSON…** (`#load-front-seg-json`)
-- **Load Side Seg JSON…** (`#load-side-seg-json`)
+Legacy standalone source setters (`setFrontPoseSource`, `setSidePoseSource`, `setFrontSegSource`, `setSideSegSource`) and individual per-modality file upload buttons no longer exist.
 
-Result / Scale JSON is **not** imported. Scale is fixed at **2000×2000 px** and **10 px/cm** (`BODY_EVIDENCE_V0_SCALE`).
+### Package Contract Structure
 
+The normalized Body Evidence Package (`version: 'body-evidence-package-v0'`) is a pure domain contract representing multi-modal evidence across independent Front and Side views:
 
-### Actions Subgroup
-- **Collapsible Actions Panel:** The Actions section (`.inspector-subgroup--evidence-actions`) is collapsible with persistent header toggle.
-- **Analyze Body Evidence** (`#analyze-body-evidence`): Runs adapter parsing, normalization, and QA classification across loaded pose and seg files.
-- **Download Evidence JSON** (`#download-body-evidence-json`): Diagnostic download of normalized evidence (raw rasters/base64 are strictly excluded for safety/performance).
-- **Clear Evidence** (`#clear-body-evidence`): Clears loaded evidence sources, parsed candidates, rasters, and overlay markers without touching measurements or annotations.
+- **Top-level properties:**
+  - `version`: `'body-evidence-package-v0'`
+  - `sourceFormat`: e.g. `'body-pipeline-zip-v0'` or `'body-pipeline-v0'`
+  - `sampleId`: optional string identifying the unique subject/sample
+  - `front`: Front view evidence package
+  - `side`: Side view evidence package
+  - `qa`: Package-level aggregated QA descriptor
 
-### Left Panel Tab Structure
-The left Body Evidence panel is organized into three tabs:
-1. **Front** (`#body-evidence-tab-front`):
-   - Shows Front Core and Front Secondary landmark candidate lists (`#body-evidence-front-candidates`) with filter pills
-   - Shows Front Segmentation class list (`#body-evidence-front-seg-classes`) with Present / Absent filter pills, class swatches, pixel counts, and coverage percentages
-2. **Side** (`#body-evidence-tab-side`):
-   - Shows Side Core and Side Secondary landmark candidate lists (`#body-evidence-side-candidates`) with distinct pill badges
-   - Shows Side Segmentation class list (`#body-evidence-side-seg-classes`) with Present / Absent filter pills, class swatches, pixel counts, and coverage percentages
-3. **Selection** (`#body-evidence-tab-selection`):
-   - Multi-target inspect cards for active selections (`#body-evidence-selected`):
-     - Front Landmark card (coordinates, confidence, classification, promote state)
-     - Side Landmark card (U/Y profile coordinates, confidence, classification)
-     - Front Segmentation Class card (class swatch, pixel count, coverage, 2D pixel bounding box, normalized 0..1 bounding box, QA checklist)
-     - Side Segmentation Class card (class swatch, pixel count, coverage, 2D pixel bounding box, normalized 0..1 bounding box, QA checklist)
-   - Independent selection states for Front Landmark, Side Landmark, Front Seg class, and Side Seg class
-   - **Promote to Body Landmark** button (`#promote-selected-body-landmark`): Enabled for Front candidates only; disabled with clear message for Side candidates or segmentation class selections
-   - **Clear Selection** button (`#clear-body-landmark-selection`): Clears active landmark and segmentation class selections
+- **Per-View Modalities:**
+  Each view (`front` and `side`) contains:
+  1. **`image`**: Normalized visual input metadata (`filename`, `widthPx`, `heightPx`, `channels`, `format`, `view`, `bytes`, `qa`).
+  2. **`pose`**: Normalized landmark candidates extracted and classified into Core 13 anchors, allowlisted secondary landmarks, and rejected face/head landmarks.
+  3. **`segmentation`**: Normalized 29-class semantic segmentation structure (`model`, `view`, `widthPx`, `heightPx`, `classes[]`, retained `Uint8Array` raster, `qa`).
+  4. **`pointmap`**: Normalized dense 3D point coordinate tensor metadata (`model`, `view`, `channels`, `shape`, `dtype`, `declaredUnits`, `declaredScale`, `loadDenseBuffer()`, `qa`).
+  5. **`normals`**: Normalized surface normal vector tensor metadata (`model`, `view`, `channels`, `shape`, `dtype`, `declaredRange`, `loadDenseBuffer()`, `qa`).
+  6. **`qa`**: Per-view QA status (`pass`, `warning`, `fail`), modality availability map, raster dimensions, and raster compatibility checks.
 
-### Front Promotion vs Side Non-Promotion
-- **Front Candidates:** Clicking **Promote** creates a canonical 3D `body_landmark` annotation with position `{ x, y, z: FRONT_SURFACE_DEPTH_CM }`. Promoted landmarks become valid measurement targets, enter Measurement Readiness, and feed Body Graph v0.
-- **Side Candidates:** Strictly **non-promotable**. Side evidence exists only in U/Y space and does not enter `annotations.js`, `sceneExport.js`, `bodyGraph.js`, or `bodyMeasurementReadiness`.
-- **Segmentation Classes:** Strictly **non-promotable** inspection evidence in v0.
+### Role of the ZIP Transport Adapter
+
+The ZIP loader (`src/features/bodyEvidenceZipAdapter.js`) is a **temporary transport and integration adapter** for current pipeline and testing workflows. It unzips archive files in memory, discovers sample subdirectories (enforcing single-sample packages in v0), ignores system/debug files, groups Front and Side artifacts, and delegates directly to `buildBodyEvidencePackage()`. Downstream domain and UI modules never couple to ZIP file or folder conventions. Future direct API or WebSocket integrations will construct the normalized package object directly.
+
+### Pointmap & Surface Normal Geometry Semantics
+
+Pointmaps and surface normals are accepted and normalized in Package Contract v0, but their **underlying geometry semantics remain deliberately unvalidated**:
+- **`declaredUnits`**: Units declared in metadata (e.g. `'cm'`, `'mm'`, `'m'`) — unvalidated.
+- **`declaredScale`**: Scale factor declared in metadata — unvalidated.
+- **`declaredRange`**: Value range declared in metadata (e.g. `[-1, 1]`, `[0, 255]`) — unvalidated.
+- **Coordinate frames**: Pointmap XYZ axes orientations are unvalidated.
+- **Normal orientations**: Normal vector directions and coordinate conventions are unvalidated.
+
+> [!WARNING]
+> Pointmap $Z$ values must **never** be assumed to be canonical metrology $Z$. No spatial fusion, depth projection, or 3D mesh generation from pointmaps or normals is performed in v0.
+
+### QA Status States
+
+Package Contract v0 establishes 4 distinct QA status levels:
+- **`pass`**: Required structural constraints, types, shape dimensions, and bounds are fully valid.
+- **`warning`**: Minor non-fatal anomalies present (e.g. low-confidence landmarks, sparse classes).
+- **`fail`**: Structural failure, view mismatch, corrupted data, or missing critical shapes.
+- **`unvalidated`**: Declared metadata present but geometry semantics explicitly deferred to future validation milestones. `unvalidated` is **not** equivalent to failure.
+
+Package v0 QA verifies structural readability, raster compatibility between modalities within the same view, and modality availability. Dense numeric tensor validation is scheduled for the next milestone.
+
+### Runtime Memory & Lazy Buffer Management
+
+Dense pointmap and normal binary tensors are accessed on-demand via `loadDenseBuffer()` and are **not** eagerly duplicated into runtime memory. Lightweight diagnostic export (`buildBodyEvidenceExport()` / `downloadBodyEvidenceJson()`) and Scene State serialization strictly omit raw binary arrays and base64 payloads to preserve memory and performance.
+
+### UI Integration
+
+1. **File Menu (`#app-menu-bar [data-menu="file"]`):**
+   - **Upload Body Evidence Package…** (`import-body-evidence-package`): Opens native ZIP picker, parses archive, and runs automatic analysis.
+   - **Download Body Evidence JSON** (`download-body-evidence`): Downloads sanitized diagnostic JSON summary (enabled when evidence is analyzed).
+
+2. **Left Body Evidence Inspector (`#body-evidence-panel`):**
+   - **Front Tab (`#body-evidence-tab-front`):** Front Core and Secondary candidate lists, Front Segmentation class list with Present/Absent filters.
+   - **Side Tab (`#body-evidence-tab-side`):** Side Core and Secondary candidate lists, Side Segmentation class list with Present/Absent filters.
+   - **Selection Tab (`#body-evidence-tab-selection`):** Detailed inspect cards for active Front/Side landmark or segmentation class selections; **Promote Selected Landmark** button (Front only); **Clear Selection** button.
+   - Analysis executes automatically upon package upload; manual Actions buttons (Analyze, Download, Clear) have been eliminated.
+
+3. **Session Data → Body Tab (`#tab-panel-body`):**
+   - **Package QA Card (`bodyEvidencePackageQaUi.js`):** Authoritative package QA breakdown rendering overall status badge, Front and Side modality status pills (Image, Pose, Segmentation, Pointmap, Normals, Raster Compatibility), and Deferred Geometry Semantics flags (`UNVALIDATED`).
+   - **Loaded Chips & Metrics:** Loaded modality indicators, Core/Secondary totals, scale metadata, and collapsible advanced details.
+   - **Front–Side Alignment QA:** Vertical $\Delta Y$ correspondence report.
+   - **Promoted Body Anchors Table:** Live annotation audit.
+   - **Body Measurement Readiness:** Canonical landmark readiness audit.
 
 ---
 
-## Current Segmentation Normalization & Inspection Features
+## 11. Current Segmentation Normalization & 2D Overlay Architecture
 
 ### Segmentation Normalization + QA Contract v0
 - **Deterministic Parsing:** Raw Front and Side segmentation payloads are decoded and normalized via `normalizeSegmentation()` in `src/features/bodyEvidenceAdapter.js`.
 - **Canonical `classes[]`:** Emits structured class descriptors containing `classId`, `label`, `pixelCount`, `coverage`, `present`, `boundsPx` (`{ minX, minY, maxX, maxY }`), and `boundsNormalized` (`{ minX, minY, maxX, maxY }` in `0..1`).
 - **Retained `Uint8Array` Raster:** Decoded label rasters are retained in runtime memory and queried via `getFrontSegmentationRaster()` and `getSideSegmentationRaster()`.
 - **Authoritative QA Validation:** Enforces view matching (`front` / `side`), `num_classes` matching `class_names.length`, 2D shape `[height, width]`, `uint8` dtype, valid base64 decode, decoded length matching `height * width`, pixel class IDs within range `[0..num_classes - 1]`, and recomputed pixel counts matching input `class_counts` (supporting both dense and sparse counts).
-- **Diagnostic Export Safety:** `buildBodyEvidenceExport()` in `src/features/bodyEvidence.js` includes normalized segmentation metadata, class lists, and QA summaries while strictly omitting raw `base64`, `labels`, and `Uint8Array` raster arrays to keep diagnostic downloads lightweight and safe.
 
-### Segmentation Region Preview 2D Overlays v0
-- **Translucent Overlays:** Read-only dense semantic segmentation raster overlays rendered onto the Front Surface 2D Grid Navigator (X/Y) and Side Evidence Navigator (U/Y) via `src/ui/segmentationOverlay2d.js`.
-- **Independent View Toggles:** Controlled independently via View menu items **Front Segmentation** (`front-seg`) and **Side Segmentation** (`side-seg`).
-- **Deterministic Color Palette:** 16-color high-contrast palette mapped through 32-bit packed endian-safe lookup tables (`COLOR_LOOKUP_TABLE`). Class 0 (`Background`) is transparent by default.
-- **Selected-Class Highlighting:** Selecting a segmentation class emphasizes the selected class ($\sim 86\%$ opacity) while dimming unselected classes ($\sim 8\%$ opacity) for instant anatomical isolation. Background is rendered translucent only when explicitly selected.
-- **Zero Per-Frame Redraw Cost:** Rendered to cached offscreen canvases and scaled via CSS transforms during panning and zooming.
+### 2D Segmentation Overlay Architecture
+- **Shared Parameterized Helpers:** Front and Side overlay rendering and visibility syncing use shared internal helpers (`renderSegmentationOverlayForView`, `syncSegmentationVisibilityForView`) in `src/ui/segmentationOverlay2d.js`.
+- **Isolated Per-View State:** Front and Side raster and selected class ID caches are maintained in strictly isolated objects (`viewState.front` and `viewState.side`).
+- **$O(1)$ Visibility Toggles:** Toggling Front or Side segmentation visibility via the View menu updates `canvas.hidden` in $O(1)$ time without re-rasterizing, re-scanning, or calling `putImageData`.
+- **Conditional Repaint:** Canvas bitmap redrawing via `putImageData` occurs strictly when the underlying raster payload or the active selected class ID changes.
+- **Independent Class Selections:** Front class selection and Side class selection remain completely independent and highlight without crosstalk.
 
 ---
 
-## Current Anatomical Region Contract v0 Features
+## 12. Current Anatomical Region Contract v0 Features
 
 Anatomical Region Contract v0 is a pure deterministic domain layer implemented in `src/features/anatomicalRegions.js`:
 
@@ -470,9 +512,9 @@ Grounds strictly in the project's actual 29-class segmentation vocabulary (exact
 
 ---
 
-## Current Pixel-to-Metrology Mapping Core v0 Features
+## 13. Current Pixel-to-Metrology Mapping Core v0 Features
 
-Pixel-to-Metrology Mapping Core v0 is a pure, resolution-independent conversion layer implemented in [src/core/pixelMetrologyMapping.js](file:///c:/Users/VIP/Documents/Projects/latent-space/src/core/pixelMetrologyMapping.js) with companion test suite [src/core/pixelMetrologyMapping.test.js](file:///c:/Users/VIP/Documents/Projects/latent-space/src/core/pixelMetrologyMapping.test.js):
+Pixel-to-Metrology Mapping Core v0 is a pure, resolution-independent conversion layer implemented in `src/core/pixelMetrologyMapping.js`:
 
 ### Coordinate Spaces & Semantic Distinctions
 - **Continuous Image Space:** $[0, W] \times [0, H]$ in pixels, origin at top-left $(0, 0)$.
@@ -480,6 +522,7 @@ Pixel-to-Metrology Mapping Core v0 is a pure, resolution-independent conversion 
 - **Front Metrology Space:** $X$ (width, transverse) and $Y$ (height) in centimeters, origin at floor corner $(0, 0)\text{ cm}$.
 - **Side Metrology Space:** $U$ (horizontal sagittal depth evidence) and $Y$ (height) in centimeters, origin at $(0, 0)\text{ cm}$.
 - **Workspace Extent:** Fixed $200\text{ cm}$ domain (`ROOM_SIZE = 200`).
+- **Resolution Independence:** All mapping formulas accept arbitrary positive raster dimensions $W$ and $H$. *(Observed test pipeline images frequently use $2000 \times 2000\text{ px}$, corresponding to $10\text{ px/cm}$, but the mapping algorithms do not hardcode fixed pixel dimensions).*
 
 ### Mapping Formulas
 1. **Continuous Image Point / Edge $\to$ Metrology Space:**
@@ -492,15 +535,11 @@ Pixel-to-Metrology Mapping Core v0 is a pure, resolution-independent conversion 
    Setting $(x, y) = (col + 0.5, row + 0.5)$ for $col \in [0..W-1]$ and $row \in [0..H-1]$:
    $$X_{\text{center}} = \frac{col + 0.5}{W} \times L \quad (\text{Front}), \quad U_{\text{center}} = \frac{col + 0.5}{W} \times L \quad (\text{Side})$$
    $$Y_{\text{center}} = \left(\frac{H - (row + 0.5)}{H}\right) \times L$$
-   - First pixel center $(0, 0)$ on $2000 \times 2000 \to (0.05\text{ cm}, 199.95\text{ cm})$ (strictly interior).
-   - Last pixel center $(1999, 1999)$ on $2000 \times 2000 \to (1999.95\text{ cm}, 0.05\text{ cm})$ (strictly interior).
 
 3. **Inclusive Bounding Box $\to$ Outer Metric Bounds:**
    Maps the **outer envelope** of inclusive pixel bounding box $\{ minX, minY, maxX, maxY \}$ ($minX \le maxX$, $minY \le maxY$):
    $$minX_{\text{cm}} / minU_{\text{cm}} = \frac{minX}{W} \times L, \quad maxX_{\text{cm}} / maxU_{\text{cm}} = \frac{maxX + 1}{W} \times L$$
    $$minY_{\text{cm}} = \left(\frac{H - (maxY + 1)}{H}\right) \times L, \quad maxY_{\text{cm}} = \left(\frac{H - minY}{H}\right) \times L$$
-   - Full-image bbox (`0..W-1`, `0..H-1`) maps exactly to $[0, 200] \times [0, 200]\text{ cm}$.
-   - Single-pixel bbox (`minX === maxX`, `minY === maxY`) yields non-zero metric area $\frac{L}{W} \times \frac{L}{H}\text{ cm}^2$ ($0.1 \times 0.1\text{ cm}$ on $2000 \times 2000$).
 
 4. **Continuous Inverse Conversions:**
    $$x = \frac{X}{L} \times W \quad (\text{Front}) \quad \text{or} \quad x = \frac{U}{L} \times W \quad (\text{Side})$$
@@ -508,233 +547,55 @@ Pixel-to-Metrology Mapping Core v0 is a pure, resolution-independent conversion 
 
 ### Input Validation & Error Handling
 - **No silent clamping:** Coordinates, indices, bounding boxes, or raster dimensions outside valid domains explicitly throw `TypeError` or `RangeError`.
-- Validates $W > 0, H > 0$ as positive integers, $L > 0$, continuous coordinates $0 \le x \le W, 0 \le y \le H$, metrology coordinates $0 \le X/U \le L, 0 \le Y \le L$, discrete pixel indices $0 \le col < W, 0 \le row < H$, and bounding box ranges $0 \le minX \le maxX < W, 0 \le minY \le maxY < H$.
 
 ---
 
-## Current Anatomical Region Metric Bounds v0 Features
-
-Integrated into `buildObservedAnatomicalRegions` in [src/features/anatomicalRegions.js](file:///c:/Users/VIP/Documents/Projects/latent-space/src/features/anatomicalRegions.js):
-- **Runtime Derivation:** Converts valid observed segmentation regions to metric outer envelope `boundsCm` using actual runtime `widthPx` and `heightPx`.
-- **Front Region:** `boundsCm: { minX, maxX, minY, maxY } | null`
-- **Side Region:** `boundsCm: { minU, maxU, minY, maxY } | null`
-- **Status Behavior:**
-  - `status === 'valid'` with valid `boundsPx` and dimensions $\to$ returns computed `boundsCm`.
-  - `status === 'absent'` $\to$ `boundsCm: null`.
-  - `status === 'invalid'` $\to$ `boundsCm: null`.
-- **Strict Guardrails:** No $U \to Z$ conversion, no depth inference, no Front/Side geometry fusion, and no composite/derived regions.
-
----
-
-## Current Front–Side Alignment v0 Features
+## 14. Current Front–Side Alignment v0 Features
 
 ### Purpose
-
-Front–Side Alignment v0 is a deterministic, read-only correspondence and QA layer between:
-- **Front normalized Body Evidence on `X/Y`**
-- **Side normalized Body Evidence on `U/Y`**
-
-It is strictly a QA and semantic correspondence evaluation stage. It does **NOT** reconstruct 3D geometry, estimate depth, or fuse 2D coordinates into 3D points.
-
-### Matching Rules
-
-- **Matching by Identity:** Matching is performed strictly by normalized semantic landmark identity (e.g. `left_shoulder` Front ↔ `left_shoulder` Side).
-- **No Spatial Guessing:** No nearest-neighbor matching, Euclidean clustering, or coordinate-proximity guessing is used.
-- **Single Source for Unmatched Items:** Missing identities in one view remain cleanly classified as `frontOnly` (reason: `missing-in-side`) or `sideOnly` (reason: `missing-in-front`).
-- **Preserved Classification:** Core vs Secondary classification is preserved directly from the normalized Body Evidence model (Core 13 primary anchors vs Secondary allowlist).
+Front–Side Alignment v0 is a deterministic, read-only correspondence and QA layer between Front normalized Body Evidence on $X/Y$ and Side normalized Body Evidence on $U/Y$. It evaluates semantic correspondence and vertical $Y$ agreement only; it does **NOT** reconstruct 3D geometry, estimate depth, or fuse 2D coordinates into 3D points.
 
 ### Alignment Calculation
-
 For matched identities:
 $$\Delta Y = |front.y - side.y|$$
 
-- **Shared Vertical Dimension Only:** Only the shared vertical `Y` coordinate is compared.
-- **Coordinate Separation:**
-  - Front coordinates: `{ x, y }` (transverse width $X$, vertical height $Y$)
-  - Side coordinates: `{ u, y }` (sagittal profile depth evidence $U$, vertical height $Y$)
-  - Side $U$ is profile evidence only and is never converted to $Z$ or combined with Front $X$.
-
-### QA Status Rules
-
-The QA evaluation uses a deterministic rule based on the shared vertical coordinate:
 - **Default Tolerance:** `5.0 cm` (`DEFAULT_ALIGNMENT_TOLERANCE_CM = 5.0`)
 - **`aligned`:** Finite Front and Side $Y$ values and $\Delta Y \le 5.0\text{ cm}$.
 - **`warning`:** Finite Front and Side $Y$ values and $\Delta Y > 5.0\text{ cm}$.
 - **`unavailable`:** Missing identity/view or missing/non-finite $Y$ coordinate.
 
-> [!IMPORTANT]
-> The `5.0 cm` threshold is a **v0 project QA threshold tied to the current sampling scale**, not an anatomical/medical tolerance standard.
-
-### Alignment Report Contract
-
-The report emitted by `computeFrontSideAlignment(frontCandidates, sideCandidates)` is clean, deterministic, and free of redundant derived identity lists:
-- `contract`: `'front-side-alignment-v0'`
-- `version`: `'front-side-alignment-v0'`
-- `toleranceCm`: `5.0`
-- `summary`:
-  - `totalFront`, `totalSide`, `totalMatched`
-  - `alignedCount`, `warningCount`, `unavailableCount`
-  - `frontOnlyCount`, `sideOnlyCount`
-  - `coreMatchedCount`, `secondaryMatchedCount`
-- `matchedPairs`: Sorted deterministically by canonical landmark order (Core 13 followed by Secondary allowlist). Each pair contains `identity`, `name`, `classification`, `front: { x, y }`, `side: { u, y }`, `verticalDeltaCm`, and `status`.
-- `frontOnly`: Array of items present only in Front evidence, each with `identity`, `name`, `classification`, `front: { x, y }`, `status: 'unavailable'`, and `reason: 'missing-in-side'`.
-- `sideOnly`: Array of items present only in Side evidence, each with `identity`, `name`, `classification`, `side: { u, y }`, `status: 'unavailable'`, and `reason: 'missing-in-front'`.
-
-### QA UI (Session Data → Body Tab)
-
-The Front–Side Alignment QA presentation is embedded read-only inside the **Session Data → Body** tab (`#tab-panel-body` / `#front-side-alignment-panel`).
-
-- **Top Summary Card (Always Visible):**
-  - Displays: Tolerance (`5.0 cm`), Matched, Aligned, Warnings, Unavailable, Core Matched, and Secondary Matched.
-  - Guardrail notes:
-    - *"Vertical Y agreement only · tolerance 5.0 cm"*
-    - *"Side U is profile evidence — NOT depth Z"*
-- **Collapsible Groups (Collapsed by Default):**
-  - **`Core Pairs (N)`**: Collapsible list of matched Core landmark pairs.
-  - **`Secondary Pairs (N)`**: Collapsible list of matched Secondary allowlist pairs.
-  - **`Issues (N)`**: Collapsible list collecting all warning pairs, unavailable pairs, Front-only records, and Side-only records without duplicate entries.
-- **Compact 2-Line Audit Rows:**
-  - **Line 1:** Landmark display name (Title Case), classification badge (`Core` / `Secondary`), $\Delta Y$ value (amber highlight on `warning`), and status badge (`aligned`, `warning`, `unavailable`).
-  - **Line 2:** Distinct coordinates: `Front: X ... · Y ...` · `Side: U ... · Y ...` (or `missing` for unmatched items).
-- **Runtime Derivation:** Derived directly on demand from normalized Body Evidence runtime state (`getFrontOverlayLandmarks()`, `getSecondaryCandidateLandmarks()`, `getSideCandidateLandmarks()`). No duplicate alignment state is stored.
-
-### Empty and Not-Ready States
-
-- **No Evidence Analyzed:** Displays `No body evidence analyzed.`
-- **Analyzed with Zero Candidates:** Displays `No body landmark candidates found in analyzed evidence.`
-- **Front-Only Evidence:** Displays Front candidate count with notice that Side pose is missing, followed by the grouped issues list.
-- **Side-Only Evidence:** Displays Side candidate count with notice that Front pose is missing, followed by the grouped issues list.
-- **Both Views Present with Zero Matches:** Displays the 0-match summary card and unmatched items under `Issues`.
-- **Complete Matched Alignment Report:** Displays the complete summary card and populated collapsible groups.
-
-### Strict Scope Boundary
-
-Front–Side Alignment v0 explicitly does **NOT** include:
-- $U \to Z$ conversion
-- Depth inference
-- 3D point or mesh reconstruction
-- Side candidate promotion (Front remains canonical/promotable; Side remains evidence-only)
-- Canonical Side annotations
-- Automatic coordinate correction or alignment transformation
-- Pose compensation or adjustment
-- Circumference calculation
-- Ellipse fitting
-- Body-volume inference
-- Segmentation fusion
-- Front↔Side 3D geometry connector lines
-
-### Future Scope Note
-
-> [!NOTE]
-> **Pose-aware Alignment QA is deferred to a future stage.**
-> Current warnings evaluate vertical coordinate agreement directly and do not distinguish between structural calibration disagreement and landmark movement caused by natural body pose variations between Front and Side capture images.
-
 ---
 
-## Current Body Graph Features
+## 15. Current Body Graph Features
 
 ### Body Graph Contract v0
 - **Deterministic derivation:** Built dynamically via `buildBodyGraph(getAnnotations())`.
 - **Contract topology:** Exactly **13 Core anatomical nodes** and **13 structural edges**.
 - **Source:** Derives strictly from promoted `body_landmark` annotations. Secondary promoted landmarks, unpromoted candidates, and Side evidence are ignored.
-- **Persistence:** Body Graph is **not** serialized into Scene State JSON (no `bodyGraph` field). It is reconstructed at runtime from restored annotations.
+- **Persistence:** Body Graph is **not** serialized into Scene State JSON. It is reconstructed at runtime from restored annotations.
 
 ### Body Graph Workspace v0
 - Dedicated workspace tab (`#workspace-tab-body-graph`, mode `body-graph`).
 - Visualizes the Core 13 anatomical topology diagram with summary badges (Present / Total nodes, Complete / Total edges).
-- Read-only topology workspace — separate from the Session Data Scene Graph.
 
 ---
 
-## Current Scene Graph Features
+## 16. Current Scene Graph & Scene State Export / Import
 
-- Located in the **Graph** tab of the right Session Data sidebar (`#tab-panel-graph`).
-- Compact tree visualization of scene objects: Scene Metadata, Reference Markers, Active Measurement, Measurement History, Annotations.
-- Clicking tree nodes triggers temporary 3D highlighting without mutating scene state.
-
----
-
-## Current Scene State Export / Import Features
-
-- Managed via the **File** top application menu (**Export Scene State** and **Import Scene State…**).
-- **Canonical Schema v1:** Exports metadata, units (`cm`), cube scale, timestamps (UTC and local), active measurement, measurement history, and annotations.
-- **Exclusions:** Raw Body Evidence, Side measurements, 2D UI refinement state, and Body Graph are strictly excluded from Scene State JSON.
+- **Scene Graph:** Tree visualization in Session Data **Graph** tab (`#tab-panel-graph`) with non-mutating 3D highlight previews.
+- **Scene State Export/Import:** Managed via **File** menu (**Export Scene State** and **Import Scene State…**). Canonical Schema v1 exports annotations, measurement history, active measurement, and coordinate metadata. Raw Body Evidence, Side measurements, 2D refinement state, and Body Graph are strictly excluded.
 
 ---
 
-## Current 2D Workspace and Grid Navigators
+## 17. Current 2D Workspace and Grid Navigators
 
-The **2D Workspace** tab (`#workspace-tab-split`, mode `split`) presents a side-by-side view of the 3D space and the 2D navigators:
-- Default allocation: **36% 3D / 64% 2D split** to provide ample space for 2D refinement and side-by-side evidence inspection.
-- Resizable via the outer draggable vertical divider (`#workspace-split-divider`).
-
-### Front Surface Navigator (X/Y)
-- **Domain:** 0–200 cm X (width) and Y (height).
-- **Base Grid:** 10 cm lattice with single-level 5 cm regional refinement (**Split Selection**).
-- **Measurement:** Drives the canonical shared Front/3D measurement (`advanceFrontSurfaceMeasurement`).
-- **Overlays:** Core and Secondary Front body evidence overlays, projected 3D reference markers, projected annotations, and body measurement preview lines.
-
-### Side Evidence Navigator (U/Y)
-- **Domain:** 0–200 cm U (horizontal depth evidence) and Y (height).
-- **Base Grid:** 10 cm lattice with single-level 5 cm regional refinement.
-- **Measurement:** Local Side A/B measurement only (U/Y Euclidean distance), active in Inspect & Measure workflow.
-- **Overlays:** Side Core (diamonds) and Side Secondary (circles/dots) evidence markers using shared Core and Secondary semantic colors.
+The **2D Workspace** tab (`#workspace-tab-split`, mode `split`) presents a side-by-side view of the 3D space and the 2D navigators (default 36% 3D / 64% 2D split with draggable divider):
+- **Front Surface Navigator (X/Y):** 0–200 cm X/Y domain, 10 cm base lattice with 5 cm regional refinement, shared canonical measurement overlay, projected annotations, and Front segmentation overlay.
+- **Side Evidence Navigator (U/Y):** 0–200 cm U/Y domain, 10 cm base lattice with 5 cm regional refinement, Side Core/Secondary markers, local Side A/B measurement, and Side segmentation overlay.
 
 ---
 
-## 8. Current UI State
-
-The UI uses a **REVacity-style** dark cosmic / neural command-center layout:
-
-### Top Header (`#top-header`)
-- **Brand:** REVacity Metrology Space.
-- **Application Menu Bar (`#app-menu-bar`):**
-  - **File:** Load Front/Side Pose JSON, Load Front/Side Seg JSON, Import Scene State, Export Scene State, Download Body Evidence JSON.
-  - **View:** 11 view setting toggles with authoritative checked indicators and enabled/disabled states.
-  - **Workflow:** Inspect & Measure, Annotate, Body Evidence workflow selection.
-
-### Left Sidebar — Metrology Inspector (`#left-sidebar`)
-Workflow-driven panels:
-- **Inspect & Measure:** Distance Measurement panel (`#measurement-panel`) with independent collapsible Front/Canonical and Side/U-Y subgroups.
-- **Annotate:** Selected Point panel (`#selection-panel`) with coordinates, annotation type/preset dropdowns, Add Annotation button, and Clear Selection button.
-- **Body Evidence:** Body Evidence panel (`#body-evidence-panel`) with Actions subgroup and Front / Side / Selection tabs.
-
-### Center Viewport (`#viewport`)
-Workspace tabs (`#workspace-tabs`):
-- **3D Space:** Fullscreen 3D metrology cube.
-- **2D Workspace:** Combined 3D pane + Front X/Y navigator + Side U/Y navigator with draggable divider.
-- **Body Graph:** Dedicated read-only Core 13 topological diagram.
-
-### Right Sidebar — Session Data (`#right-sidebar`)
-- **Collapsible sidebar behavior:** The entire right Session Data sidebar is collapsible via a dedicated collapse/expand toggle button (`#right-sidebar-toggle`) in the sidebar header.
-  - **Expanded state:** Default width (`248px`), displaying the full sidebar header, tab bar, and active tab content.
-  - **Collapsed state:** Reduces the sidebar to a narrow rail (`36px`) with a visible reopen control and subtle vertical rail label, automatically allocating freed horizontal space to the main workspace (`#viewport`).
-  - **Reopening:** Clicking the toggle button or clicking the collapsed sidebar rail restores the sidebar to its normal width.
-  - **State isolation:** Collapse/expand is strictly UI/layout-only. Toggling collapse preserves the currently active Session Data tab and never clears or mutates Measurement History, Annotations, Body tab data, Graph tab data, Body Evidence, Front/Side measurements, active app mode, inspector workflow, or Scene State JSON data. It does not change 3D, Front, Side, Body Graph, measurement, annotation, import/export, or evidence behavior.
-- 4 segmented tabs:
-  - **Hist (`#tab-panel-history`):** Shared canonical measurement history list and Clear History button.
-  - **Annos (`#tab-panel-annotations`):** Annotation list with type badges and delete buttons.
-  - **Body (`#tab-panel-body`):** Body Evidence Status summary, Front–Side Alignment QA report, Promoted Body Anchors table, and Body Measurement Readiness audit.
-  - **Graph (`#tab-panel-graph`):** Read-only Scene Graph tree with 3D highlight preview.
-
-### Bottom Status Bar (`#bottom-status-bar`)
-Passive readouts: Scale (1 unit = 1 cm), Grid (10 cm), Sampling (5 cm), Mode, and contextual hint text.
-
----
-
-## 9. Features Tried and Removed
-
-- Left inspector View Controls panel (moved to View menu with checked indicators).
-- Left inspector Mode toggle buttons (moved to Workflow menu).
-- Separate Files tab in Session Data (consolidated into File menu).
-- Floating 2D overlay and standalone 2D tab (consolidated into 2D Workspace split view).
-- Result / Scale JSON upload (replaced by fixed v0 scale).
-- Independent 2D Front measurement state (unified with canonical 3D measurement).
-- Dense hand/finger landmarks in secondary allowlist (deferred).
-
----
-
-## 10. Important Do-Not-Break Rules
+## 18. Important Do-Not-Break Rules
 
 When modifying this project, preserve the following unless explicitly instructed otherwise:
 
@@ -745,31 +606,29 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Do not break two-point distance measurement** in Inspect & Measure mode
 - **Do not break Front/Side measurement separation** — Side measurement is local U/Y only and never enters canonical measurement history or Scene State
 - **Do not promote Side landmarks** — Side candidates are non-promotable and lack canonical 3D depth
+- **Do not break Full Body Evidence Package Contract v0** — package normalization, ZIP transport isolation, and automatic analysis
 - **Do not break Front–Side Alignment v0 contract** — semantic landmark identity matching and vertical Y delta QA only; no 3D geometry reconstruction or U→Z conversion
 - **Do not break Body Graph Contract v0** — Core 13 nodes and 13 structural edges derived strictly from promoted Core 13 `body_landmark` annotations
 - **Do not serialize Body Graph or raw Body Evidence into Scene State JSON**
 - **Do not break View menu checked-state indicators** — indicators must reflect authoritative runtime query (`getViewSetting`)
 - **Do not break 2D Workspace split layout** — Front X/Y and Side U/Y navigators with draggable divider
-- **Do not break manual annotation workflow** or Landmark Preset dropdowns
-- **Do not break Body Measurement Readiness** calculations or Preview Overlay lines
 
 ### Explicitly NOT Implemented (Current Scope Boundaries)
 
-The following capabilities are deliberately **not implemented** in the current codebase and must not be simulated or added without explicit directive:
-1. **Spatial 3D Fusion / Registration:** No 3D spatial fusion between Front X/Y and Side U/Y coordinates; Front-Side Alignment v0 is pure semantic correspondence QA and vertical Y comparison only.
+1. **Spatial 3D Fusion / Registration:** No 3D spatial fusion between Front X/Y and Side U/Y coordinates.
 2. **U → Z Conversion / Canonical Side Depth:** Side U coordinates are profile evidence only and are not mapped to 3D Z depth.
-3. **Side Landmark Promotion:** Side landmarks cannot be promoted to 3D annotations.
-4. **Derived / Composite Anatomical Regions:** No multi-class region unions, synthetic whole-body bounding volumes, or derived anatomical zones (e.g. neck, chest, waist, hip) in v0.
-5. **Segmentation-Derived Measurements:** No direct circumference, width, cross-section, or distance measurements derived from segmentation masks.
-6. **Contour Extraction:** No polygon or bezier contour generation from segmentation rasters.
-7. **Pointmap / Normal 3D Promotion:** Pointmap and normal evidence packages are accepted future inputs but are not yet promoted into canonical 3D geometry.
-8. **Body-Region Inference:** No automatic mesh fitting or volumetric body partitioning.
-9. **Circumference / Cross-Section Inference:** No elliptical or convex hull circumference math.
-10. **Latent Space Conditioning / Features:** Metrology space is coordinate-pure; no latent representations.
+3. **Pointmap Z → Canonical Z:** Pointmap Z coordinates are not treated as canonical metrology Z.
+4. **Pointmap / Normal 3D Promotion:** Pointmap and normal evidence packages are accepted normalized inputs but their geometry semantics remain unvalidated; they are not promoted into 3D geometry.
+5. **Side Landmark Promotion:** Side landmarks cannot be promoted to 3D annotations.
+6. **Derived / Composite Anatomical Regions:** No multi-class region unions or synthetic bounding volumes in v0.
+7. **Segmentation-Derived Measurements:** No direct circumference, width, or distance measurements derived from segmentation masks.
+8. **Contour Extraction:** No polygon or bezier contour generation from segmentation rasters.
+9. **3D Reconstruction / Mesh Generation:** No point cloud generation, mesh surface reconstruction, or volumetric body partitioning.
+10. **Circumference / Cross-Section Inference:** No elliptical or convex hull circumference math.
 
 ---
 
-## 11. Metrology Roadmap
+## 19. Metrology Roadmap
 
 ### Completed Milestones
 - **3D Metrology Coordinate Cube & Volumetric Lattice Sampling (5 cm, 68,921 points)**
@@ -786,19 +645,16 @@ The following capabilities are deliberately **not implemented** in the current c
 - **Anatomical Region Contract v0 (Deterministic 29-class observed ontology, categories, metrology eligibility)**
 - **Pixel-to-Metrology Mapping Core v0 (Pure resolution-independent mapping, center vs edge math, Y inversion, validation)**
 - **Anatomical Region Metric Bounds v0 (Observed region metric boundsCm derived from runtime raster dimensions)**
+- **Full Body Evidence Package Contract v0 (Canonical multi-modal package contract, Front/Side views, ZIP transport adapter, Package QA summary UI, automatic analysis)**
 
-### Next Planned Milestone: Full Body Evidence Package Contract v0
-Formalize the structured multi-modal input package per view:
-- `image`
-- `pose / landmarks`
-- `segmentation`
-- `pointmap XYZ`
-- `surface normals XYZ`
-
-Define availability, schema, shape, dtype, units, model/view metadata, and QA validation without yet promoting pointmap or normals into canonical 3D geometry.
-
-### Following Milestone: Pointmap + Normal Evidence Contract / QA v0
-Audit and formalize coordinate frames, scale semantics, valid body masking, and normal vector validity across Front and Side views.
+### Next Active Milestone: Pointmap + Normal Evidence Contract / QA v0
+Audit and formalize pointmap and normal evidence semantics across Front and Side views:
+- Pointmap coordinate frame and units validation (`declaredUnits`, `declaredScale`)
+- Numeric validity (finite checks, NaN / Infinity guards, min/max distributions)
+- Pixel-to-point correspondence and valid foreground body masking
+- Surface normal vector magnitude and range validation (`declaredRange`)
+- Surface normal coordinate frame and orientation semantics
+- Front/Side frame independence (no premature 3D fusion or Pointmap Z → canonical Z)
 
 ---
 
@@ -806,7 +662,7 @@ Audit and formalize coordinate frames, scale semantics, valid body masking, and 
 
 | File | Purpose |
 |------|---------|
-| `src/main.js` | Thin app orchestrator: scene assembly, interaction/UI setup, resize, animation loop |
+| `src/main.js` | Thin app orchestrator: scene assembly, interaction/UI setup, resize, animation loop (~118 lines) |
 | `src/core/constants.js` | Shared scale, grid, LOD, and tooltip constants |
 | `src/core/frontSurface.js` | Front Surface depth, 2D↔3D mapping helpers |
 | `src/core/annotationTypes.js` | Allowed annotation node types, landmark presets, display labels |
@@ -820,6 +676,12 @@ Audit and formalize coordinate frames, scale semantics, valid body masking, and 
 | `src/metrology/volumeGrid.js` | 5 cm internal lattice, LOD layers, visibility controls |
 | `src/metrology/axes.js` | X/Y/Z axes and 20 cm tick labels |
 | `src/metrology/referenceMarkers.js` | Origin and Center markers, hover labels |
+| `src/features/bodyEvidencePackage.js` | Full Body Evidence Package Contract v0 — pure normalized multi-modal package schema and QA contract |
+| `src/features/bodyEvidencePackage.test.js` | Body Evidence Package Contract v0 unit tests |
+| `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, and package construction |
+| `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
+| `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, landmark selections, change notifications, sanitized diagnostic export |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
@@ -828,8 +690,6 @@ Audit and formalize coordinate frames, scale semantics, valid body masking, and 
 | `src/features/sideMeasurement.js` | Local Side Evidence A/B measurement state (U/Y Euclidean distance) |
 | `src/features/frontSurfaceMeasurement.js` | Front Surface advance/read helpers over shared measurement |
 | `src/features/projectionLinking.js` | Read-only Front Surface projection of Origin/Center/annotations |
-| `src/features/bodyEvidence.js` | Body Evidence state store, analyze/clear, selection, manual promote |
-| `src/features/bodyEvidenceAdapter.js` | Body Evidence parsing, normalization, QA classification, secondary allowlist |
 | `src/features/frontSideAlignment.js` | Pure deterministic Front/Side semantic correspondence and vertical Y QA contract |
 | `src/features/bodyGraph.js` | Body Graph Contract v0 — deterministic Core 13 graph derivation |
 | `src/features/bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute |
@@ -853,16 +713,18 @@ Audit and formalize coordinate frames, scale semantics, valid body masking, and 
 | `src/ui/sideGrid2dNavigator.js` | Side Evidence 2D Grid Navigator (U/Y coordinates) |
 | `src/ui/grid2dNavShared.js` | Shared 2D navigator geometry, zoom/pan transform, and lattice utilities |
 | `src/ui/grid2dPlotArea.js` | Shared 2D plot frame, axes, and CSS variable styling |
-| `src/ui/bodyEvidencePanel.js` | Body Evidence left workflow panel (Front / Side / Selection tabs, segmentation lists) |
+| `src/ui/bodyEvidencePackageQaUi.js` | Body Evidence Package QA summary UI component (Session Data > Body tab) |
+| `src/ui/bodyEvidencePackageQaUi.test.js` | Package QA summary UI unit tests |
+| `src/ui/bodyEvidencePanel.js` | Body Evidence left workflow panel (Front / Side / Selection tabs, segmentation lists, inspect card, promote) |
 | `src/ui/bodyEvidenceCandidateList.js` | Candidate list DOM rendering with Core / Secondary filters and pill badges |
 | `src/ui/bodyEvidenceOverlay2d.js` | Front Surface Body Evidence overlay markers and inspect selection |
 | `src/ui/bodyEvidenceOverlaySide2d.js` | Side Evidence overlay markers (shared Core/Secondary colors; diamond/dot shapes) |
-| `src/ui/segmentationOverlay2d.js` | Translucent dense semantic segmentation overlays & highlight LUTs |
-| `src/ui/segmentationOverlay2d.test.js` | Segmentation overlay rendering and LUT unit tests |
+| `src/ui/segmentationOverlay2d.js` | Translucent dense semantic segmentation overlays & highlight LUTs with isolated per-view caches |
+| `src/ui/segmentationOverlay2d.test.js` | Segmentation overlay rendering, cache isolation, and LUT unit tests |
 | `src/ui/segmentationInspection.test.js` | Segmentation inspection, filtering, and Selection tab unit tests |
 | `src/ui/frontSideAlignmentPanel.js` | Front–Side Alignment QA presentation panel (summary card, collapsible groups, compact rows) |
 | `src/ui/bodyGraphWorkspace.js` | Body Graph Workspace v0 — Core 13 topological diagram |
-| `src/ui/bodyTabConsolidatedPanel.js` | Session Data Body tab coordinator (Status / Alignment QA / Promoted Anchors / Readiness) |
+| `src/ui/bodyTabConsolidatedPanel.js` | Session Data Body tab coordinator (Package QA / Status / Alignment QA / Promoted Anchors / Readiness) |
 | `src/ui/measurementPanel.js` | Distance Measurement inspector (Front/Canonical and Side/U-Y subgroups) |
 | `src/ui/selectionPanel.js` | Selected Point inspector panel helper |
 | `src/ui/annotationControls.js` | Landmark Preset dropdown wiring |
