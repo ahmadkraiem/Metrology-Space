@@ -1,10 +1,10 @@
 /**
  * Body Evidence panel (v0)
- * Left Metrology Inspector — load/analyze/clear body-processing JSON.
+ * Left Metrology Inspector — inspect Front/Side Body Evidence candidates & segmentation classes.
  * Tabbed workflow: Front / Side / Selection.
  * Evidence UI only — does not mutate scene or measurement state.
  * Compact summary counts render in Session Data > Body.
- * File load remains available through the File menu (hidden inputs).
+ * Package import available through File > Upload Body Evidence Package…
  * Promote Selected Landmark creates a normal annotation via the shared
  * annotation helper; Body Evidence evidence state is unchanged.
  * Side remains U/Y evidence and is never promotable.
@@ -13,14 +13,7 @@
 import {
   analyzeLoadedBodyEvidence,
   clearAllBodyEvidenceSelections,
-  clearBodyEvidence,
-  clearBodyEvidenceSelection,
-  clearFrontSegClass,
-  clearSideEvidenceSelection,
-  clearSideSegClass,
   downloadBodyEvidenceJson,
-  getBodyEvidenceError,
-  getBodyEvidencePackage,
   getBodyEvidenceQa,
   getSelectedBodyEvidenceLandmark,
   getSelectedFrontSegClass,
@@ -732,15 +725,6 @@ export function openBodyEvidencePackageFilePicker() {
   importBodyEvidencePackageZipInput?.click();
 }
 
-export function runClearBodyEvidenceAction() {
-  clearBodyEvidence();
-  refreshCandidateLists();
-  renderSelectedLandmark();
-  hideStatus();
-  hidePromoteStatus();
-  showStatus('Body evidence cleared.', 'ok');
-}
-
 function onClearSelection() {
   clearAllBodyEvidenceSelections();
   hidePromoteStatus();
@@ -769,7 +753,6 @@ export function runDownloadBodyEvidenceAction() {
   const { ok, error } = downloadBodyEvidenceJson();
   if (!ok) {
     showStatus(error ?? 'Download failed.', 'error');
-    syncDownloadButton();
     return;
   }
   showStatus('Body Evidence JSON downloaded.', 'ok');

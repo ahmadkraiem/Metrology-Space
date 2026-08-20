@@ -12,12 +12,12 @@ import {
   getSelectedSideSegClassId,
   selectFrontSegClass,
   selectSideSegClass,
-  setFrontSegSource,
-  setSideSegSource,
+  setBodyEvidencePackage,
   analyzeLoadedBodyEvidence,
   selectBodyEvidenceLandmark,
   selectSideEvidenceLandmark,
 } from '../features/bodyEvidence.js';
+import { buildBodyEvidencePackage } from '../features/bodyEvidencePackage.js';
 import {
   COLOR_LOOKUP_TABLE,
   createHighlightColorLookupTable,
@@ -54,23 +54,30 @@ test('Segmentation selection state is independently stored for Front and Side', 
   const rasterFront = new Uint8Array([0, 0, 1, 1]); // 2 background, 2 skin
   const rasterSide = new Uint8Array([0, 1, 2, 0]); // 2 background, 1 skin, 1 hair
 
-  setFrontSegSource({
-    model: 'schp',
-    view: 'front',
-    num_classes: 2,
-    class_names: ['background', 'skin'],
-    class_counts: { background: 2, skin: 2 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
-  });
-  setSideSegSource({
-    model: 'schp',
-    view: 'side',
-    num_classes: 3,
-    class_names: ['background', 'skin', 'hair'],
-    class_counts: { background: 2, skin: 1, hair: 1 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterSide) },
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 2,
+        class_names: ['background', 'skin'],
+        class_counts: { background: 2, skin: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+      },
+    },
+    side: {
+      segmentation: {
+        model: 'schp',
+        view: 'side',
+        num_classes: 3,
+        class_names: ['background', 'skin', 'hair'],
+        class_counts: { background: 2, skin: 1, hair: 1 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterSide) },
+      },
+    },
   });
 
+  setBodyEvidencePackage(pkg);
   const analyzeRes = analyzeLoadedBodyEvidence();
   assert.equal(analyzeRes.ok, true);
 
@@ -226,23 +233,30 @@ test('both Front and Side segmentation cards can be active simultaneously with f
   const rasterFront = new Uint8Array([0, 0, 1, 1]);
   const rasterSide = new Uint8Array([0, 1, 0, 1]);
 
-  setFrontSegSource({
-    model: 'schp',
-    view: 'front',
-    num_classes: 2,
-    class_names: ['background', 'skin'],
-    class_counts: { background: 2, skin: 2 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
-  });
-  setSideSegSource({
-    model: 'schp',
-    view: 'side',
-    num_classes: 2,
-    class_names: ['background', 'skin'],
-    class_counts: { background: 2, skin: 2 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterSide) },
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 2,
+        class_names: ['background', 'skin'],
+        class_counts: { background: 2, skin: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+      },
+    },
+    side: {
+      segmentation: {
+        model: 'schp',
+        view: 'side',
+        num_classes: 2,
+        class_names: ['background', 'skin'],
+        class_counts: { background: 2, skin: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterSide) },
+      },
+    },
   });
 
+  setBodyEvidencePackage(pkg);
   analyzeLoadedBodyEvidence();
 
   selectFrontSegClass(1);
@@ -268,7 +282,7 @@ test('both Front and Side segmentation cards can be active simultaneously with f
   assert.equal(side.pixelCount, 2);
   assert.equal(side.coverage, 0.5);
 
-// Clearing Front leaves Side untouched
+  // Clearing Front leaves Side untouched
   clearFrontSegClass();
   assert.equal(getSelectedFrontSegClass(), null);
   assert.notEqual(getSelectedSideSegClass(), null);
@@ -299,4 +313,3 @@ test('Segmentation Present/Absent filters switch cleanly', () => {
   assert.equal(getBodyEvidenceSegFilter('front'), 'present');
   assert.equal(getBodyEvidenceSegFilter('side'), 'present');
 });
-

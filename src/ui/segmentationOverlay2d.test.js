@@ -9,17 +9,22 @@ import {
   renderSideSegmentationOverlay,
   syncFrontSegmentationVisibility,
   syncSideSegmentationVisibility,
+  setupSegmentationOverlay2d,
 } from './segmentationOverlay2d.js';
 import {
-  setFrontSegSource,
-  setSideSegSource,
+  setBodyEvidencePackage,
+  selectFrontSegClass,
+  selectSideSegClass,
+  clearAllBodyEvidenceSelections,
   analyzeLoadedBodyEvidence,
   clearBodyEvidence,
 } from '../features/bodyEvidence.js';
+import { buildBodyEvidencePackage } from '../features/bodyEvidencePackage.js';
 import {
   applyViewSetting,
   VIEW_SETTING_IDS,
 } from './viewControls.js';
+
 function encodeUint8ArrayToBase64(uint8) {
   if (typeof Buffer !== 'undefined') {
     return Buffer.from(uint8).toString('base64');
@@ -29,6 +34,40 @@ function encodeUint8ArrayToBase64(uint8) {
     binary += String.fromCharCode(uint8[i]);
   }
   return btoa(binary);
+}
+
+function createMockCanvas() {
+  let putImageDataCalls = 0;
+  let lastImageData = null;
+  return {
+    width: 0,
+    height: 0,
+    hidden: true,
+    get putImageDataCalls() {
+      return putImageDataCalls;
+    },
+    get lastImageData() {
+      return lastImageData;
+    },
+    getContext(type) {
+      if (type !== '2d') return null;
+      return {
+        createImageData(w, h) {
+          const buf = new ArrayBuffer(w * h * 4);
+          return {
+            width: w,
+            height: h,
+            data: new Uint8ClampedArray(buf),
+          };
+        },
+        putImageData(imgData) {
+          putImageDataCalls += 1;
+          lastImageData = imgData;
+        },
+        clearRect() {},
+      };
+    },
+  };
 }
 
 test('color lookup table maps class 0 to transparent and classes 1..N to translucent colors', () => {
@@ -74,77 +113,55 @@ test('renderFrontSegmentationOverlay and renderSideSegmentationOverlay paint whe
   const raster = new Uint8Array([0, 1, 1, 0]);
   const base64 = encodeUint8ArrayToBase64(raster);
 
-  setFrontSegSource({
-    model: 'schp',
-    view: 'front',
-    num_classes: 2,
-    class_names: ['background', 'skin'],
-    class_counts: { background: 2, skin: 2 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64 },
-  });
-  setSideSegSource({
-    model: 'schp',
-    view: 'side',
-    num_classes: 2,
-    class_names: ['background', 'skin'],
-    class_counts: { background: 2, skin: 2 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64 },
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 2,
+        class_names: ['background', 'skin'],
+        class_counts: { background: 2, skin: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64 },
+      },
+    },
+    side: {
+      segmentation: {
+        model: 'schp',
+        view: 'side',
+        num_classes: 2,
+        class_names: ['background', 'skin'],
+        class_counts: { background: 2, skin: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64 },
+      },
+    },
   });
 
+  setBodyEvidencePackage(pkg);
   const res = analyzeLoadedBodyEvidence();
   assert.equal(res.ok, true);
-
-  let putImageDataCalls = 0;
-  let lastImageData = null;
-
-  function createMockCanvas() {
-    return {
-      width: 0,
-      height: 0,
-      hidden: true,
-      getContext(type) {
-        if (type !== '2d') return null;
-        return {
-          createImageData(w, h) {
-            const buf = new ArrayBuffer(w * h * 4);
-            return {
-              width: w,
-              height: h,
-              data: new Uint8ClampedArray(buf),
-            };
-          },
-          putImageData(imgData) {
-            putImageDataCalls += 1;
-            lastImageData = imgData;
-          },
-          clearRect() {},
-        };
-      },
-    };
-  }
 
   const frontCanvas = createMockCanvas();
   const sideCanvas = createMockCanvas();
 
-  // 1. Initial render
+  // 1. Initial render Front
   renderFrontSegmentationOverlay(frontCanvas);
   assert.equal(frontCanvas.hidden, false);
   assert.equal(frontCanvas.width, 2);
   assert.equal(frontCanvas.height, 2);
-  assert.equal(putImageDataCalls, 1);
-  assert.ok(lastImageData);
+  assert.equal(frontCanvas.putImageDataCalls, 1);
+  assert.ok(frontCanvas.lastImageData);
 
   // 2. Second render with same data -> cached, no redundant putImageData
   renderFrontSegmentationOverlay(frontCanvas);
   assert.equal(frontCanvas.hidden, false);
-  assert.equal(putImageDataCalls, 1); // No new call to putImageData
+  assert.equal(frontCanvas.putImageDataCalls, 1); // No new call to putImageData
 
   // 3. Side render
   renderSideSegmentationOverlay(sideCanvas);
   assert.equal(sideCanvas.hidden, false);
   assert.equal(sideCanvas.width, 2);
   assert.equal(sideCanvas.height, 2);
-  assert.equal(putImageDataCalls, 2);
+  assert.equal(sideCanvas.putImageDataCalls, 1);
 
   // 4. Toggle view setting off -> canvas hidden
   applyViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION, false);
@@ -155,7 +172,7 @@ test('renderFrontSegmentationOverlay and renderSideSegmentationOverlay paint whe
   applyViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION, true);
   renderFrontSegmentationOverlay(frontCanvas);
   assert.equal(frontCanvas.hidden, false);
-  assert.equal(putImageDataCalls, 2); // Still 2
+  assert.equal(frontCanvas.putImageDataCalls, 1); // Still 1
 
   // 5. Clear evidence -> canvas hidden and cache cleared
   clearBodyEvidence();
@@ -172,50 +189,112 @@ test('syncFrontSegmentationVisibility and syncSideSegmentationVisibility toggle 
   const raster = new Uint8Array([0, 1, 1, 0]);
   const base64 = encodeUint8ArrayToBase64(raster);
 
-  setFrontSegSource({
-    model: 'schp',
-    view: 'front',
-    num_classes: 2,
-    class_names: ['background', 'skin'],
-    class_counts: { background: 2, skin: 2 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64 },
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 2,
+        class_names: ['background', 'skin'],
+        class_counts: { background: 2, skin: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64 },
+      },
+    },
   });
 
+  setBodyEvidencePackage(pkg);
   analyzeLoadedBodyEvidence();
 
-  let putImageDataCount = 0;
-  const mockCanvas = {
-    width: 0,
-    height: 0,
-    hidden: true,
-    getContext(type) {
-      if (type !== '2d') return null;
-      return {
-        createImageData(w, h) {
-          return { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) };
-        },
-        putImageData() {
-          putImageDataCount += 1;
-        },
-        clearRect() {},
-      };
-    },
-  };
+  const mockCanvas = createMockCanvas();
 
   // Initial paint
   renderFrontSegmentationOverlay(mockCanvas);
   assert.equal(mockCanvas.hidden, false);
-  assert.equal(putImageDataCount, 1);
+  assert.equal(mockCanvas.putImageDataCalls, 1);
 
   // Toggle off via setting
   applyViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION, false);
   syncFrontSegmentationVisibility(mockCanvas);
   assert.equal(mockCanvas.hidden, true);
-  assert.equal(putImageDataCount, 1); // No putImageData
+  assert.equal(mockCanvas.putImageDataCalls, 1); // No putImageData
 
   // Toggle on via setting
   applyViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION, true);
   syncFrontSegmentationVisibility(mockCanvas);
   assert.equal(mockCanvas.hidden, false);
-  assert.equal(putImageDataCount, 1); // Still 1, reused cached bitmap
+  assert.equal(mockCanvas.putImageDataCalls, 1); // Still 1, reused cached bitmap
+});
+
+test('invariant: Front and Side caches and class selections remain strictly isolated', () => {
+  clearBodyEvidence();
+  clearSegmentationOverlayCache();
+
+  const rasterFront = new Uint8Array([0, 1, 1, 0]);
+  const rasterSide = new Uint8Array([0, 2, 2, 0]);
+
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 3,
+        class_names: ['background', 'skin', 'cloth'],
+        class_counts: { background: 2, skin: 2, cloth: 0 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+      },
+    },
+    side: {
+      segmentation: {
+        model: 'schp',
+        view: 'side',
+        num_classes: 3,
+        class_names: ['background', 'skin', 'cloth'],
+        class_counts: { background: 2, skin: 0, cloth: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterSide) },
+      },
+    },
+  });
+
+  setBodyEvidencePackage(pkg);
+  analyzeLoadedBodyEvidence();
+
+  const frontCanvas = createMockCanvas();
+  const sideCanvas = createMockCanvas();
+
+  renderFrontSegmentationOverlay(frontCanvas);
+  renderSideSegmentationOverlay(sideCanvas);
+  assert.equal(frontCanvas.putImageDataCalls, 1);
+  assert.equal(sideCanvas.putImageDataCalls, 1);
+
+  // Selecting a class on Front only repaints Front
+  selectFrontSegClass(1);
+  renderFrontSegmentationOverlay(frontCanvas);
+  renderSideSegmentationOverlay(sideCanvas);
+  assert.equal(frontCanvas.putImageDataCalls, 2); // Repainted due to class change
+  assert.equal(sideCanvas.putImageDataCalls, 1); // Side was NOT repainted
+
+  // Selecting a class on Side only repaints Side
+  selectSideSegClass(2);
+  renderFrontSegmentationOverlay(frontCanvas);
+  renderSideSegmentationOverlay(sideCanvas);
+  assert.equal(frontCanvas.putImageDataCalls, 2); // Front unchanged
+  assert.equal(sideCanvas.putImageDataCalls, 2); // Side repainted
+});
+
+test('invariant: setupSegmentationOverlay2d callbacks register without overwriting each other', () => {
+  let frontRefreshCalled = 0;
+  let sideRefreshCalled = 0;
+
+  setupSegmentationOverlay2d(() => {
+    frontRefreshCalled += 1;
+  }, null);
+
+  setupSegmentationOverlay2d(null, () => {
+    sideRefreshCalled += 1;
+  });
+
+  // Verify that registering side refresh did not discard front refresh
+  clearAllBodyEvidenceSelections();
+  assert.ok(frontRefreshCalled >= 1);
+  assert.ok(sideRefreshCalled >= 1);
 });

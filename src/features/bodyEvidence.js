@@ -831,15 +831,11 @@ function hasBodyEvidencePoseOrSegSource() {
   );
 }
 
-export function hasAnyBodyEvidenceSource() {
-  return hasBodyEvidencePoseOrSegSource();
-}
-
 export function hasSidePoseSource() {
   return Boolean(sources.sidePose);
 }
 
-/** Loading a source invalidates the previous analysis, overlay, and selection. */
+/** Setting a new package invalidates the previous analysis, overlay, and selection. */
 function resetAnalysisForNewSource() {
   qaResult = null;
   lastError = null;
@@ -849,27 +845,6 @@ function resetAnalysisForNewSource() {
   sideSecondaryOverlayVisible = false;
   clearBodyEvidenceSelectionSilent();
   notifyBodyEvidenceChange();
-}
-
-export function setFrontPoseSource(data) {
-  sources.frontPose = data;
-  resetAnalysisForNewSource();
-}
-
-export function setSidePoseSource(data) {
-  sources.sidePose = data;
-  resetAnalysisForNewSource();
-}
-
-export function setFrontSegSource(data) {
-  sources.frontSeg = data;
-  resetAnalysisForNewSource();
-}
-
-export function setSideSegSource(data) {
-  sources.sideSeg = data;
-  currentPackage = null;
-  resetAnalysisForNewSource();
 }
 
 /**

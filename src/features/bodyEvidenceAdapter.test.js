@@ -577,31 +577,40 @@ test('analyzeBodyEvidence integrates Front and Side normalized segmentation with
   assert.equal(result.views.side.segmentation.classes.length, 2);
 
   // Diagnostic export inspection
-  // Simulate setting qaResult via setFrontSegSource/analyzeLoadedBodyEvidence or build export helper
+  // Simulate setting qaResult via setBodyEvidencePackage/analyzeLoadedBodyEvidence or build export helper
   const {
-    setFrontSegSource,
-    setSideSegSource,
+    setBodyEvidencePackage,
     analyzeLoadedBodyEvidence,
     getFrontSegmentationRaster,
     getSideSegmentationRaster,
     clearBodyEvidence,
   } = await import('./bodyEvidence.js');
-  setFrontSegSource({
-    model: 'schp',
-    view: 'front',
-    num_classes: 2,
-    class_names: ['background', 'skin'],
-    class_counts: { background: 2, skin: 2 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+  const { buildBodyEvidencePackage } = await import('./bodyEvidencePackage.js');
+
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 2,
+        class_names: ['background', 'skin'],
+        class_counts: { background: 2, skin: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+      },
+    },
+    side: {
+      segmentation: {
+        model: 'schp',
+        view: 'side',
+        num_classes: 2,
+        class_names: ['background', 'skin'],
+        class_counts: { background: 2, skin: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterSide) },
+      },
+    },
   });
-  setSideSegSource({
-    model: 'schp',
-    view: 'side',
-    num_classes: 2,
-    class_names: ['background', 'skin'],
-    class_counts: { background: 2, skin: 2 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterSide) },
-  });
+
+  setBodyEvidencePackage(pkg);
   const analyzeRes = analyzeLoadedBodyEvidence();
   assert.equal(analyzeRes.ok, true);
 

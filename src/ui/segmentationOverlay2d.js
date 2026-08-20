@@ -123,15 +123,37 @@ export function createHighlightColorLookupTable(selectedClassId) {
   return table;
 }
 
-/** @type {Uint8Array | null} */
-let cachedFrontRaster = null;
-/** @type {number | null} */
-let cachedFrontSegClassId = null;
+const viewState = {
+  front: {
+    /** @type {Uint8Array | null} */
+    cachedRaster: null,
+    /** @type {number | null} */
+    cachedSelectedClassId: null,
+  },
+  side: {
+    /** @type {Uint8Array | null} */
+    cachedRaster: null,
+    /** @type {number | null} */
+    cachedSelectedClassId: null,
+  },
+};
 
-/** @type {Uint8Array | null} */
-let cachedSideRaster = null;
-/** @type {number | null} */
-let cachedSideSegClassId = null;
+const VIEW_ACCESSORS = {
+  front: {
+    isEnabled: isFrontSegmentationSettingEnabled,
+    getRaster: getFrontSegmentationRaster,
+    getSelectedClassId: getSelectedFrontSegClassId,
+    getViewSeg: (qa) => qa?.views?.front?.segmentation,
+    getDefaultCanvasEl: () => grid2dSegmentationCanvasEl,
+  },
+  side: {
+    isEnabled: isSideSegmentationSettingEnabled,
+    getRaster: getSideSegmentationRaster,
+    getSelectedClassId: getSelectedSideSegClassId,
+    getViewSeg: (qa) => qa?.views?.side?.segmentation,
+    getDefaultCanvasEl: () => sideSegmentationCanvasEl,
+  },
+};
 
 /** @type {(() => void) | null} */
 let requestFrontRefreshFn = null;
@@ -139,10 +161,114 @@ let requestFrontRefreshFn = null;
 let requestSideRefreshFn = null;
 
 export function clearSegmentationOverlayCache() {
-  cachedFrontRaster = null;
-  cachedFrontSegClassId = null;
-  cachedSideRaster = null;
-  cachedSideSegClassId = null;
+  viewState.front.cachedRaster = null;
+  viewState.front.cachedSelectedClassId = null;
+  viewState.side.cachedRaster = null;
+  viewState.side.cachedSelectedClassId = null;
+}
+
+/**
+ * Shared internal renderer for Front and Side segmentation overlays.
+ *
+ * @param {'front'|'side'} view
+ * @param {HTMLCanvasElement | null} canvasEl
+ */
+function renderSegmentationOverlayForView(view, canvasEl) {
+  if (!canvasEl) {
+    return;
+  }
+
+  const accessor = VIEW_ACCESSORS[view];
+  if (!accessor) {
+    return;
+  }
+  const state = viewState[view];
+
+  const enabled = accessor.isEnabled();
+  const raster = accessor.getRaster();
+  const selectedClassId = accessor.getSelectedClassId();
+  const qa = getBodyEvidenceQa();
+  const seg = accessor.getViewSeg(qa);
+
+  const shouldRender = Boolean(enabled && raster && raster.length > 0 && seg?.widthPx && seg?.heightPx);
+
+  if (!shouldRender) {
+    canvasEl.hidden = true;
+    if (raster === null && state.cachedRaster !== null) {
+      if (typeof canvasEl.getContext === 'function') {
+        const ctx = canvasEl.getContext('2d');
+        ctx?.clearRect(0, 0, canvasEl.width, canvasEl.height);
+      }
+      state.cachedRaster = null;
+      state.cachedSelectedClassId = null;
+    }
+    return;
+  }
+
+  const width = seg.widthPx;
+  const height = seg.heightPx;
+
+  // Redraw into canvas only when raster payload OR selected class changes
+  if (state.cachedRaster !== raster || state.cachedSelectedClassId !== selectedClassId) {
+    if (typeof canvasEl.getContext === 'function') {
+      if (canvasEl.width !== width) canvasEl.width = width;
+      if (canvasEl.height !== height) canvasEl.height = height;
+
+      const ctx = canvasEl.getContext('2d');
+      if (ctx) {
+        const lut = createHighlightColorLookupTable(selectedClassId);
+        const imgData = ctx.createImageData(width, height);
+        const out = new Uint32Array(imgData.data.buffer);
+        const len = raster.length;
+        for (let i = 0; i < len; i += 1) {
+          out[i] = lut[raster[i]];
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+    }
+    state.cachedRaster = raster;
+    state.cachedSelectedClassId = selectedClassId;
+  }
+
+  canvasEl.hidden = false;
+}
+
+/**
+ * Shared internal visibility synchronizer for Front and Side segmentation overlays.
+ * Toggles canvas visibility in O(1) time without re-rasterizing when bitmap is cached.
+ *
+ * @param {'front'|'side'} view
+ * @param {HTMLCanvasElement | null} canvasEl
+ */
+function syncSegmentationVisibilityForView(view, canvasEl) {
+  if (!canvasEl) {
+    return;
+  }
+
+  const accessor = VIEW_ACCESSORS[view];
+  if (!accessor) {
+    return;
+  }
+  const state = viewState[view];
+
+  const enabled = accessor.isEnabled();
+  const raster = accessor.getRaster();
+  const qa = getBodyEvidenceQa();
+  const seg = accessor.getViewSeg(qa);
+  const shouldRender = Boolean(enabled && raster && raster.length > 0 && seg?.widthPx && seg?.heightPx);
+
+  if (!shouldRender) {
+    canvasEl.hidden = true;
+    return;
+  }
+
+  const selectedClassId = accessor.getSelectedClassId();
+  if (state.cachedRaster === raster && state.cachedSelectedClassId === selectedClassId) {
+    canvasEl.hidden = false;
+    return;
+  }
+
+  renderSegmentationOverlayForView(view, canvasEl);
 }
 
 /**
@@ -151,57 +277,7 @@ export function clearSegmentationOverlayCache() {
  * @param {HTMLCanvasElement | null} canvasEl
  */
 export function renderFrontSegmentationOverlay(canvasEl) {
-  if (!canvasEl) {
-    return;
-  }
-
-  const enabled = isFrontSegmentationSettingEnabled();
-  const raster = getFrontSegmentationRaster();
-  const selectedClassId = getSelectedFrontSegClassId();
-  const qa = getBodyEvidenceQa();
-  const seg = qa?.views?.front?.segmentation;
-
-  const shouldRender = Boolean(enabled && raster && raster.length > 0 && seg?.widthPx && seg?.heightPx);
-
-  if (!shouldRender) {
-    canvasEl.hidden = true;
-    if (raster === null && cachedFrontRaster !== null) {
-      if (typeof canvasEl.getContext === 'function') {
-        const ctx = canvasEl.getContext('2d');
-        ctx?.clearRect(0, 0, canvasEl.width, canvasEl.height);
-      }
-      cachedFrontRaster = null;
-      cachedFrontSegClassId = null;
-    }
-    return;
-  }
-
-  const width = seg.widthPx;
-  const height = seg.heightPx;
-
-  // Redraw into canvas when raster payload OR selected class changes
-  if (cachedFrontRaster !== raster || cachedFrontSegClassId !== selectedClassId) {
-    if (typeof canvasEl.getContext === 'function') {
-      if (canvasEl.width !== width) canvasEl.width = width;
-      if (canvasEl.height !== height) canvasEl.height = height;
-
-      const ctx = canvasEl.getContext('2d');
-      if (ctx) {
-        const lut = createHighlightColorLookupTable(selectedClassId);
-        const imgData = ctx.createImageData(width, height);
-        const out = new Uint32Array(imgData.data.buffer);
-        const len = raster.length;
-        for (let i = 0; i < len; i += 1) {
-          out[i] = lut[raster[i]];
-        }
-        ctx.putImageData(imgData, 0, 0);
-      }
-    }
-    cachedFrontRaster = raster;
-    cachedFrontSegClassId = selectedClassId;
-  }
-
-  canvasEl.hidden = false;
+  renderSegmentationOverlayForView('front', canvasEl);
 }
 
 /**
@@ -210,57 +286,7 @@ export function renderFrontSegmentationOverlay(canvasEl) {
  * @param {HTMLCanvasElement | null} canvasEl
  */
 export function renderSideSegmentationOverlay(canvasEl) {
-  if (!canvasEl) {
-    return;
-  }
-
-  const enabled = isSideSegmentationSettingEnabled();
-  const raster = getSideSegmentationRaster();
-  const selectedClassId = getSelectedSideSegClassId();
-  const qa = getBodyEvidenceQa();
-  const seg = qa?.views?.side?.segmentation;
-
-  const shouldRender = Boolean(enabled && raster && raster.length > 0 && seg?.widthPx && seg?.heightPx);
-
-  if (!shouldRender) {
-    canvasEl.hidden = true;
-    if (raster === null && cachedSideRaster !== null) {
-      if (typeof canvasEl.getContext === 'function') {
-        const ctx = canvasEl.getContext('2d');
-        ctx?.clearRect(0, 0, canvasEl.width, canvasEl.height);
-      }
-      cachedSideRaster = null;
-      cachedSideSegClassId = null;
-    }
-    return;
-  }
-
-  const width = seg.widthPx;
-  const height = seg.heightPx;
-
-  // Redraw into canvas when raster payload OR selected class changes
-  if (cachedSideRaster !== raster || cachedSideSegClassId !== selectedClassId) {
-    if (typeof canvasEl.getContext === 'function') {
-      if (canvasEl.width !== width) canvasEl.width = width;
-      if (canvasEl.height !== height) canvasEl.height = height;
-
-      const ctx = canvasEl.getContext('2d');
-      if (ctx) {
-        const lut = createHighlightColorLookupTable(selectedClassId);
-        const imgData = ctx.createImageData(width, height);
-        const out = new Uint32Array(imgData.data.buffer);
-        const len = raster.length;
-        for (let i = 0; i < len; i += 1) {
-          out[i] = lut[raster[i]];
-        }
-        ctx.putImageData(imgData, 0, 0);
-      }
-    }
-    cachedSideRaster = raster;
-    cachedSideSegClassId = selectedClassId;
-  }
-
-  canvasEl.hidden = false;
+  renderSegmentationOverlayForView('side', canvasEl);
 }
 
 /**
@@ -271,28 +297,7 @@ export function renderSideSegmentationOverlay(canvasEl) {
  * @param {HTMLCanvasElement | null} [canvasEl]
  */
 export function syncFrontSegmentationVisibility(canvasEl = grid2dSegmentationCanvasEl) {
-  if (!canvasEl) {
-    return;
-  }
-
-  const enabled = isFrontSegmentationSettingEnabled();
-  const raster = getFrontSegmentationRaster();
-  const qa = getBodyEvidenceQa();
-  const seg = qa?.views?.front?.segmentation;
-  const shouldRender = Boolean(enabled && raster && raster.length > 0 && seg?.widthPx && seg?.heightPx);
-
-  if (!shouldRender) {
-    canvasEl.hidden = true;
-    return;
-  }
-
-  const selectedClassId = getSelectedFrontSegClassId();
-  if (cachedFrontRaster === raster && cachedFrontSegClassId === selectedClassId) {
-    canvasEl.hidden = false;
-    return;
-  }
-
-  renderFrontSegmentationOverlay(canvasEl);
+  syncSegmentationVisibilityForView('front', canvasEl);
 }
 
 /**
@@ -303,28 +308,7 @@ export function syncFrontSegmentationVisibility(canvasEl = grid2dSegmentationCan
  * @param {HTMLCanvasElement | null} [canvasEl]
  */
 export function syncSideSegmentationVisibility(canvasEl = sideSegmentationCanvasEl) {
-  if (!canvasEl) {
-    return;
-  }
-
-  const enabled = isSideSegmentationSettingEnabled();
-  const raster = getSideSegmentationRaster();
-  const qa = getBodyEvidenceQa();
-  const seg = qa?.views?.side?.segmentation;
-  const shouldRender = Boolean(enabled && raster && raster.length > 0 && seg?.widthPx && seg?.heightPx);
-
-  if (!shouldRender) {
-    canvasEl.hidden = true;
-    return;
-  }
-
-  const selectedClassId = getSelectedSideSegClassId();
-  if (cachedSideRaster === raster && cachedSideSegClassId === selectedClassId) {
-    canvasEl.hidden = false;
-    return;
-  }
-
-  renderSideSegmentationOverlay(canvasEl);
+  syncSegmentationVisibilityForView('side', canvasEl);
 }
 
 let isSubscribed = false;

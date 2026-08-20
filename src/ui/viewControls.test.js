@@ -113,32 +113,39 @@ function encodeUint8ArrayToBase64(uint8) {
 
 test('front-seg and side-seg become enabled after analyzing evidence and respect toggles', async () => {
   const {
-    setFrontSegSource,
-    setSideSegSource,
+    setBodyEvidencePackage,
     analyzeLoadedBodyEvidence,
     clearBodyEvidence,
   } = await import('../features/bodyEvidence.js');
+  const { buildBodyEvidencePackage } = await import('../features/bodyEvidencePackage.js');
 
   const raster = new Uint8Array([0, 0, 1, 1]);
   const base64 = encodeUint8ArrayToBase64(raster);
 
-  setFrontSegSource({
-    model: 'schp',
-    view: 'front',
-    num_classes: 2,
-    class_names: ['background', 'skin'],
-    class_counts: { background: 2, skin: 2 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64 },
-  });
-  setSideSegSource({
-    model: 'schp',
-    view: 'side',
-    num_classes: 2,
-    class_names: ['background', 'skin'],
-    class_counts: { background: 2, skin: 2 },
-    labels: { shape: [2, 2], dtype: 'uint8', base64 },
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 2,
+        class_names: ['background', 'skin'],
+        class_counts: { background: 2, skin: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64 },
+      },
+    },
+    side: {
+      segmentation: {
+        model: 'schp',
+        view: 'side',
+        num_classes: 2,
+        class_names: ['background', 'skin'],
+        class_counts: { background: 2, skin: 2 },
+        labels: { shape: [2, 2], dtype: 'uint8', base64 },
+      },
+    },
   });
 
+  setBodyEvidencePackage(pkg);
   const res = analyzeLoadedBodyEvidence();
   assert.equal(res.ok, true);
 
