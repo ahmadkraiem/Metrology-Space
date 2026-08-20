@@ -9,13 +9,16 @@ import {
   normalizePointmapEvidence,
 } from './bodyEvidencePackage.js';
 import {
+  BODY_ANATOMICAL_CLASS_IDS,
   evaluateNormalsBufferNumericQa,
   evaluateNormalsNumericQa,
   evaluatePointmapBufferNumericQa,
   evaluatePointmapNumericQa,
+  evaluateSameViewDenseCrossModalQa,
   NORMAL_NUMERIC_QA_CONTRACT,
   NORMAL_UNIT_TOLERANCE,
   POINTMAP_NUMERIC_QA_CONTRACT,
+  SAME_VIEW_DENSE_CROSS_MODAL_QA_CONTRACT,
 } from './denseEvidenceQa.js';
 
 test('evaluatePointmapBufferNumericQa computes exact statistics for valid HWC Float32 pointmap', () => {
@@ -740,4 +743,313 @@ test('evaluateNormalsNumericQa handles loader failure and reports status fail', 
   assert.equal(report.numeric, null);
   assert.equal(report.issues.some((i) => i.includes('IO read error')), true);
 });
+
+test('evaluateSameViewDenseCrossModalQa validates compatible 3-modality view and computes mask stats', async () => {
+  // 2 rows, 2 cols (4 pixels)
+  // Segmentation:
+  // Pixel 0 (0,0): class 0 (Background)
+  // Pixel 1 (0,1): class 1 (Apparel - clothing)
+  // Pixel 2 (1,0): class 3 (Face_Neck - face/head)
+  // Pixel 3 (1,1): class 22 (Torso - body_anatomical)
+  const segRaster = new Uint8Array([0, 1, 3, 22]);
+
+  // Pointmap:
+  // Pixel 0: [1, 2, 3] (finite)
+  // Pixel 1: [4, 5, 6] (finite)
+  // Pixel 2: [7, 8, 9] (finite)
+  // Pixel 3: [NaN, 11, 12] (invalid)
+  const pmBuffer = new Float32Array([
+    1, 2, 3,
+    4, 5, 6,
+    7, 8, 9,
+    NaN, 11, 12,
+  ]);
+
+  // Normals:
+  // Pixel 0: [0, 0, 1] (finite)
+  // Pixel 1: [0, 1, 0] (finite)
+  // Pixel 2: [0, NaN, 1] (invalid)
+  // Pixel 3: [1, 0, 0] (finite)
+  const normBuffer = new Float32Array([
+    0, 0, 1,
+    0, 1, 0,
+    0, NaN, 1,
+    1, 0, 0,
+  ]);
+
+  const viewEvidence = {
+    view: 'front',
+    segmentation: {
+      present: true,
+      view: 'front',
+      widthPx: 2,
+      heightPx: 2,
+      raster: segRaster,
+    },
+    pointmap: {
+      present: true,
+      view: 'front',
+      widthPx: 2,
+      heightPx: 2,
+      channels: 3,
+      shape: [2, 2, 3],
+      denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+      getDenseData: async () => pmBuffer,
+    },
+    normals: {
+      present: true,
+      view: 'front',
+      widthPx: 2,
+      heightPx: 2,
+      channels: 3,
+      shape: [2, 2, 3],
+      denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+      declaredRange: [-1.0, 1.0],
+      getDenseData: async () => normBuffer,
+    },
+  };
+
+  const report = await evaluateSameViewDenseCrossModalQa(viewEvidence);
+
+  assert.equal(report.contract, SAME_VIEW_DENSE_CROSS_MODAL_QA_CONTRACT);
+  assert.equal(report.view, 'front');
+  // PM and Normals have NaNs, so overall status is warning
+  assert.equal(report.status, 'warning');
+
+  // Raster compatibility
+  assert.equal(report.rasterCompatibility.segmentationPointmapDimensionsMatch, true);
+  assert.equal(report.rasterCompatibility.segmentationNormalsDimensionsMatch, true);
+  assert.equal(report.rasterCompatibility.pointmapNormalsDimensionsMatch, true);
+  assert.equal(report.rasterCompatibility.sharedWidthPx, 2);
+  assert.equal(report.rasterCompatibility.sharedHeightPx, 2);
+
+  // Pixel addressing
+  assert.equal(report.pixelAddressing.dimensionalCompatibility, true);
+  assert.equal(report.pixelAddressing.pointmapLayoutInspectable, true);
+  assert.equal(report.pixelAddressing.normalsLayoutInspectable, true);
+  assert.equal(report.pixelAddressing.pixelIndexAddressable, true);
+  assert.equal(report.pixelAddressing.semanticPixelCorrespondence, 'unvalidated');
+
+  // Masks
+  // 1. Background (pixel 0) -> PM finite, Norm finite -> both finite
+  const bg = report.masks.background;
+  assert.equal(bg.pixelCount, 1);
+  assert.equal(bg.pointmap.fullyFiniteVectorCount, 1);
+  assert.equal(bg.pointmap.invalidVectorCount, 0);
+  assert.equal(bg.pointmap.fullyFiniteVectorRatio, 1.0);
+  assert.equal(bg.normals.fullyFiniteVectorCount, 1);
+  assert.equal(bg.normals.invalidVectorCount, 0);
+  assert.equal(bg.joint.bothPointmapAndNormalFiniteCount, 1);
+  assert.equal(bg.joint.bothFiniteRatio, 1.0);
+
+  // 2. Non-Background (pixels 1, 2, 3) -> 3 pixels
+  // Pixel 1: PM finite, Norm finite -> both finite
+  // Pixel 2: PM finite, Norm invalid -> PM finite, Norm invalid
+  // Pixel 3: PM invalid, Norm finite -> PM invalid, Norm finite
+  const nonBg = report.masks.nonBackground;
+  assert.equal(nonBg.pixelCount, 3);
+  assert.equal(nonBg.pointmap.fullyFiniteVectorCount, 2);
+  assert.equal(nonBg.pointmap.invalidVectorCount, 1);
+  assert.equal(nonBg.normals.fullyFiniteVectorCount, 2);
+  assert.equal(nonBg.normals.invalidVectorCount, 1);
+  assert.equal(nonBg.joint.bothPointmapAndNormalFiniteCount, 1);
+  assert.equal(nonBg.joint.pointmapFiniteNormalInvalidCount, 1);
+  assert.equal(nonBg.joint.pointmapInvalidNormalFiniteCount, 1);
+  assert.equal(nonBg.joint.bothInvalidCount, 0);
+
+  // 3. Body Anatomical (pixel 3 only, class 22 Torso)
+  // Apparel (1) and Face_Neck (3) are strictly excluded from bodyAnatomical!
+  const body = report.masks.bodyAnatomical;
+  assert.equal(body.pixelCount, 1);
+  assert.equal(body.pointmap.fullyFiniteVectorCount, 0);
+  assert.equal(body.pointmap.invalidVectorCount, 1);
+  assert.equal(body.normals.fullyFiniteVectorCount, 1);
+  assert.equal(body.normals.invalidVectorCount, 0);
+  assert.equal(body.joint.bothPointmapAndNormalFiniteCount, 0);
+  assert.equal(body.joint.pointmapInvalidNormalFiniteCount, 1);
+
+  // Semantics unvalidated
+  assert.equal(report.semantics.pointmapCoordinateFrame, 'unvalidated');
+  assert.equal(report.semantics.normalCoordinateFrame, 'unvalidated');
+  assert.equal(report.semantics.pointmapNormalFrameRelationship, 'unvalidated');
+  assert.equal(report.semantics.semanticPixelCorrespondence, 'unvalidated');
+});
+
+test('evaluateSameViewDenseCrossModalQa flags dimension mismatches between segmentation, pointmap, and normals', async () => {
+  // Segmentation is 2x2, Pointmap is 3x3
+  const viewMismatch = {
+    view: 'front',
+    segmentation: {
+      present: true,
+      widthPx: 2,
+      heightPx: 2,
+      raster: new Uint8Array([0, 0, 0, 0]),
+    },
+    pointmap: {
+      present: true,
+      widthPx: 3,
+      heightPx: 3,
+      channels: 3,
+      shape: [3, 3, 3],
+      denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+      getDenseData: async () => new Float32Array(27),
+    },
+  };
+
+  const report = await evaluateSameViewDenseCrossModalQa(viewMismatch);
+
+  assert.equal(report.status, 'fail');
+  assert.equal(report.rasterCompatibility.segmentationPointmapDimensionsMatch, false);
+  assert.equal(report.rasterCompatibility.sharedWidthPx, null);
+  assert.equal(report.pixelAddressing.dimensionalCompatibility, false);
+  assert.equal(report.pixelAddressing.pixelIndexAddressable, false);
+  assert.equal(report.masks, null);
+  assert.equal(report.issues.some((i) => i.includes('dimension mismatch')), true);
+});
+
+test('evaluateSameViewDenseCrossModalQa handles mixed HWC pointmap and CHW normals with identical logical rasters', async () => {
+  const segRaster = new Uint8Array([0, 22]); // 1 row, 2 cols (Pixel 0: bg, Pixel 1: Torso)
+
+  // Pointmap in HWC: (0,0)=[1,2,3], (0,1)=[4,5,6]
+  const pmBuffer = new Float32Array([1, 2, 3, 4, 5, 6]);
+
+  // Normals in CHW:
+  // Plane 0 (X): [0, 0]
+  // Plane 1 (Y): [0, 1]
+  // Plane 2 (Z): [1, 0]
+  const normBuffer = new Float32Array([
+    0, 0,
+    0, 1,
+    1, 0,
+  ]);
+
+  const viewEvidence = {
+    view: 'side',
+    segmentation: {
+      present: true,
+      widthPx: 2,
+      heightPx: 1,
+      raster: segRaster,
+    },
+    pointmap: {
+      present: true,
+      widthPx: 2,
+      heightPx: 1,
+      channels: 3,
+      shape: [1, 2, 3],
+      denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+      getDenseData: async () => pmBuffer,
+    },
+    normals: {
+      present: true,
+      widthPx: 2,
+      heightPx: 1,
+      channels: 3,
+      shape: [1, 2, 3],
+      denseLayout: DENSE_LAYOUT_CHW_PLANAR,
+      declaredRange: [-1.0, 1.0],
+      getDenseData: async () => normBuffer,
+    },
+  };
+
+  const report = await evaluateSameViewDenseCrossModalQa(viewEvidence);
+
+  assert.equal(report.status, 'pass');
+  assert.equal(report.pixelAddressing.pixelIndexAddressable, true);
+  assert.equal(report.masks.background.pixelCount, 1);
+  assert.equal(report.masks.background.joint.bothPointmapAndNormalFiniteCount, 1);
+  assert.equal(report.masks.bodyAnatomical.pixelCount, 1);
+  assert.equal(report.masks.bodyAnatomical.joint.bothPointmapAndNormalFiniteCount, 1);
+});
+
+test('evaluateSameViewDenseCrossModalQa handles missing optional modalities gracefully', async () => {
+  // Only segmentation and pointmap (no normals)
+  const report = await evaluateSameViewDenseCrossModalQa({
+    view: 'front',
+    segmentation: {
+      present: true,
+      widthPx: 2,
+      heightPx: 1,
+      raster: new Uint8Array([0, 22]),
+    },
+    pointmap: {
+      present: true,
+      widthPx: 2,
+      heightPx: 1,
+      channels: 3,
+      shape: [1, 2, 3],
+      denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+      getDenseData: async () => new Float32Array([1, 2, 3, 4, 5, 6]),
+    },
+    normals: null,
+  });
+
+  assert.equal(report.status, 'pass');
+  assert.equal(report.availability.segmentation, true);
+  assert.equal(report.availability.pointmap, true);
+  assert.equal(report.availability.normals, false);
+  assert.equal(report.masks.background.pointmap.fullyFiniteVectorCount, 1);
+  assert.equal(report.masks.background.normals, null);
+  assert.equal(report.masks.background.joint, null);
+});
+
+test('evaluateSameViewDenseCrossModalQa guarantees Front and Side reports remain completely independent', async () => {
+  const frontEvidence = {
+    view: 'front',
+    segmentation: { present: true, widthPx: 2, heightPx: 1, raster: new Uint8Array([0, 22]) },
+    pointmap: {
+      present: true,
+      widthPx: 2,
+      heightPx: 1,
+      channels: 3,
+      shape: [1, 2, 3],
+      denseLayout: DENSE_LAYOUT_HWC_INTERLEAVED,
+      getDenseData: async () => new Float32Array([1, 2, 3, 4, 5, 6]),
+    },
+  };
+
+  const sideEvidence = {
+    view: 'side',
+    segmentation: { present: true, widthPx: 1, heightPx: 1, raster: new Uint8Array([5]) }, // Left_Foot
+    normals: {
+      present: true,
+      widthPx: 1,
+      heightPx: 1,
+      channels: 3,
+      shape: [1, 1, 3],
+      denseLayout: DENSE_LAYOUT_CHW_PLANAR,
+      declaredRange: [-1.0, 1.0],
+      getDenseData: async () => new Float32Array([0, 1, 0]),
+    },
+  };
+
+  const [frontReport, sideReport] = await Promise.all([
+    evaluateSameViewDenseCrossModalQa(frontEvidence),
+    evaluateSameViewDenseCrossModalQa(sideEvidence),
+  ]);
+
+  assert.equal(frontReport.view, 'front');
+  assert.equal(frontReport.availability.pointmap, true);
+  assert.equal(frontReport.availability.normals, false);
+
+  assert.equal(sideReport.view, 'side');
+  assert.equal(sideReport.availability.pointmap, false);
+  assert.equal(sideReport.availability.normals, true);
+});
+
+test('BODY_ANATOMICAL_CLASS_IDS includes exactly the 13 canonical body_anatomical classes and excludes clothing/face', () => {
+  assert.equal(BODY_ANATOMICAL_CLASS_IDS.size, 13);
+  // Torso (22), Left_Upper_Leg (12), Right_Foot (14) must be present
+  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(22), true);
+  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(12), true);
+  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(14), true);
+
+  // Background (0), Apparel (1), Eyeglass (2), Face_Neck (3), Upper_Clothing (23) must NOT be present
+  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(0), false);
+  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(1), false);
+  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(2), false);
+  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(3), false);
+  assert.equal(BODY_ANATOMICAL_CLASS_IDS.has(23), false);
+});
+
 

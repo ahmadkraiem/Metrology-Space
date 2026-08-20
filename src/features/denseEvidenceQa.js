@@ -2,19 +2,26 @@
  * Dense Evidence QA Module (v0)
  *
  * Pure domain module for deterministic numeric QA evaluation of dense multi-modal
- * evidence tensors (Pointmaps and Surface Normals).
+ * evidence tensors (Pointmaps, Surface Normals, and Same-View Cross-Modal Association).
  *
  * Guardrails:
  * - Read-only access: source buffers are NEVER mutated, scaled, transposed, or sorted.
  * - Pointmap Z is NOT canonical metrology Z.
  * - Normal axes are NOT canonical metrology axes.
+ * - Side U is NOT Z.
  * - No U -> Z conversion.
  * - No depth inference or 3D reconstruction.
+ * - No Front/Side geometry fusion.
  * - No physical unit validation or declaredScale application.
  * - No coordinate-frame or normal orientation inference.
  * - No uint8 semantic remapping (no value / 127.5 - 1).
+ * - No semantic pixel correspondence claim.
  */
 
+import {
+  ANATOMICAL_REGION_CATEGORIES,
+  CANONICAL_SEGMENTATION_CLASSES_V0,
+} from './anatomicalRegions.js';
 import {
   DENSE_LAYOUT_CHW_PLANAR,
   DENSE_LAYOUT_HWC_INTERLEAVED,
@@ -23,7 +30,18 @@ import {
 
 export const POINTMAP_NUMERIC_QA_CONTRACT = 'pointmap-numeric-qa-v0';
 export const NORMAL_NUMERIC_QA_CONTRACT = 'normal-numeric-qa-v0';
+export const SAME_VIEW_DENSE_CROSS_MODAL_QA_CONTRACT = 'same-view-dense-cross-modal-qa-v0';
 export const NORMAL_UNIT_TOLERANCE = 0.01;
+
+/**
+ * Authoritative set of Class IDs strictly categorized as 'body_anatomical' in the 29-class ontology.
+ * Excludes clothing_apparel, face_head, accessory_other, and context_background.
+ */
+export const BODY_ANATOMICAL_CLASS_IDS = Object.freeze(new Set(
+  CANONICAL_SEGMENTATION_CLASSES_V0
+    .filter((c) => c.category === ANATOMICAL_REGION_CATEGORIES.BODY_ANATOMICAL)
+    .map((c) => c.classId),
+));
 
 /**
  * Shared core streaming scanner for 3-channel dense tensor buffers.
@@ -850,4 +868,329 @@ export async function evaluateNormalsNumericQa(normals, {
     declaredRange: normals.declaredRange,
     view: resolvedView,
   });
+}
+
+/**
+ * Pure asynchronous same-view cross-modal QA evaluation across segmentation, pointmap, and surface normals.
+ *
+ * @param {{
+ *   segmentation?: object|null,
+ *   pointmap?: object|null,
+ *   normals?: object|null,
+ *   view?: 'front'|'side'|string|null,
+ * }} viewEvidence
+ * @param {object} [options]
+ * @param {'front'|'side'|string|null} [options.view] - Explicit view override
+ * @param {boolean} [options.cache=false] - Cache option for lazy dense buffer decode
+ * @returns {Promise<object>} Standalone Same-View Dense Cross-Modal QA Report
+ */
+export async function evaluateSameViewDenseCrossModalQa(viewEvidence, {
+  view = null,
+  cache = false,
+} = {}) {
+  const issues = [];
+  const warnings = [];
+
+  const rawEvidence = viewEvidence && typeof viewEvidence === 'object' ? viewEvidence : {};
+  const segmentation = rawEvidence.segmentation && typeof rawEvidence.segmentation === 'object' && rawEvidence.segmentation.present
+    ? rawEvidence.segmentation
+    : null;
+  const pointmap = rawEvidence.pointmap && typeof rawEvidence.pointmap === 'object' && rawEvidence.pointmap.present
+    ? rawEvidence.pointmap
+    : null;
+  const normals = rawEvidence.normals && typeof rawEvidence.normals === 'object' && rawEvidence.normals.present
+    ? rawEvidence.normals
+    : null;
+
+  const resolvedView = view ?? rawEvidence.view ?? segmentation?.view ?? pointmap?.view ?? normals?.view ?? null;
+
+  const availability = {
+    segmentation: Boolean(segmentation),
+    pointmap: Boolean(pointmap),
+    normals: Boolean(normals),
+  };
+
+  // Dimensions
+  const segW = segmentation ? (segmentation.widthPx ?? segmentation.width ?? null) : null;
+  const segH = segmentation ? (segmentation.heightPx ?? segmentation.height ?? null) : null;
+
+  const pmW = pointmap ? pointmap.widthPx : null;
+  const pmH = pointmap ? pointmap.heightPx : null;
+
+  const normW = normals ? normals.widthPx : null;
+  const normH = normals ? normals.heightPx : null;
+
+  // Pairwise dimension matches
+  const segmentationPointmapDimensionsMatch = Boolean(
+    segW != null && segH != null && pmW != null && pmH != null && segW === pmW && segH === pmH,
+  );
+  const segmentationNormalsDimensionsMatch = Boolean(
+    segW != null && segH != null && normW != null && normH != null && segW === normW && segH === normH,
+  );
+  const pointmapNormalsDimensionsMatch = Boolean(
+    pmW != null && pmH != null && normW != null && normH != null && pmW === normW && pmH === normH,
+  );
+
+  // Check dimensional compatibility across all present modalities
+  let dimensionalCompatibility = true;
+  let sharedWidthPx = null;
+  let sharedHeightPx = null;
+
+  const presentDimensions = [];
+  if (segmentation && segW != null && segH != null) presentDimensions.push({ name: 'Segmentation', w: segW, h: segH });
+  if (pointmap && pmW != null && pmH != null) presentDimensions.push({ name: 'Pointmap', w: pmW, h: pmH });
+  if (normals && normW != null && normH != null) presentDimensions.push({ name: 'Normals', w: normW, h: normH });
+
+  if (presentDimensions.length > 0) {
+    const first = presentDimensions[0];
+    sharedWidthPx = first.w;
+    sharedHeightPx = first.h;
+    for (let i = 1; i < presentDimensions.length; i += 1) {
+      const cur = presentDimensions[i];
+      if (cur.w !== sharedWidthPx || cur.h !== sharedHeightPx) {
+        dimensionalCompatibility = false;
+        sharedWidthPx = null;
+        sharedHeightPx = null;
+        issues.push(`Raster dimension mismatch: ${first.name} is [${first.h}x${first.w}], but ${cur.name} is [${cur.h}x${cur.w}].`);
+        break;
+      }
+    }
+  }
+
+  // Layout inspectability
+  const pointmapLayoutInspectable = Boolean(
+    pointmap && (pointmap.denseLayout === DENSE_LAYOUT_HWC_INTERLEAVED || pointmap.denseLayout === DENSE_LAYOUT_CHW_PLANAR),
+  );
+  if (pointmap && !pointmapLayoutInspectable) {
+    issues.push(`Pointmap has uninspectable dense layout '${pointmap.denseLayout}'.`);
+  }
+
+  const normalsLayoutInspectable = Boolean(
+    normals && (normals.denseLayout === DENSE_LAYOUT_HWC_INTERLEAVED || normals.denseLayout === DENSE_LAYOUT_CHW_PLANAR),
+  );
+  if (normals && !normalsLayoutInspectable) {
+    issues.push(`Surface normals has uninspectable dense layout '${normals.denseLayout}'.`);
+  }
+
+  // Check if pixel indices are addressable across available modalities
+  const segInspectable = Boolean(segmentation && segmentation.raster);
+  if (segmentation && !segInspectable) {
+    issues.push('Segmentation raster is unavailable or missing.');
+  }
+
+  const pixelIndexAddressable = (
+    dimensionalCompatibility
+    && presentDimensions.length > 0
+    && (!pointmap || pointmapLayoutInspectable)
+    && (!normals || normalsLayoutInspectable)
+    && (!segmentation || segInspectable)
+  );
+
+  // Execute independent Pointmap and Normal Numeric QA
+  const [pointmapQa, normalsQa] = await Promise.all([
+    pointmap ? evaluatePointmapNumericQa(pointmap, { view: resolvedView, cache }) : Promise.resolve(null),
+    normals ? evaluateNormalsNumericQa(normals, { view: resolvedView, cache }) : Promise.resolve(null),
+  ]);
+
+  if (pointmapQa?.issues?.length) {
+    issues.push(...pointmapQa.issues);
+  }
+  if (pointmapQa?.warnings?.length) {
+    warnings.push(...pointmapQa.warnings);
+  }
+
+  if (normalsQa?.issues?.length) {
+    issues.push(...normalsQa.issues);
+  }
+  if (normalsQa?.warnings?.length) {
+    warnings.push(...normalsQa.warnings);
+  }
+
+  // If pixelIndexAddressable and segmentation raster exists, compute per-mask observed statistics
+  let masks = null;
+  if (
+    pixelIndexAddressable
+    && segInspectable
+    && sharedWidthPx
+    && sharedHeightPx
+    && ((pointmap && pointmapQa?.structure?.isInspectable) || (normals && normalsQa?.structure?.isInspectable))
+  ) {
+    const totalPixels = sharedHeightPx * sharedWidthPx;
+    const segRaster = segmentation.raster;
+
+    let pmBuffer = null;
+    let pmIsHwc = false;
+    let pmPlaneSize = totalPixels;
+    let pmChannels = 3;
+    if (pointmap && pointmapQa?.structure?.isInspectable) {
+      pmBuffer = await pointmap.getDenseData({ cache });
+      pmIsHwc = pointmap.denseLayout === DENSE_LAYOUT_HWC_INTERLEAVED;
+      pmChannels = pointmap.channels ?? 3;
+    }
+
+    let normBuffer = null;
+    let normIsHwc = false;
+    let normPlaneSize = totalPixels;
+    let normChannels = 3;
+    if (normals && normalsQa?.structure?.isInspectable) {
+      normBuffer = await normals.getDenseData({ cache });
+      normIsHwc = normals.denseLayout === DENSE_LAYOUT_HWC_INTERLEAVED;
+      normChannels = normals.channels ?? 3;
+    }
+
+    // Mask accumulators: 0: background, 1: nonBackground, 2: bodyAnatomical
+    const maskCounts = [0, 0, 0];
+    const pmFiniteCounts = [0, 0, 0];
+    const normFiniteCounts = [0, 0, 0];
+    const normZeroMagCounts = [0, 0, 0];
+    const bothFiniteCounts = [0, 0, 0];
+    const pmFiniteNormInvalidCounts = [0, 0, 0];
+    const pmInvalidNormFiniteCounts = [0, 0, 0];
+    const bothInvalidCounts = [0, 0, 0];
+
+    for (let p = 0; p < totalPixels; p += 1) {
+      const classId = segRaster[p];
+      const isBg = classId === 0;
+      const isNonBg = classId !== 0;
+      const isBody = BODY_ANATOMICAL_CLASS_IDS.has(classId);
+
+      let pmFinite = false;
+      if (pmBuffer) {
+        let idx0, idx1, idx2;
+        if (pmIsHwc) {
+          const b = p * pmChannels;
+          idx0 = b; idx1 = b + 1; idx2 = b + 2;
+        } else {
+          idx0 = p; idx1 = p + pmPlaneSize; idx2 = p + (pmPlaneSize * 2);
+        }
+        pmFinite = Number.isFinite(pmBuffer[idx0]) && Number.isFinite(pmBuffer[idx1]) && Number.isFinite(pmBuffer[idx2]);
+      }
+
+      let normFinite = false;
+      let normZeroMag = false;
+      if (normBuffer) {
+        let idx0, idx1, idx2;
+        if (normIsHwc) {
+          const b = p * normChannels;
+          idx0 = b; idx1 = b + 1; idx2 = b + 2;
+        } else {
+          idx0 = p; idx1 = p + normPlaneSize; idx2 = p + (normPlaneSize * 2);
+        }
+        const n0 = normBuffer[idx0];
+        const n1 = normBuffer[idx1];
+        const n2 = normBuffer[idx2];
+        normFinite = Number.isFinite(n0) && Number.isFinite(n1) && Number.isFinite(n2);
+        if (normFinite && Math.hypot(n0, n1, n2) < 1e-12) {
+          normZeroMag = true;
+        }
+      }
+
+      const updateMask = (mIdx) => {
+        maskCounts[mIdx] += 1;
+        if (pmBuffer) {
+          if (pmFinite) pmFiniteCounts[mIdx] += 1;
+        }
+        if (normBuffer) {
+          if (normFinite) normFiniteCounts[mIdx] += 1;
+          if (normZeroMag) normZeroMagCounts[mIdx] += 1;
+        }
+        if (pmBuffer && normBuffer) {
+          if (pmFinite && normFinite) bothFiniteCounts[mIdx] += 1;
+          else if (pmFinite && !normFinite) pmFiniteNormInvalidCounts[mIdx] += 1;
+          else if (!pmFinite && normFinite) pmInvalidNormFiniteCounts[mIdx] += 1;
+          else bothInvalidCounts[mIdx] += 1;
+        }
+      };
+
+      if (isBg) updateMask(0);
+      if (isNonBg) updateMask(1);
+      if (isBody) updateMask(2);
+    }
+
+    const buildMaskSection = (mIdx) => {
+      const pixelCount = maskCounts[mIdx];
+      const pmSection = pmBuffer ? {
+        fullyFiniteVectorCount: pmFiniteCounts[mIdx],
+        invalidVectorCount: pixelCount - pmFiniteCounts[mIdx],
+        fullyFiniteVectorRatio: pixelCount > 0 ? pmFiniteCounts[mIdx] / pixelCount : 0,
+      } : null;
+
+      const normSection = normBuffer ? {
+        fullyFiniteVectorCount: normFiniteCounts[mIdx],
+        invalidVectorCount: pixelCount - normFiniteCounts[mIdx],
+        fullyFiniteVectorRatio: pixelCount > 0 ? normFiniteCounts[mIdx] / pixelCount : 0,
+        zeroMagnitudeCount: normZeroMagCounts[mIdx],
+      } : null;
+
+      const jointSection = (pmBuffer && normBuffer) ? {
+        bothPointmapAndNormalFiniteCount: bothFiniteCounts[mIdx],
+        bothFiniteRatio: pixelCount > 0 ? bothFiniteCounts[mIdx] / pixelCount : 0,
+        pointmapFiniteNormalInvalidCount: pmFiniteNormInvalidCounts[mIdx],
+        pointmapInvalidNormalFiniteCount: pmInvalidNormFiniteCounts[mIdx],
+        bothInvalidCount: bothInvalidCounts[mIdx],
+      } : null;
+
+      return {
+        pixelCount,
+        pointmap: pmSection,
+        normals: normSection,
+        joint: jointSection,
+      };
+    };
+
+    masks = {
+      background: buildMaskSection(0),
+      nonBackground: buildMaskSection(1),
+      bodyAnatomical: buildMaskSection(2),
+    };
+  }
+
+  // Status computation
+  let status = 'pass';
+  if (issues.length > 0 || (pointmapQa && pointmapQa.status === 'fail') || (normalsQa && normalsQa.status === 'fail')) {
+    status = 'fail';
+  } else if (warnings.length > 0 || (pointmapQa && pointmapQa.status === 'warning') || (normalsQa && normalsQa.status === 'warning')) {
+    status = 'warning';
+  }
+
+  return {
+    contract: SAME_VIEW_DENSE_CROSS_MODAL_QA_CONTRACT,
+    view: resolvedView,
+    status,
+
+    availability,
+
+    rasterCompatibility: {
+      segmentationPointmapDimensionsMatch,
+      segmentationNormalsDimensionsMatch,
+      pointmapNormalsDimensionsMatch,
+      sharedWidthPx,
+      sharedHeightPx,
+    },
+
+    pixelAddressing: {
+      dimensionalCompatibility,
+      pointmapLayoutInspectable,
+      normalsLayoutInspectable,
+      pixelIndexAddressable,
+      semanticPixelCorrespondence: 'unvalidated',
+    },
+
+    modalityQa: {
+      pointmap: pointmapQa,
+      normals: normalsQa,
+    },
+
+    masks,
+
+    semantics: {
+      pointmapCoordinateFrame: 'unvalidated',
+      normalCoordinateFrame: 'unvalidated',
+      pointmapNormalFrameRelationship: 'unvalidated',
+      semanticPixelCorrespondence: 'unvalidated',
+    },
+
+    issues,
+    warnings,
+  };
 }
