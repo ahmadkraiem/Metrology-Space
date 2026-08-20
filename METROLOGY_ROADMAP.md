@@ -3,7 +3,7 @@
 Status: Active guiding roadmap
 Purpose: Keep the project aligned with the current architecture and evidence strategy. This roadmap is a source-of-truth planning document, not an immutable specification. Future changes should update this file deliberately rather than silently diverging from it.
 
-## 1. Foundation — Completed
+## 1. Foundation — COMPLETED
 
 - Canonical Metrology Space
 - Front X/Y + Side U/Y navigators
@@ -11,7 +11,7 @@ Purpose: Keep the project aligned with the current architecture and evidence str
 - Front–Side Alignment v0
 - Body Graph / Reference Levels
 
-## 2. Semantic Dense Evidence — Completed
+## 2. Semantic Dense Evidence — COMPLETED
 
 - Segmentation Normalization + QA
 - Segmentation Preview / Inspection
@@ -19,7 +19,7 @@ Purpose: Keep the project aligned with the current architecture and evidence str
 - Pixel-to-Metrology Mapping Core v0
 - Anatomical Region Metric Bounds v0
 
-## 3. New Evidence Foundation
+## 3. New Evidence Foundation — COMPLETED
 
 ### 3.1 Full Body Evidence Package Contract v0 — COMPLETED
 
@@ -54,49 +54,69 @@ Key achievements:
 
 Guardrails: Pointmap Z is NOT canonical metrology Z, Side U is NOT canonical Z, no depth inference, no Front/Side geometry fusion, and no normal orientation inference.
 
-## 4. Anatomical / Metrology Layer — Planned
+## 4. Anatomical / Metrology Layer — ACTIVE
 
-### 4.1 Derived Anatomical Levels / Zones — NEXT
-Define supported anatomical zones using validated segmentation + landmark/reference-level evidence.
+### 4.1 Anatomical Level Contract v0 — COMPLETED
 
-Examples to evaluate:
-- neck
-- shoulder
-- chest / bust
-- waist / abdomen
-- pelvis / hip
-- knee
-- ankle
+Formalized true anatomical reference Y levels from promoted Front body landmarks:
 
-Do not invent proportional anatomical rules unless explicitly adopted by contract.
+- **Contract**: `anatomical-levels-v0` (`src/features/anatomicalLevels.js`)
+- **Supported Levels (7)**: `neck`, `shoulder`, `elbow`, `wrist`, `hip`, `knee`, `ankle`.
+- **Status Taxonomy**: Deterministic 3-state model (`ready`, `partial`, `missing`).
+  - `ready`: All required anchors present, unique, and finite; provides exact `yCm` and `elevationDeltaCm` for bilateral joints.
+  - `partial`: Incomplete anchors (e.g. 1 of 2 bilateral anchors) or duplicate/ambiguous anchors (`yCm: null`, `elevationDeltaCm: null`).
+  - `missing`: No candidate anchors present (`yCm: null`, `elevationDeltaCm: null`).
+- **Strict Guardrail**: Unsupported torso sub-levels (`chest`, `bust`, `underbust`, `waist`, `abdomen`, `pelvis`, `crotch`) are explicitly **deferred** (no landmark anchors exist; no invented proportional body-height percentages).
 
-### 4.2 Region Boundary / Surface Evidence
-Associate validated multi-modal evidence with anatomical regions:
-- segmentation pixels / masks
-- metric 2D bounds
-- landmarks
-- pointmap XYZ samples
-- surface-normal samples
+### 4.2 Anatomical Region Evidence Association Contract v0 — COMPLETED (at v0 scope)
 
-Keep Front and Side spatial evidence independent unless a later correspondence contract explicitly permits fusion.
+Associated multi-modal evidence and topological landmark/level relationships with canonical body regions:
 
-### 4.3 Front Width / Height Measurements
-Extract deterministic Front-plane measurements from validated anatomical boundaries and levels.
+- **Contract**: `anatomical-region-evidence-v0` (`src/features/anatomicalRegionEvidence.js`)
+- **Scope**: Exactly the 13 canonical `body_anatomical` regions (6 left, 6 right, 1 central `Torso`).
+- **Laterality**: Authoritative mapping via `ANATOMICAL_REGION_LATERALITY` in `src/features/anatomicalRegions.js`.
+- **4.2A Region Evidence Nodes**: Attached presence, pixel counts, coverage, pixel bounds (`boundsPx`), normalized bounds (`boundsNormalized: { minU, maxU, minV, maxV }`), Front metric bounds ($X/Y$), Side profile bounds ($U/Y$), and view-level dense qualification (`pixelAddressable: boolean | null`, `qaStatus: pass | warning | fail | null`).
+- **4.2B Landmark & Level Associations**: Formalized explicit topological adjacency (`relation: 'adjacent'`) to promoted Front body landmarks (`availability: 'present' | 'missing' | 'ambiguous' | 'invalid'`) and reference levels (`status: 'ready' | 'partial' | 'missing'`). Side view strictly isolates Front evidence (`landmarkAssociations = []`, `levelAssociations = []`).
+- **4.2C Per-Class Dense Statistics Deferral**: Per-class pointmap/normal scanning is **explicitly deferred** because Front/Side 2D silhouette measurements do not require dense coordinate statistics.
 
-### 4.4 Side Depth / Projection Measurements
-Use validated Side evidence for profile/depth-related measurements.
+### 4.3 Front Measurement Foundation v0 — COMPLETED (at v0 scope)
 
-Guardrail: Side U is not automatically canonical Z.
+Formalized pure, deterministic Front-plane transverse body width extraction from segmentation evidence:
 
-### 4.5 Cross-view Correspondence + QA
+- **4.3A Front Horizontal Raster Slice Contract v0 (`front-horizontal-raster-slice-v0`)** (`src/features/frontRasterSlice.js`):
+  - Pure $O(W)$ single-row streaming scan across Front segmentation raster at canonical $Y$ levels ($y_{cm} \in [0, 200]$).
+  - Detects all contiguous horizontal runs in left-to-right order with inclusive column indices, normalized $U$ bounds, and metric $X\text{ cm}$ bounds.
+  - Zero multi-run merging; zero buffer re-decoding; out-of-range $y_{cm}$ yields `runs: []` with explicit issues without silent clamping.
+  - Authoritative policies: `TORSO_ONLY` (`[22]`), `BODY_ANATOMICAL` (13 body classes), `FOREGROUND` (classes 1..28).
+- **4.3B Front Transverse Width Interpretation Contract v0 (`front-transverse-width-v0`)** (`src/features/frontTransverseWidth.js`):
+  - Pure interpretation of raster slice evidence into formal transverse body width observations at ready reference levels.
+  - Supported definitions: `torso_width_at_shoulder_level` (`sourceLevel: 'shoulder'`) and `torso_width_at_hip_level` (`sourceLevel: 'hip'`).
+  - Conservative selection policy: `single_run_required` (exactly 1 run $\to$ `valid`, 0 runs $\to$ `unavailable`, $> 1$ runs $\to$ `ambiguous` with `valueCm: null`).
+  - Formula: $\text{valueCm} = maxX_{cm} - minX_{cm}$; retains raw $leftXcm$, $rightXcm$, and complete slice provenance.
+  - Runtime getters in `src/features/bodyEvidence.js`: `getFrontHorizontalRasterSlice()`, `getFrontTransverseWidth()`, `getFrontTransverseWidths()`.
+- **Semantic Separation**: Existing 3D landmark candidate lines in `bodyMeasurementLines.js` remain distinct candidate lines; formal transverse silhouette widths are distinct.
+
+### 4.4 Side Profile Measurement Foundation v0 — NEXT
+
+Extract deterministic Side profile spans from validated Side segmentation evidence at canonical $Y$ levels:
+
+- **4.4A Side Horizontal Raster Slice Contract v0 (`side-horizontal-raster-slice-v0`)**:
+  - Pure $O(W)$ single-row streaming scan across Side segmentation raster at canonical $Y$ levels.
+  - Output: Contiguous horizontal profile runs in Side Metrology space ($U\text{ cm}$, $200\text{ cm}$ domain).
+- **4.4B Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`)**:
+  - Pure interpretation layer deriving profile depth spans ($\Delta U = maxU_{cm} - minU_{cm}$) at supported levels under `single_run_required` policy.
+  - Guardrail: Side $U$ remains 2D profile width/depth evidence only. It is **not** canonical $Z$ and is **never** fused into 3D coordinates with Front $X$.
+
+### 4.5 Cross-view Correspondence + QA — PLANNED
+
 Extend beyond current vertical-Y alignment only after Front/Side evidence semantics and frames are validated.
 
-### 4.6 Circumference / Cross-section Inference
-Only after reliable Front width, Side depth/profile evidence, anatomical levels, and correspondence QA exist.
+### 4.6 Circumference / Cross-section Inference — BLOCKED
 
-No premature ellipse/circumference assumptions.
+Blocked until Front transverse widths (4.3), Side profile spans (4.4), and cross-view correspondence QA (4.5) are fully validated.
+Strict Guardrail: No premature ellipse/circumference assumptions.
 
-## 5. Canonical / Latent Layer — Later
+## 5. Canonical / Latent Layer — LATER
 
 ### 5.1 Canonical Body Evidence Graph
 Represent each anatomical entity as a structured evidence node that may contain:
@@ -128,6 +148,7 @@ Do not silently introduce:
 - face data into the body-metrology pipeline
 - invented anatomical regions unsupported by current evidence
 - hard-coded pixel-to-cm assumptions that bypass the mapping contract
+- synthetic chest/bust/waist reference levels without landmark anchors
 
 ## 7. Current Input Strategy
 
@@ -166,4 +187,4 @@ When changing direction:
 
 ## 9. Immediate Next Milestone
 
-**4.1 / 4.2 Derived Anatomical Levels & Evidence Association** (Metrology / Anatomical Layer)
+**4.4A — Side Horizontal Raster Slice Contract v0** (Side Profile Measurement Foundation)

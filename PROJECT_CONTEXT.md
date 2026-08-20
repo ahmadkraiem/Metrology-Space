@@ -712,17 +712,18 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Segmentation Normalization + QA Contract v0 (Front/Side parsing, classes[], retained rasters, export safety)**
 - **Segmentation Region Preview / Inspection v0 (2D translucent overlays, View toggles, class lists, highlighting)**
 - **Anatomical Region Contract v0 (Deterministic 29-class observed ontology, categories, metrology eligibility)**
-- **Pixel-to-Metrology Mapping Core v0 (Pure resolution-independent mapping, center vs edge math, Y inversion, validation)**
+- **Pixel-to-Metrology Mapping Core v0 (Pure resolution-independent mapping, center vs edge math, Y inversion, validation, row & span mapping)**
 - **Anatomical Region Metric Bounds v0 (Observed region metric boundsCm derived from runtime raster dimensions)**
 - **Full Body Evidence Package Contract v0 (Canonical multi-modal package contract, Front/Side views, ZIP transport adapter, Package QA summary UI, automatic analysis)**
 - **Pointmap + Normal Evidence Contract / QA v0 (Dense Layout Contract, Pointmap Numeric QA Core, Surface Normal Numeric QA Core, Same-View Cross-Modal QA Core, Dense QA Runtime Integration)**
+- **Milestone 4.1: Anatomical Level Contract v0 (`anatomical-levels-v0` — 7 reference levels: neck, shoulder, elbow, wrist, hip, knee, ankle; 3-state readiness model)**
+- **Milestone 4.2: Anatomical Region Evidence Association Contract v0 (`anatomical-region-evidence-v0` — 13 canonical `body_anatomical` regions, laterality, metric bounds, landmark & level adjacency, 4.2C dense stats deferred)**
+- **Milestone 4.3: Front Measurement Foundation v0 (`front-horizontal-raster-slice-v0` single-row O(W) scan & `front-transverse-width-v0` transverse torso widths at shoulder/hip levels under `single_run_required` policy)**
 
-### Next Active Milestone: Anatomical Levels & Evidence Association
-Associate validated multi-modal evidence with anatomical levels and region boundaries:
-- Derived anatomical levels (neck, bust/chest, waist, hip, knee, ankle) using validated segmentation, landmarks, and reference levels.
-- Front-plane anatomical boundary metric measurements.
-- Side-plane profile evidence association (Side U retained strictly as profile evidence without U $\to$ Z conversion).
-- Cross-view correspondence qualification.
+### Next Active Milestone: Milestone 4.4 — Side Profile Measurement Foundation
+- **4.4A Side Horizontal Raster Slice Contract v0 (`side-horizontal-raster-slice-v0`)**: Pure $O(W)$ single-row scan across Side segmentation raster at canonical $Y$ levels in Side Metrology space ($U\text{ cm}$, $200\text{ cm}$ domain).
+- **4.4B Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`)**: Pure interpretation deriving profile depth spans ($\Delta U = maxU_{cm} - minU_{cm}$) at supported levels under `single_run_required` policy.
+- **Strict Guardrail**: Side $U$ is profile width/depth evidence only. It is **not** canonical $Z$ and is **never** fused into 3D coordinates with Front $X$.
 
 ---
 
@@ -737,7 +738,7 @@ Associate validated multi-modal evidence with anatomical levels and region bound
 | `src/core/landmarkDisplay.js` | Shared Title Case landmark / annotation display-name helper |
 | `src/core/formatters.js` | Coordinate, point, annotation, and distance formatting |
 | `src/core/math.js` | smoothstep and Euclidean distance helpers |
-| `src/core/pixelMetrologyMapping.js` | Pixel-to-Metrology Mapping Core v0 — pure, resolution-independent 2D raster ↔ metrology mapping |
+| `src/core/pixelMetrologyMapping.js` | Pixel-to-Metrology Mapping Core v0 — pure, resolution-independent 2D raster ↔ metrology mapping (points, bounding boxes, row mapping, horizontal spans) |
 | `src/core/pixelMetrologyMapping.test.js` | Pixel-to-Metrology Mapping Core v0 unit tests |
 | `src/core/scene.js` | Three.js scene, camera, WebGL renderer, CSS2DRenderer, OrbitControls |
 | `src/metrology/roomShell.js` | Transparent room shell and 10 cm surface grid markers |
@@ -751,9 +752,17 @@ Associate validated multi-modal evidence with anatomical levels and region bound
 | `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, sanitized diagnostic export |
-| `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & transverse width getters, sanitized diagnostic export |
+| `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
+| `src/features/anatomicalLevels.js` | Anatomical Level Contract v0 (`anatomical-levels-v0`) — pure derivation of 7 reference Y levels (neck, shoulder, elbow, wrist, hip, knee, ankle) from promoted Front body landmarks |
+| `src/features/anatomicalLevels.test.js` | Anatomical Level Contract v0 unit tests |
+| `src/features/anatomicalRegionEvidence.js` | Anatomical Region Evidence Association Contract v0 (`anatomical-region-evidence-v0`) — 13 canonical region nodes, bounds, dense QA qualifications, and landmark/level topological adjacency |
+| `src/features/anatomicalRegionEvidence.test.js` | Anatomical Region Evidence Association Contract v0 unit tests |
+| `src/features/frontRasterSlice.js` | Front Horizontal Raster Slice Contract v0 (`front-horizontal-raster-slice-v0`) — pure single-row O(W) streaming scan returning contiguous horizontal runs |
+| `src/features/frontRasterSlice.test.js` | Front Horizontal Raster Slice Contract v0 unit tests |
+| `src/features/frontTransverseWidth.js` | Front Transverse Width Interpretation Contract v0 (`front-transverse-width-v0`) — pure interpretation of raster slice evidence into formal transverse torso widths at shoulder/hip levels under `single_run_required` policy |
+| `src/features/frontTransverseWidth.test.js` | Front Transverse Width Interpretation Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
 | `src/features/selection.js` | Selected point state and highlight (Annotate mode) |
 | `src/features/measurement.js` | Canonical shared Point A/B measurement state, markers, line, label, history |
@@ -762,8 +771,8 @@ Associate validated multi-modal evidence with anatomical levels and region bound
 | `src/features/projectionLinking.js` | Read-only Front Surface projection of Origin/Center/annotations |
 | `src/features/frontSideAlignment.js` | Pure deterministic Front/Side semantic correspondence and vertical Y QA contract |
 | `src/features/bodyGraph.js` | Body Graph Contract v0 — deterministic Core 13 graph derivation |
-| `src/features/bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute |
-| `src/features/bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute |
+| `src/features/bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute (orphaned / internal helper) |
+| `src/features/bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute (candidate readiness lines) |
 | `src/features/bodyMeasurementPreview.js` | Measurement Line Preview Overlay v0 (3D + Front 2D preview lines) |
 | `src/features/annotations.js` | Annotation CRUD, 3D visuals, CSS2D labels, promote path |
 | `src/features/sceneExport.js` | Canonical Scene State JSON export build and download |
@@ -807,3 +816,4 @@ Associate validated multi-modal evidence with anatomical levels and region bound
 | `src/styles/overlays.css` | 2D navigators, plot grids, markers, measurement overlays, and tooltips |
 | `src/style.css` | Stylesheet entry point |
 | `index.html` | Main HTML application shell |
+

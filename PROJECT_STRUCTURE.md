@@ -33,16 +33,20 @@ latent-space/
 │   │   ├── landmarkDisplay.js       # Shared Title Case landmark / annotation display-name helper
 │   │   ├── formatters.js            # Coordinate, point, annotation, and distance formatting
 │   │   ├── math.js                  # smoothstep and Euclidean distance helpers
-│   │   ├── pixelMetrologyMapping.js # Pixel-to-Metrology Mapping Core v0 — pure, resolution-independent 2D raster ↔ metrology mapping
+│   │   ├── pixelMetrologyMapping.js # Pixel-to-Metrology Mapping Core v0 — pure, resolution-independent 2D raster ↔ metrology mapping (points, bounding boxes, row mapping, horizontal spans)
 │   │   ├── pixelMetrologyMapping.test.js # Pixel-to-Metrology Mapping Core v0 unit tests
 │   │   └── scene.js                 # Three.js scene, camera, WebGL renderer, CSS2DRenderer, OrbitControls
 │   ├── features/
-│   │   ├── anatomicalRegions.js     # Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm
+│   │   ├── anatomicalLevels.js      # Anatomical Level Contract v0 — pure derivation of 7 reference Y levels (neck, shoulder, elbow, wrist, hip, knee, ankle)
+│   │   ├── anatomicalLevels.test.js # Anatomical Level Contract v0 unit tests
+│   │   ├── anatomicalRegionEvidence.js # Anatomical Region Evidence Association Contract v0 — 13 canonical region nodes, metric bounds, dense QA qualifications, and landmark/level topological adjacency
+│   │   ├── anatomicalRegionEvidence.test.js # Anatomical Region Evidence Association Contract v0 unit tests
+│   │   ├── anatomicalRegions.js     # Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative BODY_ANATOMICAL_CLASS_IDS
 │   │   ├── anatomicalRegions.test.js # Anatomical Region Contract v0 unit tests
 │   │   ├── annotations.js           # Annotation state, 3D visuals, CSS2D labels, promote path
 │   │   ├── annotationValidation.js  # Validates annotation input before saving
 │   │   ├── appMode.js               # App mode state (Inspect & Measure vs Annotate)
-│   │   ├── bodyEvidence.js          # Body Evidence runtime store: active package, selections, change notifications, sanitized export
+│   │   ├── bodyEvidence.js          # Body Evidence runtime store: active package, selections, change notifications, anatomical region evidence & transverse width getters, sanitized export
 │   │   ├── bodyEvidenceAdapter.js   # Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization
 │   │   ├── bodyEvidenceAdapter.test.js # Body Evidence adapter unit tests
 │   │   ├── bodyEvidencePackage.js   # Full Body Evidence Package Contract v0 & Dense Layout / Pixel Index Contract v0
@@ -51,14 +55,18 @@ latent-space/
 │   │   ├── bodyEvidenceZipAdapter.test.js # Body Evidence ZIP Import Adapter unit tests
 │   │   ├── bodyGraph.js             # Body Graph Contract v0 — deterministic Core 13 graph derivation
 │   │   ├── bodyGraph.test.js        # Body Graph Contract v0 unit tests
-│   │   ├── bodyMeasurementLevels.js # Measurement Reference Levels v0 compute
-│   │   ├── bodyMeasurementLines.js  # Anatomical Measurement Lines v0 compute
+│   │   ├── bodyMeasurementLevels.js # Measurement Reference Levels v0 compute (orphaned / internal helper)
+│   │   ├── bodyMeasurementLines.js  # Anatomical Measurement Lines v0 compute (candidate readiness lines)
 │   │   ├── bodyMeasurementPreview.js # Measurement Line Preview Overlay v0 (3D + Front 2D preview lines)
 │   │   ├── denseEvidenceQa.js       # Pointmap, Surface Normal, and Same-View Cross-Modal Dense Evidence QA Core v0
 │   │   ├── denseEvidenceQa.test.js  # Dense Evidence QA Core and Runtime Integration unit tests
+│   │   ├── frontRasterSlice.js      # Front Horizontal Raster Slice Contract v0 — pure single-row O(W) streaming scan returning contiguous horizontal runs
+│   │   ├── frontRasterSlice.test.js # Front Horizontal Raster Slice Contract v0 unit tests
 │   │   ├── frontSideAlignment.js    # Pure deterministic Front/Side semantic correspondence and vertical Y QA contract
 │   │   ├── frontSideAlignment.test.js # Front-Side alignment contract unit tests
 │   │   ├── frontSurfaceMeasurement.js # Front Surface advance/read helpers over shared measurement
+│   │   ├── frontTransverseWidth.js  # Front Transverse Width Interpretation Contract v0 — pure interpretation of raster slice evidence into formal transverse torso widths at shoulder/hip levels under single_run_required policy
+│   │   ├── frontTransverseWidth.test.js # Front Transverse Width Interpretation Contract v0 unit tests
 │   │   ├── linkedSelection.js       # Linked selection id for Scene Graph ↔ projected marker highlight sync
 │   │   ├── measurement.js           # Canonical shared Point A/B measurement state, markers, line, history
 │   │   ├── projectionLinking.js     # Read-only Front Surface projection of Origin/Center/annotations
@@ -167,8 +175,12 @@ latent-space/
 | `annotationValidation.js` | Validates annotation input (point selection, non-empty name, duplicate detection). |
 | `frontSideAlignment.js` | Pure deterministic Front/Side semantic correspondence and vertical Y QA contract (5.0 cm v0 QA threshold). No DOM, Three.js, global state, depth inference, or 3D reconstruction. |
 | `bodyGraph.js` | Body Graph Contract v0. Deterministic runtime topology derivation (`buildBodyGraph`) containing exactly 13 Core nodes and 13 structural edges from promoted Core 13 annotations. |
-| `bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute. |
-| `bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute. |
+| `anatomicalLevels.js` | **Anatomical Level Contract v0.** Pure, deterministic derivation of true reference Y levels (`neck`, `shoulder`, `elbow`, `wrist`, `hip`, `knee`, `ankle`) from promoted Front body landmarks under a 3-state readiness model (`ready`, `partial`, `missing`). |
+| `anatomicalRegionEvidence.js` | **Anatomical Region Evidence Association Contract v0.** Assembles evidence nodes for the 13 canonical `body_anatomical` regions with pixel/normalized/metric bounds, view-level dense qualifications, and explicit topological landmark/level adjacency. |
+| `frontRasterSlice.js` | **Front Horizontal Raster Slice Contract v0.** Pure deterministic $O(W)$ single-row streaming scan across Front segmentation raster at canonical $Y$ levels returning contiguous horizontal runs. |
+| `frontTransverseWidth.js` | **Front Transverse Width Interpretation Contract v0.** Pure deterministic interpretation of raster slice evidence into formal transverse torso widths at shoulder/hip levels under `single_run_required` policy. |
+| `bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute (orphaned / internal helper). |
+| `bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute (candidate readiness lines). |
 | `bodyMeasurementPreview.js` | Measurement Line Preview Overlay v0 (draws visual-only Ready preview lines in 3D and Front 2D). |
 | `projectionLinking.js` | Projects 3D Origin, Center, and annotation markers onto the Front 2D Grid Navigator. |
 | `sceneExport.js` | Serializes session state into canonical Scene State JSON schema v1. Excludes raw Body Evidence, Side measurements, 2D refinement, and Body Graph. |
