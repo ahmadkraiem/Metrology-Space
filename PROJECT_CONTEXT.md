@@ -595,7 +595,74 @@ The **2D Workspace** tab (`#workspace-tab-split`, mode `split`) presents a side-
 
 ---
 
-## 18. Important Do-Not-Break Rules
+## 18. Current Dense Evidence Layout & Numeric QA Core v0 Features
+
+Milestone 3.2 establishes deterministic layout contracts, numeric QA evaluators, cross-modal evidence qualification, and runtime integration for dense multi-channel tensors (Pointmap and Surface Normals):
+
+### 1. Dense Layout / Pixel Index Contract v0
+- **Supported Layouts:** `HWC_INTERLEAVED`, `CHW_PLANAR`, and `UNKNOWN` (exported from `src/features/bodyEvidencePackage.js`).
+- **Deterministic Resolution (`resolveDenseTensorLayout`):**
+  - Shape `[H, W, 3]` $\to$ `HWC_INTERLEAVED` with normalized shape `[H, W, 3]`.
+  - Shape `[3, H, W]` $\to$ `CHW_PLANAR` with normalized shape `[H, W, 3]`.
+  - Ambiguous / unproven shapes (e.g. `[H, W]`) $\to$ `UNKNOWN` with normalized shape `null`.
+- **Declared Shape Preservation:** Original `declaredShape` is preserved alongside `shape` and `denseLayout`.
+- **Read-Only Indexing Helpers:**
+  - `getDenseVectorElementIndex(row, col, channel, height, width, layout)`: Computes the 1D buffer index for a specific vector element.
+  - `readDenseVector(buffer, row, col, height, width, layout, target)`: Reads a 3-element vector into a target array without memory allocation.
+- **Zero Mutation Invariant:** Source buffers are never transposed, mutated, scaled, remapped, or rewritten.
+
+### 2. Pointmap Numeric QA Core v0
+- **Contract:** `pointmap-numeric-qa-v0` (implemented in `src/features/denseEvidenceQa.js`).
+- **Structural Preflight:** Verifies buffer length matches layout requirements (`widthPx * heightPx * 3`). Fails on layout `UNKNOWN` or element-count mismatch.
+- **Single-Pass $O(N)$ Streaming Scan:**
+  - Tracks finite elements, NaNs, $+\infty$, and $-\infty$.
+  - Per-channel raw statistics (min, max, finite counts, Welford mean/variance).
+  - Vector finite-state classification (fully finite vs partially non-finite).
+- **Declarations:** `declaredUnits` and `declaredScale` are recorded strictly as declarations.
+- **Strict Guardrails / Unvalidated Semantics:**
+  - Coordinate Frame: `UNVALIDATED`
+  - Scale Semantics: `UNVALIDATED`
+  - Scale Applied State: `UNVALIDATED`
+  - Canonical Axis Meaning: `UNVALIDATED` (Channel 0/1/2 are NOT canonical X/Y/Z; Pointmap Z is NOT canonical metrology Z).
+
+### 3. Surface Normal Numeric QA Core v0
+- **Contract:** `normal-numeric-qa-v0` (implemented in `src/features/denseEvidenceQa.js`).
+- **Structural Preflight & Integrity:** Layout-aware validation for `float32`, `float64`, and `uint8` normal vectors.
+- **Single-Pass Magnitude & Range Audit:**
+  - Computes Euclidean vector magnitude $\|v\| = \sqrt{x^2 + y^2 + z^2}$ for fully finite vectors.
+  - Tracks zero-magnitude vectors ($\|v\| = 0$).
+  - Observational Near-Unit Ratio: Counts vectors with $|\|v\| - 1.0| \le 0.01$ (`NORMAL_UNIT_TOLERANCE = 0.01`). Near-unit ratio is an observational metric only and does not imply valid surface orientation.
+  - Declared Range Audit: Compares raw values against `declaredRange` (e.g. `[-1, 1]` or `[0, 255]`) and reports violation counts.
+  - Raw `uint8` Preservation: Raw `uint8` values are never heuristically remapped or normalized to $[-1, 1]$ in v0.
+- **Strict Guardrails / Unvalidated Semantics:**
+  - Coordinate Frame: `UNVALIDATED`
+  - Orientation Semantics: `UNVALIDATED`
+  - Encoding Semantics: `UNVALIDATED`
+
+### 4. Same-View Cross-Modal Dense QA v0
+- **Contract:** `same-view-dense-cross-modal-qa-v0` (implemented in `src/features/denseEvidenceQa.js`).
+- **View Independence:** Front and Side views are evaluated completely independently.
+- **Pairwise Raster Compatibility:** Verifies dimension matching across `segmentation ↔ pointmap`, `segmentation ↔ normals`, and `pointmap ↔ normals`.
+- **Pixel Addressability:** Validates that 2D raster coordinates can address all present dense modalities.
+- **Semantic Correspondence:** Explicitly marked `UNVALIDATED` (no geometric correspondence claim).
+- **Observational Mask Scanning:** Single-pass streaming scan computing finite counts, ratios, and joint finite correlation across 3 groups:
+  - `background` (`classId === 0`) — dense values in background are recorded observationally without negative quality penalty.
+  - `nonBackground` (`classId !== 0`).
+  - `bodyAnatomical` — canonical 13 body classes owned authoritatively by `src/features/anatomicalRegions.js` (`BODY_ANATOMICAL_CLASS_IDS`).
+
+### 5. Runtime Integration & Lifecycle v0
+- **Runtime State Ownership:** Derived dense QA is stored in `src/features/bodyEvidence.js` as runtime analysis state `denseEvidenceQa = { front, side } | null` (not part of immutable `body-evidence-package-v0` schema).
+- **Asynchronous Lifecycle:** Automatic asynchronous dense QA evaluation is triggered upon package analysis. Callers/tests can await completion via `analyzeLoadedBodyEvidenceAsync()`.
+- **Single-Decode Buffer Reuse:** Dense buffers are decoded via `getDenseData({ cache = false })` at most once per modality per same-view analysis pass. Decoded read-only typed arrays are passed directly to pure synchronous buffer evaluators, avoiding duplicate 48MB allocations.
+- **Stale Async Protection:** Session counter (`currentAnalysisSessionId`) prevents stale asynchronous resolutions from overwriting newer package state.
+- **Public Getters:** `getDenseEvidenceQa()`, `getFrontDenseEvidenceQa()`, `getSideDenseEvidenceQa()`.
+- **Sanitized Diagnostic Export:** `buildBodyEvidenceExport()` includes sanitized, JSON-safe dense QA summaries in `views.front.denseQa`, `views.side.denseQa`, and top-level `denseQa: { front, side }` without raw typed arrays, base64 data, or functions.
+- **Separation of Concerns:** `package.qa.numericValues` inside `body-evidence-package-v0` remains strictly deferred/unvalidated, while derived runtime QA resides in `denseEvidenceQa`.
+- **UI State:** Dense Evidence QA UI / inspection panel is **intentionally deferred**. Package QA UI remains unchanged.
+
+---
+
+## 19. Important Do-Not-Break Rules
 
 When modifying this project, preserve the following unless explicitly instructed otherwise:
 
@@ -607,6 +674,7 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Do not break Front/Side measurement separation** — Side measurement is local U/Y only and never enters canonical measurement history or Scene State
 - **Do not promote Side landmarks** — Side candidates are non-promotable and lack canonical 3D depth
 - **Do not break Full Body Evidence Package Contract v0** — package normalization, ZIP transport isolation, and automatic analysis
+- **Do not break Dense Layout / Pixel Index Contract v0** — layout resolution, layout-aware vector indexing, zero buffer mutation
 - **Do not break Front–Side Alignment v0 contract** — semantic landmark identity matching and vertical Y delta QA only; no 3D geometry reconstruction or U→Z conversion
 - **Do not break Body Graph Contract v0** — Core 13 nodes and 13 structural edges derived strictly from promoted Core 13 `body_landmark` annotations
 - **Do not serialize Body Graph or raw Body Evidence into Scene State JSON**
@@ -618,17 +686,18 @@ When modifying this project, preserve the following unless explicitly instructed
 1. **Spatial 3D Fusion / Registration:** No 3D spatial fusion between Front X/Y and Side U/Y coordinates.
 2. **U → Z Conversion / Canonical Side Depth:** Side U coordinates are profile evidence only and are not mapped to 3D Z depth.
 3. **Pointmap Z → Canonical Z:** Pointmap Z coordinates are not treated as canonical metrology Z.
-4. **Pointmap / Normal 3D Promotion:** Pointmap and normal evidence packages are accepted normalized inputs but their geometry semantics remain unvalidated; they are not promoted into 3D geometry.
+4. **Pointmap / Normal 3D Promotion:** Pointmap and normal evidence packages are accepted normalized inputs with numeric QA, but their geometry semantics remain unvalidated; they are not promoted into 3D geometry.
 5. **Side Landmark Promotion:** Side landmarks cannot be promoted to 3D annotations.
 6. **Derived / Composite Anatomical Regions:** No multi-class region unions or synthetic bounding volumes in v0.
 7. **Segmentation-Derived Measurements:** No direct circumference, width, or distance measurements derived from segmentation masks.
 8. **Contour Extraction:** No polygon or bezier contour generation from segmentation rasters.
 9. **3D Reconstruction / Mesh Generation:** No point cloud generation, mesh surface reconstruction, or volumetric body partitioning.
 10. **Circumference / Cross-Section Inference:** No elliptical or convex hull circumference math.
+11. **Dense Evidence QA UI Panel:** Dedicated Dense Evidence QA inspection panel in the UI is intentionally deferred.
 
 ---
 
-## 19. Metrology Roadmap
+## 20. Metrology Roadmap
 
 ### Completed Milestones
 - **3D Metrology Coordinate Cube & Volumetric Lattice Sampling (5 cm, 68,921 points)**
@@ -646,19 +715,18 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Pixel-to-Metrology Mapping Core v0 (Pure resolution-independent mapping, center vs edge math, Y inversion, validation)**
 - **Anatomical Region Metric Bounds v0 (Observed region metric boundsCm derived from runtime raster dimensions)**
 - **Full Body Evidence Package Contract v0 (Canonical multi-modal package contract, Front/Side views, ZIP transport adapter, Package QA summary UI, automatic analysis)**
+- **Pointmap + Normal Evidence Contract / QA v0 (Dense Layout Contract, Pointmap Numeric QA Core, Surface Normal Numeric QA Core, Same-View Cross-Modal QA Core, Dense QA Runtime Integration)**
 
-### Next Active Milestone: Pointmap + Normal Evidence Contract / QA v0
-Audit and formalize pointmap and normal evidence semantics across Front and Side views:
-- Pointmap coordinate frame and units validation (`declaredUnits`, `declaredScale`)
-- Numeric validity (finite checks, NaN / Infinity guards, min/max distributions)
-- Pixel-to-point correspondence and valid foreground body masking
-- Surface normal vector magnitude and range validation (`declaredRange`)
-- Surface normal coordinate frame and orientation semantics
-- Front/Side frame independence (no premature 3D fusion or Pointmap Z → canonical Z)
+### Next Active Milestone: Anatomical Levels & Evidence Association
+Associate validated multi-modal evidence with anatomical levels and region boundaries:
+- Derived anatomical levels (neck, bust/chest, waist, hip, knee, ankle) using validated segmentation, landmarks, and reference levels.
+- Front-plane anatomical boundary metric measurements.
+- Side-plane profile evidence association (Side U retained strictly as profile evidence without U $\to$ Z conversion).
+- Cross-view correspondence qualification.
 
 ---
 
-## Key Source Files
+## 21. Key Source Files
 
 | File | Purpose |
 |------|---------|
@@ -676,13 +744,15 @@ Audit and formalize pointmap and normal evidence semantics across Front and Side
 | `src/metrology/volumeGrid.js` | 5 cm internal lattice, LOD layers, visibility controls |
 | `src/metrology/axes.js` | X/Y/Z axes and 20 cm tick labels |
 | `src/metrology/referenceMarkers.js` | Origin and Center markers, hover labels |
-| `src/features/bodyEvidencePackage.js` | Full Body Evidence Package Contract v0 — pure normalized multi-modal package schema and QA contract |
-| `src/features/bodyEvidencePackage.test.js` | Body Evidence Package Contract v0 unit tests |
+| `src/features/bodyEvidencePackage.js` | Full Body Evidence Package Contract v0 & Dense Layout / Pixel Index Contract v0 — pure normalized package schema, layout resolution, layout-aware vector indexing |
+| `src/features/bodyEvidencePackage.test.js` | Body Evidence Package Contract & Dense Layout Contract unit tests |
+| `src/features/denseEvidenceQa.js` | Pointmap, Surface Normal, and Same-View Cross-Modal Dense Evidence QA Core v0 |
+| `src/features/denseEvidenceQa.test.js` | Dense Evidence QA Core and Runtime Integration unit tests |
 | `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, landmark selections, change notifications, sanitized diagnostic export |
-| `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, sanitized diagnostic export |
+| `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
 | `src/features/selection.js` | Selected point state and highlight (Annotate mode) |

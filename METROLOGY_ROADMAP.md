@@ -40,25 +40,23 @@ Key achievements:
 - Automatic analysis triggered upon package upload.
 - Strict preservation of geometry boundaries (no pointmap Z → canonical Z, no U → Z, no Front/Side 3D fusion).
 
-### 3.2 Pointmap + Normal Evidence Contract / QA v0 — NEXT
+### 3.2 Pointmap + Normal Evidence Contract / QA v0 — COMPLETED (Core & Runtime Integration)
 
-Audit and formalize coordinate frames and dense numerical validity:
+Established deterministic dense layout contracts, numeric QA evaluators, same-view cross-modal qualification, and runtime integration:
 
-- Pointmap coordinate frame and units validation (`declaredUnits`, `declaredScale`)
-- Numeric validity: NaN / Infinity guards, finite min/max distributions
-- Meaning of `scale` and whether values are pre-scaled or unscaled
-- Pixel-to-point correspondence and valid foreground body masking
-- Cross-modal consistency: segmentation ↔ pointmap ↔ normals alignment
-- Surface normal vector magnitude validity ($\approx 1.0$) and range verification (`declaredRange`)
-- Surface normal coordinate frame and orientation semantics
-- Front/Side frame independence
+Key achievements:
+- **Dense Layout / Pixel Index Contract v0:** Layout resolution (`HWC_INTERLEAVED`, `CHW_PLANAR`, `UNKNOWN`), `declaredShape` preservation, layout-aware vector indexing (`getDenseVectorElementIndex`, `readDenseVector`), and zero-mutation buffer access.
+- **Pointmap Numeric QA Core v0 (`pointmap-numeric-qa-v0`):** Single-pass streaming scan tracking finite elements, NaNs, $\pm\infty$, per-channel min/max distributions, and vector fully-finite ratios. Declarations (`declaredUnits`, `declaredScale`) preserved; coordinate frames, scale semantics, scale application state, and canonical axis meanings explicitly marked `UNVALIDATED`.
+- **Surface Normal Numeric QA Core v0 (`normal-numeric-qa-v0`):** Vector magnitude statistics, zero-magnitude tracking, observational near-unit ratio ($|\|v\| - 1.0| \le 0.01$, `NORMAL_UNIT_TOLERANCE = 0.01`), declared-range violation tracking, and raw `uint8` value preservation without heuristic remapping. Coordinate frame, orientation semantics, and encoding semantics explicitly marked `UNVALIDATED`.
+- **Same-View Cross-Modal Dense QA v0 (`same-view-dense-cross-modal-qa-v0`):** Independent Front and Side evaluations, pairwise raster compatibility (`segmentation ↔ pointmap ↔ normals`), pixel addressability, and observational mask scanning (`background`, `nonBackground`, `bodyAnatomical` using authoritative `BODY_ANATOMICAL_CLASS_IDS` from `anatomicalRegions.js`). Semantic pixel correspondence explicitly marked `UNVALIDATED`.
+- **Runtime Integration v0:** Derived runtime state `denseEvidenceQa = { front, side }` in `bodyEvidence.js`, automatic async evaluation, single-decode buffer reuse per modality per view, stale-session race protection, public getters, and sanitized JSON-safe diagnostic export. Package QA `numericValues` remain deferred/unvalidated.
+- **UI State:** Dedicated Dense Evidence QA inspection panel is **intentionally deferred** as an optional presentation feature; Package QA UI remains unchanged.
 
-Guardrail: Do not assume pointmap Z is canonical metrology Z, and do not fuse Front and Side geometry until coordinate frames and orientations are explicitly validated.
+Guardrails: Pointmap Z is NOT canonical metrology Z, Side U is NOT canonical Z, no depth inference, no Front/Side geometry fusion, and no normal orientation inference.
 
 ## 4. Anatomical / Metrology Layer — Planned
 
-### 4.1 Derived Anatomical Levels / Zones
-
+### 4.1 Derived Anatomical Levels / Zones — NEXT
 Define supported anatomical zones using validated segmentation + landmark/reference-level evidence.
 
 Examples to evaluate:
@@ -73,9 +71,7 @@ Examples to evaluate:
 Do not invent proportional anatomical rules unless explicitly adopted by contract.
 
 ### 4.2 Region Boundary / Surface Evidence
-
 Associate validated multi-modal evidence with anatomical regions:
-
 - segmentation pixels / masks
 - metric 2D bounds
 - landmarks
@@ -85,21 +81,17 @@ Associate validated multi-modal evidence with anatomical regions:
 Keep Front and Side spatial evidence independent unless a later correspondence contract explicitly permits fusion.
 
 ### 4.3 Front Width / Height Measurements
-
 Extract deterministic Front-plane measurements from validated anatomical boundaries and levels.
 
 ### 4.4 Side Depth / Projection Measurements
-
 Use validated Side evidence for profile/depth-related measurements.
 
 Guardrail: Side U is not automatically canonical Z.
 
 ### 4.5 Cross-view Correspondence + QA
-
 Extend beyond current vertical-Y alignment only after Front/Side evidence semantics and frames are validated.
 
 ### 4.6 Circumference / Cross-section Inference
-
 Only after reliable Front width, Side depth/profile evidence, anatomical levels, and correspondence QA exist.
 
 No premature ellipse/circumference assumptions.
@@ -107,9 +99,7 @@ No premature ellipse/circumference assumptions.
 ## 5. Canonical / Latent Layer — Later
 
 ### 5.1 Canonical Body Evidence Graph
-
 Represent each anatomical entity as a structured evidence node that may contain:
-
 - semantic identity
 - landmarks
 - segmentation support
@@ -120,17 +110,14 @@ Represent each anatomical entity as a structured evidence node that may contain:
 - validated measurements
 
 ### 5.2 Structured Latent Conditioning Package
-
 Prepare deterministic structured conditioning data for downstream latent/generative systems.
 
 ### 5.3 Downstream Body / Garment Generation & Editing
-
 Use the validated canonical evidence/latent representation in later body, garment, VTO, editing, and digital-twin workflows.
 
 ## 6. Current Architectural Guardrails
 
 Do not silently introduce:
-
 - direct U → Z conversion
 - Pointmap Z → canonical metrology Z
 - unvalidated depth inference
@@ -163,8 +150,8 @@ The canonical body evidence package is:
 Current usage:
 - Pose: active & normalized
 - Segmentation: active & normalized
-- Pointmap: accepted normalized evidence modality; geometry semantics unvalidated pending Milestone 3.2
-- Normals: accepted normalized evidence modality; geometry semantics unvalidated pending Milestone 3.2
+- Pointmap: active & normalized, with numeric and cross-modal QA evaluated; geometry semantics remain unvalidated
+- Normals: active & normalized, with numeric and cross-modal QA evaluated; geometry semantics remain unvalidated
 
 ## 8. Roadmap Change Policy
 
@@ -179,4 +166,4 @@ When changing direction:
 
 ## 9. Immediate Next Milestone
 
-**Pointmap + Normal Evidence Contract / QA v0**
+**4.1 / 4.2 Derived Anatomical Levels & Evidence Association** (Metrology / Anatomical Layer)

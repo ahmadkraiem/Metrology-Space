@@ -45,8 +45,8 @@ latent-space/
 │   │   ├── bodyEvidence.js          # Body Evidence runtime store: active package, selections, change notifications, sanitized export
 │   │   ├── bodyEvidenceAdapter.js   # Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization
 │   │   ├── bodyEvidenceAdapter.test.js # Body Evidence adapter unit tests
-│   │   ├── bodyEvidencePackage.js   # Full Body Evidence Package Contract v0 — normalized multi-modal package schema and QA contract
-│   │   ├── bodyEvidencePackage.test.js # Body Evidence Package Contract v0 unit tests
+│   │   ├── bodyEvidencePackage.js   # Full Body Evidence Package Contract v0 & Dense Layout / Pixel Index Contract v0
+│   │   ├── bodyEvidencePackage.test.js # Body Evidence Package Contract & Dense Layout Contract unit tests
 │   │   ├── bodyEvidenceZipAdapter.js # Body Evidence ZIP Import Adapter v0 — transport & file resolution only
 │   │   ├── bodyEvidenceZipAdapter.test.js # Body Evidence ZIP Import Adapter unit tests
 │   │   ├── bodyGraph.js             # Body Graph Contract v0 — deterministic Core 13 graph derivation
@@ -54,6 +54,8 @@ latent-space/
 │   │   ├── bodyMeasurementLevels.js # Measurement Reference Levels v0 compute
 │   │   ├── bodyMeasurementLines.js  # Anatomical Measurement Lines v0 compute
 │   │   ├── bodyMeasurementPreview.js # Measurement Line Preview Overlay v0 (3D + Front 2D preview lines)
+│   │   ├── denseEvidenceQa.js       # Pointmap, Surface Normal, and Same-View Cross-Modal Dense Evidence QA Core v0
+│   │   ├── denseEvidenceQa.test.js  # Dense Evidence QA Core and Runtime Integration unit tests
 │   │   ├── frontSideAlignment.js    # Pure deterministic Front/Side semantic correspondence and vertical Y QA contract
 │   │   ├── frontSideAlignment.test.js # Front-Side alignment contract unit tests
 │   │   ├── frontSurfaceMeasurement.js # Front Surface advance/read helpers over shared measurement
@@ -150,11 +152,12 @@ latent-space/
 
 | File | Responsibilities |
 |------|------------------|
-| `bodyEvidencePackage.js` | **Full Body Evidence Package Contract v0.** Pure normalized multi-modal domain schema and QA contract across independent Front and Side views (`image`, `pose`, `segmentation`, `pointmap`, `normals`). Evaluates per-view and package-level QA, raster compatibility, and modality availability. |
+| `bodyEvidencePackage.js` | **Full Body Evidence Package Contract v0 & Dense Layout / Pixel Index Contract v0.** Pure normalized multi-modal domain schema and QA contract across independent Front and Side views (`image`, `pose`, `segmentation`, `pointmap`, `normals`). Resolves dense layouts (`HWC_INTERLEAVED`, `CHW_PLANAR`, `UNKNOWN`), preserves `declaredShape`, provides layout-aware indexing (`getDenseVectorElementIndex`, `readDenseVector`), and enables lazy read-only buffer access (`getDenseData`). |
 | `bodyEvidenceZipAdapter.js` | **Body Evidence ZIP Import Adapter v0.** Temporary transport and discovery adapter. Unzips archives, detects single-sample subdirectories, filters debug/preview artifacts, matches Front and Side modalities, and builds normalized packages. Zero UI or scene coupling. |
 | `bodyEvidenceAdapter.js` | **Landmark & Segmentation Normalization.** Pure stateless algorithms for Core 13 / Secondary allowlist pose classification, face/head rejection, and 29-class segmentation decoding and validation. |
-| `bodyEvidence.js` | **Body Evidence Runtime Store.** Retains active package, landmark/seg selections, analysis integration (`analyzeLoadedBodyEvidence`), subscriber notifications, and sanitized diagnostic export (`buildBodyEvidenceExport`). |
-| `anatomicalRegions.js` | **Anatomical Region Contract v0.** Pure deterministic domain contract mapping normalized Front/Side segmentation `classes[]` into observed 29-class region records with metric `boundsCm` (`body_anatomical`, `clothing_apparel`, `face_head`, `accessory_other`, `context_background`). No DOM, Three.js, depth inference, or derived composites. |
+| `denseEvidenceQa.js` | **Dense Evidence QA Core v0.** Pure deterministic Pointmap Numeric QA (`pointmap-numeric-qa-v0`), Surface Normal Numeric QA (`normal-numeric-qa-v0`), and Same-View Cross-Modal Dense QA (`same-view-dense-cross-modal-qa-v0`). Evaluates finite/non-finite element/vector statistics, raw channel bounds, normal magnitudes, declared range violations, raster compatibility, addressability, and observational mask groups without buffer mutations. |
+| `bodyEvidence.js` | **Body Evidence Runtime Store.** Retains active package, landmark/seg selections, derived `denseEvidenceQa` runtime state, async dense QA lifecycle integration with session race protection (`analyzeLoadedBodyEvidenceAsync`), subscriber notifications, and sanitized diagnostic export (`buildBodyEvidenceExport`). |
+| `anatomicalRegions.js` | **Anatomical Region Contract v0.** Pure deterministic domain contract mapping normalized Front/Side segmentation `classes[]` into observed 29-class region records with metric `boundsCm` (`body_anatomical`, `clothing_apparel`, `face_head`, `accessory_other`, `context_background`). Owns authoritative `BODY_ANATOMICAL_CLASS_IDS` taxonomy. No DOM, Three.js, depth inference, or derived composites. |
 | `appMode.js` | Manages app interaction mode (`MODE_INSPECT_MEASURE` vs `MODE_ANNOTATE`). |
 | `selection.js` | Manages selected point state `{ x, y, z }` and selection highlight mesh in Annotate mode. Decoupled from direct DOM manipulation. |
 | `measurement.js` | Manages canonical 3D/Front Point A/B measurement state, markers, line, CSS2D label, measurement history, and clear/advance operations. |
