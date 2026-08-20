@@ -390,8 +390,8 @@ The normalized Body Evidence Package (`version: 'body-evidence-package-v0'`) is 
   1. **`image`**: Normalized visual input metadata (`filename`, `widthPx`, `heightPx`, `channels`, `format`, `view`, `bytes`, `qa`).
   2. **`pose`**: Normalized landmark candidates extracted and classified into Core 13 anchors, allowlisted secondary landmarks, and rejected face/head landmarks.
   3. **`segmentation`**: Normalized 29-class semantic segmentation structure (`model`, `view`, `widthPx`, `heightPx`, `classes[]`, retained `Uint8Array` raster, `qa`).
-  4. **`pointmap`**: Normalized dense 3D point coordinate tensor metadata (`model`, `view`, `channels`, `shape`, `dtype`, `declaredUnits`, `declaredScale`, `loadDenseBuffer()`, `qa`).
-  5. **`normals`**: Normalized surface normal vector tensor metadata (`model`, `view`, `channels`, `shape`, `dtype`, `declaredRange`, `loadDenseBuffer()`, `qa`).
+  4. **`pointmap`**: Normalized dense 3D point coordinate tensor metadata (`model`, `view`, `channels`, `shape`, `dtype`, `declaredUnits`, `declaredScale`, `getDenseData({ cache })`, `qa`).
+  5. **`normals`**: Normalized surface normal vector tensor metadata (`model`, `view`, `channels`, `shape`, `dtype`, `declaredRange`, `getDenseData({ cache })`, `qa`).
   6. **`qa`**: Per-view QA status (`pass`, `warning`, `fail`), modality availability map, raster dimensions, and raster compatibility checks.
 
 ### Role of the ZIP Transport Adapter
@@ -422,7 +422,7 @@ Package v0 QA verifies structural readability, raster compatibility between moda
 
 ### Runtime Memory & Lazy Buffer Management
 
-Dense pointmap and normal binary tensors are accessed on-demand via `loadDenseBuffer()` and are **not** eagerly duplicated into runtime memory. Lightweight diagnostic export (`buildBodyEvidenceExport()` / `downloadBodyEvidenceJson()`) and Scene State serialization strictly omit raw binary arrays and base64 payloads to preserve memory and performance.
+Dense pointmap and normal binary tensors are accessed on demand via `getDenseData({ cache = false })` and are **not** eagerly decoded or duplicated into active runtime state. (Raw transport payloads may supply an internal `loadDenseBuffer()` hook or base64 string, which `buildBodyEvidencePackage` wraps into the normalized `getDenseData` accessor). Lightweight diagnostic export (`buildBodyEvidenceExport()` / `downloadBodyEvidenceJson()`) and Scene State serialization strictly omit raw binary arrays and base64 payloads to preserve memory and performance.
 
 ### UI Integration
 

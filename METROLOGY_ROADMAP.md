@@ -34,7 +34,7 @@ Formalized the canonical multi-modal input package contract across independent F
 Key achievements:
 - Normalized package domain contract (`body-evidence-package-v0`) and per-view schema.
 - Structural readability, modality availability, and raster dimension compatibility QA.
-- Lightweight lazy dense buffer access (`loadDenseBuffer`) without eager memory duplication.
+- Lightweight lazy dense buffer access (`getDenseData`) without eager memory duplication.
 - In-memory ZIP transport adapter (`importBodyEvidenceZip`) for pipeline/testing workflows.
 - Authoritative Package QA presentation in Session Data → Body.
 - Automatic analysis triggered upon package upload.
