@@ -63,6 +63,7 @@ import {
   bodyEvidenceFrontSegClassesEl,
   bodyEvidenceFrontSegCountEl,
   bodyEvidenceFrontSegLabelEl,
+  bodyEvidencePackageQaEl,
   bodyEvidencePromoteStatusEl,
   bodyEvidenceSelectedEl,
   bodyEvidenceSideCandidatesEl,
@@ -82,6 +83,7 @@ import {
   loadSideSegJsonInput,
   promoteSelectedBodyLandmarkBtn,
 } from './domRefs.js';
+import { renderBodyEvidencePackageQaHtml } from './bodyEvidencePackageQaUi.js';
 
 const BODY_EVIDENCE_TABS = Object.freeze(['front', 'side', 'selection']);
 const CANDIDATE_LAYERS = Object.freeze(['core', 'secondary']);
@@ -823,11 +825,26 @@ export function runAnalyzeBodyEvidenceAction() {
   showStatus('Body evidence analyzed.', 'ok');
 }
 
+function renderPackageQaSummary() {
+  if (!bodyEvidencePackageQaEl) {
+    return;
+  }
+  const pkg = getBodyEvidencePackage();
+  if (!pkg) {
+    bodyEvidencePackageQaEl.innerHTML = '';
+    bodyEvidencePackageQaEl.hidden = true;
+    return;
+  }
+  bodyEvidencePackageQaEl.innerHTML = renderBodyEvidencePackageQaHtml(pkg);
+  bodyEvidencePackageQaEl.hidden = false;
+}
+
 export function runClearBodyEvidenceAction() {
   clearBodyEvidence();
   syncDownloadButton();
   refreshCandidateLists();
   renderSelectedLandmark();
+  renderPackageQaSummary();
   hideStatus();
   hidePromoteStatus();
   showStatus('Body evidence cleared.', 'ok');
@@ -973,6 +990,7 @@ export function setupBodyEvidencePanel() {
   subscribeBodyEvidenceChange(() => {
     refreshCandidateLists();
     renderSelectedLandmark();
+    renderPackageQaSummary();
     maybeFocusSelectionTab();
   });
 
@@ -990,6 +1008,7 @@ export function setupBodyEvidencePanel() {
   syncDownloadButton();
   refreshCandidateLists();
   renderSelectedLandmark();
+  renderPackageQaSummary();
   hidePromoteStatus();
 }
 

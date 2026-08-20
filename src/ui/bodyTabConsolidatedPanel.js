@@ -19,10 +19,12 @@ import {
 } from '../features/annotations.js';
 import {
   buildBodyAnchorAudit,
+  getBodyEvidencePackage,
   getBodyEvidenceQa,
   PROMOTED_BODY_LANDMARK_TYPE,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
+import { renderBodyEvidencePackageQaHtml } from './bodyEvidencePackageQaUi.js';
 import { CORE_FRONT_BODY_ANCHORS } from '../features/bodyEvidenceAdapter.js';
 import { buildAnatomicalMeasurementLines } from '../features/bodyMeasurementLines.js';
 import { renderFrontSideAlignmentQa } from './frontSideAlignmentPanel.js';
@@ -369,7 +371,11 @@ function renderBodyEvidenceStatus() {
     renderLoadedIndicator('Side Seg', loaded.sideSeg),
   ].join('');
 
+  const pkg = getBodyEvidencePackage();
+  const packageQaCard = pkg ? renderBodyEvidencePackageQaHtml(pkg) : '';
+
   sessionBodyEvidenceStatusEl.innerHTML = [
+    packageQaCard,
     '<div class="body-tab-status-card">',
     `<div class="body-tab-loaded-chips" aria-label="Loaded file indicators">${loadedChips}</div>`,
     renderTextSummaryRow('Front Core', formatCoreCount(qa.frontCoreLandmarks)),

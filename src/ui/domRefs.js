@@ -88,6 +88,7 @@ export const analyzeBodyEvidenceBtn = el('analyze-body-evidence');
 export const downloadBodyEvidenceJsonBtn = el('download-body-evidence-json');
 export const clearBodyEvidenceBtn = el('clear-body-evidence');
 export const bodyEvidenceStatusEl = el('body-evidence-status');
+export const bodyEvidencePackageQaEl = el('body-evidence-package-qa');
 export const bodyEvidenceOverlayLayerEl = el('grid2d-body-evidence-markers');
 export const bodyEvidenceOverlayTooltipEl = el('grid2d-body-evidence-tooltip');
 export const bodyMeasurementPreviewLayerEl = el('grid2d-body-measurement-previews');
