@@ -96,15 +96,20 @@ Formalized pure, deterministic Front-plane transverse body width extraction from
   - Runtime getters in `src/features/bodyEvidence.js`: `getFrontHorizontalRasterSlice()`, `getFrontTransverseWidth()`, `getFrontTransverseWidths()`.
 - **Semantic Separation**: Existing 3D landmark candidate lines in `bodyMeasurementLines.js` remain distinct candidate lines; formal transverse silhouette widths are distinct.
 
-### 4.4 Side Profile Measurement Foundation v0 — NEXT
+### 4.4 Side Profile Measurement Foundation v0 — ACTIVE
 
 Extract deterministic Side profile spans from validated Side segmentation evidence at canonical $Y$ levels:
 
-- **4.4A Side Horizontal Raster Slice Contract v0 (`side-horizontal-raster-slice-v0`)**:
-  - Pure $O(W)$ single-row streaming scan across Side segmentation raster at canonical $Y$ levels.
-  - Output: Contiguous horizontal profile runs in Side Metrology space ($U\text{ cm}$, $200\text{ cm}$ domain).
-- **4.4B Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`)**:
+- **4.4A Side Horizontal Raster Slice Contract v0 (`side-horizontal-raster-slice-v0`) — COMPLETED**:
+  - Pure $O(W)$ single-row streaming scan across Side segmentation raster at canonical $Y$ levels ($y_{cm} \in [0, 200]$) without buffer re-decoding, copying, or mutation.
+  - Returns contiguous horizontal profile runs in Side Metrology space ($U\text{ cm}$, $200\text{ cm}$ domain) with inclusive column indices, normalized $U$ bounds, and metric $U\text{ cm}$ bounds.
+  - Zero multi-run merging; out-of-range $y_{cm}$ yields `runs: []` with explicit issues without silent clamping.
+  - Authoritative policies: `TORSO_ONLY` (`[22]`), `BODY_ANATOMICAL` (reuses authoritative `BODY_ANATOMICAL_CLASS_IDS` from `anatomicalRegions.js` evaluating to `[5, 6, 7, 8, 11, 12, 14, 15, 16, 17, 20, 21, 22]`), `FOREGROUND` (classes 1..28).
+  - Runtime getter in `src/features/bodyEvidence.js`: `getSideHorizontalRasterSlice()`.
+  - Core mapping helper in `src/core/pixelMetrologyMapping.js`: `pixelColumnSpanToSideMetrology()`.
+- **4.4B Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`) — NEXT**:
   - Pure interpretation layer deriving profile depth spans ($\Delta U = maxU_{cm} - minU_{cm}$) at supported levels under `single_run_required` policy.
+  - Calls the result a Side profile span, not validated physical or canonical depth.
   - Guardrail: Side $U$ remains 2D profile width/depth evidence only. It is **not** canonical $Z$ and is **never** fused into 3D coordinates with Front $X$.
 
 ### 4.5 Cross-view Correspondence + QA — PLANNED
@@ -187,4 +192,5 @@ When changing direction:
 
 ## 9. Immediate Next Milestone
 
-**4.4A — Side Horizontal Raster Slice Contract v0** (Side Profile Measurement Foundation)
+**4.4B — Side Profile Span Interpretation Contract v0** (Side Profile Measurement Foundation)
+

@@ -719,11 +719,11 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.1: Anatomical Level Contract v0 (`anatomical-levels-v0` — 7 reference levels: neck, shoulder, elbow, wrist, hip, knee, ankle; 3-state readiness model)**
 - **Milestone 4.2: Anatomical Region Evidence Association Contract v0 (`anatomical-region-evidence-v0` — 13 canonical `body_anatomical` regions, laterality, metric bounds, landmark & level adjacency, 4.2C dense stats deferred)**
 - **Milestone 4.3: Front Measurement Foundation v0 (`front-horizontal-raster-slice-v0` single-row O(W) scan & `front-transverse-width-v0` transverse torso widths at shoulder/hip levels under `single_run_required` policy)**
+- **Milestone 4.4A: Side Horizontal Raster Slice Contract v0 (`side-horizontal-raster-slice-v0` — pure single-row O(W) streaming scan across Side segmentation raster returning contiguous horizontal runs in U/Y metrology space with normalized and metric U bounds)**
 
-### Next Active Milestone: Milestone 4.4 — Side Profile Measurement Foundation
-- **4.4A Side Horizontal Raster Slice Contract v0 (`side-horizontal-raster-slice-v0`)**: Pure $O(W)$ single-row scan across Side segmentation raster at canonical $Y$ levels in Side Metrology space ($U\text{ cm}$, $200\text{ cm}$ domain).
-- **4.4B Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`)**: Pure interpretation deriving profile depth spans ($\Delta U = maxU_{cm} - minU_{cm}$) at supported levels under `single_run_required` policy.
-- **Strict Guardrail**: Side $U$ is profile width/depth evidence only. It is **not** canonical $Z$ and is **never** fused into 3D coordinates with Front $X$.
+### Next Active Milestone: Milestone 4.4B — Side Profile Span Interpretation Contract v0
+- **4.4B Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`)**: Pure interpretation layer deriving Side profile spans ($\Delta U = maxU_{cm} - minU_{cm}$) from Side raster slice evidence under `single_run_required` policy.
+- **Strict Guardrail**: Side $U$ is 2D profile evidence only. It is **not** canonical $Z$, is **never** described as validated physical depth, and is **never** fused into 3D coordinates with Front $X$.
 
 ---
 
@@ -752,7 +752,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & transverse width getters, sanitized diagnostic export |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width getters, sanitized diagnostic export |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
 | `src/features/anatomicalLevels.js` | Anatomical Level Contract v0 (`anatomical-levels-v0`) — pure derivation of 7 reference Y levels (neck, shoulder, elbow, wrist, hip, knee, ankle) from promoted Front body landmarks |
@@ -763,6 +763,8 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/frontRasterSlice.test.js` | Front Horizontal Raster Slice Contract v0 unit tests |
 | `src/features/frontTransverseWidth.js` | Front Transverse Width Interpretation Contract v0 (`front-transverse-width-v0`) — pure interpretation of raster slice evidence into formal transverse torso widths at shoulder/hip levels under `single_run_required` policy |
 | `src/features/frontTransverseWidth.test.js` | Front Transverse Width Interpretation Contract v0 unit tests |
+| `src/features/sideRasterSlice.js` | Side Horizontal Raster Slice Contract v0 (`side-horizontal-raster-slice-v0`) — pure single-row O(W) streaming scan over Side segmentation raster returning contiguous horizontal runs |
+| `src/features/sideRasterSlice.test.js` | Side Horizontal Raster Slice Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
 | `src/features/selection.js` | Selected point state and highlight (Annotate mode) |
 | `src/features/measurement.js` | Canonical shared Point A/B measurement state, markers, line, label, history |
