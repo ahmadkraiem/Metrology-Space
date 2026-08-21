@@ -115,12 +115,25 @@ Extract deterministic Side profile spans from validated Side segmentation eviden
   - Runtime getters in `src/features/bodyEvidence.js`: `getSideProfileSpan()`, `getSideProfileSpans()` (`side-profile-spans-report-v0`). Pure interpretation decoupled from direct segmentation or level scans (orchestrated by `bodyEvidence.js`: level readiness $\to$ `getSideHorizontalRasterSlice()` $\to$ `interpretSideProfileSpan()`).
   - Strict Guardrails: Authoritative term is **Side profile span**. Side $U$ remains 2D profile-coordinate evidence only; it is **NOT** canonical $Z$, and it is **NOT** validated physical depth. No $U \to Z$ conversion, no Front/Side fusion, no cross-view calculations, no circumference/cross-section/volume, no ellipse assumptions, and no pointmap/normals geometry.
 
-### 4.5 Cross-view Correspondence + QA — PLANNED
+### 4.5 Cross-view Correspondence + QA — ACTIVE
 
-Extend beyond current vertical-Y alignment only through explicit correspondence/QA contracts:
-- Establish whether Front and Side measurement evidence at the same anatomical level is semantically and spatially comparable.
-- Strict Guardrails: Side U remains 2D profile coordinate evidence only and does NOT become physical depth; no U -> Z conversion; no circumference or cross-section inference.
-- Keep 4.6 blocked until cross-view validation is complete.
+Extend beyond vertical-Y landmark alignment through explicit measurement correspondence and cross-view comparability QA contracts:
+
+- **4.5A Cross-view Measurement Correspondence Contract v0 (`cross-view-measurement-correspondence-v0`) — COMPLETED**:
+  - Pure deterministic domain correspondence layer (`src/features/crossViewMeasurementCorrespondence.js`) pairing Front transverse width observations (`front-transverse-width-v0`) and Side profile span observations (`side-profile-span-v0`) at matching validated anatomical source levels.
+  - Registry-driven definitions (`SUPPORTED_CROSS_VIEW_CORRESPONDENCES_V0`):
+    - `torso_shoulder_cross_view_correspondence` (`sourceLevel: 'shoulder'`, Front: `torso_width_at_shoulder_level`, Side: `torso_profile_span_at_shoulder_level`).
+    - `torso_hip_cross_view_correspondence` (`sourceLevel: 'hip'`, Front: `torso_width_at_hip_level`, Side: `torso_profile_span_at_hip_level`).
+    - Strictly registry-driven; pairings are not permissively inferred from arbitrary observation IDs.
+  - Status taxonomy: `ready` (both observations `valid`, matching expected definition IDs and source level, consistent provenance), `partial` (one valid, one unavailable/ambiguous), `unavailable` (both unavailable/ambiguous/missing), `invalid` (invalid source observation, wrong contract/view, mismatched definition IDs, mismatched source levels, contradictory finite Y provenance, or unregistered definition).
+  - Precedence rule: If either Front or Side observation has status `invalid`, the correspondence result is strictly `invalid`.
+  - Provenance & Evidence Preservation: Intact Front observation (`valueCm`, `leftXcm`, `rightXcm` in X-space) and Side observation (`valueCm`, `minUcm`, `maxUcm` in U-space) preserved without reinterpretation. Y-level provenance (`levelYcm`) preserved and verified (contradictory finite Y values trigger status `invalid`). No new Y alignment, correction, tolerance remapping, or modification to `frontSideAlignment.js`.
+  - Runtime getters in `src/features/bodyEvidence.js`: `getCrossViewMeasurementCorrespondence()`, `getCrossViewMeasurementCorrespondences()` (`cross-view-measurement-correspondences-report-v0`).
+  - Strict Guardrails: The status `ready` indicates **correspondence-readiness only**; it does NOT mean geometry-ready and does NOT validate Side U as physical depth. Side U remains 2D profile-coordinate evidence only; no $U \to Z$ conversion, no Front/Side geometry fusion, no depth fields, no ellipse/circumference/cross-section/volume calculations, and no pointmap/normals geometry.
+- **4.5B Cross-view Comparability QA v0 — NEXT**:
+  - Pure QA over established 4.5A correspondence evidence.
+  - Assess whether paired Front/Side observations are sufficiently qualified and internally consistent for later validated cross-view use.
+  - Preserve evidence/provenance/status; do NOT convert U to Z; do NOT declare validated physical depth; do NOT calculate circumference/cross-section; keep 4.6 BLOCKED.
 
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 
@@ -198,5 +211,5 @@ When changing direction:
 
 ## 9. Immediate Next Milestone
 
-**4.5 — Cross-view Correspondence + QA**
+**4.5B — Cross-view Comparability QA v0**
 
