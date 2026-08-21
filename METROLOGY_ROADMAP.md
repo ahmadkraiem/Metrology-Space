@@ -96,7 +96,7 @@ Formalized pure, deterministic Front-plane transverse body width extraction from
   - Runtime getters in `src/features/bodyEvidence.js`: `getFrontHorizontalRasterSlice()`, `getFrontTransverseWidth()`, `getFrontTransverseWidths()`.
 - **Semantic Separation**: Existing 3D landmark candidate lines in `bodyMeasurementLines.js` remain distinct candidate lines; formal transverse silhouette widths are distinct.
 
-### 4.4 Side Profile Measurement Foundation v0 — ACTIVE
+### 4.4 Side Profile Measurement Foundation v0 — COMPLETED
 
 Extract deterministic Side profile spans from validated Side segmentation evidence at canonical $Y$ levels:
 
@@ -107,14 +107,20 @@ Extract deterministic Side profile spans from validated Side segmentation eviden
   - Authoritative policies: `TORSO_ONLY` (`[22]`), `BODY_ANATOMICAL` (reuses authoritative `BODY_ANATOMICAL_CLASS_IDS` from `anatomicalRegions.js` evaluating to `[5, 6, 7, 8, 11, 12, 14, 15, 16, 17, 20, 21, 22]`), `FOREGROUND` (classes 1..28).
   - Runtime getter in `src/features/bodyEvidence.js`: `getSideHorizontalRasterSlice()`.
   - Core mapping helper in `src/core/pixelMetrologyMapping.js`: `pixelColumnSpanToSideMetrology()`.
-- **4.4B Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`) — NEXT**:
-  - Pure interpretation layer deriving profile depth spans ($\Delta U = maxU_{cm} - minU_{cm}$) at supported levels under `single_run_required` policy.
-  - Calls the result a Side profile span, not validated physical or canonical depth.
-  - Guardrail: Side $U$ remains 2D profile width/depth evidence only. It is **not** canonical $Z$ and is **never** fused into 3D coordinates with Front $X$.
+- **4.4B Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`) — COMPLETED**:
+  - Pure interpretation layer deriving Side profile spans ($\Delta U = maxU_{cm} - minU_{cm}$) from Side raster slice evidence under `single_run_required` policy (`src/features/sideProfileSpan.js`).
+  - Supported definitions: `torso_profile_span_at_shoulder_level` (`sourceLevel: 'shoulder'`, `TORSO_ONLY`, class `[22]`) and `torso_profile_span_at_hip_level` (`sourceLevel: 'hip'`, `TORSO_ONLY`, class `[22]`).
+  - Conservative selection policy: `single_run_required` (exactly 1 run $\to$ `valid`, 0 runs $\to$ `unavailable`, $> 1$ runs $\to$ `ambiguous` with `valueCm: null`, malformed/invalid source evidence $\to$ `invalid`, missing/partial anatomical level $\to$ `unavailable`).
+  - Formula: $\text{valueCm} = maxU_{cm} - minU_{cm}$; preserves raw `minUcm`, `maxUcm`, source anatomical level provenance, sampled raster-row provenance, source slice contract, target policy/classes, run-selection policy, and issues.
+  - Runtime getters in `src/features/bodyEvidence.js`: `getSideProfileSpan()`, `getSideProfileSpans()` (`side-profile-spans-report-v0`). Pure interpretation decoupled from direct segmentation or level scans (orchestrated by `bodyEvidence.js`: level readiness $\to$ `getSideHorizontalRasterSlice()` $\to$ `interpretSideProfileSpan()`).
+  - Strict Guardrails: Authoritative term is **Side profile span**. Side $U$ remains 2D profile-coordinate evidence only; it is **NOT** canonical $Z$, and it is **NOT** validated physical depth. No $U \to Z$ conversion, no Front/Side fusion, no cross-view calculations, no circumference/cross-section/volume, no ellipse assumptions, and no pointmap/normals geometry.
 
 ### 4.5 Cross-view Correspondence + QA — PLANNED
 
-Extend beyond current vertical-Y alignment only after Front/Side evidence semantics and frames are validated.
+Extend beyond current vertical-Y alignment only through explicit correspondence/QA contracts:
+- Establish whether Front and Side measurement evidence at the same anatomical level is semantically and spatially comparable.
+- Strict Guardrails: Side U remains 2D profile coordinate evidence only and does NOT become physical depth; no U -> Z conversion; no circumference or cross-section inference.
+- Keep 4.6 blocked until cross-view validation is complete.
 
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 
@@ -192,5 +198,5 @@ When changing direction:
 
 ## 9. Immediate Next Milestone
 
-**4.4B — Side Profile Span Interpretation Contract v0** (Side Profile Measurement Foundation)
+**4.5 — Cross-view Correspondence + QA**
 
