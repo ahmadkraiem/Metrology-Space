@@ -726,12 +726,14 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.5C: Shared Metric Calibration & Physical Measurement Semantics v0 (`metric-calibration-provenance-v0` & `physical-measurement-semantics-v0` — pure deterministic validation of upstream calibration claims across Front and Side views, establishing 3 semantic tiers: workspace span, metric projected span, and physical span; validated on packages with Align calibration provenance)**
 - **Measurement Support Policy v0 (`measurement-support-policy-v0` — centralized deterministic observed supported silhouette definitions `trunk_core_support_v0` and `pelvic_core_support_v0`, tracking `supportPolicyId`, `actualClassIdsUsed`, `clothingClassIdsUsed`, and `usedClothingEvidence: boolean` without run merging or gap filling)**
 - **Milestone 4.5D: Physical Measurement Eligibility Contract v0 (`physical-measurement-eligibility-v0` & `paired-cross-view-eligibility-v0` — authoritative downstream eligibility gate determining whether metric-projected measurements are qualified to be consumed as true physical body scalars across Tier 1 individual and Tier 2 paired evaluations, preserving multi-blocker diagnostics and decoupled physical-value provenance)**
+- **Milestone 4.5E: Authoritative View / Pose Semantics Validation v0 (`view-pose-semantics-v0` — pure deterministic domain qualification layer verifying Layer A declared view identity, Layer B 2D structural pose qualification with `LOW_CONFIDENCE_THRESHOLD = 0.5`, anatomical vertical ordering, and Front A-pose limb separation, while strictly requiring recognized evaluators for Layer C physical orientation certification; evaluates to `status: 'partial'`, `authorized: false` on current Body Pipeline evidence)**
 
-### Next Active Discussion: Physical Blocker Resolution Strategy Planning
-- **Planning Checkpoint**: With positive metric projected measurements validated ($30.80\text{ cm}$, $11.00\text{ cm}$, $42.20\text{ cm}$, $27.70\text{ cm}$), the next planning discussion will evaluate which unresolved physical blocker to address next:
-  1. Authoritative View / Pose Semantics (stance qualification and orientation certification)
-  2. Clothing Authorization / Body-Surface Semantics (unclothed body protocols or validated garment offset compensation)
-  3. Authoritative Physical Evidence Path (calibrated camera projection, fiducials, or empirical capture calibration)
+### Active State & Physical Blockers
+- **Current Real Evaluation State (`output.zip`)**:
+  - Front Pose Semantics: `status: 'partial'`, `authorized: false` (7/8 checks pass; Layer C skipped).
+  - Side Pose Semantics: `status: 'partial'`, `authorized: false` (6/8 checks pass; Layer C skipped).
+  - 4.5D Physical Blockers remain active on all 4 canonical measurements: `clothing_authorization_missing`, `view_pose_semantics_missing`, `authoritative_physical_evidence_missing`.
+  - Metric Projected measurements remain positive and valid: Front Shoulder ($30.80\text{ cm}$), Side Shoulder ($11.00\text{ cm}$), Front Hip ($42.20\text{ cm}$), Side Hip ($27.70\text{ cm}$).
 - **Strict Guardrails**: 4.6 (Circumference / Cross-section inference) remains strictly **BLOCKED**. Physical cross-section requires individual `physicalEligibility: true` on both views and `pairedPhysicalEligibility: true`. Side $U$ is 2D profile evidence only; it is **not** canonical $Z$, is **never** described as validated physical depth without authoritative physical evidence contracts, and is **never** fused into 3D coordinates with Front $X$.
 
 ---
@@ -754,14 +756,14 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/metrology/volumeGrid.js` | 5 cm internal lattice, LOD layers, visibility controls |
 | `src/metrology/axes.js` | X/Y/Z axes and 20 cm tick labels |
 | `src/metrology/referenceMarkers.js` | Origin and Center markers, hover labels |
-| `src/features/bodyEvidencePackage.js` | Full Body Evidence Package Contract v0 & Dense Layout / Pixel Index Contract v0 — pure normalized package schema, layout resolution, layout-aware vector indexing |
+| `src/features/bodyEvidencePackage.js` | Full Body Evidence Package Contract v0 & Dense Layout / Pixel Index Contract v0 — pure normalized package schema, layout resolution, layout-aware vector indexing, rawSources preservation |
 | `src/features/bodyEvidencePackage.test.js` | Body Evidence Package Contract & Dense Layout Contract unit tests |
 | `src/features/denseEvidenceQa.js` | Pointmap, Surface Normal, and Same-View Cross-Modal Dense Evidence QA Core v0 |
 | `src/features/denseEvidenceQa.test.js` | Dense Evidence QA Core and Runtime Integration unit tests |
-| `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, and package construction |
+| `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, rawSources staging metadata capture (aposeResult, alignResult), and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility getters, sanitized diagnostic export |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics getters, sanitized diagnostic export |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
 | `src/features/anatomicalLevels.js` | Anatomical Level Contract v0 (`anatomical-levels-v0`) — pure derivation of 7 reference Y levels (neck, shoulder, elbow, wrist, hip, knee, ankle) from promoted Front body landmarks |
@@ -786,6 +788,8 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/metricCalibrationProvenance.test.js` | Metric Calibration Provenance Contract v0 unit tests |
 | `src/features/physicalMeasurementSemantics.js` | Physical Measurement Semantics Contract v0 (`physical-measurement-semantics-v0`) — pure deterministic evaluator classifying measurements into workspace, metric projected, and physical tiers |
 | `src/features/physicalMeasurementSemantics.test.js` | Physical Measurement Semantics Contract v0 unit tests |
+| `src/features/viewPoseSemantics.js` | View / Pose Semantics Contract v0 (`view-pose-semantics-v0`) — pure deterministic evaluator validating Layer A declared view identity, Layer B 2D structural pose qualification, and Layer C physical orientation certification |
+| `src/features/viewPoseSemantics.test.js` | View / Pose Semantics Contract v0 unit tests |
 | `src/features/physicalMeasurementEligibility.js` | Physical Measurement Eligibility Contract v0 (`physical-measurement-eligibility-v0`) & Paired Cross-View Eligibility Contract v0 (`paired-cross-view-eligibility-v0`) — authoritative downstream eligibility gate determining whether metric projected measurements satisfy all physical constraints for downstream consumption |
 | `src/features/physicalMeasurementEligibility.test.js` | Physical Measurement Eligibility Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |

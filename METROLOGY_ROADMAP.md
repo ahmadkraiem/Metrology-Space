@@ -268,6 +268,47 @@ Formalized the authoritative downstream eligibility gate determining whether met
     - Shoulder Pair: `pairedMetricProjectedEligibility: true`, `pairedPhysicalEligibility: false`, `pairedStatus: 'blocked'`.
     - Hip Pair: `pairedMetricProjectedEligibility: true`, `pairedPhysicalEligibility: false`, `pairedStatus: 'blocked'`.
 
+### 4.5E Authoritative View / Pose Semantics Validation v0 — COMPLETED (Structural Scope)
+
+Formalized the deterministic domain qualification layer determining whether Front and Side observations are captured in a sufficiently valid view and stance configuration:
+
+- **Core Contract**: `view-pose-semantics-v0` (`src/features/viewPoseSemantics.js`).
+- **Test Suite**: `src/features/viewPoseSemantics.test.js` (13 unit and real archive tests).
+- **Runtime Integration**: `src/features/bodyEvidence.js` (`getViewPoseSemantics({ view })`, `getViewPoseSemanticsReport()`, and automated defaulting in `getPhysicalMeasurementEligibility`).
+- **Package / Adapter Preservation**: `src/features/bodyEvidencePackage.js` and `src/features/bodyEvidenceZipAdapter.js` preserve raw staging metadata (`rawSources: { aposeResult, alignResult }`).
+- **Three Strictly Separated Semantic Layers**:
+  1. **Layer A — Declared / Pipeline View Identity**:
+     - Verifies whether the observation is consistently routed/labeled as Front or Side.
+     - Confirms pipeline routing and category label consistency only; does **not** prove physical camera orientation.
+  2. **Layer B — Structural Pose Qualification**:
+     - Deterministically validates 2D pose sanity from existing package evidence.
+     - Checks: Required landmark presence (`neck`, `left_shoulder`, `right_shoulder`, `left_hip`, `right_hip`, `left_wrist`, `right_wrist`, `left_ankle`, `right_ankle`), reuse of canonical `LOW_CONFIDENCE_THRESHOLD = 0.5` from `bodyEvidenceAdapter.js`, monotonic vertical anatomical ordering ($Y_{\text{top}} < Y_{\text{shoulder}} < Y_{\text{hip}} < Y_{\text{ankle}}$), and Front A-pose limb separation ($X_{\text{right\_wrist}} < X_{\text{right\_shoulder}}$ and $X_{\text{left\_shoulder}} < X_{\text{left\_wrist}}$).
+     - Proves 2D image-plane structural pose sanity only.
+  3. **Layer C — Authoritative Physical Orientation Certification**:
+     - Proves the observation's physical 3D orientation is certified (e.g. zero yaw, orthogonal lateral capture) for true anatomical measurement interpretation.
+     - Production implementation has **no implemented physical orientation evaluator** (`IMPLEMENTED_PHYSICAL_ORIENTATION_EVALUATORS = []`).
+- **Status Taxonomy**:
+  - `validated`: Authoritative physical view identity/orientation (Layer C) AND required structural pose quality (Layer B) are both proven under a recognized physical evaluator (`authorized: true`).
+  - `partial`: Declared view identity (Layer A) and structural pose sanity (Layer B) are established, but authoritative physical orientation certification (Layer C) is missing (`authorized: false`).
+  - `unvalidated`: Evidence exists but is insufficient for structural qualification (`authorized: false`).
+  - `invalid`: Evidence contradicts expected view or structural pose (`authorized: false`).
+  - `unavailable`: Required source evidence absent (`authorized: false`).
+- **Exact Real Archive Behavior (`output.zip`)**:
+  - **Front View**: `status: 'partial'`, `authorized: false`, `declaredViewConsistent: true`, `structuralPoseValidated: true`, `physicalOrientationAuthorized: false` (8 checks: 7 passed, 0 failed, 1 skipped).
+  - **Side View**: `status: 'partial'`, `authorized: false`, `declaredViewConsistent: true`, `structuralPoseValidated: true`, `physicalOrientationAuthorized: false` (8 checks: 6 passed, 0 failed, 2 skipped).
+  - **Semantics**: `partial` is the expected, successful result on the real package. It confirms structural sanity while correctly preserving that authoritative physical orientation is uncertified.
+- **A-Pose Semantics**: Upstream `body/Apose/result.json` proves only that the pipeline ran its generative A-pose staging step (Gemini 3 Pro Image Preview) and generated visual representations at declared height $169\text{ cm}$. It does **not** prove exact zero yaw, true profile orthogonality, orthographic projection, or physical anatomical neutrality.
+- **Align Semantics**: `body/Align/result.json` proves 2D metric scale ($10\text{ px/cm}$), standardized $2000 \times 2000$ canvas, isotropic scaling, and crop/positioning provenance. It does **not** prove physical camera orientation.
+- **Landmark Semantics**: 2D landmarks safely support structural pose sanity (monotonic vertical ordering, A-pose arm separation, absence of collapse). They do **not** prove physical yaw, lateral orientation, canonical 3D rotation, or perspective fidelity. Bilateral landmark compression is not used as physical Side-view proof.
+- **Provenance Protection**:
+  - Implemented evaluator: `body-pipeline-structural-pose-evaluator-v0` (authorizes Layer A + B only; produces `status: 'partial'`, `authorized: false`).
+  - Arbitrary caller objects/booleans (e.g. `{ isFront: true }`, `{ status: 'validated' }`) are strictly rejected.
+- **Integration with 4.5D**:
+  - 4.5D accepts physical view/pose authorization only when 4.5E `status === 'validated'` AND `authorized === true`.
+  - A `partial` result enriches diagnostics and confirms structural sanity, but does **not** remove the `view_pose_semantics_missing` blocker in 4.5D.
+  - Therefore, real 4.5D physical blockers remain active: `['clothing_authorization_missing', 'view_pose_semantics_missing', 'authoritative_physical_evidence_missing']`.
+- **Future Extensibility**: 4.5E is designed to cleanly accommodate future authoritative orientation sources (controlled capture protocols, calibrated camera extrinsics, validated 3D orientation estimators, visual orientation evaluators, human verification) without breaking contract boundaries.
+
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 
 Remains strictly **BLOCKED**.
@@ -278,7 +319,7 @@ Remains strictly **BLOCKED**.
     - Front: `physicalEligibility === true` and non-null `physicalMeasurementCm`.
     - Side: `physicalEligibility === true` and non-null `physicalMeasurementCm`.
     - Paired: `pairedPhysicalEligibility === true`.
-  - Current real archive evidence does **NOT** satisfy this (both views blocked by clothing, missing view/pose semantics, and missing authoritative physical evidence).
+  - Current real archive evidence does **NOT** satisfy this (both views blocked by clothing, missing physical view/pose orientation certification, and missing authoritative physical evidence).
   - A future empirical silhouette model may explicitly consume `pairedMetricProjectedEligibility: true`, but that model must declare, validate, and isolate its own empirical assumptions.
 - **Strict Guardrail**: Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z$ promotion, and no premature ellipse, circumference, or 3D cross-section calculations.
 
@@ -350,15 +391,5 @@ When changing direction:
 3. update `PROJECT_CONTEXT.md` and `PROJECT_STRUCTURE.md` where relevant;
 4. keep deferred geometry assumptions explicit;
 5. avoid silently replacing the current source-of-truth architecture.
-
-## 9. Immediate Next Discussion
-
-**Physical Blocker Resolution Strategy Planning**
-
-With 4.5D completed and positive metric projections validated, the next planning discussion must determine which unresolved physical blocker should be addressed next to progress toward physical body metrology:
-
-- Authoritative View / Pose Semantics (stance qualification and orientation certification)
-- Clothing Authorization / Body-Surface Semantics (unclothed body protocols or validated garment offset compensation)
-- Authoritative Physical Evidence Path (calibrated camera projection, fiducials, or empirical capture calibration)
 
 
