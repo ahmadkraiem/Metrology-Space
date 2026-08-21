@@ -309,6 +309,65 @@ Formalized the deterministic domain qualification layer determining whether Fron
   - Therefore, real 4.5D physical blockers remain active: `['clothing_authorization_missing', 'view_pose_semantics_missing', 'authoritative_physical_evidence_missing']`.
 - **Future Extensibility**: 4.5E is designed to cleanly accommodate future authoritative orientation sources (controlled capture protocols, calibrated camera extrinsics, validated 3D orientation estimators, visual orientation evaluators, human verification) without breaking contract boundaries.
 
+### 4.5F Clothing / Body-Surface Authorization v0 — COMPLETED
+
+Formalized the deterministic domain qualification layer governing clothing participation, observational garment qualification, and authoritative empirical body-surface authorization:
+
+- **Core Contract**: `clothing-body-surface-semantics-v0` (`src/features/clothingBodySurfaceSemantics.js`).
+- **Test Suite**: `src/features/clothingBodySurfaceSemantics.test.js` (11 comprehensive unit and real archive tests).
+- **Integrated Files**:
+  - `src/features/physicalMeasurementEligibility.js`: Integrated check ID `clothing_non_interference` under Dimension D (`clothing_authorization` requirement), consuming the derived `clothingConstraintSatisfied` gate to keep or clear the `clothing_authorization_missing` blocker.
+  - `src/features/bodyEvidence.js`: Exposed `getClothingBodySurfaceSemantics({ id })` and `getClothingBodySurfaceSemanticsReport()`, with automatic resolution wired into `getPhysicalMeasurementEligibility`.
+- **Three Strictly Separated Semantic Layers**:
+  1. **Layer A — Clothing Participation (Deterministic in v0)**:
+     - Evaluates support-policy topology and segmentation class provenance (`usedClothingEvidence`, `clothingClassIdsUsed`, `actualClassIdsUsed`, `supportPolicyId`).
+     - Production evaluator: `body-pipeline-clothing-participation-evaluator-v0`.
+     - Answers strictly whether clothing participated, where, and which specific classes contributed.
+  2. **Layer B — Garment Type / Fit Qualification (Future Evaluators Only)**:
+     - Observational/visual qualification evaluating garment type, fit tight/loose classification, and suitability as a candidate for metrology validation.
+     - Production implementation has **no visual garment evaluators implemented** (`IMPLEMENTED_VISUAL_GARMENT_EVALUATORS = []`).
+     - Canonical `garmentFitStatus` taxonomy: `qualified`, `disqualified`, `ambiguous`, `unresolved`, `not_applicable`.
+     - Clothing-present evidence resolves to `garmentFitStatus: 'unresolved'`, `garmentFitQualified: false`, `candidateForMetrologyValidation: false`.
+     - Clothing-free evidence resolves to `garmentFitStatus: 'not_applicable'`, `garmentFitQualified: false`, `candidateForMetrologyValidation: false`.
+     - Layer B qualification evaluates visual fit only and is **never documented or treated as physical body-surface authorization**.
+  3. **Layer C — Body-Surface Authorization (Future Empirical Physical Evaluators Only)**:
+     - Authoritative empirical validation gate certifying whether the observed contour equals the true physical body surface within declared uncertainty bounds.
+     - Production implementation has **no body-surface evaluators implemented** (`IMPLEMENTED_BODY_SURFACE_EVALUATORS = []`).
+     - Real evidence resolves to `bodySurfaceAuthorized: false`, `authorizationMode: 'none'`, `declaredUncertaintyCm: null`.
+- **Derived Final Clothing Gate (`clothingConstraintSatisfied`)**:
+  - `clothingConstraintSatisfied` is a derived composite gate, not a Layer A field.
+  - **Rule**:
+    - If `usedClothingEvidence === false`: `clothingConstraintSatisfied = true` (clothing does not block this specific measurement; garment fit is `not_applicable`; does **not** imply `bodySurfaceAuthorized` or physical eligibility by itself).
+    - If `usedClothingEvidence === true`: `clothingConstraintSatisfied = true` **ONLY** when required Layer B garment qualification AND Layer C authoritative body-surface authorization are satisfied.
+  - Consumed by 4.5D (`clothingAuthorizationResult.dimensions.clothingConstraintSatisfied`) to keep or clear the `clothing_authorization_missing` blocker.
+- **Clothing-Free Semantics**:
+  - Absence of clothing does **NOT** mean physical body-surface truth.
+  - Clothing-free observation resolves to: `clothingParticipationValidated: true`, `clothingConstraintSatisfied: true`, `garmentFitStatus: 'not_applicable'`, `garmentFitQualified: false`, `candidateForMetrologyValidation: false`, `bodySurfaceAuthorized: false` (unless an authoritative empirical evaluator exists), and overall 4.5F status may remain `partial` / unauthorized. Other physical blockers remain independent.
+- **Clothing-Present Semantics (Real Archive `output.zip`)**:
+  - **Front Shoulder** ($Y=132.85\text{ cm}$): Class 23 (`Upper_Clothing`), `status: 'partial'`, `garmentFitStatus: 'unresolved'`, `clothingConstraintSatisfied: false`.
+  - **Side Shoulder** ($Y=132.85\text{ cm}$): Class 23 (`Upper_Clothing`), `status: 'partial'`, `garmentFitStatus: 'unresolved'`, `clothingConstraintSatisfied: false`.
+  - **Front Hip** ($Y=86.25\text{ cm}$): Class 13 (`Lower_Clothing`), `status: 'partial'`, `garmentFitStatus: 'unresolved'`, `clothingConstraintSatisfied: false`.
+  - **Side Hip** ($Y=86.25\text{ cm}$): Class 13 (`Lower_Clothing`), `status: 'partial'`, `garmentFitStatus: 'unresolved'`, `clothingConstraintSatisfied: false`.
+- **Real Metric Projected Measurements (Unchanged)**:
+  - Front Shoulder: **$30.80\text{ cm}$**
+  - Side Shoulder: **$11.00\text{ cm}$**
+  - Front Hip: **$42.20\text{ cm}$**
+  - Side Hip: **$27.70\text{ cm}$**
+  - None of these values are promoted to physical measurements.
+- **Active 4.5D Physical Blockers**:
+  - All 3 physical blockers remain active on the real archive:
+    1. `clothing_authorization_missing`
+    2. `view_pose_semantics_missing`
+    3. `authoritative_physical_evidence_missing`
+- **Evaluator Provenance Protection**:
+  - Arbitrary caller booleans (`{ isTight: true }`, `{ status: 'authorized' }`) and unregistered evaluator IDs are strictly rejected (`evaluator_provenance: 'fail'`).
+  - User-entered garment declarations are non-authoritative.
+  - Registries: `IMPLEMENTED_PARTICIPATION_EVALUATORS = ['body-pipeline-clothing-participation-evaluator-v0']`, `IMPLEMENTED_VISUAL_GARMENT_EVALUATORS = []`, `IMPLEMENTED_BODY_SURFACE_EVALUATORS = []`. Test-only registries exist strictly for controlled unit test fixtures.
+  - A future visual VLM/classifier result may qualify Layer B only; it must never directly authorize Layer C physical body truth.
+- **Measurement-Specific Scope**: Qualification is strictly evaluated per measurement, view, anatomical region, and support-policy provenance (e.g. upper-body garment qualification cannot authorize hip measurements).
+- **Separation from Measurement Support Policy**: `measurementSupportPolicy.js` answers which segmentation classes constitute the supported silhouette; `clothingBodySurfaceSemantics.js` interprets what that clothing participation means for downstream qualification.
+- **Strict Guardrails**: No VLM implementation, no user garment declaration path, no garment thickness or offset inference, no empirical tolerance invention, no Side $U \to Z$, no Front/Side geometry fusion, no pointmap $Z$ promotion, and no circumference or cross-section calculations.
+
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 
 Remains strictly **BLOCKED**.
