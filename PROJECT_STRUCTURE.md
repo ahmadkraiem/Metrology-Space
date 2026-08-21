@@ -79,6 +79,8 @@ latent-space/
 │   │   ├── metricCalibrationProvenance.test.js # Metric Calibration Provenance Contract v0 unit tests
 │   │   ├── physicalMeasurementSemantics.js # Physical Measurement Semantics Contract v0 — pure deterministic evaluator classifying measurements into workspace, metric projected, and physical tiers
 │   │   ├── physicalMeasurementSemantics.test.js # Physical Measurement Semantics Contract v0 unit tests
+│   │   ├── physicalMeasurementEligibility.js # Physical Measurement Eligibility Contract v0 (`physical-measurement-eligibility-v0`) & Paired Cross-View Eligibility Contract v0 (`paired-cross-view-eligibility-v0`) — authoritative downstream eligibility gate determining whether metric projected measurements satisfy all physical constraints for downstream consumption
+│   │   ├── physicalMeasurementEligibility.test.js # Physical Measurement Eligibility Contract v0 unit tests
 │   │   ├── projectionLinking.js     # Read-only Front Surface projection of Origin/Center/annotations
 │   │   ├── sceneExport.js           # Canonical Scene State JSON export build and download
 │   │   ├── sceneGraphHighlight.js   # Temporary Scene Graph 3D highlight overlays
@@ -200,6 +202,7 @@ latent-space/
 | `crossViewComparabilityQa.js` | **Cross-view Comparability QA Contract v0.** Pure deterministic QA evaluating whether 4.5A correspondence pairs are sufficiently qualified and internally consistent for later cross-view use across 10 inspectable checks. |
 | `metricCalibrationProvenance.js` | **Metric Calibration Provenance Contract v0 (`metric-calibration-provenance-v0`).** Pure deterministic domain validator evaluating upstream metric calibration claims across standardized Front and Side views. Validates scale factor isotropy, canvas extent, raster dimensions, and workspace scale agreement. |
 | `physicalMeasurementSemantics.js` | **Physical Measurement Semantics Contract v0 (`physical-measurement-semantics-v0`).** Pure deterministic domain contract classifying measurements into workspace, metric projected, and physical semantic tiers, requiring authoritative physical evidence contracts for physical eligibility. |
+| `physicalMeasurementEligibility.js` | **Physical Measurement Eligibility Contract v0 (`physical-measurement-eligibility-v0`) & Paired Cross-View Eligibility Contract v0 (`paired-cross-view-eligibility-v0`).** Authoritative downstream eligibility gate evaluating whether individual and paired measurements meet all constraints to be consumed as true physical body scalars. |
 | `bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute (orphaned / internal helper). |
 | `bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute (candidate readiness lines). |
 | `bodyMeasurementPreview.js` | Measurement Line Preview Overlay v0 (draws visual-only Ready preview lines in 3D and Front 2D). |

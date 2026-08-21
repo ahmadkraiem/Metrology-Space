@@ -723,12 +723,16 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.4B: Side Profile Span Interpretation Contract v0 (`side-profile-span-v0` — pure interpretation of Side raster slice evidence into formal profile spans at shoulder/hip levels under `single_run_required` policy with `getSideProfileSpan` and `getSideProfileSpans` runtime getters)**
 - **Milestone 4.5A: Cross-view Measurement Correspondence Contract v0 (`cross-view-measurement-correspondence-v0` — pure deterministic correspondence layer pairing Front transverse width and Side profile span observations at matching validated reference levels under registry-driven definitions with `getCrossViewMeasurementCorrespondence` and `getCrossViewMeasurementCorrespondences` runtime getters)**
 - **Milestone 4.5B: Cross-view Comparability QA v0 (`cross-view-comparability-qa-v0` — pure deterministic QA evaluating whether 4.5A correspondence pairs are sufficiently qualified and internally consistent for later cross-view use across 10 inspectable checks with `getCrossViewComparabilityQa` and `getCrossViewComparabilityQaReport` runtime getters)**
-- **Milestone 4.5C: Shared Metric Calibration & Physical Measurement Semantics v0 (`metric-calibration-provenance-v0` & `physical-measurement-semantics-v0` — pure deterministic validation of upstream calibration claims across Front and Side views, establishing 3 semantic tiers: workspace span, metric projected span, and physical span; unvalidated on packages lacking calibration provenance)**
+- **Milestone 4.5C: Shared Metric Calibration & Physical Measurement Semantics v0 (`metric-calibration-provenance-v0` & `physical-measurement-semantics-v0` — pure deterministic validation of upstream calibration claims across Front and Side views, establishing 3 semantic tiers: workspace span, metric projected span, and physical span; validated on packages with Align calibration provenance)**
 - **Measurement Support Policy v0 (`measurement-support-policy-v0` — centralized deterministic observed supported silhouette definitions `trunk_core_support_v0` and `pelvic_core_support_v0`, tracking `supportPolicyId`, `actualClassIdsUsed`, `clothingClassIdsUsed`, and `usedClothingEvidence: boolean` without run merging or gap filling)**
+- **Milestone 4.5D: Physical Measurement Eligibility Contract v0 (`physical-measurement-eligibility-v0` & `paired-cross-view-eligibility-v0` — authoritative downstream eligibility gate determining whether metric-projected measurements are qualified to be consumed as true physical body scalars across Tier 1 individual and Tier 2 paired evaluations, preserving multi-blocker diagnostics and decoupled physical-value provenance)**
 
-### Next Active Milestone: Physical Measurement Eligibility / Capture Provenance Completion Checkpoint before 4.6
-- **Planning & Verification Checkpoint**: Before Milestone 4.6 (circumference / cross-section inference) can consume true physical inputs, at least one authoritative evidence path validating the required physical measurement semantics for the chosen cross-section model must be established.
-- **Strict Guardrails**: 4.6 remains strictly **BLOCKED**. `pass` in 4.5B and `valid` in 4.3/4.4/4.5A indicate qualified 2D silhouette evidence under the declared measurement-support policy only. Side $U$ is 2D profile evidence only; it is **not** canonical $Z$, is **never** described as validated physical depth without authoritative physical evidence contracts, and is **never** fused into 3D coordinates with Front $X$.
+### Next Active Discussion: Physical Blocker Resolution Strategy Planning
+- **Planning Checkpoint**: With positive metric projected measurements validated ($30.80\text{ cm}$, $11.00\text{ cm}$, $42.20\text{ cm}$, $27.70\text{ cm}$), the next planning discussion will evaluate which unresolved physical blocker to address next:
+  1. Authoritative View / Pose Semantics (stance qualification and orientation certification)
+  2. Clothing Authorization / Body-Surface Semantics (unclothed body protocols or validated garment offset compensation)
+  3. Authoritative Physical Evidence Path (calibrated camera projection, fiducials, or empirical capture calibration)
+- **Strict Guardrails**: 4.6 (Circumference / Cross-section inference) remains strictly **BLOCKED**. Physical cross-section requires individual `physicalEligibility: true` on both views and `pairedPhysicalEligibility: true`. Side $U$ is 2D profile evidence only; it is **not** canonical $Z$, is **never** described as validated physical depth without authoritative physical evidence contracts, and is **never** fused into 3D coordinates with Front $X$.
 
 ---
 
@@ -757,7 +761,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics getters, sanitized diagnostic export |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility getters, sanitized diagnostic export |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
 | `src/features/anatomicalLevels.js` | Anatomical Level Contract v0 (`anatomical-levels-v0`) — pure derivation of 7 reference Y levels (neck, shoulder, elbow, wrist, hip, knee, ankle) from promoted Front body landmarks |
@@ -782,6 +786,8 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/metricCalibrationProvenance.test.js` | Metric Calibration Provenance Contract v0 unit tests |
 | `src/features/physicalMeasurementSemantics.js` | Physical Measurement Semantics Contract v0 (`physical-measurement-semantics-v0`) — pure deterministic evaluator classifying measurements into workspace, metric projected, and physical tiers |
 | `src/features/physicalMeasurementSemantics.test.js` | Physical Measurement Semantics Contract v0 unit tests |
+| `src/features/physicalMeasurementEligibility.js` | Physical Measurement Eligibility Contract v0 (`physical-measurement-eligibility-v0`) & Paired Cross-View Eligibility Contract v0 (`paired-cross-view-eligibility-v0`) — authoritative downstream eligibility gate determining whether metric projected measurements satisfy all physical constraints for downstream consumption |
+| `src/features/physicalMeasurementEligibility.test.js` | Physical Measurement Eligibility Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
 | `src/features/selection.js` | Selected point state and highlight (Annotate mode) |
 | `src/features/measurement.js` | Canonical shared Point A/B measurement state, markers, line, label, history |

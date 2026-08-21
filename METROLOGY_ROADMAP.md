@@ -152,18 +152,19 @@ Extend beyond vertical-Y landmark alignment through explicit measurement corresp
   - Runtime getters in `src/features/bodyEvidence.js`: `getCrossViewComparabilityQa()`, `getCrossViewComparabilityQaReport()` (`cross-view-comparability-qa-report-v0`).
   - Critical Semantics: A QA `pass` strictly certifies that Front transverse width and Side profile span are **structurally comparable and sufficiently qualified at the current 2D evidence-contract level**. It does **NOT** validate physical depth, does **NOT** treat Side U as canonical $Z$, does **NOT** approve 3D geometry fusion, and does **NOT** certify circumference, ellipse, cross-section, or volume inference.
 
-### 4.5C Shared Metric Calibration & Physical Measurement Semantics v0 — COMPLETED (at current contract/implementation scope)
+### 4.5C Shared Metric Calibration & Physical Measurement Semantics v0 — COMPLETED
 
 Formalized shared Front/Side metric calibration provenance validation and explicit 3-level physical measurement semantics:
 
 - **4.5C-1 Metric Calibration Provenance Contract v0 (`metric-calibration-provenance-v0`)** (`src/features/metricCalibrationProvenance.js`):
   - Pure deterministic domain validator qualifying whether upstream Body Pipeline metric scaling claims are complete and mathematically sound across standardized Front and Side views.
   - Inspects and validates: `pixelsPerCm`, isotropic scaling consistency (`scaleFactorX === scaleFactorY`), standardized canvas extent agreement (`canvasWidthPx === canvasHeightPx === 2000`), active raster dimension matching, preprocessing crop/scale provenance, and REVacity workspace scale agreement ($2000\text{ px} \leftrightarrow 200\text{ cm}$, $10\text{ px/cm}$).
+  - Independent Isotropic Validation: Verified via rounding-aware pixel-domain checks (`ISOTROPIC_ROUNDING_TOLERANCE_PX = 1.0`) rather than blindly trusting declared flags.
   - 4-state taxonomy: `validated` (`metricProjectedEligibility: true`), `unvalidated` (`metricProjectedEligibility: false`), `invalid` (`metricProjectedEligibility: false`), `unavailable`.
-  - Important Semantics: Metric calibration establishes **2D metric projected image-plane measurements only**. It does **NOT** establish true unclothed physical body dimensions, canonical $Z$, 3D geometry, or Front/Side coordinate fusion.
+  - Important Semantics: Metric calibration establishes **2D metric projected image-plane measurements only**. It does **NOT** establish physical 3D calibration, true unclothed physical body dimensions, canonical $Z$, 3D geometry, or Front/Side coordinate fusion.
   - Runtime getter in `src/features/bodyEvidence.js`: `getMetricCalibrationProvenance({ view })`.
 - **4.5C-2 Physical Measurement Semantics Contract v0 (`physical-measurement-semantics-v0`)** (`src/features/physicalMeasurementSemantics.js`):
-  - Pure deterministic contract evaluating the explicit semantic level of a 2D silhouette measurement under three strictly separated tiers:
+  - Pure deterministic contract evaluating the explicit semantic tier of a 2D silhouette measurement under three strictly separated tiers:
     1. `workspaceSpanCm`: Workspace-level U/X-space geometric evidence.
     2. `metricProjectedSpanCm`: Metric projected image-plane span in cm, populated only when 4.5C-1 calibration provenance is validated.
     3. `physicalSpanCm`: True physical body dimension in cm; strictly requires an authoritative physical capture/projection evidence contract from the registry.
@@ -196,27 +197,90 @@ Centralized deterministic policy defining the **measurement-support silhouette /
   - Every resulting observation records: `supportPolicyId`, `actualClassIdsUsed`, `clothingClassIdsUsed`, and `usedClothingEvidence: boolean`.
   - **Important Semantic Rule**: A measurement with `status: valid` means exactly **one valid contiguous observed supported silhouette run exists under the declared measurement-support policy**. It does **NOT** mean unclothed body width is proven, true body depth is proven, or physical body surface has been reconstructed. When `usedClothingEvidence: true`, the measurement remains identifiable as clothing-supported observed silhouette evidence.
 
-### Real Package Integration Verification (`C:\Users\VIP\Downloads\output.zip`)
+### Real Package Positive Metric Integration (`C:\Users\VIP\Downloads\output.zip`)
 
-Real multi-modal package containing Front and Side image, pose, segmentation, pointmap, and normals:
+The unified Body Pipeline archive is successfully consumed and validated by REVacity:
 
-- **Calibration Safety Behavior**: The archive does not carry explicit calibration provenance metadata. Under 4.5C-1, Front and Side calibration evaluate strictly to `status: 'unvalidated'`, `metricProjectedEligibility: false`. REVacity did **NOT** invent or infer calibration from $2000 \times 2000$ dimensions, $\text{ROOM\_SIZE} = 200$, pointmap units, or image dimensions alone. Safe backward compatibility is verified.
-- **Measurement Support Policy Verification**:
-  - **Front Shoulder Width** ($Y = 132.85\text{ cm}$, Row $671$, Col $850..1157$): Span = **$30.80\text{ cm}$**, `actualClassIdsUsed: [22, 23]`, `clothingClassIdsUsed: [23]`, `usedClothingEvidence: true`, `status: valid`.
-  - **Side Shoulder Span** ($Y = 132.85\text{ cm}$, Row $671$, Col $887..996$): Span = **$11.00\text{ cm}$**, `actualClassIdsUsed: [22, 23]`, `clothingClassIdsUsed: [23]`, `usedClothingEvidence: true`, `status: valid`.
-  - **Front Hip Width** ($Y = 86.25\text{ cm}$, Row $1137$, Col $788..1209$): Span = **$42.20\text{ cm}$**, `actualClassIdsUsed: [12, 13, 21]`, `clothingClassIdsUsed: [13]`, `usedClothingEvidence: true`, `status: valid`.
-  - **Side Hip Span** ($Y = 86.25\text{ cm}$, Row $1137$, Col $845..1121$): Span = **$27.70\text{ cm}$**, `actualClassIdsUsed: [12, 13]`, `clothingClassIdsUsed: [13]`, `usedClothingEvidence: true`, `status: valid`.
-- **Downstream Recovery**:
-  - **4.5A Cross-view Correspondence**: Shoulder $\to$ `status: ready`; Hip $\to$ `status: ready`.
-  - **4.5B Cross-view Comparability QA**: Shoulder $\to$ `status: pass` ($10/10$ checks passed); Hip $\to$ `status: pass` ($10/10$ checks passed).
-- **Physical Semantics Safety**: Under `physical-measurement-semantics-v0`, all four measurements evaluate to `status: 'unvalidated'`, `physicalEligibility: false`, `physicalSpanCm: null`. Workspace spans are preserved without promotion.
+- **Real Upstream Align Calibration Provenance**: Recognized from `body/Align/result.json` and mapped through `bodyEvidenceZipAdapter.js` into canonical calibration contracts.
+- **Validated Metric Calibration**:
+  - Front View: `status: 'validated'`, `metricProjectedEligibility: true`, `scaleCmPerPx: 0.1` ($10\text{ px/cm}$).
+  - Side View: `status: 'validated'`, `metricProjectedEligibility: true`, `scaleCmPerPx: 0.1` ($10\text{ px/cm}$).
+  - Isotropic scaling passes independent pixel-domain verification (`ISOTROPIC_ROUNDING_TOLERANCE_PX = 1.0`).
+- **Validated Metric Projected Measurements**:
+  - **Front Shoulder Width** ($Y = 132.85\text{ cm}$): Workspace = **$30.80\text{ cm}$**, Metric Projected = **$30.80\text{ cm}$** (`actualClassIdsUsed: [22, 23]`, `clothingClassIdsUsed: [23]`, `usedClothingEvidence: true`).
+  - **Side Shoulder Span** ($Y = 132.85\text{ cm}$): Workspace = **$11.00\text{ cm}$**, Metric Projected = **$11.00\text{ cm}$** (`actualClassIdsUsed: [22, 23]`, `clothingClassIdsUsed: [23]`, `usedClothingEvidence: true`).
+  - **Front Hip Width** ($Y = 86.25\text{ cm}$): Workspace = **$42.20\text{ cm}$**, Metric Projected = **$42.20\text{ cm}$** (`actualClassIdsUsed: [12, 13, 21]`, `clothingClassIdsUsed: [13]`, `usedClothingEvidence: true`).
+  - **Side Hip Span** ($Y = 86.25\text{ cm}$): Workspace = **$27.70\text{ cm}$**, Metric Projected = **$27.70\text{ cm}$** (`actualClassIdsUsed: [12, 13]`, `clothingClassIdsUsed: [13]`, `usedClothingEvidence: true`).
+- **Semantic Qualification**: These values are certified **2D metric projected image-plane measurements**. They are **NOT** automatically true unclothed physical body dimensions.
+
+### 4.5D Physical Measurement Eligibility Contract v0 — COMPLETED
+
+Formalized the authoritative downstream eligibility gate determining whether metric-projected measurements may be consumed as true physical anatomical scalars:
+
+- **Core Contracts**:
+  - Individual Tier 1 Contract: `physical-measurement-eligibility-v0` (`src/features/physicalMeasurementEligibility.js`).
+  - Paired Tier 2 Contract: `paired-cross-view-eligibility-v0` (`src/features/physicalMeasurementEligibility.js`).
+  - Runtime Integration: `src/features/bodyEvidence.js` (`getPhysicalMeasurementEligibility`, `getPhysicalMeasurementEligibilityReport`, `getPairedCrossViewEligibility`, `getPairedCrossViewEligibilityReport`).
+- **Semantic Responsibility & Hierarchy**:
+  - 4.5C answers: *What semantic tier does this measurement occupy?*
+  - 4.5D answers: *Is this measurement eligible to be consumed by downstream models as a true physical anatomical scalar?*
+  - Strict preservation of the 3 semantic tiers:
+    1. *Observed Supported Silhouette* (Landmarks + Segmentation + Support Policy)
+    2. *Metric Projected Measurement* (Validated Align calibration, image-plane scalar in cm)
+    3. *Physical Anatomical Measurement* (Authoritative view/pose + clothing authorized + physical evidence)
+- **Tier 1 Status Taxonomy**:
+  - `eligible`: All eligibility gates pass (`physicalEligibility: true`, `physicalMeasurementCm` finite positive number).
+  - `blocked_by_clothing`: Valid metric projection, but clothing contributes to the silhouette without recognized clothing authorization (`physicalEligibility: false`, `physicalMeasurementCm: null`, `metricProjectedSpanCm` preserved).
+  - `metric_projected_only`: Valid metric projection, but non-clothing physical requirements (view/pose semantics or physical evidence) are missing (`physicalEligibility: false`, `physicalMeasurementCm: null`).
+  - `unvalidated`: Metric calibration or semantic baseline is unvalidated/missing.
+  - `invalid`: Structural corruption, anatomical level mismatch, or contradictory input evidence.
+  - `unavailable`: Source observation absent or unavailable.
+- **Authoritative Physical-Value Provenance**:
+  - `metricProjectedSpanCm === physicalMeasurementCm` is **never** assumed as a general invariant.
+  - `physicalMeasurementCm` must be explicitly supplied or authorized by a recognized authoritative physical evaluator result.
+  - Supported interpretations: `direct_equivalence` (projection matches body scalar) and `corrected_physical_measurement` (evaluator provides corrected physical scalar, e.g. after garment/body offset correction).
+  - 4.5D itself does **NOT** calculate garment corrections, perspective corrections, body-under-clothing estimates, or 3D depth transforms.
+- **Blocker Model & Precedence**:
+  - Deterministic precedence: 1. source unavailable $\to$ `unavailable`, 2. structural integrity failure $\to$ `invalid`, 3. metric calibration unvalidated $\to$ `unvalidated`, 4. clothing authorization missing $\to$ `blocked_by_clothing`, 5. view/pose semantics missing $\to$ `metric_projected_only`, 6. authoritative physical evidence missing $\to$ `metric_projected_only`.
+  - Multi-blocker preservation: Primary status reflects the dominant gate, while **all** active blockers are preserved in the `blockers` array.
+- **Clothing-Aware Semantics**:
+  - Current real archive uses clothing (Shoulder: class 23 `Upper_Clothing`; Hip: class 13 `Lower_Clothing`).
+  - Fitted garments are **not** assumed to reproduce true unclothed body surface without recognized authorization.
+  - All 4 real measurements resolve to `status: 'blocked_by_clothing'`, preserving metric projected spans while keeping `physicalMeasurementCm: null`.
+- **Required View / Pose Semantics**:
+  - Physical promotion requires authoritative stance/pose validation (Front: frontal orientation; Side: lateral/profile orientation).
+  - Missing view/pose semantics prevents physical eligibility while keeping metric projections intact.
+- **Authoritative Evidence Architecture**:
+  - Production implemented evaluators: **NONE** (`IMPLEMENTED_PHYSICAL_EVALUATORS = []`).
+  - Reserved future evaluator families: `controlled-capture-protocol-v0`, `calibrated-camera-projection-v0`, `metric-reference-fiducial-v0`, `empirical-body-capture-calibration-v0`, `validated-dense-geometry-v0`, `fitted-garment-offset-compensation-v0`.
+  - Safety rule: Raw caller booleans (`{ physicalEligibility: true }`) or arbitrary contract strings are strictly rejected.
+- **Tier 2 Paired Cross-View Eligibility (`paired-cross-view-eligibility-v0`)**:
+  - Consumes Front Tier 1, Side Tier 1, 4.5A correspondence, and 4.5B comparability QA without recomputing or coordinate fusion.
+  - Requires **both** views to be `eligible`, 4.5A to be `ready`, and 4.5B to be `pass` for `pairedPhysicalEligibility: true`.
+  - Statuses: `eligible`, `partial`, `blocked`, `unavailable`.
+- **Real Archive Results (`output.zip`)**:
+  - **Tier 1 Individual Measurements**:
+    - Front Shoulder: Metric Projected = **$30.80\text{ cm}$**, `status: 'blocked_by_clothing'`, `physicalEligibility: false`, `physicalMeasurementCm: null`, `blockers: ['clothing_authorization_missing', 'view_pose_semantics_missing', 'authoritative_physical_evidence_missing']`.
+    - Side Shoulder: Metric Projected = **$11.00\text{ cm}$**, `status: 'blocked_by_clothing'`, `physicalEligibility: false`, `physicalMeasurementCm: null`, `blockers: ['clothing_authorization_missing', 'view_pose_semantics_missing', 'authoritative_physical_evidence_missing']`.
+    - Front Hip: Metric Projected = **$42.20\text{ cm}$**, `status: 'blocked_by_clothing'`, `physicalEligibility: false`, `physicalMeasurementCm: null`, `blockers: ['clothing_authorization_missing', 'view_pose_semantics_missing', 'authoritative_physical_evidence_missing']`.
+    - Side Hip: Metric Projected = **$27.70\text{ cm}$**, `status: 'blocked_by_clothing'`, `physicalEligibility: false`, `physicalMeasurementCm: null`, `blockers: ['clothing_authorization_missing', 'view_pose_semantics_missing', 'authoritative_physical_evidence_missing']`.
+  - **Tier 2 Paired Correspondences**:
+    - Shoulder Pair: `pairedMetricProjectedEligibility: true`, `pairedPhysicalEligibility: false`, `pairedStatus: 'blocked'`.
+    - Hip Pair: `pairedMetricProjectedEligibility: true`, `pairedPhysicalEligibility: false`, `pairedStatus: 'blocked'`.
 
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 
 Remains strictly **BLOCKED**.
 
-Qualification: While 4.5A correspondence and 4.5B comparability QA evaluate to `ready` / `pass`, real-world packages lacking calibration provenance remain `unvalidated`, and observed measurements using clothing bridge evidence do not constitute true physical unclothed body measurements. Milestone 4.6 cannot consume inputs until the semantic eligibility required by the selected cross-section model is validated.
-Strict Guardrail: No premature ellipse, circumference, or 3D cross-section assumptions.
+- **Model-Specific Unlock Rule**:
+  - 4.6 is **not** globally unlocked.
+  - A downstream *Physical Front+Side Cross-Section Model* requires:
+    - Front: `physicalEligibility === true` and non-null `physicalMeasurementCm`.
+    - Side: `physicalEligibility === true` and non-null `physicalMeasurementCm`.
+    - Paired: `pairedPhysicalEligibility === true`.
+  - Current real archive evidence does **NOT** satisfy this (both views blocked by clothing, missing view/pose semantics, and missing authoritative physical evidence).
+  - A future empirical silhouette model may explicitly consume `pairedMetricProjectedEligibility: true`, but that model must declare, validate, and isolate its own empirical assumptions.
+- **Strict Guardrail**: Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z$ promotion, and no premature ellipse, circumference, or 3D cross-section calculations.
 
 ## 5. Canonical / Latent Layer — LATER
 
@@ -287,17 +351,14 @@ When changing direction:
 4. keep deferred geometry assumptions explicit;
 5. avoid silently replacing the current source-of-truth architecture.
 
-## 9. Immediate Next Milestone
+## 9. Immediate Next Discussion
 
-**Physical Measurement Eligibility / Capture Provenance Completion Checkpoint before 4.6**
+**Physical Blocker Resolution Strategy Planning**
 
-Before Milestone 4.6 can consume true physical inputs, the project requires at least one authoritative path validating the required physical measurement semantics for the chosen cross-section model.
+With 4.5D completed and positive metric projections validated, the next planning discussion must determine which unresolved physical blocker should be addressed next to progress toward physical body metrology:
 
-Possible future evidence paths may include:
-- complete upstream Body Pipeline calibration provenance
-- controlled capture protocol validation
-- calibrated camera / projection evidence
-- empirical body-measurement validation
-- validated dense geometry semantics
+- Authoritative View / Pose Semantics (stance qualification and orientation certification)
+- Clothing Authorization / Body-Surface Semantics (unclothed body protocols or validated garment offset compensation)
+- Authoritative Physical Evidence Path (calibrated camera projection, fiducials, or empirical capture calibration)
 
 
