@@ -368,6 +368,82 @@ Formalized the deterministic domain qualification layer governing clothing parti
 - **Separation from Measurement Support Policy**: `measurementSupportPolicy.js` answers which segmentation classes constitute the supported silhouette; `clothingBodySurfaceSemantics.js` interprets what that clothing participation means for downstream qualification.
 - **Strict Guardrails**: No VLM implementation, no user garment declaration path, no garment thickness or offset inference, no empirical tolerance invention, no Side $U \to Z$, no Front/Side geometry fusion, no pointmap $Z$ promotion, and no circumference or cross-section calculations.
 
+### 4.5G Authoritative Physical Evidence Semantics — DEFERRED / PENDING SAPIENS POINTMAP RUNTIME AUDIT
+
+This milestone is a **formal dependency checkpoint / hold**, not an implementation milestone. It is **NOT** started and **NOT** completed.
+
+- **Status**: `DEFERRED / PENDING SAPIENS POINTMAP RUNTIME AUDIT`
+- **Current Verified Evidence**:
+  - Known subject height is provided to upstream Body Pipeline.
+  - Upstream body alignment uses height-derived isotropic scaling.
+  - Front and Side aligned canvases are standardized to $2000 \times 2000\text{ px}$.
+  - Metric calibration validates $10\text{ px/cm}$ ($0.10\text{ cm/px}$).
+  - REVacity therefore has valid metric projected image-plane measurements:
+    - Front Shoulder: **$30.80\text{ cm}$**
+    - Side Shoulder: **$11.00\text{ cm}$**
+    - Front Hip: **$42.20\text{ cm}$**
+    - Side Hip: **$27.70\text{ cm}$**
+  - **Explicit Metrological Distinction**:
+    $$\text{metric projected measurement} \ne \text{authoritative physical body measurement}$$
+    Current calibration validates 2D image-plane projected metric scale only.
+- **Active Physical-Evidence Blocker**:
+  - `authoritative_physical_evidence_missing` remains active and blocking.
+  - Current expected physical-evidence state is conceptually:
+    - `metricProjectionValidated = true`
+    - `authoritativeCaptureGeometryValidated = false` (unresolved)
+    - `empiricalPhysicalEquivalenceValidated = false` (unresolved)
+    - `authoritativeDenseGeometryValidated = false` (unresolved)
+    - `physicalEvidenceSatisfied = false`
+  - *(Runtime contracts and field shapes are not finalized yet).*
+- **Pointmap Runtime Dependency & Prohibited Assumptions**:
+  - A Sapiens2 1B pointmap (`*_pointmap.npy` / tensor) exists in real Body Pipeline artifacts (`output.zip`), but the actual Sapiens pointmap inference and post-processing runtime service code is not currently available in this repository for inspection.
+  - The reviewed Twenty-eight repository acts as a client to an external Sapiens service and does not contain the pointmap inference implementation. Therefore, the repository is insufficient to establish authoritative pointmap metric semantics.
+  - Do **NOT** assume:
+    - Stored pointmaps are raw vs. post-processed arrays.
+    - Stored pointmap coordinates are in true metric units.
+    - Focal scale or perspective correction has been applied.
+    - Camera intrinsics handling preserves physical scale.
+    - Pointmap $Z$ is canonical REVacity metrology $Z$.
+    - Pointmap $Z$ directly represents true anthropometric depth.
+    - Front and Side pointmaps share a unified physical coordinate frame.
+    - Preserved scale metadata exists before REVacity ingestion.
+- **Required Future Sapiens Service Audit Checklist**:
+  When access to the upstream Sapiens service codebase is provided, the audit must verify:
+  1. Exact Sapiens2 model variant and checkpoint weights used.
+  2. Input preprocessing pipeline (normalization, aspect ratio handling).
+  3. Image resize, crop, and padding behavior.
+  4. Raw pointmap output tensor format.
+  5. Post-processing operations applied to predictions.
+  6. `outputs.scales` and focal-scale handling.
+  7. Camera intrinsic and projection assumptions.
+  8. Coordinate frame orientation and axes conventions.
+  9. Physical units of stored $(X, Y, Z)$ arrays.
+  10. Serialization and compression routines into `output.zip`.
+  11. Front vs. Side camera-frame independence.
+  12. Identification of any scale metadata lost before REVacity ingestion.
+  *Only after completing this audit should the final Milestone 4.5G architecture be selected.*
+- **Candidate Future Physical-Evidence Paths (Exploratory Candidates Only)**:
+  - **Path A**: Controlled capture protocol + empirical anthropometric ground-truth validation.
+  - **Path B**: Empirically validated projected-to-physical correction model ($\text{metricProjectedSpanCm} \to \text{physicalMeasurementCm}$).
+  - **Path C**: Validated Sapiens2 dense pointmap geometry (if service audit and empirical validation succeed).
+  - **Path D**: Future validated body model, multi-view reconstruction, or parametric 3D estimator.
+- **Independence of Physical Blockers (4.5D Multi-Gate Architecture)**:
+  - The three 4.5D physical blockers are strictly independent:
+    1. `clothing_authorization_missing`
+    2. `view_pose_semantics_missing`
+    3. `authoritative_physical_evidence_missing`
+  - Resolving clothing authorization does not resolve physical evidence or pose semantics.
+  - Resolving physical evidence does not resolve clothing authorization or pose semantics.
+  - Downstream physical measurement eligibility requires all independent gates to pass.
+- **Hard Guardrails**:
+  - No decision to use Side $U$ as $Z$.
+  - No decision to promote pointmap $Z$ to canonical metrology $Z$.
+  - No decision to fuse Front and Side pointmaps.
+  - No decision to infer physical body depth from 2D silhouette spans.
+  - No pointmap-based measurements implemented.
+  - No invented correction coefficients or physical tolerances.
+  - No circumference or cross-section calculations.
+
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 
 Remains strictly **BLOCKED**.

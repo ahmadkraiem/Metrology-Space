@@ -729,6 +729,9 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.5E: Authoritative View / Pose Semantics Validation v0 (`view-pose-semantics-v0` — pure deterministic domain qualification layer verifying Layer A declared view identity, Layer B 2D structural pose qualification with `LOW_CONFIDENCE_THRESHOLD = 0.5`, anatomical vertical ordering, and Front A-pose limb separation, while strictly requiring recognized evaluators for Layer C physical orientation certification; evaluates to `status: 'partial'`, `authorized: false` on current Body Pipeline evidence)**
 - **Milestone 4.5F: Clothing / Body-Surface Authorization v0 (`clothing-body-surface-semantics-v0` — pure deterministic domain qualification layer governing Layer A clothing participation from measurement support policy provenance, Layer B visual garment qualification with canonical `garmentFitStatus` taxonomy, and Layer C authoritative empirical body-surface authorization; derives the composite `clothingConstraintSatisfied` gate consumed by 4.5D to keep or clear the `clothing_authorization_missing` blocker; evaluates to `status: 'partial'`, `garmentFitStatus: 'unresolved'`, `clothingConstraintSatisfied: false` on current Body Pipeline evidence)**
 
+### Deferred Milestones / Dependency Checkpoints
+- **Milestone 4.5G: Authoritative Physical Evidence Semantics — DEFERRED / PENDING SAPIENS POINTMAP RUNTIME AUDIT** (Documentation-only dependency checkpoint; establishes that image-plane $10\text{ px/cm}$ projected measurements are verified $[30.80, 11.00, 42.20, 27.70\text{ cm}]$, but physical body dimension equivalence remains unproven; Sapiens2 1B pointmap runtime inference code is external and unreviewed; audit checklist of 12 items required before 4.5G design; active blocker `authoritative_physical_evidence_missing` preserved).
+
 ### Active State & Physical Blockers
 - **Current Real Evaluation State (`output.zip`)**:
   - Front Pose Semantics: `status: 'partial'`, `authorized: false` (7/8 checks pass; Layer C skipped).
@@ -736,6 +739,7 @@ When modifying this project, preserve the following unless explicitly instructed
   - Clothing / Body-Surface Semantics: `status: 'partial'`, `authorized: false`, `garmentFitStatus: 'unresolved'`, `clothingConstraintSatisfied: false` across all 4 canonical measurements.
   - 4.5D Physical Blockers remain active on all 4 canonical measurements: `clothing_authorization_missing`, `view_pose_semantics_missing`, `authoritative_physical_evidence_missing`.
   - Metric Projected measurements remain positive and valid: Front Shoulder ($30.80\text{ cm}$), Side Shoulder ($11.00\text{ cm}$), Front Hip ($42.20\text{ cm}$), Side Hip ($27.70\text{ cm}$).
+  - Metrological Principle: `metric projected measurement != authoritative physical body measurement`.
 - **Strict Guardrails**: 4.6 (Circumference / Cross-section inference) remains strictly **BLOCKED**. Physical cross-section requires individual `physicalEligibility: true` on both views and `pairedPhysicalEligibility: true`. Side $U$ is 2D profile evidence only; it is **not** canonical $Z$, is **never** described as validated physical depth without authoritative physical evidence contracts, and is **never** fused into 3D coordinates with Front $X$.
 
 ---
