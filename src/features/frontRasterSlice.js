@@ -193,6 +193,7 @@ export function sampleFrontHorizontalRasterSlice(raster, {
   let inRun = false;
   let startCol = 0;
   let totalMatchedPixels = 0;
+  let encounteredClasses = new Set();
   const rowOffset = sampledRow * widthPx;
 
   for (let c = 0; c < widthPx; c += 1) {
@@ -201,6 +202,9 @@ export function sampleFrontHorizontalRasterSlice(raster, {
       if (!inRun) {
         startCol = c;
         inRun = true;
+        encounteredClasses = new Set([classId]);
+      } else {
+        encounteredClasses.add(classId);
       }
     } else if (inRun) {
       const endCol = c - 1;
@@ -213,6 +217,7 @@ export function sampleFrontHorizontalRasterSlice(raster, {
         pixelCount,
         boundsNormalized: spanMapping.boundsNormalized,
         boundsCm: spanMapping.boundsCm,
+        encounteredClassIds: Array.from(encounteredClasses).sort((a, b) => a - b),
       });
       inRun = false;
     }
@@ -229,6 +234,7 @@ export function sampleFrontHorizontalRasterSlice(raster, {
       pixelCount,
       boundsNormalized: spanMapping.boundsNormalized,
       boundsCm: spanMapping.boundsCm,
+      encounteredClassIds: Array.from(encounteredClasses).sort((a, b) => a - b),
     });
   }
 

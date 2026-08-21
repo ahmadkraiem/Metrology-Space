@@ -28,16 +28,18 @@ test('Side Profile Span Contract v0 exports contract metadata and supported defi
   assert.equal(defs.torso_profile_span_at_shoulder_level.id, 'torso_profile_span_at_shoulder_level');
   assert.equal(defs.torso_profile_span_at_shoulder_level.name, 'Torso Profile Span at Shoulder Level');
   assert.equal(defs.torso_profile_span_at_shoulder_level.sourceLevel, 'shoulder');
-  assert.equal(defs.torso_profile_span_at_shoulder_level.targetPolicy, 'torso_only');
-  assert.deepEqual(defs.torso_profile_span_at_shoulder_level.targetClassIds, [22]);
+  assert.equal(defs.torso_profile_span_at_shoulder_level.targetPolicy, 'trunk_core_support_v0');
+  assert.equal(defs.torso_profile_span_at_shoulder_level.supportPolicyId, 'trunk_core_support_v0');
+  assert.deepEqual(defs.torso_profile_span_at_shoulder_level.targetClassIds, [22, 23]);
   assert.equal(defs.torso_profile_span_at_shoulder_level.runSelectionPolicy, 'single_run_required');
 
   assert.ok(defs.torso_profile_span_at_hip_level);
   assert.equal(defs.torso_profile_span_at_hip_level.id, 'torso_profile_span_at_hip_level');
   assert.equal(defs.torso_profile_span_at_hip_level.name, 'Torso Profile Span at Hip Level');
   assert.equal(defs.torso_profile_span_at_hip_level.sourceLevel, 'hip');
-  assert.equal(defs.torso_profile_span_at_hip_level.targetPolicy, 'torso_only');
-  assert.deepEqual(defs.torso_profile_span_at_hip_level.targetClassIds, [22]);
+  assert.equal(defs.torso_profile_span_at_hip_level.targetPolicy, 'pelvic_core_support_v0');
+  assert.equal(defs.torso_profile_span_at_hip_level.supportPolicyId, 'pelvic_core_support_v0');
+  assert.deepEqual(defs.torso_profile_span_at_hip_level.targetClassIds, [12, 13, 21, 22]);
   assert.equal(defs.torso_profile_span_at_hip_level.runSelectionPolicy, 'single_run_required');
 });
 
@@ -49,7 +51,7 @@ test('interprets a valid single Torso run into a valid profile span with exact m
     requestedYcm: 150.0,
     sampledRow: 500,
     rowNormalizedV: 0.25,
-    targetClassIds: [22],
+    targetClassIds: [22, 23],
     runs: [
       {
         startCol: 800,
@@ -57,6 +59,7 @@ test('interprets a valid single Torso run into a valid profile span with exact m
         pixelCount: 400,
         boundsNormalized: { minU: 0.4, maxU: 0.6 },
         boundsCm: { minU: 80.0, maxU: 120.0 },
+        encounteredClassIds: [22],
       },
     ],
     summary: { runCount: 1, totalMatchedPixels: 400 },
@@ -85,8 +88,12 @@ test('interprets a valid single Torso run into a valid profile span with exact m
   assert.equal(result.provenance.levelYcm, 150.0);
   assert.equal(result.provenance.sampledPixelRow, 500);
   assert.equal(result.provenance.sourceSliceContract, 'side-horizontal-raster-slice-v0');
-  assert.equal(result.provenance.targetPolicy, 'torso_only');
-  assert.deepEqual(result.provenance.targetClassIds, [22]);
+  assert.equal(result.provenance.targetPolicy, 'trunk_core_support_v0');
+  assert.equal(result.provenance.supportPolicyId, 'trunk_core_support_v0');
+  assert.deepEqual(result.provenance.targetClassIds, [22, 23]);
+  assert.deepEqual(result.provenance.actualClassIdsUsed, [22]);
+  assert.deepEqual(result.provenance.clothingClassIdsUsed, []);
+  assert.equal(result.provenance.usedClothingEvidence, false);
   assert.equal(result.provenance.runSelectionPolicy, 'single_run_required');
   assert.equal(result.provenance.selectedRunIndex, 0);
   assert.equal(result.provenance.minUcm, 80.0);
@@ -102,7 +109,7 @@ test('interprets hip-level valid single run with exact maxUcm - minUcm span', ()
     requestedYcm: 90.0,
     sampledRow: 1100,
     rowNormalizedV: 0.55,
-    targetClassIds: [22],
+    targetClassIds: [12, 13, 21, 22],
     runs: [
       {
         startCol: 600,
@@ -110,6 +117,7 @@ test('interprets hip-level valid single run with exact maxUcm - minUcm span', ()
         pixelCount: 400,
         boundsNormalized: { minU: 0.3, maxU: 0.5 },
         boundsCm: { minU: 60.0, maxU: 100.0 },
+        encounteredClassIds: [12, 13],
       },
     ],
     summary: { runCount: 1, totalMatchedPixels: 400 },
@@ -129,6 +137,10 @@ test('interprets hip-level valid single run with exact maxUcm - minUcm span', ()
   assert.equal(result.maxUcm, 100.0);
   assert.equal(result.provenance.sourceLevel, 'hip');
   assert.equal(result.provenance.levelYcm, 90.0);
+  assert.equal(result.provenance.supportPolicyId, 'pelvic_core_support_v0');
+  assert.deepEqual(result.provenance.actualClassIdsUsed, [12, 13]);
+  assert.deepEqual(result.provenance.clothingClassIdsUsed, [13]);
+  assert.equal(result.provenance.usedClothingEvidence, true);
 });
 
 test('returns unavailable when source anatomical level is partial or missing', () => {

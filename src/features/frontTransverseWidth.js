@@ -19,6 +19,11 @@
  */
 
 import { FRONT_RASTER_SLICE_POLICIES } from './frontRasterSlice.js';
+import {
+  MEASUREMENT_SUPPORT_POLICIES_V0,
+  getMeasurementSupportPolicy,
+  resolveMeasurementSupportPolicy,
+} from './measurementSupportPolicy.js';
 
 export const FRONT_TRANSVERSE_WIDTH_CONTRACT = 'front-transverse-width-v0';
 export const FRONT_TRANSVERSE_WIDTH_CONTRACT_VERSION = 'front-transverse-width-v0';
@@ -46,13 +51,14 @@ export const FRONT_TRANSVERSE_WIDTH_STATUS = Object.freeze({
 
 /**
  * Authoritative registry of supported Front transverse width definitions (v0).
- * Grounded in validated anatomical-levels-v0 (shoulder, hip) and TORSO_ONLY class 22.
+ * Grounded in validated anatomical-levels-v0 (shoulder, hip) and measurement-support-policy-v0.
  *
  * @type {Readonly<Record<string, {
  *   id: string,
  *   name: string,
  *   sourceLevel: 'shoulder'|'hip',
- *   targetPolicy: 'torso_only',
+ *   targetPolicy: string,
+ *   supportPolicyId: string,
  *   targetClassIds: readonly number[],
  *   runSelectionPolicy: 'single_run_required',
  * }>>}
@@ -62,16 +68,18 @@ export const SUPPORTED_FRONT_TRANSVERSE_WIDTH_DEFINITIONS_V0 = Object.freeze({
     id: 'torso_width_at_shoulder_level',
     name: 'Torso Transverse Width at Shoulder Level',
     sourceLevel: 'shoulder',
-    targetPolicy: 'torso_only',
-    targetClassIds: FRONT_RASTER_SLICE_POLICIES.TORSO_ONLY,
+    targetPolicy: 'trunk_core_support_v0',
+    supportPolicyId: 'trunk_core_support_v0',
+    targetClassIds: MEASUREMENT_SUPPORT_POLICIES_V0.trunk_core_support_v0.acceptedClassIds,
     runSelectionPolicy: FRONT_RUN_SELECTION_POLICIES.SINGLE_RUN_REQUIRED,
   }),
   torso_width_at_hip_level: Object.freeze({
     id: 'torso_width_at_hip_level',
     name: 'Torso Transverse Width at Hip Level',
     sourceLevel: 'hip',
-    targetPolicy: 'torso_only',
-    targetClassIds: FRONT_RASTER_SLICE_POLICIES.TORSO_ONLY,
+    targetPolicy: 'pelvic_core_support_v0',
+    supportPolicyId: 'pelvic_core_support_v0',
+    targetClassIds: MEASUREMENT_SUPPORT_POLICIES_V0.pelvic_core_support_v0.acceptedClassIds,
     runSelectionPolicy: FRONT_RUN_SELECTION_POLICIES.SINGLE_RUN_REQUIRED,
   }),
 });
@@ -92,7 +100,11 @@ export const SUPPORTED_FRONT_TRANSVERSE_WIDTH_DEFINITIONS_V0 = Object.freeze({
  *     sampledPixelRow: number|null,
  *     sourceSliceContract: string|null,
  *     targetPolicy: string|null,
+ *     supportPolicyId: string|null,
  *     targetClassIds: number[],
+ *     actualClassIdsUsed: number[],
+ *     clothingClassIdsUsed: number[],
+ *     usedClothingEvidence: boolean,
  *     runSelectionPolicy: string,
  *     selectedRunIndex: number|null,
  *     leftXcm: number|null,
@@ -111,6 +123,7 @@ export const SUPPORTED_FRONT_TRANSVERSE_WIDTH_DEFINITIONS_V0 = Object.freeze({
  *   level?: { id?: string, status?: string, yCm?: number|null }|null,
  *   runSelectionPolicy?: string,
  *   targetPolicy?: string,
+ *   supportPolicyId?: string,
  * }} [options]
  * @returns {FrontTransverseWidthResultV0}
  */
@@ -118,7 +131,8 @@ export function interpretFrontTransverseWidth(sliceResult, {
   definition = null,
   level = null,
   runSelectionPolicy = FRONT_RUN_SELECTION_POLICIES.SINGLE_RUN_REQUIRED,
-  targetPolicy = 'torso_only',
+  targetPolicy = 'trunk_core_support_v0',
+  supportPolicyId = null,
 } = {}) {
   const issues = [];
 
@@ -133,6 +147,29 @@ export function interpretFrontTransverseWidth(sliceResult, {
   const effectiveRunPolicy = resolvedDef?.runSelectionPolicy ?? runSelectionPolicy;
   const effectiveTargetPolicy = resolvedDef?.targetPolicy ?? targetPolicy;
 
+  // Resolve measurement support policy definition
+  const resolvedSupportPolicy = getMeasurementSupportPolicy(resolvedDef?.supportPolicyId ?? supportPolicyId)
+    ?? resolveMeasurementSupportPolicy(id);
+  const effectiveSupportPolicyId = resolvedSupportPolicy?.id ?? resolvedDef?.supportPolicyId ?? supportPolicyId ?? null;
+
+  // Helper to build early/empty provenance
+  const buildEmptyProvenance = (selectedRunIndex = null, leftXcm = null, rightXcm = null) => ({
+    sourceLevel,
+    levelYcm: level?.yCm ?? sliceResult?.requestedYcm ?? null,
+    sampledPixelRow: sliceResult?.sampledRow ?? null,
+    sourceSliceContract: sliceResult?.contract ?? null,
+    targetPolicy: effectiveTargetPolicy,
+    supportPolicyId: effectiveSupportPolicyId,
+    targetClassIds: sliceResult?.targetClassIds ?? [],
+    actualClassIdsUsed: [],
+    clothingClassIdsUsed: [],
+    usedClothingEvidence: false,
+    runSelectionPolicy: effectiveRunPolicy,
+    selectedRunIndex,
+    leftXcm,
+    rightXcm,
+  });
+
   // Validate supported run selection policy
   if (effectiveRunPolicy !== FRONT_RUN_SELECTION_POLICIES.SINGLE_RUN_REQUIRED) {
     issues.push(`Unsupported runSelectionPolicy: '${effectiveRunPolicy}'. Only 'single_run_required' is supported in v0.`);
@@ -145,18 +182,7 @@ export function interpretFrontTransverseWidth(sliceResult, {
       type: 'transverse_width',
       status: FRONT_TRANSVERSE_WIDTH_STATUS.INVALID,
       valueCm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? null,
-        sampledPixelRow: sliceResult?.sampledRow ?? null,
-        sourceSliceContract: sliceResult?.contract ?? null,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: sliceResult?.targetClassIds ?? [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: null,
-        leftXcm: null,
-        rightXcm: null,
-      },
+      provenance: buildEmptyProvenance(),
       issues,
     };
   }
@@ -174,18 +200,7 @@ export function interpretFrontTransverseWidth(sliceResult, {
         type: 'transverse_width',
         status: FRONT_TRANSVERSE_WIDTH_STATUS.UNAVAILABLE,
         valueCm: null,
-        provenance: {
-          sourceLevel,
-          levelYcm: level.yCm ?? null,
-          sampledPixelRow: sliceResult?.sampledRow ?? null,
-          sourceSliceContract: sliceResult?.contract ?? null,
-          targetPolicy: effectiveTargetPolicy,
-          targetClassIds: sliceResult?.targetClassIds ?? [],
-          runSelectionPolicy: effectiveRunPolicy,
-          selectedRunIndex: null,
-          leftXcm: null,
-          rightXcm: null,
-        },
+        provenance: buildEmptyProvenance(),
         issues,
       };
     }
@@ -203,18 +218,7 @@ export function interpretFrontTransverseWidth(sliceResult, {
       type: 'transverse_width',
       status: FRONT_TRANSVERSE_WIDTH_STATUS.UNAVAILABLE,
       valueCm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? null,
-        sampledPixelRow: null,
-        sourceSliceContract: null,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: null,
-        leftXcm: null,
-        rightXcm: null,
-      },
+      provenance: buildEmptyProvenance(),
       issues,
     };
   }
@@ -230,18 +234,7 @@ export function interpretFrontTransverseWidth(sliceResult, {
       type: 'transverse_width',
       status: FRONT_TRANSVERSE_WIDTH_STATUS.INVALID,
       valueCm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? sliceResult.requestedYcm ?? null,
-        sampledPixelRow: sliceResult.sampledRow ?? null,
-        sourceSliceContract: sliceResult.contract ?? null,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: sliceResult.targetClassIds ?? [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: null,
-        leftXcm: null,
-        rightXcm: null,
-      },
+      provenance: buildEmptyProvenance(),
       issues,
     };
   }
@@ -267,18 +260,7 @@ export function interpretFrontTransverseWidth(sliceResult, {
       type: 'transverse_width',
       status: FRONT_TRANSVERSE_WIDTH_STATUS.UNAVAILABLE,
       valueCm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? sliceResult.requestedYcm ?? null,
-        sampledPixelRow: sliceResult.sampledRow ?? null,
-        sourceSliceContract: sliceResult.contract,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: sliceResult.targetClassIds ?? [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: null,
-        leftXcm: null,
-        rightXcm: null,
-      },
+      provenance: buildEmptyProvenance(),
       issues,
     };
   }
@@ -294,18 +276,7 @@ export function interpretFrontTransverseWidth(sliceResult, {
       type: 'transverse_width',
       status: FRONT_TRANSVERSE_WIDTH_STATUS.AMBIGUOUS,
       valueCm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? sliceResult.requestedYcm ?? null,
-        sampledPixelRow: sliceResult.sampledRow ?? null,
-        sourceSliceContract: sliceResult.contract,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: sliceResult.targetClassIds ?? [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: null,
-        leftXcm: null,
-        rightXcm: null,
-      },
+      provenance: buildEmptyProvenance(),
       issues,
     };
   }
@@ -332,23 +303,22 @@ export function interpretFrontTransverseWidth(sliceResult, {
       type: 'transverse_width',
       status: FRONT_TRANSVERSE_WIDTH_STATUS.INVALID,
       valueCm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? sliceResult.requestedYcm ?? null,
-        sampledPixelRow: sliceResult.sampledRow ?? null,
-        sourceSliceContract: sliceResult.contract,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: sliceResult.targetClassIds ?? [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: 0,
-        leftXcm: typeof leftXcm === 'number' ? leftXcm : null,
-        rightXcm: typeof rightXcm === 'number' ? rightXcm : null,
-      },
+      provenance: buildEmptyProvenance(0, typeof leftXcm === 'number' ? leftXcm : null, typeof rightXcm === 'number' ? rightXcm : null),
       issues,
     };
   }
 
   const valueCm = rightXcm - leftXcm;
+
+  // Extract class provenance from the run
+  const actualClassIdsUsed = Array.isArray(selectedRun.encounteredClassIds) && selectedRun.encounteredClassIds.length > 0
+    ? selectedRun.encounteredClassIds
+    : (sliceResult.targetClassIds ?? []);
+
+  const clothingClassIdsUsed = actualClassIdsUsed.filter(
+    (cid) => resolvedSupportPolicy?.clothingBridgeClassIds?.includes(cid),
+  );
+  const usedClothingEvidence = clothingClassIdsUsed.length > 0;
 
   return {
     contract: FRONT_TRANSVERSE_WIDTH_CONTRACT,
@@ -365,7 +335,11 @@ export function interpretFrontTransverseWidth(sliceResult, {
       sampledPixelRow: sliceResult.sampledRow ?? null,
       sourceSliceContract: sliceResult.contract,
       targetPolicy: effectiveTargetPolicy,
+      supportPolicyId: effectiveSupportPolicyId,
       targetClassIds: sliceResult.targetClassIds ?? [],
+      actualClassIdsUsed,
+      clothingClassIdsUsed,
+      usedClothingEvidence,
       runSelectionPolicy: effectiveRunPolicy,
       selectedRunIndex: 0,
       leftXcm,
@@ -374,3 +348,4 @@ export function interpretFrontTransverseWidth(sliceResult, {
     issues,
   };
 }
+

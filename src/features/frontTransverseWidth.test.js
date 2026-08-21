@@ -28,16 +28,18 @@ test('Front Transverse Width Contract v0 exports contract metadata and supported
   assert.equal(defs.torso_width_at_shoulder_level.id, 'torso_width_at_shoulder_level');
   assert.equal(defs.torso_width_at_shoulder_level.name, 'Torso Transverse Width at Shoulder Level');
   assert.equal(defs.torso_width_at_shoulder_level.sourceLevel, 'shoulder');
-  assert.equal(defs.torso_width_at_shoulder_level.targetPolicy, 'torso_only');
-  assert.deepEqual(defs.torso_width_at_shoulder_level.targetClassIds, [22]);
+  assert.equal(defs.torso_width_at_shoulder_level.targetPolicy, 'trunk_core_support_v0');
+  assert.equal(defs.torso_width_at_shoulder_level.supportPolicyId, 'trunk_core_support_v0');
+  assert.deepEqual(defs.torso_width_at_shoulder_level.targetClassIds, [22, 23]);
   assert.equal(defs.torso_width_at_shoulder_level.runSelectionPolicy, 'single_run_required');
 
   assert.ok(defs.torso_width_at_hip_level);
   assert.equal(defs.torso_width_at_hip_level.id, 'torso_width_at_hip_level');
   assert.equal(defs.torso_width_at_hip_level.name, 'Torso Transverse Width at Hip Level');
   assert.equal(defs.torso_width_at_hip_level.sourceLevel, 'hip');
-  assert.equal(defs.torso_width_at_hip_level.targetPolicy, 'torso_only');
-  assert.deepEqual(defs.torso_width_at_hip_level.targetClassIds, [22]);
+  assert.equal(defs.torso_width_at_hip_level.targetPolicy, 'pelvic_core_support_v0');
+  assert.equal(defs.torso_width_at_hip_level.supportPolicyId, 'pelvic_core_support_v0');
+  assert.deepEqual(defs.torso_width_at_hip_level.targetClassIds, [12, 13, 21, 22]);
   assert.equal(defs.torso_width_at_hip_level.runSelectionPolicy, 'single_run_required');
 });
 
@@ -49,7 +51,7 @@ test('interprets a valid single Torso run into a valid transverse width with exa
     requestedYcm: 150.0,
     sampledRow: 500,
     rowNormalizedV: 0.25,
-    targetClassIds: [22],
+    targetClassIds: [22, 23],
     runs: [
       {
         startCol: 800,
@@ -57,6 +59,7 @@ test('interprets a valid single Torso run into a valid transverse width with exa
         pixelCount: 400,
         boundsNormalized: { minU: 0.4, maxU: 0.6 },
         boundsCm: { minX: 80.0, maxX: 120.0 },
+        encounteredClassIds: [22],
       },
     ],
     summary: { runCount: 1, totalMatchedPixels: 400 },
@@ -83,8 +86,12 @@ test('interprets a valid single Torso run into a valid transverse width with exa
   assert.equal(result.provenance.levelYcm, 150.0);
   assert.equal(result.provenance.sampledPixelRow, 500);
   assert.equal(result.provenance.sourceSliceContract, 'front-horizontal-raster-slice-v0');
-  assert.equal(result.provenance.targetPolicy, 'torso_only');
-  assert.deepEqual(result.provenance.targetClassIds, [22]);
+  assert.equal(result.provenance.targetPolicy, 'trunk_core_support_v0');
+  assert.equal(result.provenance.supportPolicyId, 'trunk_core_support_v0');
+  assert.deepEqual(result.provenance.targetClassIds, [22, 23]);
+  assert.deepEqual(result.provenance.actualClassIdsUsed, [22]);
+  assert.deepEqual(result.provenance.clothingClassIdsUsed, []);
+  assert.equal(result.provenance.usedClothingEvidence, false);
   assert.equal(result.provenance.runSelectionPolicy, 'single_run_required');
   assert.equal(result.provenance.selectedRunIndex, 0);
   assert.equal(result.provenance.leftXcm, 80.0);

@@ -20,6 +20,11 @@
  */
 
 import { SIDE_RASTER_SLICE_POLICIES } from './sideRasterSlice.js';
+import {
+  MEASUREMENT_SUPPORT_POLICIES_V0,
+  getMeasurementSupportPolicy,
+  resolveMeasurementSupportPolicy,
+} from './measurementSupportPolicy.js';
 
 export const SIDE_PROFILE_SPAN_CONTRACT = 'side-profile-span-v0';
 export const SIDE_PROFILE_SPAN_CONTRACT_VERSION = 'side-profile-span-v0';
@@ -47,13 +52,14 @@ export const SIDE_PROFILE_SPAN_STATUS = Object.freeze({
 
 /**
  * Authoritative registry of supported Side profile span definitions (v0).
- * Grounded in validated anatomical-levels-v0 (shoulder, hip) and TORSO_ONLY class 22.
+ * Grounded in validated anatomical-levels-v0 (shoulder, hip) and measurement-support-policy-v0.
  *
  * @type {Readonly<Record<string, {
  *   id: string,
  *   name: string,
  *   sourceLevel: 'shoulder'|'hip',
- *   targetPolicy: 'torso_only',
+ *   targetPolicy: string,
+ *   supportPolicyId: string,
  *   targetClassIds: readonly number[],
  *   runSelectionPolicy: 'single_run_required',
  * }>>}
@@ -63,16 +69,18 @@ export const SUPPORTED_SIDE_PROFILE_SPAN_DEFINITIONS_V0 = Object.freeze({
     id: 'torso_profile_span_at_shoulder_level',
     name: 'Torso Profile Span at Shoulder Level',
     sourceLevel: 'shoulder',
-    targetPolicy: 'torso_only',
-    targetClassIds: SIDE_RASTER_SLICE_POLICIES.TORSO_ONLY,
+    targetPolicy: 'trunk_core_support_v0',
+    supportPolicyId: 'trunk_core_support_v0',
+    targetClassIds: MEASUREMENT_SUPPORT_POLICIES_V0.trunk_core_support_v0.acceptedClassIds,
     runSelectionPolicy: SIDE_RUN_SELECTION_POLICIES.SINGLE_RUN_REQUIRED,
   }),
   torso_profile_span_at_hip_level: Object.freeze({
     id: 'torso_profile_span_at_hip_level',
     name: 'Torso Profile Span at Hip Level',
     sourceLevel: 'hip',
-    targetPolicy: 'torso_only',
-    targetClassIds: SIDE_RASTER_SLICE_POLICIES.TORSO_ONLY,
+    targetPolicy: 'pelvic_core_support_v0',
+    supportPolicyId: 'pelvic_core_support_v0',
+    targetClassIds: MEASUREMENT_SUPPORT_POLICIES_V0.pelvic_core_support_v0.acceptedClassIds,
     runSelectionPolicy: SIDE_RUN_SELECTION_POLICIES.SINGLE_RUN_REQUIRED,
   }),
 });
@@ -95,7 +103,11 @@ export const SUPPORTED_SIDE_PROFILE_SPAN_DEFINITIONS_V0 = Object.freeze({
  *     sampledPixelRow: number|null,
  *     sourceSliceContract: string|null,
  *     targetPolicy: string|null,
+ *     supportPolicyId: string|null,
  *     targetClassIds: number[],
+ *     actualClassIdsUsed: number[],
+ *     clothingClassIdsUsed: number[],
+ *     usedClothingEvidence: boolean,
  *     runSelectionPolicy: string,
  *     selectedRunIndex: number|null,
  *     minUcm: number|null,
@@ -115,6 +127,7 @@ export const SUPPORTED_SIDE_PROFILE_SPAN_DEFINITIONS_V0 = Object.freeze({
  *   level?: { id?: string, status?: string, yCm?: number|null }|null,
  *   runSelectionPolicy?: string,
  *   targetPolicy?: string,
+ *   supportPolicyId?: string,
  * }} [options]
  * @returns {SideProfileSpanResultV0}
  */
@@ -122,7 +135,8 @@ export function interpretSideProfileSpan(sliceResult, {
   definition = null,
   level = null,
   runSelectionPolicy = SIDE_RUN_SELECTION_POLICIES.SINGLE_RUN_REQUIRED,
-  targetPolicy = 'torso_only',
+  targetPolicy = 'trunk_core_support_v0',
+  supportPolicyId = null,
 } = {}) {
   const issues = [];
 
@@ -136,6 +150,29 @@ export function interpretSideProfileSpan(sliceResult, {
   const sourceLevel = resolvedDef?.sourceLevel ?? (level?.id ?? null);
   const effectiveRunPolicy = resolvedDef?.runSelectionPolicy ?? runSelectionPolicy;
   const effectiveTargetPolicy = resolvedDef?.targetPolicy ?? targetPolicy;
+
+  // Resolve measurement support policy definition
+  const resolvedSupportPolicy = getMeasurementSupportPolicy(resolvedDef?.supportPolicyId ?? supportPolicyId)
+    ?? resolveMeasurementSupportPolicy(id);
+  const effectiveSupportPolicyId = resolvedSupportPolicy?.id ?? resolvedDef?.supportPolicyId ?? supportPolicyId ?? null;
+
+  // Helper to build early/empty provenance
+  const buildEmptyProvenance = (selectedRunIndex = null, minUcm = null, maxUcm = null) => ({
+    sourceLevel,
+    levelYcm: level?.yCm ?? sliceResult?.requestedYcm ?? null,
+    sampledPixelRow: sliceResult?.sampledRow ?? null,
+    sourceSliceContract: sliceResult?.contract ?? null,
+    targetPolicy: effectiveTargetPolicy,
+    supportPolicyId: effectiveSupportPolicyId,
+    targetClassIds: sliceResult?.targetClassIds ?? [],
+    actualClassIdsUsed: [],
+    clothingClassIdsUsed: [],
+    usedClothingEvidence: false,
+    runSelectionPolicy: effectiveRunPolicy,
+    selectedRunIndex,
+    minUcm,
+    maxUcm,
+  });
 
   // Validate supported run selection policy
   if (effectiveRunPolicy !== SIDE_RUN_SELECTION_POLICIES.SINGLE_RUN_REQUIRED) {
@@ -151,18 +188,7 @@ export function interpretSideProfileSpan(sliceResult, {
       valueCm: null,
       minUcm: null,
       maxUcm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? null,
-        sampledPixelRow: sliceResult?.sampledRow ?? null,
-        sourceSliceContract: sliceResult?.contract ?? null,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: sliceResult?.targetClassIds ?? [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: null,
-        minUcm: null,
-        maxUcm: null,
-      },
+      provenance: buildEmptyProvenance(),
       issues,
     };
   }
@@ -182,18 +208,7 @@ export function interpretSideProfileSpan(sliceResult, {
         valueCm: null,
         minUcm: null,
         maxUcm: null,
-        provenance: {
-          sourceLevel,
-          levelYcm: level.yCm ?? null,
-          sampledPixelRow: sliceResult?.sampledRow ?? null,
-          sourceSliceContract: sliceResult?.contract ?? null,
-          targetPolicy: effectiveTargetPolicy,
-          targetClassIds: sliceResult?.targetClassIds ?? [],
-          runSelectionPolicy: effectiveRunPolicy,
-          selectedRunIndex: null,
-          minUcm: null,
-          maxUcm: null,
-        },
+        provenance: buildEmptyProvenance(),
         issues,
       };
     }
@@ -213,18 +228,7 @@ export function interpretSideProfileSpan(sliceResult, {
       valueCm: null,
       minUcm: null,
       maxUcm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? null,
-        sampledPixelRow: null,
-        sourceSliceContract: null,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: null,
-        minUcm: null,
-        maxUcm: null,
-      },
+      provenance: buildEmptyProvenance(),
       issues,
     };
   }
@@ -242,18 +246,7 @@ export function interpretSideProfileSpan(sliceResult, {
       valueCm: null,
       minUcm: null,
       maxUcm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? sliceResult.requestedYcm ?? null,
-        sampledPixelRow: sliceResult.sampledRow ?? null,
-        sourceSliceContract: sliceResult.contract ?? null,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: sliceResult.targetClassIds ?? [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: null,
-        minUcm: null,
-        maxUcm: null,
-      },
+      provenance: buildEmptyProvenance(),
       issues,
     };
   }
@@ -281,18 +274,7 @@ export function interpretSideProfileSpan(sliceResult, {
       valueCm: null,
       minUcm: null,
       maxUcm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? sliceResult.requestedYcm ?? null,
-        sampledPixelRow: sliceResult.sampledRow ?? null,
-        sourceSliceContract: sliceResult.contract,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: sliceResult.targetClassIds ?? [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: null,
-        minUcm: null,
-        maxUcm: null,
-      },
+      provenance: buildEmptyProvenance(),
       issues,
     };
   }
@@ -310,18 +292,7 @@ export function interpretSideProfileSpan(sliceResult, {
       valueCm: null,
       minUcm: null,
       maxUcm: null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? sliceResult.requestedYcm ?? null,
-        sampledPixelRow: sliceResult.sampledRow ?? null,
-        sourceSliceContract: sliceResult.contract,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: sliceResult.targetClassIds ?? [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: null,
-        minUcm: null,
-        maxUcm: null,
-      },
+      provenance: buildEmptyProvenance(),
       issues,
     };
   }
@@ -350,23 +321,22 @@ export function interpretSideProfileSpan(sliceResult, {
       valueCm: null,
       minUcm: typeof minUcm === 'number' ? minUcm : null,
       maxUcm: typeof maxUcm === 'number' ? maxUcm : null,
-      provenance: {
-        sourceLevel,
-        levelYcm: level?.yCm ?? sliceResult.requestedYcm ?? null,
-        sampledPixelRow: sliceResult.sampledRow ?? null,
-        sourceSliceContract: sliceResult.contract,
-        targetPolicy: effectiveTargetPolicy,
-        targetClassIds: sliceResult.targetClassIds ?? [],
-        runSelectionPolicy: effectiveRunPolicy,
-        selectedRunIndex: 0,
-        minUcm: typeof minUcm === 'number' ? minUcm : null,
-        maxUcm: typeof maxUcm === 'number' ? maxUcm : null,
-      },
+      provenance: buildEmptyProvenance(0, typeof minUcm === 'number' ? minUcm : null, typeof maxUcm === 'number' ? maxUcm : null),
       issues,
     };
   }
 
   const valueCm = maxUcm - minUcm;
+
+  // Extract class provenance from the run
+  const actualClassIdsUsed = Array.isArray(selectedRun.encounteredClassIds) && selectedRun.encounteredClassIds.length > 0
+    ? selectedRun.encounteredClassIds
+    : (sliceResult.targetClassIds ?? []);
+
+  const clothingClassIdsUsed = actualClassIdsUsed.filter(
+    (cid) => resolvedSupportPolicy?.clothingBridgeClassIds?.includes(cid),
+  );
+  const usedClothingEvidence = clothingClassIdsUsed.length > 0;
 
   return {
     contract: SIDE_PROFILE_SPAN_CONTRACT,
@@ -385,7 +355,11 @@ export function interpretSideProfileSpan(sliceResult, {
       sampledPixelRow: sliceResult.sampledRow ?? null,
       sourceSliceContract: sliceResult.contract,
       targetPolicy: effectiveTargetPolicy,
+      supportPolicyId: effectiveSupportPolicyId,
       targetClassIds: sliceResult.targetClassIds ?? [],
+      actualClassIdsUsed,
+      clothingClassIdsUsed,
+      usedClothingEvidence,
       runSelectionPolicy: effectiveRunPolicy,
       selectedRunIndex: 0,
       minUcm,
@@ -394,3 +368,4 @@ export function interpretSideProfileSpan(sliceResult, {
     issues,
   };
 }
+
