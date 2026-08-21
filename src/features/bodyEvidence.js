@@ -35,6 +35,11 @@ import {
   interpretFrontTransverseWidth,
 } from './frontTransverseWidth.js';
 import {
+  SIDE_PROFILE_SPAN_CONTRACT_VERSION,
+  SUPPORTED_SIDE_PROFILE_SPAN_DEFINITIONS_V0,
+  interpretSideProfileSpan,
+} from './sideProfileSpan.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -1124,6 +1129,59 @@ export function getFrontTransverseWidths({ annotations = null } = {}) {
     version: FRONT_TRANSVERSE_WIDTH_CONTRACT_VERSION,
     view: 'front',
     widths,
+  };
+}
+
+/**
+ * Evaluates a single Side profile span observation from active runtime state.
+ *
+ * @param {{ id: string, annotations?: Array<object>|null }} options
+ * @returns {object|null}
+ */
+export function getSideProfileSpan({ id, annotations = null } = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_SIDE_PROFILE_SPAN_DEFINITIONS_V0[id];
+  if (!def) return null;
+
+  const resolvedAnnotations = annotations ?? (typeof getAnnotations === 'function' ? getAnnotations() : []);
+  const levelsReport = computeAnatomicalLevels(resolvedAnnotations);
+  const level = levelsReport?.levels?.find((l) => l.id === def.sourceLevel) ?? null;
+
+  if (!level || level.status !== 'ready' || typeof level.yCm !== 'number') {
+    return interpretSideProfileSpan(null, { definition: def, level });
+  }
+
+  const slice = getSideHorizontalRasterSlice({
+    yCm: level.yCm,
+    targetClassIds: def.targetClassIds,
+  });
+
+  return interpretSideProfileSpan(slice, { definition: def, level });
+}
+
+/**
+ * Evaluates all supported Side profile span observations from active runtime state.
+ *
+ * @param {{ annotations?: Array<object>|null }} [options]
+ * @returns {{
+ *   contract: 'side-profile-spans-report-v0',
+ *   version: string,
+ *   view: 'side',
+ *   spans: Array<object>,
+ * }|null}
+ */
+export function getSideProfileSpans({ annotations = null } = {}) {
+  const raster = getSideSegmentationRaster();
+  if (!raster) return null;
+
+  const definitions = Object.values(SUPPORTED_SIDE_PROFILE_SPAN_DEFINITIONS_V0);
+  const spans = definitions.map((def) => getSideProfileSpan({ id: def.id, annotations }));
+
+  return {
+    contract: 'side-profile-spans-report-v0',
+    version: SIDE_PROFILE_SPAN_CONTRACT_VERSION,
+    view: 'side',
+    spans,
   };
 }
 
