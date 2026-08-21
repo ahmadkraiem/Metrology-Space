@@ -73,6 +73,12 @@ latent-space/
 │   │   ├── frontTransverseWidth.test.js # Front Transverse Width Interpretation Contract v0 unit tests
 │   │   ├── linkedSelection.js       # Linked selection id for Scene Graph ↔ projected marker highlight sync
 │   │   ├── measurement.js           # Canonical shared Point A/B measurement state, markers, line, history
+│   │   ├── measurementSupportPolicy.js # Measurement Support Policy Contract v0 — pure deterministic definitions of observed supported silhouettes (trunk_core_support_v0, pelvic_core_support_v0)
+│   │   ├── measurementSupportPolicy.test.js # Measurement Support Policy Contract v0 unit tests
+│   │   ├── metricCalibrationProvenance.js # Metric Calibration Provenance Contract v0 — pure deterministic validator of upstream metric calibration claims across Front and Side views
+│   │   ├── metricCalibrationProvenance.test.js # Metric Calibration Provenance Contract v0 unit tests
+│   │   ├── physicalMeasurementSemantics.js # Physical Measurement Semantics Contract v0 — pure deterministic evaluator classifying measurements into workspace, metric projected, and physical tiers
+│   │   ├── physicalMeasurementSemantics.test.js # Physical Measurement Semantics Contract v0 unit tests
 │   │   ├── projectionLinking.js     # Read-only Front Surface projection of Origin/Center/annotations
 │   │   ├── sceneExport.js           # Canonical Scene State JSON export build and download
 │   │   ├── sceneGraphHighlight.js   # Temporary Scene Graph 3D highlight overlays
@@ -80,9 +86,9 @@ latent-space/
 │   │   ├── selection.js             # Selected point state and highlight (Annotate mode)
 │   │   ├── sideMeasurement.js       # Local Side Evidence A/B measurement state (U/Y Euclidean distance)
 │   │   ├── sideMeasurement.test.js  # Side measurement unit tests
-│   │   ├── sideProfileSpan.js       # Side Profile Span Interpretation Contract v0 — pure interpretation of Side raster slice evidence into formal profile spans at shoulder/hip levels under single_run_required policy
+│   │   ├── sideProfileSpan.js       # Side Profile Span Interpretation Contract v0 — pure interpretation of Side raster slice evidence into formal profile spans under measurement support policies and single_run_required policy
 │   │   ├── sideProfileSpan.test.js  # Side Profile Span Interpretation Contract v0 unit tests
-│   │   ├── sideRasterSlice.js       # Side Horizontal Raster Slice Contract v0 — pure single-row O(W) streaming scan returning contiguous horizontal runs
+│   │   ├── sideRasterSlice.js       # Side Horizontal Raster Slice Contract v0 — pure single-row O(W) streaming scan returning contiguous horizontal runs with encountered class tracking
 │   │   └── sideRasterSlice.test.js  # Side Horizontal Raster Slice Contract v0 unit tests
 │   ├── interactions/
 │   │   ├── hover.js                 # Hover highlight and tooltip coordination
@@ -172,7 +178,7 @@ latent-space/
 | `bodyEvidenceZipAdapter.js` | **Body Evidence ZIP Import Adapter v0.** Temporary transport and discovery adapter. Unzips archives, detects single-sample subdirectories, filters debug/preview artifacts, matches Front and Side modalities, and builds normalized packages. Zero UI or scene coupling. |
 | `bodyEvidenceAdapter.js` | **Landmark & Segmentation Normalization.** Pure stateless algorithms for Core 13 / Secondary allowlist pose classification, face/head rejection, and 29-class segmentation decoding and validation. |
 | `denseEvidenceQa.js` | **Dense Evidence QA Core v0.** Pure deterministic Pointmap Numeric QA (`pointmap-numeric-qa-v0`), Surface Normal Numeric QA (`normal-numeric-qa-v0`), and Same-View Cross-Modal Dense QA (`same-view-dense-cross-modal-qa-v0`). Evaluates finite/non-finite element/vector statistics, raw channel bounds, normal magnitudes, declared range violations, raster compatibility, addressability, and observational mask groups without buffer mutations. |
-| `bodyEvidence.js` | **Body Evidence Runtime Store.** Retains active package, landmark/seg selections, derived `denseEvidenceQa` runtime state, async dense QA lifecycle integration with session race protection (`analyzeLoadedBodyEvidenceAsync`), subscriber notifications, horizontal raster slice, transverse width, profile span, cross-view correspondence, and comparability QA getters, and sanitized diagnostic export (`buildBodyEvidenceExport`). |
+| `bodyEvidence.js` | **Body Evidence Runtime Store.** Retains active package, landmark/seg selections, derived `denseEvidenceQa` runtime state, async dense QA lifecycle integration with session race protection (`analyzeLoadedBodyEvidenceAsync`), subscriber notifications, horizontal raster slice, transverse width, profile span, cross-view correspondence, comparability QA, metric calibration provenance, and physical measurement semantics getters, and sanitized diagnostic export (`buildBodyEvidenceExport`). |
 | `anatomicalRegions.js` | **Anatomical Region Contract v0.** Pure deterministic domain contract mapping normalized Front/Side segmentation `classes[]` into observed 29-class region records with metric `boundsCm` (`body_anatomical`, `clothing_apparel`, `face_head`, `accessory_other`, `context_background`). Owns authoritative `BODY_ANATOMICAL_CLASS_IDS` taxonomy. No DOM, Three.js, depth inference, or derived composites. |
 | `appMode.js` | Manages app interaction mode (`MODE_INSPECT_MEASURE` vs `MODE_ANNOTATE`). |
 | `selection.js` | Manages selected point state `{ x, y, z }` and selection highlight mesh in Annotate mode. Decoupled from direct DOM manipulation. |
@@ -185,12 +191,15 @@ latent-space/
 | `bodyGraph.js` | Body Graph Contract v0. Deterministic runtime topology derivation (`buildBodyGraph`) containing exactly 13 Core nodes and 13 structural edges from promoted Core 13 annotations. |
 | `anatomicalLevels.js` | **Anatomical Level Contract v0.** Pure, deterministic derivation of true reference Y levels (`neck`, `shoulder`, `elbow`, `wrist`, `hip`, `knee`, `ankle`) from promoted Front body landmarks under a 3-state readiness model (`ready`, `partial`, `missing`). |
 | `anatomicalRegionEvidence.js` | **Anatomical Region Evidence Association Contract v0.** Assembles evidence nodes for the 13 canonical `body_anatomical` regions with pixel/normalized/metric bounds, view-level dense qualifications, and explicit topological landmark/level adjacency. |
-| `frontRasterSlice.js` | **Front Horizontal Raster Slice Contract v0.** Pure deterministic $O(W)$ single-row streaming scan across Front segmentation raster at canonical $Y$ levels returning contiguous horizontal runs. |
-| `frontTransverseWidth.js` | **Front Transverse Width Interpretation Contract v0.** Pure deterministic interpretation of raster slice evidence into formal transverse torso widths at shoulder/hip levels under `single_run_required` policy. |
-| `sideRasterSlice.js` | **Side Horizontal Raster Slice Contract v0.** Pure deterministic $O(W)$ single-row streaming scan across Side segmentation raster at canonical $Y$ levels returning contiguous horizontal runs in Side Metrology space ($U\text{ cm}$). |
-| `sideProfileSpan.js` | **Side Profile Span Interpretation Contract v0.** Pure deterministic interpretation of raster slice evidence into formal profile spans at shoulder/hip levels under `single_run_required` policy. |
+| `measurementSupportPolicy.js` | **Measurement Support Policy Contract v0 (`measurement-support-policy-v0`).** Pure deterministic definitions of observed supported silhouettes (`trunk_core_support_v0`, `pelvic_core_support_v0`), partitioning class sets into anatomical core and clothing bridge components. |
+| `frontRasterSlice.js` | **Front Horizontal Raster Slice Contract v0.** Pure deterministic $O(W)$ single-row streaming scan across Front segmentation raster at canonical $Y$ levels returning contiguous horizontal runs with encountered class ID tracking. |
+| `frontTransverseWidth.js` | **Front Transverse Width Interpretation Contract v0.** Pure deterministic interpretation of raster slice evidence into formal transverse torso widths under measurement support policies and `single_run_required` policy. |
+| `sideRasterSlice.js` | **Side Horizontal Raster Slice Contract v0.** Pure deterministic $O(W)$ single-row streaming scan across Side segmentation raster at canonical $Y$ levels returning contiguous horizontal runs in Side Metrology space ($U\text{ cm}$) with encountered class ID tracking. |
+| `sideProfileSpan.js` | **Side Profile Span Interpretation Contract v0.** Pure deterministic interpretation of raster slice evidence into formal profile spans under measurement support policies and `single_run_required` policy. |
 | `crossViewMeasurementCorrespondence.js` | **Cross-view Measurement Correspondence Contract v0.** Pure deterministic correspondence layer pairing Front transverse width and Side profile span observations at matching anatomical source levels under registry-driven definitions. |
 | `crossViewComparabilityQa.js` | **Cross-view Comparability QA Contract v0.** Pure deterministic QA evaluating whether 4.5A correspondence pairs are sufficiently qualified and internally consistent for later cross-view use across 10 inspectable checks. |
+| `metricCalibrationProvenance.js` | **Metric Calibration Provenance Contract v0 (`metric-calibration-provenance-v0`).** Pure deterministic domain validator evaluating upstream metric calibration claims across standardized Front and Side views. Validates scale factor isotropy, canvas extent, raster dimensions, and workspace scale agreement. |
+| `physicalMeasurementSemantics.js` | **Physical Measurement Semantics Contract v0 (`physical-measurement-semantics-v0`).** Pure deterministic domain contract classifying measurements into workspace, metric projected, and physical semantic tiers, requiring authoritative physical evidence contracts for physical eligibility. |
 | `bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute (orphaned / internal helper). |
 | `bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute (candidate readiness lines). |
 | `bodyMeasurementPreview.js` | Measurement Line Preview Overlay v0 (draws visual-only Ready preview lines in 3D and Front 2D). |

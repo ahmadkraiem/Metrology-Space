@@ -723,10 +723,12 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.4B: Side Profile Span Interpretation Contract v0 (`side-profile-span-v0` — pure interpretation of Side raster slice evidence into formal profile spans at shoulder/hip levels under `single_run_required` policy with `getSideProfileSpan` and `getSideProfileSpans` runtime getters)**
 - **Milestone 4.5A: Cross-view Measurement Correspondence Contract v0 (`cross-view-measurement-correspondence-v0` — pure deterministic correspondence layer pairing Front transverse width and Side profile span observations at matching validated reference levels under registry-driven definitions with `getCrossViewMeasurementCorrespondence` and `getCrossViewMeasurementCorrespondences` runtime getters)**
 - **Milestone 4.5B: Cross-view Comparability QA v0 (`cross-view-comparability-qa-v0` — pure deterministic QA evaluating whether 4.5A correspondence pairs are sufficiently qualified and internally consistent for later cross-view use across 10 inspectable checks with `getCrossViewComparabilityQa` and `getCrossViewComparabilityQaReport` runtime getters)**
+- **Milestone 4.5C: Shared Metric Calibration & Physical Measurement Semantics v0 (`metric-calibration-provenance-v0` & `physical-measurement-semantics-v0` — pure deterministic validation of upstream calibration claims across Front and Side views, establishing 3 semantic tiers: workspace span, metric projected span, and physical span; unvalidated on packages lacking calibration provenance)**
+- **Measurement Support Policy v0 (`measurement-support-policy-v0` — centralized deterministic observed supported silhouette definitions `trunk_core_support_v0` and `pelvic_core_support_v0`, tracking `supportPolicyId`, `actualClassIdsUsed`, `clothingClassIdsUsed`, and `usedClothingEvidence: boolean` without run merging or gap filling)**
 
-### Next Active Milestone: Milestone 4.5C — Side Physical-Frame / Depth Semantics Validation v0
-- **4.5C Side Physical-Frame / Depth Semantics Validation v0**: Validation and design milestone to establish whether and under what proven calibration/frame assumptions Side U-space profile evidence can represent a physically meaningful body depth quantity.
-- **Strict Guardrails**: `pass` indicates 2D evidence comparability only. Side $U$ is 2D profile evidence only. It is **not** canonical $Z$, is **never** described as validated physical depth, and is **never** fused into 3D coordinates with Front $X$. Circumference and cross-section inference (4.6) remain blocked.
+### Next Active Milestone: Physical Measurement Eligibility / Capture Provenance Completion Checkpoint before 4.6
+- **Planning & Verification Checkpoint**: Before Milestone 4.6 (circumference / cross-section inference) can consume true physical inputs, at least one authoritative evidence path validating the required physical measurement semantics for the chosen cross-section model must be established.
+- **Strict Guardrails**: 4.6 remains strictly **BLOCKED**. `pass` in 4.5B and `valid` in 4.3/4.4/4.5A indicate qualified 2D silhouette evidence under the declared measurement-support policy only. Side $U$ is 2D profile evidence only; it is **not** canonical $Z$, is **never** described as validated physical depth without authoritative physical evidence contracts, and is **never** fused into 3D coordinates with Front $X$.
 
 ---
 
@@ -755,25 +757,31 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA getters, sanitized diagnostic export |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics getters, sanitized diagnostic export |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
 | `src/features/anatomicalLevels.js` | Anatomical Level Contract v0 (`anatomical-levels-v0`) — pure derivation of 7 reference Y levels (neck, shoulder, elbow, wrist, hip, knee, ankle) from promoted Front body landmarks |
 | `src/features/anatomicalLevels.test.js` | Anatomical Level Contract v0 unit tests |
 | `src/features/anatomicalRegionEvidence.js` | Anatomical Region Evidence Association Contract v0 (`anatomical-region-evidence-v0`) — 13 canonical region nodes, bounds, dense QA qualifications, and landmark/level topological adjacency |
 | `src/features/anatomicalRegionEvidence.test.js` | Anatomical Region Evidence Association Contract v0 unit tests |
-| `src/features/frontRasterSlice.js` | Front Horizontal Raster Slice Contract v0 (`front-horizontal-raster-slice-v0`) — pure single-row O(W) streaming scan returning contiguous horizontal runs |
+| `src/features/measurementSupportPolicy.js` | Measurement Support Policy Contract v0 (`measurement-support-policy-v0`) — pure deterministic definitions of observed supported silhouettes (`trunk_core_support_v0`, `pelvic_core_support_v0`) |
+| `src/features/measurementSupportPolicy.test.js` | Measurement Support Policy Contract v0 unit tests |
+| `src/features/frontRasterSlice.js` | Front Horizontal Raster Slice Contract v0 (`front-horizontal-raster-slice-v0`) — pure single-row O(W) streaming scan returning contiguous horizontal runs with encountered class tracking |
 | `src/features/frontRasterSlice.test.js` | Front Horizontal Raster Slice Contract v0 unit tests |
-| `src/features/frontTransverseWidth.js` | Front Transverse Width Interpretation Contract v0 (`front-transverse-width-v0`) — pure interpretation of raster slice evidence into formal transverse torso widths at shoulder/hip levels under `single_run_required` policy |
+| `src/features/frontTransverseWidth.js` | Front Transverse Width Interpretation Contract v0 (`front-transverse-width-v0`) — pure interpretation of raster slice evidence into formal transverse torso widths under measurement support policies and `single_run_required` policy |
 | `src/features/frontTransverseWidth.test.js` | Front Transverse Width Interpretation Contract v0 unit tests |
-| `src/features/sideRasterSlice.js` | Side Horizontal Raster Slice Contract v0 (`side-horizontal-raster-slice-v0`) — pure single-row O(W) streaming scan over Side segmentation raster returning contiguous horizontal runs |
+| `src/features/sideRasterSlice.js` | Side Horizontal Raster Slice Contract v0 (`side-horizontal-raster-slice-v0`) — pure single-row O(W) streaming scan over Side segmentation raster returning contiguous horizontal runs with encountered class tracking |
 | `src/features/sideRasterSlice.test.js` | Side Horizontal Raster Slice Contract v0 unit tests |
-| `src/features/sideProfileSpan.js` | Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`) — pure interpretation of Side raster slice evidence into formal profile spans at shoulder/hip levels under `single_run_required` policy |
+| `src/features/sideProfileSpan.js` | Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`) — pure interpretation of Side raster slice evidence into formal profile spans under measurement support policies and `single_run_required` policy |
 | `src/features/sideProfileSpan.test.js` | Side Profile Span Interpretation Contract v0 unit tests |
 | `src/features/crossViewMeasurementCorrespondence.js` | Cross-view Measurement Correspondence Contract v0 (`cross-view-measurement-correspondence-v0`) — pure deterministic correspondence pairing Front transverse width and Side profile span observations at matching anatomical source levels |
 | `src/features/crossViewMeasurementCorrespondence.test.js` | Cross-view Measurement Correspondence Contract v0 unit tests |
 | `src/features/crossViewComparabilityQa.js` | Cross-view Comparability QA Contract v0 (`cross-view-comparability-qa-v0`) — pure deterministic comparability QA over established 4.5A correspondence evidence across 10 inspectable checks |
 | `src/features/crossViewComparabilityQa.test.js` | Cross-view Comparability QA Contract v0 unit tests |
+| `src/features/metricCalibrationProvenance.js` | Metric Calibration Provenance Contract v0 (`metric-calibration-provenance-v0`) — pure deterministic validator of upstream metric calibration claims across Front and Side views |
+| `src/features/metricCalibrationProvenance.test.js` | Metric Calibration Provenance Contract v0 unit tests |
+| `src/features/physicalMeasurementSemantics.js` | Physical Measurement Semantics Contract v0 (`physical-measurement-semantics-v0`) — pure deterministic evaluator classifying measurements into workspace, metric projected, and physical tiers |
+| `src/features/physicalMeasurementSemantics.test.js` | Physical Measurement Semantics Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
 | `src/features/selection.js` | Selected point state and highlight (Annotate mode) |
 | `src/features/measurement.js` | Canonical shared Point A/B measurement state, markers, line, label, history |
@@ -827,4 +835,5 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/styles/overlays.css` | 2D navigators, plot grids, markers, measurement overlays, and tooltips |
 | `src/style.css` | Stylesheet entry point |
 | `index.html` | Main HTML application shell |
+
 

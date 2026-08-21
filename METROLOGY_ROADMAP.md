@@ -152,27 +152,71 @@ Extend beyond vertical-Y landmark alignment through explicit measurement corresp
   - Runtime getters in `src/features/bodyEvidence.js`: `getCrossViewComparabilityQa()`, `getCrossViewComparabilityQaReport()` (`cross-view-comparability-qa-report-v0`).
   - Critical Semantics: A QA `pass` strictly certifies that Front transverse width and Side profile span are **structurally comparable and sufficiently qualified at the current 2D evidence-contract level**. It does **NOT** validate physical depth, does **NOT** treat Side U as canonical $Z$, does **NOT** approve 3D geometry fusion, and does **NOT** certify circumference, ellipse, cross-section, or volume inference.
 
-### 4.5C Side Physical-Frame / Depth Semantics Validation v0 — NEXT
+### 4.5C Shared Metric Calibration & Physical Measurement Semantics v0 — COMPLETED (at current contract/implementation scope)
 
-Validation and design milestone to investigate and establish whether and under what proven calibration/frame assumptions Side U-space profile evidence can represent a physically meaningful body depth quantity.
+Formalized shared Front/Side metric calibration provenance validation and explicit 3-level physical measurement semantics:
 
-Explicit validation scope:
-- Side coordinate-frame semantics and camera/projection assumptions
-- Scale and calibration validity across views
-- Whether Side U metric spans correspond to physical body dimensions
-- Required provenance and calibration metadata
-- Failure and unknown states when physical depth semantics cannot be established
+- **4.5C-1 Metric Calibration Provenance Contract v0 (`metric-calibration-provenance-v0`)** (`src/features/metricCalibrationProvenance.js`):
+  - Pure deterministic domain validator qualifying whether upstream Body Pipeline metric scaling claims are complete and mathematically sound across standardized Front and Side views.
+  - Inspects and validates: `pixelsPerCm`, isotropic scaling consistency (`scaleFactorX === scaleFactorY`), standardized canvas extent agreement (`canvasWidthPx === canvasHeightPx === 2000`), active raster dimension matching, preprocessing crop/scale provenance, and REVacity workspace scale agreement ($2000\text{ px} \leftrightarrow 200\text{ cm}$, $10\text{ px/cm}$).
+  - 4-state taxonomy: `validated` (`metricProjectedEligibility: true`), `unvalidated` (`metricProjectedEligibility: false`), `invalid` (`metricProjectedEligibility: false`), `unavailable`.
+  - Important Semantics: Metric calibration establishes **2D metric projected image-plane measurements only**. It does **NOT** establish true unclothed physical body dimensions, canonical $Z$, 3D geometry, or Front/Side coordinate fusion.
+  - Runtime getter in `src/features/bodyEvidence.js`: `getMetricCalibrationProvenance({ view })`.
+- **4.5C-2 Physical Measurement Semantics Contract v0 (`physical-measurement-semantics-v0`)** (`src/features/physicalMeasurementSemantics.js`):
+  - Pure deterministic contract evaluating the explicit semantic level of a 2D silhouette measurement under three strictly separated tiers:
+    1. `workspaceSpanCm`: Workspace-level U/X-space geometric evidence.
+    2. `metricProjectedSpanCm`: Metric projected image-plane span in cm, populated only when 4.5C-1 calibration provenance is validated.
+    3. `physicalSpanCm`: True physical body dimension in cm; strictly requires an authoritative physical capture/projection evidence contract from the registry.
+  - Registry-driven validator for accepted evidence contract types: strictly rejects caller-controlled boolean flags or unproven shortcuts.
+  - 5-state status taxonomy: `validated` (`physicalEligibility: true`, `physicalSpanCm` populated), `projected_metric_only` (`metricProjectedEligibility: true`, `physicalEligibility: false`, `physicalSpanCm: null`), `unvalidated` (`physicalEligibility: false`, `physicalSpanCm: null`), `invalid`, `unavailable`.
+  - Bulk evaluation report contract: `physical-measurement-semantics-report-v0`.
+  - Runtime getters in `src/features/bodyEvidence.js`: `getPhysicalMeasurementSemantics({ id, annotations, physicalEvidencePaths })`, `getPhysicalMeasurementSemanticsReport({ annotations, physicalEvidencePaths })`.
 
-Strict Guardrails:
-- Do NOT assume Side $U \equiv \text{canonical } Z$.
-- Do NOT assume Side profile span is already physical depth.
-- Do NOT assume Front/Side geometry fusion is already valid.
-- 4.6 remains BLOCKED until 4.5C validates the required physical semantics.
+### Measurement Support Policy v0 (`measurement-support-policy-v0`) — COMPLETED
+
+Centralized deterministic policy defining the **measurement-support silhouette / observed supported silhouette** for Front and Side measurements:
+
+- **Contract**: `measurement-support-policy-v0` (`src/features/measurementSupportPolicy.js`).
+- **Policy Registry**:
+  - `trunk_core_support_v0`:
+    - `anatomicalClassIds`: `[22]` (`Torso`)
+    - `clothingBridgeClassIds`: `[23]` (`Upper_Clothing`)
+    - `acceptedClassIds`: `[22, 23]`
+    - Used for: Front shoulder transverse width (`torso_width_at_shoulder_level`) and Side shoulder profile span (`torso_profile_span_at_shoulder_level`).
+  - `pelvic_core_support_v0`:
+    - `anatomicalClassIds`: `[12, 21, 22]` (`Left_Upper_Leg`, `Right_Upper_Leg`, `Torso`)
+    - `clothingBridgeClassIds`: `[13]` (`Lower_Clothing`)
+    - `acceptedClassIds`: `[12, 13, 21, 22]`
+    - Used for: Front hip transverse width (`torso_width_at_hip_level`) and Side hip profile span (`torso_profile_span_at_hip_level`).
+- **Strict Integration Guardrails**:
+  - No gap filling, no run merging, no largest-run selection, and no background bridging.
+  - `single_run_required` policy remains unchanged in `frontTransverseWidth.js` and `sideProfileSpan.js`.
+  - Generic `TORSO_ONLY` (`[22]`), `BODY_ANATOMICAL`, and `FOREGROUND` diagnostic slicing policies in raster scanners remain unchanged.
+- **Clothing Evidence Provenance**:
+  - Every resulting observation records: `supportPolicyId`, `actualClassIdsUsed`, `clothingClassIdsUsed`, and `usedClothingEvidence: boolean`.
+  - **Important Semantic Rule**: A measurement with `status: valid` means exactly **one valid contiguous observed supported silhouette run exists under the declared measurement-support policy**. It does **NOT** mean unclothed body width is proven, true body depth is proven, or physical body surface has been reconstructed. When `usedClothingEvidence: true`, the measurement remains identifiable as clothing-supported observed silhouette evidence.
+
+### Real Package Integration Verification (`C:\Users\VIP\Downloads\output.zip`)
+
+Real multi-modal package containing Front and Side image, pose, segmentation, pointmap, and normals:
+
+- **Calibration Safety Behavior**: The archive does not carry explicit calibration provenance metadata. Under 4.5C-1, Front and Side calibration evaluate strictly to `status: 'unvalidated'`, `metricProjectedEligibility: false`. REVacity did **NOT** invent or infer calibration from $2000 \times 2000$ dimensions, $\text{ROOM\_SIZE} = 200$, pointmap units, or image dimensions alone. Safe backward compatibility is verified.
+- **Measurement Support Policy Verification**:
+  - **Front Shoulder Width** ($Y = 132.85\text{ cm}$, Row $671$, Col $850..1157$): Span = **$30.80\text{ cm}$**, `actualClassIdsUsed: [22, 23]`, `clothingClassIdsUsed: [23]`, `usedClothingEvidence: true`, `status: valid`.
+  - **Side Shoulder Span** ($Y = 132.85\text{ cm}$, Row $671$, Col $887..996$): Span = **$11.00\text{ cm}$**, `actualClassIdsUsed: [22, 23]`, `clothingClassIdsUsed: [23]`, `usedClothingEvidence: true`, `status: valid`.
+  - **Front Hip Width** ($Y = 86.25\text{ cm}$, Row $1137$, Col $788..1209$): Span = **$42.20\text{ cm}$**, `actualClassIdsUsed: [12, 13, 21]`, `clothingClassIdsUsed: [13]`, `usedClothingEvidence: true`, `status: valid`.
+  - **Side Hip Span** ($Y = 86.25\text{ cm}$, Row $1137$, Col $845..1121$): Span = **$27.70\text{ cm}$**, `actualClassIdsUsed: [12, 13]`, `clothingClassIdsUsed: [13]`, `usedClothingEvidence: true`, `status: valid`.
+- **Downstream Recovery**:
+  - **4.5A Cross-view Correspondence**: Shoulder $\to$ `status: ready`; Hip $\to$ `status: ready`.
+  - **4.5B Cross-view Comparability QA**: Shoulder $\to$ `status: pass` ($10/10$ checks passed); Hip $\to$ `status: pass` ($10/10$ checks passed).
+- **Physical Semantics Safety**: Under `physical-measurement-semantics-v0`, all four measurements evaluate to `status: 'unvalidated'`, `physicalEligibility: false`, `physicalSpanCm: null`. Workspace spans are preserved without promotion.
 
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 
-Blocked until Front transverse widths (4.3), Side profile spans (4.4), cross-view correspondence QA (4.5), and Side physical-frame / depth semantics validation (4.5C) are fully validated.
-Strict Guardrail: No premature ellipse/circumference assumptions.
+Remains strictly **BLOCKED**.
+
+Qualification: While 4.5A correspondence and 4.5B comparability QA evaluate to `ready` / `pass`, real-world packages lacking calibration provenance remain `unvalidated`, and observed measurements using clothing bridge evidence do not constitute true physical unclothed body measurements. Milestone 4.6 cannot consume inputs until the semantic eligibility required by the selected cross-section model is validated.
+Strict Guardrail: No premature ellipse, circumference, or 3D cross-section assumptions.
 
 ## 5. Canonical / Latent Layer — LATER
 
@@ -245,5 +289,15 @@ When changing direction:
 
 ## 9. Immediate Next Milestone
 
-**4.5C — Side Physical-Frame / Depth Semantics Validation v0**
+**Physical Measurement Eligibility / Capture Provenance Completion Checkpoint before 4.6**
+
+Before Milestone 4.6 can consume true physical inputs, the project requires at least one authoritative path validating the required physical measurement semantics for the chosen cross-section model.
+
+Possible future evidence paths may include:
+- complete upstream Body Pipeline calibration provenance
+- controlled capture protocol validation
+- calibrated camera / projection evidence
+- empirical body-measurement validation
+- validated dense geometry semantics
+
 
