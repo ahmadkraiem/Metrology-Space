@@ -58,6 +58,12 @@ import {
   evaluatePhysicalMeasurementSemantics,
 } from './physicalMeasurementSemantics.js';
 import {
+  PHYSICAL_MEASUREMENT_ELIGIBILITY_CONTRACT_VERSION,
+  PAIRED_CROSS_VIEW_ELIGIBILITY_CONTRACT_VERSION,
+  evaluatePhysicalMeasurementEligibility,
+  evaluatePairedCrossViewEligibility,
+} from './physicalMeasurementEligibility.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -1421,6 +1427,230 @@ export function getPhysicalMeasurementSemanticsReport({ annotations = null, phys
       unavailableCount,
     },
     results,
+  };
+}
+
+/**
+ * Evaluates pure Physical Measurement Eligibility for a single Front or Side measurement from active state.
+ *
+ * @param {{
+ *   id: string,
+ *   annotations?: Array<object>|null,
+ *   viewPoseValidationResult?: object|null,
+ *   clothingAuthorizationResult?: object|null,
+ *   authoritativePhysicalEvidenceResults?: Array<object>|object|null,
+ * }} options
+ * @returns {object|null}
+ */
+export function getPhysicalMeasurementEligibility({
+  id,
+  annotations = null,
+  viewPoseValidationResult = null,
+  clothingAuthorizationResult = null,
+  authoritativePhysicalEvidenceResults = null,
+} = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_PHYSICAL_MEASUREMENT_DEFINITIONS_V0[id];
+  if (!def) return null;
+
+  let observation = null;
+  if (def.view === 'front') {
+    observation = getFrontTransverseWidth({ id: def.id, annotations })
+      ?? getFrontTransverseWidth({ id: 'torso_width_at_' + def.sourceLevel + '_level', annotations });
+  } else {
+    observation = getSideProfileSpan({ id: def.id, annotations })
+      ?? getSideProfileSpan({ id: 'torso_profile_span_at_' + def.sourceLevel + '_level', annotations });
+  }
+
+  const metricCalibrationResult = getMetricCalibrationProvenance({ view: def.view });
+  const physicalSemanticsResult = getPhysicalMeasurementSemantics({
+    id: def.id,
+    annotations,
+    physicalEvidencePaths: authoritativePhysicalEvidenceResults,
+  });
+
+  return evaluatePhysicalMeasurementEligibility(observation, {
+    metricCalibrationResult,
+    physicalSemanticsResult,
+    viewPoseValidationResult,
+    clothingAuthorizationResult,
+    authoritativePhysicalEvidenceResults,
+    definition: def,
+  });
+}
+
+/**
+ * Evaluates pure Physical Measurement Eligibility for all canonical Front and Side measurements.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   viewPoseValidationResult?: object|null,
+ *   clothingAuthorizationResult?: object|null,
+ *   authoritativePhysicalEvidenceResults?: Array<object>|object|null,
+ * }} [options]
+ * @returns {{
+ *   contract: 'physical-measurement-eligibility-report-v0',
+ *   version: string,
+ *   summary: {
+ *     total: number,
+ *     eligibleCount: number,
+ *     blockedByClothingCount: number,
+ *     metricProjectedOnlyCount: number,
+ *     unvalidatedCount: number,
+ *     invalidCount: number,
+ *     unavailableCount: number,
+ *   },
+ *   results: Array<object>,
+ * }|null}
+ */
+export function getPhysicalMeasurementEligibilityReport({
+  annotations = null,
+  viewPoseValidationResult = null,
+  clothingAuthorizationResult = null,
+  authoritativePhysicalEvidenceResults = null,
+} = {}) {
+  const frontRaster = getFrontSegmentationRaster();
+  const sideRaster = getSideSegmentationRaster();
+  if (!frontRaster && !sideRaster && !currentPackage) return null;
+
+  const canonicalIds = [
+    'torso_transverse_width_at_shoulder_level',
+    'torso_transverse_width_at_hip_level',
+    'torso_profile_span_at_shoulder_level',
+    'torso_profile_span_at_hip_level',
+  ];
+
+  const results = canonicalIds.map((id) =>
+    getPhysicalMeasurementEligibility({
+      id,
+      annotations,
+      viewPoseValidationResult,
+      clothingAuthorizationResult,
+      authoritativePhysicalEvidenceResults,
+    })
+  );
+
+  let eligibleCount = 0;
+  let blockedByClothingCount = 0;
+  let metricProjectedOnlyCount = 0;
+  let unvalidatedCount = 0;
+  let invalidCount = 0;
+  let unavailableCount = 0;
+
+  for (const res of results) {
+    if (res?.status === 'eligible') eligibleCount += 1;
+    else if (res?.status === 'blocked_by_clothing') blockedByClothingCount += 1;
+    else if (res?.status === 'metric_projected_only') metricProjectedOnlyCount += 1;
+    else if (res?.status === 'invalid') invalidCount += 1;
+    else if (res?.status === 'unvalidated') unvalidatedCount += 1;
+    else unavailableCount += 1;
+  }
+
+  return {
+    contract: 'physical-measurement-eligibility-report-v0',
+    version: PHYSICAL_MEASUREMENT_ELIGIBILITY_CONTRACT_VERSION,
+    summary: {
+      total: results.length,
+      eligibleCount,
+      blockedByClothingCount,
+      metricProjectedOnlyCount,
+      unvalidatedCount,
+      invalidCount,
+      unavailableCount,
+    },
+    results,
+  };
+}
+
+/**
+ * Evaluates pure Paired Cross-View Physical Eligibility for a correspondence from active runtime state.
+ *
+ * @param {{
+ *   id: string,
+ *   annotations?: Array<object>|null,
+ *   viewPoseValidationResult?: object|null,
+ *   clothingAuthorizationResult?: object|null,
+ *   authoritativePhysicalEvidenceResults?: Array<object>|object|null,
+ * }} options
+ * @returns {object|null}
+ */
+export function getPairedCrossViewEligibility({
+  id,
+  annotations = null,
+  viewPoseValidationResult = null,
+  clothingAuthorizationResult = null,
+  authoritativePhysicalEvidenceResults = null,
+} = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_CROSS_VIEW_CORRESPONDENCES_V0[id];
+  if (!def) return null;
+
+  const correspondence = getCrossViewMeasurementCorrespondence({ id: def.id, annotations });
+  const comparabilityQaResult = getCrossViewComparabilityQa({ id: def.id, annotations });
+
+  const frontEligibilityResult = getPhysicalMeasurementEligibility({
+    id: def.frontDefinitionId,
+    annotations,
+    viewPoseValidationResult,
+    clothingAuthorizationResult,
+    authoritativePhysicalEvidenceResults,
+  });
+
+  const sideEligibilityResult = getPhysicalMeasurementEligibility({
+    id: def.sideDefinitionId,
+    annotations,
+    viewPoseValidationResult,
+    clothingAuthorizationResult,
+    authoritativePhysicalEvidenceResults,
+  });
+
+  return evaluatePairedCrossViewEligibility(correspondence, {
+    frontEligibilityResult,
+    sideEligibilityResult,
+    comparabilityQaResult,
+  });
+}
+
+/**
+ * Evaluates all supported Paired Cross-View Physical Eligibilities from active runtime state.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   viewPoseValidationResult?: object|null,
+ *   clothingAuthorizationResult?: object|null,
+ *   authoritativePhysicalEvidenceResults?: Array<object>|object|null,
+ * }} [options]
+ * @returns {{
+ *   contract: 'paired-cross-view-eligibility-report-v0',
+ *   version: string,
+ *   pairs: Array<object>,
+ * }|null}
+ */
+export function getPairedCrossViewEligibilityReport({
+  annotations = null,
+  viewPoseValidationResult = null,
+  clothingAuthorizationResult = null,
+  authoritativePhysicalEvidenceResults = null,
+} = {}) {
+  const frontRaster = getFrontSegmentationRaster();
+  const sideRaster = getSideSegmentationRaster();
+  if (!frontRaster && !sideRaster && !currentPackage) return null;
+
+  const definitions = Object.values(SUPPORTED_CROSS_VIEW_CORRESPONDENCES_V0);
+  const pairs = definitions.map((def) =>
+    getPairedCrossViewEligibility({
+      id: def.id,
+      annotations,
+      viewPoseValidationResult,
+      clothingAuthorizationResult,
+      authoritativePhysicalEvidenceResults,
+    })
+  );
+
+  return {
+    contract: 'paired-cross-view-eligibility-report-v0',
+    version: PAIRED_CROSS_VIEW_ELIGIBILITY_CONTRACT_VERSION,
+    pairs,
   };
 }
 
