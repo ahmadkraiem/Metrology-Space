@@ -40,6 +40,11 @@ import {
   interpretSideProfileSpan,
 } from './sideProfileSpan.js';
 import {
+  CROSS_VIEW_MEASUREMENT_CORRESPONDENCE_CONTRACT_VERSION,
+  SUPPORTED_CROSS_VIEW_CORRESPONDENCES_V0,
+  buildCrossViewMeasurementCorrespondence,
+} from './crossViewMeasurementCorrespondence.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -1182,6 +1187,50 @@ export function getSideProfileSpans({ annotations = null } = {}) {
     version: SIDE_PROFILE_SPAN_CONTRACT_VERSION,
     view: 'side',
     spans,
+  };
+}
+
+/**
+ * Evaluates a single Cross-view measurement correspondence observation from active runtime state.
+ *
+ * @param {{ id: string, annotations?: Array<object>|null }} options
+ * @returns {object|null}
+ */
+export function getCrossViewMeasurementCorrespondence({ id, annotations = null } = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_CROSS_VIEW_CORRESPONDENCES_V0[id];
+  if (!def) return null;
+
+  const frontObservation = getFrontTransverseWidth({ id: def.frontDefinitionId, annotations });
+  const sideObservation = getSideProfileSpan({ id: def.sideDefinitionId, annotations });
+
+  return buildCrossViewMeasurementCorrespondence(frontObservation, sideObservation, { definition: def });
+}
+
+/**
+ * Evaluates all supported Cross-view measurement correspondences from active runtime state.
+ *
+ * @param {{ annotations?: Array<object>|null }} [options]
+ * @returns {{
+ *   contract: 'cross-view-measurement-correspondences-report-v0',
+ *   version: string,
+ *   correspondences: Array<object>,
+ * }|null}
+ */
+export function getCrossViewMeasurementCorrespondences({ annotations = null } = {}) {
+  const frontRaster = getFrontSegmentationRaster();
+  const sideRaster = getSideSegmentationRaster();
+  if (!frontRaster && !sideRaster) return null;
+
+  const definitions = Object.values(SUPPORTED_CROSS_VIEW_CORRESPONDENCES_V0);
+  const correspondences = definitions.map((def) =>
+    getCrossViewMeasurementCorrespondence({ id: def.id, annotations })
+  );
+
+  return {
+    contract: 'cross-view-measurement-correspondences-report-v0',
+    version: CROSS_VIEW_MEASUREMENT_CORRESPONDENCE_CONTRACT_VERSION,
+    correspondences,
   };
 }
 
