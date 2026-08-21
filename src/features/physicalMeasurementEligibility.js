@@ -42,6 +42,10 @@ import {
   CROSS_VIEW_COMPARABILITY_QA_STATUS,
 } from './crossViewComparabilityQa.js';
 
+import {
+  evaluateClothingBodySurfaceSemantics,
+} from './clothingBodySurfaceSemantics.js';
+
 export const PHYSICAL_MEASUREMENT_ELIGIBILITY_CONTRACT = 'physical-measurement-eligibility-v0';
 export const PHYSICAL_MEASUREMENT_ELIGIBILITY_CONTRACT_VERSION = 'physical-measurement-eligibility-v0';
 
@@ -554,13 +558,20 @@ export function evaluatePhysicalMeasurementEligibility(observation, {
   }
 
   // ==========================================
-  // DIMENSION D: CLOTHING DEPENDENCE
+  // DIMENSION D: CLOTHING DEPENDENCE (4.5F)
   // ==========================================
+  const clothingResult = clothingAuthorizationResult ?? (sourcePresent
+    ? evaluateClothingBodySurfaceSemantics(observation, { measurementId: defId, view: defView })
+    : null);
+
   const usedClothingEvidence = Boolean(
-    observation?.provenance?.usedClothingEvidence
+    clothingResult?.clothingEvidence?.usedClothingEvidence
+    ?? observation?.provenance?.usedClothingEvidence
     ?? (observation?.provenance?.clothingClassIdsUsed && observation.provenance.clothingClassIdsUsed.length > 0)
   );
-  const clothingClassIdsUsed = observation?.provenance?.clothingClassIdsUsed ?? [];
+  const clothingClassIdsUsed = clothingResult?.clothingEvidence?.clothingClassIdsUsed
+    ?? observation?.provenance?.clothingClassIdsUsed
+    ?? [];
 
   let clothingAuthorized = false;
   let clothingAuthorizationStatus = 'not_applicable';
@@ -568,9 +579,14 @@ export function evaluatePhysicalMeasurementEligibility(observation, {
 
   if (usedClothingEvidence) {
     clothingAuthorizationStatus = 'unauthorized';
-    if (clothingAuthorizationResult && typeof clothingAuthorizationResult === 'object') {
-      clothingEvaluatorId = clothingAuthorizationResult.evaluatorId ?? clothingAuthorizationResult.contract ?? 'custom_clothing_evaluator';
-      if (clothingAuthorizationResult.status === 'validated' || clothingAuthorizationResult.status === 'pass') {
+    if (clothingResult && typeof clothingResult === 'object') {
+      clothingEvaluatorId = clothingResult.evaluatorId ?? clothingResult.contract ?? 'custom_clothing_evaluator';
+      const isConstraintSatisfied = clothingResult.dimensions?.clothingConstraintSatisfied === true
+        || clothingResult.status === 'authorized'
+        || clothingResult.status === 'validated'
+        || clothingResult.status === 'pass';
+
+      if (isConstraintSatisfied) {
         clothingAuthorized = true;
         clothingAuthorizationStatus = 'authorized';
         recordCheck(
@@ -579,6 +595,15 @@ export function evaluatePhysicalMeasurementEligibility(observation, {
           'clothing',
           'pass',
           `Clothing presence authorized by evaluator '${clothingEvaluatorId}' for classes [${clothingClassIdsUsed.join(', ')}].`,
+        );
+      } else if (clothingResult.status === 'partial') {
+        clothingAuthorizationStatus = 'partial';
+        recordCheck(
+          'clothing_non_interference',
+          'Clothing Interference & Authorization',
+          'clothing',
+          'skip',
+          `Clothing participation verified for classes [${clothingClassIdsUsed.join(', ')}], but visual fit qualification and empirical body-surface authorization are unresolved.`,
         );
       } else {
         recordCheck(
@@ -601,6 +626,7 @@ export function evaluatePhysicalMeasurementEligibility(observation, {
   } else {
     // Unclothed body surface / pure anatomical classes
     clothingAuthorized = true;
+    clothingAuthorizationStatus = 'authorized';
     recordCheck(
       'clothing_non_interference',
       'Clothing Interference & Authorization',

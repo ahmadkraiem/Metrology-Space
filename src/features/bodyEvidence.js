@@ -70,6 +70,12 @@ import {
   evaluateViewPoseSemanticsReport,
 } from './viewPoseSemantics.js';
 import {
+  CLOTHING_BODY_SURFACE_CONTRACT_VERSION,
+  CLOTHING_BODY_SURFACE_STATUS,
+  evaluateClothingBodySurfaceSemantics,
+  evaluateClothingBodySurfaceSemanticsReport,
+} from './clothingBodySurfaceSemantics.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -1478,6 +1484,88 @@ export function getViewPoseSemanticsReport({
 }
 
 /**
+ * Evaluates pure deterministic clothing and body-surface semantics for a single measurement from active state.
+ *
+ * @param {{
+ *   id: string,
+ *   annotations?: Array<object>|null,
+ *   garmentEvaluationResult?: object|null,
+ *   bodySurfaceAuthorizationResult?: object|null,
+ * }} options
+ * @returns {object|null} ClothingBodySurfaceValidationResult
+ */
+export function getClothingBodySurfaceSemantics({
+  id,
+  annotations = null,
+  garmentEvaluationResult = null,
+  bodySurfaceAuthorizationResult = null,
+} = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_PHYSICAL_MEASUREMENT_DEFINITIONS_V0[id];
+  if (!def) return null;
+
+  let observation = null;
+  if (def.view === 'front') {
+    observation = getFrontTransverseWidth({ id: def.id, annotations })
+      ?? getFrontTransverseWidth({ id: 'torso_width_at_' + def.sourceLevel + '_level', annotations });
+  } else {
+    observation = getSideProfileSpan({ id: def.id, annotations })
+      ?? getSideProfileSpan({ id: 'torso_profile_span_at_' + def.sourceLevel + '_level', annotations });
+  }
+
+  return evaluateClothingBodySurfaceSemantics(observation, {
+    garmentEvaluationResult,
+    bodySurfaceAuthorizationResult,
+    measurementId: def.id,
+    view: def.view,
+  });
+}
+
+/**
+ * Evaluates pure deterministic clothing and body-surface semantics report across all canonical measurements.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   garmentEvaluationResults?: Map|object,
+ *   bodySurfaceAuthorizationResults?: Map|object,
+ * }} [options]
+ * @returns {object|null}
+ */
+export function getClothingBodySurfaceSemanticsReport({
+  annotations = null,
+  garmentEvaluationResults = {},
+  bodySurfaceAuthorizationResults = {},
+} = {}) {
+  if (!currentPackage) return null;
+  const canonicalIds = [
+    'torso_transverse_width_at_shoulder_level',
+    'torso_transverse_width_at_hip_level',
+    'torso_profile_span_at_shoulder_level',
+    'torso_profile_span_at_hip_level',
+  ];
+  const observations = [];
+  for (const defId of canonicalIds) {
+    const def = SUPPORTED_PHYSICAL_MEASUREMENT_DEFINITIONS_V0[defId];
+    if (!def) continue;
+    let obs = null;
+    if (def.view === 'front') {
+      obs = getFrontTransverseWidth({ id: def.id, annotations })
+        ?? getFrontTransverseWidth({ id: 'torso_width_at_' + def.sourceLevel + '_level', annotations });
+    } else {
+      obs = getSideProfileSpan({ id: def.id, annotations })
+        ?? getSideProfileSpan({ id: 'torso_profile_span_at_' + def.sourceLevel + '_level', annotations });
+    }
+    if (obs) observations.push(obs);
+  }
+
+  return evaluateClothingBodySurfaceSemanticsReport({
+    observations,
+    garmentEvaluationResults,
+    bodySurfaceAuthorizationResults,
+  });
+}
+
+/**
  * Evaluates pure Physical Measurement Eligibility for a single Front or Side measurement from active state.
  *
  * @param {{
@@ -1520,11 +1608,15 @@ export function getPhysicalMeasurementEligibility({
     ? viewPoseValidationResult
     : getViewPoseSemantics({ view: def.view });
 
+  const resolvedClothingResult = clothingAuthorizationResult !== null
+    ? clothingAuthorizationResult
+    : getClothingBodySurfaceSemantics({ id: def.id, annotations });
+
   return evaluatePhysicalMeasurementEligibility(observation, {
     metricCalibrationResult,
     physicalSemanticsResult,
     viewPoseValidationResult: resolvedViewPoseResult,
-    clothingAuthorizationResult,
+    clothingAuthorizationResult: resolvedClothingResult,
     authoritativePhysicalEvidenceResults,
     definition: def,
   });
