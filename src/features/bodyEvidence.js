@@ -64,6 +64,12 @@ import {
   evaluatePairedCrossViewEligibility,
 } from './physicalMeasurementEligibility.js';
 import {
+  VIEW_POSE_SEMANTICS_CONTRACT_VERSION,
+  VIEW_POSE_STATUS,
+  evaluateViewPoseSemantics,
+  evaluateViewPoseSemanticsReport,
+} from './viewPoseSemantics.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -1431,6 +1437,47 @@ export function getPhysicalMeasurementSemanticsReport({ annotations = null, phys
 }
 
 /**
+ * Evaluates pure deterministic view and pose semantics for a single view from active runtime state.
+ *
+ * @param {{
+ *   view?: 'front'|'side'|string,
+ *   authoritativePhysicalOrientationResult?: object|null,
+ * }} [options]
+ * @returns {object|null} ViewPoseValidationResult
+ */
+export function getViewPoseSemantics({
+  view = 'front',
+  authoritativePhysicalOrientationResult = null,
+} = {}) {
+  if (!currentPackage) return null;
+  const targetView = (view || 'front').toLowerCase().trim();
+  const viewPkg = targetView === 'front' ? currentPackage.front : currentPackage.side;
+  return evaluateViewPoseSemantics(viewPkg, {
+    view: targetView,
+    aposeEvidence: currentPackage.rawSources?.aposeResult ?? null,
+    alignEvidence: currentPackage.rawSources?.alignResult ?? null,
+    authoritativePhysicalOrientationResult,
+  });
+}
+
+/**
+ * Evaluates pure deterministic view and pose semantics report across Front and Side from active runtime state.
+ *
+ * @param {{
+ *   authoritativePhysicalOrientationResult?: object|null,
+ * }} [options]
+ * @returns {object|null} ViewPoseSemanticsReport
+ */
+export function getViewPoseSemanticsReport({
+  authoritativePhysicalOrientationResult = null,
+} = {}) {
+  if (!currentPackage) return null;
+  return evaluateViewPoseSemanticsReport(currentPackage, {
+    authoritativePhysicalOrientationResult,
+  });
+}
+
+/**
  * Evaluates pure Physical Measurement Eligibility for a single Front or Side measurement from active state.
  *
  * @param {{
@@ -1469,10 +1516,14 @@ export function getPhysicalMeasurementEligibility({
     physicalEvidencePaths: authoritativePhysicalEvidenceResults,
   });
 
+  const resolvedViewPoseResult = viewPoseValidationResult !== null
+    ? viewPoseValidationResult
+    : getViewPoseSemantics({ view: def.view });
+
   return evaluatePhysicalMeasurementEligibility(observation, {
     metricCalibrationResult,
     physicalSemanticsResult,
-    viewPoseValidationResult,
+    viewPoseValidationResult: resolvedViewPoseResult,
     clothingAuthorizationResult,
     authoritativePhysicalEvidenceResults,
     definition: def,

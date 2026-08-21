@@ -483,7 +483,10 @@ export function evaluatePhysicalMeasurementEligibility(observation, {
 
   if (viewPoseValidationResult && typeof viewPoseValidationResult === 'object') {
     viewPoseEvaluatorId = viewPoseValidationResult.evaluatorId ?? viewPoseValidationResult.contract ?? 'custom_pose_evaluator';
-    if (viewPoseValidationResult.status === 'validated' || viewPoseValidationResult.status === 'pass') {
+    const isAuthorized = viewPoseValidationResult.authorized === true
+      || (viewPoseValidationResult.authorized !== false && (viewPoseValidationResult.status === 'validated' || viewPoseValidationResult.status === 'pass'));
+
+    if (isAuthorized && (viewPoseValidationResult.status === 'validated' || viewPoseValidationResult.status === 'pass')) {
       const poseViewMatches = !viewPoseValidationResult.targetView
         || viewPoseValidationResult.targetView === 'both'
         || viewPoseValidationResult.targetView === defView;
@@ -508,6 +511,15 @@ export function evaluatePhysicalMeasurementEligibility(observation, {
           `Posture evaluator targetView '${viewPoseValidationResult.targetView}' mismatch for view '${defView}'.`,
         );
       }
+    } else if (viewPoseValidationResult.status === 'partial') {
+      viewPoseSummaryStatus = 'partial';
+      recordCheck(
+        'view_pose_authorization',
+        'Authoritative View / Pose Authorization',
+        'view_pose',
+        'skip',
+        `View/pose structural sanity established by '${viewPoseEvaluatorId}' for view '${defView}', but authoritative physical orientation certification is missing.`,
+      );
     } else if (viewPoseValidationResult.status === 'fail' || viewPoseValidationResult.status === 'invalid') {
       viewPoseSummaryStatus = 'invalid';
       recordCheck(

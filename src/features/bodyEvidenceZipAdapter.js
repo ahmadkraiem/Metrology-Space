@@ -31,6 +31,14 @@ import { buildBodyEvidencePackage } from './bodyEvidencePackage.js';
  */
 const ALIGN_RESULT_PATH_RE = /(?:^|\/)body\/align\/result\.json$/i;
 
+/**
+ * Known path pattern for the Body Pipeline Apose stage result.
+ * Matches 'body/Apose/result.json' with or without a leading root folder
+ * (e.g. 'output/body/Apose/result.json').
+ * @type {RegExp}
+ */
+const APOSE_RESULT_PATH_RE = /(?:^|\/)body\/apose\/result\.json$/i;
+
 const DEBUG_PREVIEW_PATTERNS = [
   '_overlay',
   '_vis',
@@ -87,6 +95,26 @@ export function isAlignResultPayload(payload) {
   if (typeof payload.height_cm !== 'number') return false;
   if (!payload.views || typeof payload.views !== 'object') return false;
   return true;
+}
+
+/**
+ * Detects whether a file path matches the known body/Apose/result.json location.
+ * Accepts with or without a leading root folder (e.g. 'output/body/Apose/result.json').
+ * @param {string} path
+ * @returns {boolean}
+ */
+export function isAposeResultPath(path) {
+  return APOSE_RESULT_PATH_RE.test(path);
+}
+
+/**
+ * Validates that a parsed JSON payload has the structural shape of a Body Pipeline Apose result.
+ * @param {any} payload
+ * @returns {boolean}
+ */
+export function isAposeResultPayload(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  return payload.stage === 'Apose';
 }
 
 /**
@@ -313,6 +341,8 @@ export function resolvePackageArtifacts(filesMap, sampleId = null) {
   const front = { image: null, pose: null, segmentation: null, pointmap: null, normals: null, calibration: null };
   const side = { image: null, pose: null, segmentation: null, pointmap: null, normals: null, calibration: null };
   let packageCalibration = null;
+  let alignResult = null;
+  let aposeResult = null;
 
   for (const [path, bytes] of filesMap.entries()) {
     // If sampleId is known, prioritize files belonging to that sample directory.
@@ -366,8 +396,15 @@ export function resolvePackageArtifacts(filesMap, sampleId = null) {
         continue;
       }
 
+      // Check for Body Pipeline Apose result.json (explicit path + schema detection)
+      if (isAposeResultPath(path) && isAposeResultPayload(jsonPayload)) {
+        aposeResult = jsonPayload;
+        continue;
+      }
+
       // Check for Body Pipeline Align result.json (explicit path + schema detection)
       if (isAlignResultPath(path) && isAlignResultPayload(jsonPayload)) {
+        alignResult = jsonPayload;
         const mapped = mapAlignResultToCalibration(jsonPayload);
         if (!packageCalibration) {
           packageCalibration = mapped.packageCalibration;
@@ -486,7 +523,12 @@ export function resolvePackageArtifacts(filesMap, sampleId = null) {
     }
   }
 
-  return { front, side, calibration: packageCalibration };
+  return {
+    front,
+    side,
+    calibration: packageCalibration,
+    rawSources: (aposeResult || alignResult) ? { aposeResult, alignResult } : null,
+  };
 }
 
 /**
@@ -537,7 +579,7 @@ export async function importBodyEvidenceZip(archiveData) {
   const sampleId = discoveredSampleIds.length === 1 ? discoveredSampleIds[0] : null;
 
   // Resolve Front and Side artifacts
-  const { front, side, calibration } = resolvePackageArtifacts(filesMap, sampleId);
+  const { front, side, calibration, rawSources } = resolvePackageArtifacts(filesMap, sampleId);
 
   // Clear archive map to release any unreferenced file buffers
   filesMap.clear();
@@ -564,6 +606,7 @@ export async function importBodyEvidenceZip(archiveData) {
     calibration,
     front,
     side,
+    rawSources,
   });
 
   return {

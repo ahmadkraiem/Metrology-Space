@@ -1182,6 +1182,7 @@ export function normalizeViewPackage(viewName, sources = {}) {
  *   calibration?: any,
  *   front?: { image?: any, pose?: any, segmentation?: any, pointmap?: any, normals?: any, calibration?: any },
  *   side?: { image?: any, pose?: any, segmentation?: any, pointmap?: any, normals?: any, calibration?: any },
+ *   rawSources?: object|null,
  * }} params
  * @returns {object} Canonical Body Evidence Package
  */
@@ -1191,6 +1192,7 @@ export function buildBodyEvidencePackage({
   calibration = null,
   front = {},
   side = {},
+  rawSources = null,
 } = {}) {
   const frontView = normalizeViewPackage('front', front);
   const sideView = normalizeViewPackage('side', side);
@@ -1221,6 +1223,7 @@ export function buildBodyEvidencePackage({
     calibration: normalizedCalibration,
     front: frontView,
     side: sideView,
+    rawSources: rawSources && typeof rawSources === 'object' ? { ...rawSources } : null,
     qa: {
       status: packageStatus,
       views,
