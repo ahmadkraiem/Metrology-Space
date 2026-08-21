@@ -186,27 +186,15 @@ function detectViewFromPath(path) {
  *
  * @param {Map<string, Uint8Array>} filesMap
  * @param {string|null} sampleId
- * @returns {{ front: object, side: object }}
+ * @returns {{ front: object, side: object, calibration: object|null }}
  */
 export function resolvePackageArtifacts(filesMap, sampleId = null) {
-  const front = {
-    image: null,
-    pose: null,
-    segmentation: null,
-    pointmap: null,
-    normals: null,
-  };
-
-  const side = {
-    image: null,
-    pose: null,
-    segmentation: null,
-    pointmap: null,
-    normals: null,
-  };
+  const front = { image: null, pose: null, segmentation: null, pointmap: null, normals: null, calibration: null };
+  const side = { image: null, pose: null, segmentation: null, pointmap: null, normals: null, calibration: null };
+  let packageCalibration = null;
 
   for (const [path, bytes] of filesMap.entries()) {
-    // If a sampleId is active, only process files belonging to that sample or global inputs
+    // If sampleId is known, prioritize files belonging to that sample directory
     if (sampleId) {
       const parts = path.split('/');
       const isInsideSample = parts.some((p) => p.toLowerCase() === sampleId.toLowerCase());
@@ -255,6 +243,26 @@ export function resolvePackageArtifacts(filesMap, sampleId = null) {
         continue;
       }
 
+      // Check if this is a recognized calibration contract or Body Pipeline calibration payload
+      const hasCalibContract = jsonPayload?.contract === 'metric-calibration-provenance-v0';
+      const hasCalibFields = Boolean(
+        jsonPayload
+        && (typeof jsonPayload.pixelsPerCm === 'number' || typeof jsonPayload.pixels_per_cm === 'number')
+        && (typeof jsonPayload.subjectHeightCm === 'number' || typeof jsonPayload.subject_height_cm === 'number'),
+      );
+
+      if (hasCalibContract || hasCalibFields) {
+        if (!packageCalibration) {
+          packageCalibration = jsonPayload;
+        }
+        if (jsonPayload.front && typeof jsonPayload.front === 'object' && !front.calibration) {
+          front.calibration = jsonPayload.front;
+        }
+        if (jsonPayload.side && typeof jsonPayload.side === 'object' && !side.calibration) {
+          side.calibration = jsonPayload.side;
+        }
+      }
+
       // Check view from path or inside JSON payload
       const declaredView = typeof jsonPayload?.view === 'string' ? jsonPayload.view.toLowerCase().trim() : null;
       const view = declaredView || detectViewFromPath(path);
@@ -264,6 +272,16 @@ export function resolvePackageArtifacts(filesMap, sampleId = null) {
       }
 
       const target = view === 'front' ? front : side;
+
+      // Check for view-level calibration provenance
+      const isViewCalib = Boolean(
+        jsonPayload
+        && (typeof jsonPayload.scaleFactor === 'number' || typeof jsonPayload.scale_factor === 'number'
+          || typeof jsonPayload.originalImageWidthPx === 'number' || typeof jsonPayload.orig_width === 'number'),
+      );
+      if (isViewCalib && !target.calibration) {
+        target.calibration = jsonPayload;
+      }
 
       // Identify artifact type based on folder prefix or payload keys
       if (
@@ -327,7 +345,7 @@ export function resolvePackageArtifacts(filesMap, sampleId = null) {
     }
   }
 
-  return { front, side };
+  return { front, side, calibration: packageCalibration };
 }
 
 /**
@@ -378,7 +396,7 @@ export async function importBodyEvidenceZip(archiveData) {
   const sampleId = discoveredSampleIds.length === 1 ? discoveredSampleIds[0] : null;
 
   // Resolve Front and Side artifacts
-  const { front, side } = resolvePackageArtifacts(filesMap, sampleId);
+  const { front, side, calibration } = resolvePackageArtifacts(filesMap, sampleId);
 
   // Clear archive map to release any unreferenced file buffers
   filesMap.clear();
@@ -402,6 +420,7 @@ export async function importBodyEvidenceZip(archiveData) {
   const pkg = buildBodyEvidencePackage({
     sampleId,
     sourceFormat: 'body-pipeline-zip-v0',
+    calibration,
     front,
     side,
   });

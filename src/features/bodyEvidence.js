@@ -49,6 +49,15 @@ import {
   evaluateCrossViewComparabilityQa,
 } from './crossViewComparabilityQa.js';
 import {
+  METRIC_CALIBRATION_PROVENANCE_CONTRACT_VERSION,
+  evaluateMetricCalibrationProvenance,
+} from './metricCalibrationProvenance.js';
+import {
+  PHYSICAL_MEASUREMENT_SEMANTICS_CONTRACT_VERSION,
+  SUPPORTED_PHYSICAL_MEASUREMENT_DEFINITIONS_V0,
+  evaluatePhysicalMeasurementSemantics,
+} from './physicalMeasurementSemantics.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -1297,6 +1306,118 @@ export function getCrossViewComparabilityQaReport({ annotations = null } = {}) {
       passCount,
       warningCount,
       failCount,
+      unavailableCount,
+    },
+    results,
+  };
+}
+
+/**
+ * Evaluates pure Metric Calibration Provenance for Front or Side view from active runtime package.
+ *
+ * @param {{ view?: 'front'|'side'|string }} [options]
+ * @returns {object|null}
+ */
+export function getMetricCalibrationProvenance({ view = 'front' } = {}) {
+  if (!currentPackage) return null;
+  const packageCalib = currentPackage.calibration ?? null;
+  const viewCalib = currentPackage[view]?.calibration ?? null;
+  const rasterDims = currentPackage[view]?.qa?.rasterDimensions
+    ?? (view === 'front'
+      ? (getFrontSegmentationRaster() ? { widthPx: getFrontSegmentationRaster().widthPx, heightPx: getFrontSegmentationRaster().heightPx } : null)
+      : (getSideSegmentationRaster() ? { widthPx: getSideSegmentationRaster().widthPx, heightPx: getSideSegmentationRaster().heightPx } : null));
+
+  return evaluateMetricCalibrationProvenance(packageCalib, viewCalib, rasterDims, { view });
+}
+
+/**
+ * Evaluates pure Physical Measurement Semantics for a single Front or Side measurement.
+ *
+ * @param {{ id: string, annotations?: Array<object>|null, physicalEvidencePaths?: Array<object>|object|null }} options
+ * @returns {object|null}
+ */
+export function getPhysicalMeasurementSemantics({ id, annotations = null, physicalEvidencePaths = null } = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_PHYSICAL_MEASUREMENT_DEFINITIONS_V0[id];
+  if (!def) return null;
+
+  let observation = null;
+  if (def.view === 'front') {
+    observation = getFrontTransverseWidth({ id: def.id, annotations })
+      ?? getFrontTransverseWidth({ id: 'torso_width_at_' + def.sourceLevel + '_level', annotations });
+  } else {
+    observation = getSideProfileSpan({ id: def.id, annotations })
+      ?? getSideProfileSpan({ id: 'torso_profile_span_at_' + def.sourceLevel + '_level', annotations });
+  }
+
+  const calibrationProvenance = getMetricCalibrationProvenance({ view: def.view });
+  const viewCalibration = currentPackage?.[def.view]?.calibration ?? null;
+
+  return evaluatePhysicalMeasurementSemantics(observation, {
+    calibrationProvenance,
+    viewCalibration,
+    physicalEvidencePaths,
+    definition: def,
+  });
+}
+
+/**
+ * Evaluates pure Physical Measurement Semantics for all canonical Front and Side measurements.
+ *
+ * @param {{ annotations?: Array<object>|null, physicalEvidencePaths?: Array<object>|object|null }} [options]
+ * @returns {{
+ *   contract: 'physical-measurement-semantics-report-v0',
+ *   version: string,
+ *   summary: {
+ *     total: number,
+ *     validatedCount: number,
+ *     projectedMetricOnlyCount: number,
+ *     unvalidatedCount: number,
+ *     invalidCount: number,
+ *     unavailableCount: number,
+ *   },
+ *   results: Array<object>,
+ * }|null}
+ */
+export function getPhysicalMeasurementSemanticsReport({ annotations = null, physicalEvidencePaths = null } = {}) {
+  const frontRaster = getFrontSegmentationRaster();
+  const sideRaster = getSideSegmentationRaster();
+  if (!frontRaster && !sideRaster && !currentPackage) return null;
+
+  const canonicalIds = [
+    'torso_transverse_width_at_shoulder_level',
+    'torso_transverse_width_at_hip_level',
+    'torso_profile_span_at_shoulder_level',
+    'torso_profile_span_at_hip_level',
+  ];
+
+  const results = canonicalIds.map((id) =>
+    getPhysicalMeasurementSemantics({ id, annotations, physicalEvidencePaths })
+  );
+
+  let validatedCount = 0;
+  let projectedMetricOnlyCount = 0;
+  let unvalidatedCount = 0;
+  let invalidCount = 0;
+  let unavailableCount = 0;
+
+  for (const res of results) {
+    if (res?.status === 'validated') validatedCount += 1;
+    else if (res?.status === 'projected_metric_only') projectedMetricOnlyCount += 1;
+    else if (res?.status === 'invalid') invalidCount += 1;
+    else if (res?.status === 'unvalidated') unvalidatedCount += 1;
+    else unavailableCount += 1;
+  }
+
+  return {
+    contract: 'physical-measurement-semantics-report-v0',
+    version: PHYSICAL_MEASUREMENT_SEMANTICS_CONTRACT_VERSION,
+    summary: {
+      total: results.length,
+      validatedCount,
+      projectedMetricOnlyCount,
+      unvalidatedCount,
+      invalidCount,
       unavailableCount,
     },
     results,

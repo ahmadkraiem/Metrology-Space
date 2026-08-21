@@ -933,6 +933,133 @@ export function normalizeNormalsEvidence(rawNormals, {
 }
 
 /**
+ * Normalizes top-level package calibration declarations.
+ * @param {object|null|undefined} rawCalibration
+ * @returns {object|null}
+ */
+export function normalizePackageCalibration(rawCalibration) {
+  if (!rawCalibration || typeof rawCalibration !== 'object') {
+    return null;
+  }
+
+  const declaredIsCalibrated = Boolean(
+    rawCalibration.declaredIsCalibrated
+    ?? rawCalibration.isCalibrated
+    ?? rawCalibration.calibrated,
+  );
+
+  const rawPixelsPerCm = rawCalibration.pixelsPerCm ?? rawCalibration.pixels_per_cm ?? null;
+  const pixelsPerCm = typeof rawPixelsPerCm === 'number' && Number.isFinite(rawPixelsPerCm) && rawPixelsPerCm > 0
+    ? rawPixelsPerCm
+    : null;
+
+  const rawHeight = rawCalibration.subjectHeightCm ?? rawCalibration.subject_height_cm ?? null;
+  const subjectHeightCm = typeof rawHeight === 'number' && Number.isFinite(rawHeight) && rawHeight > 0
+    ? rawHeight
+    : null;
+
+  const rawCanvasW = rawCalibration.standardizedCanvasWidthPx ?? rawCalibration.standardized_canvas_width ?? rawCalibration.canvasWidthPx ?? 2000;
+  const standardizedCanvasWidthPx = typeof rawCanvasW === 'number' && Number.isInteger(rawCanvasW) && rawCanvasW > 0
+    ? rawCanvasW
+    : 2000;
+
+  const rawCanvasH = rawCalibration.standardizedCanvasHeightPx ?? rawCalibration.standardized_canvas_height ?? rawCalibration.canvasHeightPx ?? 2000;
+  const standardizedCanvasHeightPx = typeof rawCanvasH === 'number' && Number.isInteger(rawCanvasH) && rawCanvasH > 0
+    ? rawCanvasH
+    : 2000;
+
+  const isIsotropic = rawCalibration.isIsotropic !== undefined ? Boolean(rawCalibration.isIsotropic) : true;
+
+  const metricScaleSource = typeof rawCalibration.metricScaleSource === 'string'
+    ? rawCalibration.metricScaleSource.trim()
+    : (typeof rawCalibration.scale_source === 'string' ? rawCalibration.scale_source.trim() : (subjectHeightCm ? 'known_subject_height' : null));
+
+  const standardizationSource = typeof rawCalibration.standardizationSource === 'string'
+    ? rawCalibration.standardizationSource.trim()
+    : (typeof rawCalibration.standardization_source === 'string' ? rawCalibration.standardization_source.trim() : null);
+
+  return {
+    contract: 'metric-calibration-provenance-v0',
+    version: 'metric-calibration-provenance-v0',
+    declaredIsCalibrated,
+    metricScaleSource,
+    subjectHeightCm,
+    pixelsPerCm,
+    standardizedCanvasWidthPx,
+    standardizedCanvasHeightPx,
+    isIsotropic,
+    standardizationSource,
+  };
+}
+
+/**
+ * Normalizes view-level calibration provenance.
+ * @param {object|null|undefined} rawViewCalibration
+ * @param {'front'|'side'|string} [viewName]
+ * @returns {object|null}
+ */
+export function normalizeViewCalibration(rawViewCalibration, viewName = null) {
+  if (!rawViewCalibration || typeof rawViewCalibration !== 'object') {
+    return null;
+  }
+
+  const view = rawViewCalibration.view ?? viewName ?? null;
+
+  const origW = typeof rawViewCalibration.originalImageWidthPx === 'number' && rawViewCalibration.originalImageWidthPx > 0
+    ? rawViewCalibration.originalImageWidthPx
+    : (typeof rawViewCalibration.orig_width === 'number' && rawViewCalibration.orig_width > 0 ? rawViewCalibration.orig_width : null);
+
+  const origH = typeof rawViewCalibration.originalImageHeightPx === 'number' && rawViewCalibration.originalImageHeightPx > 0
+    ? rawViewCalibration.originalImageHeightPx
+    : (typeof rawViewCalibration.orig_height === 'number' && rawViewCalibration.orig_height > 0 ? rawViewCalibration.orig_height : null);
+
+  const scaleFactor = typeof rawViewCalibration.scaleFactor === 'number' && Number.isFinite(rawViewCalibration.scaleFactor) && rawViewCalibration.scaleFactor > 0
+    ? rawViewCalibration.scaleFactor
+    : (typeof rawViewCalibration.scale_factor === 'number' && rawViewCalibration.scale_factor > 0 ? rawViewCalibration.scale_factor : null);
+
+  const scaledW = typeof rawViewCalibration.scaledWidthPx === 'number' && rawViewCalibration.scaledWidthPx > 0
+    ? rawViewCalibration.scaledWidthPx
+    : (typeof rawViewCalibration.scaled_width === 'number' && rawViewCalibration.scaled_width > 0 ? rawViewCalibration.scaled_width : null);
+
+  const scaledH = typeof rawViewCalibration.scaledHeightPx === 'number' && rawViewCalibration.scaledHeightPx > 0
+    ? rawViewCalibration.scaledHeightPx
+    : (typeof rawViewCalibration.scaled_height === 'number' && rawViewCalibration.scaled_height > 0 ? rawViewCalibration.scaled_height : null);
+
+  const offsetX = typeof rawViewCalibration.offsetX === 'number' && Number.isFinite(rawViewCalibration.offsetX)
+    ? rawViewCalibration.offsetX
+    : (typeof rawViewCalibration.offset_x === 'number' && Number.isFinite(rawViewCalibration.offset_x) ? rawViewCalibration.offset_x : null);
+
+  const offsetY = typeof rawViewCalibration.offsetY === 'number' && Number.isFinite(rawViewCalibration.offsetY)
+    ? rawViewCalibration.offsetY
+    : (typeof rawViewCalibration.offset_y === 'number' && Number.isFinite(rawViewCalibration.offset_y) ? rawViewCalibration.offset_y : null);
+
+  const rawCat = rawViewCalibration.viewCategoryValidated
+    ?? rawViewCalibration.view_category_validated
+    ?? rawViewCalibration.sideViewValidated
+    ?? rawViewCalibration.side_view_validated;
+  const viewCategoryValidated = typeof rawCat === 'boolean' ? rawCat : null;
+
+  const rawOrient = rawViewCalibration.viewOrientation
+    ?? rawViewCalibration.view_orientation
+    ?? rawViewCalibration.sideViewOrientation
+    ?? rawViewCalibration.side_view_orientation;
+  const viewOrientation = typeof rawOrient === 'string' ? rawOrient.trim() : null;
+
+  return {
+    view,
+    originalImageWidthPx: origW,
+    originalImageHeightPx: origH,
+    scaleFactor,
+    scaledWidthPx: scaledW,
+    scaledHeightPx: scaledH,
+    offsetX,
+    offsetY,
+    viewCategoryValidated,
+    viewOrientation,
+  };
+}
+
+/**
  * Normalizes all modalities for a single view (Front or Side).
  * @param {'front'|'side'} viewName
  * @param {object} sources
@@ -945,9 +1072,11 @@ export function normalizeViewPackage(viewName, sources = {}) {
     segmentation = null,
     pointmap = null,
     normals = null,
+    calibration = null,
   } = sources;
 
   const normalizedImage = normalizeImageEvidence(image, { expectedView: viewName });
+  const normalizedCalibration = normalizeViewCalibration(calibration, viewName);
 
   // Determine reference width and height for this view
   const segStats = segmentation
@@ -1009,6 +1138,7 @@ export function normalizeViewPackage(viewName, sources = {}) {
     segmentation: Boolean(segmentation),
     pointmap: pointmapStats.present,
     normals: normalsStats.present,
+    calibration: Boolean(normalizedCalibration),
   };
 
   const viewStatus = issues.length > 0 ? 'fail' : (warnings.length > 0 ? 'warning' : 'pass');
@@ -1019,6 +1149,7 @@ export function normalizeViewPackage(viewName, sources = {}) {
     segmentation: segStats,
     pointmap: pointmapStats,
     normals: normalsStats,
+    calibration: normalizedCalibration,
     qa: {
       status: viewStatus,
       modalities,
@@ -1046,19 +1177,22 @@ export function normalizeViewPackage(viewName, sources = {}) {
  * @param {{
  *   sampleId?: string|null,
  *   sourceFormat?: string,
- *   front?: { image?: any, pose?: any, segmentation?: any, pointmap?: any, normals?: any },
- *   side?: { image?: any, pose?: any, segmentation?: any, pointmap?: any, normals?: any },
+ *   calibration?: any,
+ *   front?: { image?: any, pose?: any, segmentation?: any, pointmap?: any, normals?: any, calibration?: any },
+ *   side?: { image?: any, pose?: any, segmentation?: any, pointmap?: any, normals?: any, calibration?: any },
  * }} params
  * @returns {object} Canonical Body Evidence Package
  */
 export function buildBodyEvidencePackage({
   sampleId = null,
   sourceFormat = DEFAULT_SOURCE_FORMAT,
+  calibration = null,
   front = {},
   side = {},
 } = {}) {
   const frontView = normalizeViewPackage('front', front);
   const sideView = normalizeViewPackage('side', side);
+  const normalizedCalibration = normalizePackageCalibration(calibration);
 
   const issues = [...frontView.qa.issues, ...sideView.qa.issues];
   const warnings = [...frontView.qa.warnings, ...sideView.qa.warnings];
@@ -1082,6 +1216,7 @@ export function buildBodyEvidencePackage({
     version: PACKAGE_VERSION,
     sourceFormat,
     sampleId: typeof sampleId === 'string' && sampleId.trim() ? sampleId.trim() : null,
+    calibration: normalizedCalibration,
     front: frontView,
     side: sideView,
     qa: {
@@ -1096,3 +1231,4 @@ export function buildBodyEvidencePackage({
     },
   };
 }
+
