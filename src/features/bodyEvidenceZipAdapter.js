@@ -23,6 +23,14 @@
 import * as fflate from 'fflate';
 import { buildBodyEvidencePackage } from './bodyEvidencePackage.js';
 
+/**
+ * Known path pattern for the Body Pipeline Align stage result.
+ * Matches 'body/Align/result.json' with or without a leading root folder
+ * (e.g. 'output/body/Align/result.json').
+ * @type {RegExp}
+ */
+const ALIGN_RESULT_PATH_RE = /(?:^|\/)body\/align\/result\.json$/i;
+
 const DEBUG_PREVIEW_PATTERNS = [
   '_overlay',
   '_vis',
@@ -53,6 +61,119 @@ const IGNORED_SYSTEM_PATTERNS = [
 function isIgnoredSystemPath(path) {
   const lower = path.toLowerCase();
   return IGNORED_SYSTEM_PATTERNS.some((pattern) => lower.includes(pattern));
+}
+
+/**
+ * Detects whether a file path matches the known body/Align/result.json location.
+ * Accepts with or without a leading root folder (e.g. 'output/body/Align/result.json').
+ * @param {string} path
+ * @returns {boolean}
+ */
+export function isAlignResultPath(path) {
+  return ALIGN_RESULT_PATH_RE.test(path);
+}
+
+/**
+ * Validates that a parsed JSON payload has the structural shape of a Body Pipeline Align result.
+ * Does not require exact field presence — checks the key discriminating fields.
+ * @param {any} payload
+ * @returns {boolean}
+ */
+export function isAlignResultPayload(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  // Must have the Align stage identity fields
+  if (payload.stage !== 'Align') return false;
+  if (typeof payload.pixels_per_cm !== 'number') return false;
+  if (typeof payload.height_cm !== 'number') return false;
+  if (!payload.views || typeof payload.views !== 'object') return false;
+  return true;
+}
+
+/**
+ * Maps a real Body Pipeline Align result.json into the canonical REVacity calibration schema.
+ *
+ * Package-level mapping:
+ *   height_cm          → subjectHeightCm (alias: subject_height_cm)
+ *   pixels_per_cm      → pixelsPerCm (alias: pixels_per_cm)
+ *   canvas_size         → standardizedCanvasWidthPx, standardizedCanvasHeightPx
+ *
+ * The Align stage applies one scalar scale_factor to both axes (uniform scalar scaling).
+ * We set isIsotropic: true to indicate this upstream contract — REVacity independently
+ * validates the numerical pixel-domain consistency via its isotropic check.
+ *
+ * Per-view mapping (views.front, views.side):
+ *   crop.cropped_size.width   → originalImageWidthPx
+ *   crop.cropped_size.height  → originalImageHeightPx
+ *   scale.scale_factor        → scaleFactor
+ *   scale.scaled_size.width   → scaledWidthPx
+ *   scale.scaled_size.height  → scaledHeightPx
+ *   canvas.paste_position.x   → offsetX
+ *   canvas.paste_position.y   → offsetY
+ *
+ * Upstream provenance fields are preserved where practical.
+ *
+ * @param {object} alignResult - Parsed body/Align/result.json
+ * @returns {{ packageCalibration: object, frontCalibration: object|null, sideCalibration: object|null }}
+ */
+export function mapAlignResultToCalibration(alignResult) {
+  const canvasSize = typeof alignResult.canvas_size === 'number' && alignResult.canvas_size > 0
+    ? alignResult.canvas_size
+    : 2000;
+
+  const packageCalibration = {
+    // Canonical fields expected by normalizePackageCalibration()
+    pixels_per_cm: alignResult.pixels_per_cm,
+    subject_height_cm: alignResult.height_cm,
+    standardized_canvas_width: canvasSize,
+    standardized_canvas_height: canvasSize,
+    // The Align stage applies one scalar scale_factor to both width and height (uniform scalar scaling).
+    // The adapter does NOT inject validated isotropy as authoritative truth; REVacity independently
+    // validates isotropic numerical consistency in the pixel domain.
+    declaredScaleModel: 'uniform_scalar',
+    // Provenance
+    calibrated: true,
+    metricScaleSource: 'known_subject_height',
+    standardizationSource: 'body-pipeline-align-v0',
+    _alignStage: alignResult.stage,
+    _alignCreatedAt: alignResult.created_at,
+    _alignClientId: alignResult.client_id,
+  };
+
+  function mapViewCalibration(viewKey) {
+    const viewData = alignResult.views?.[viewKey];
+    if (!viewData || typeof viewData !== 'object') return null;
+
+    const crop = viewData.crop;
+    const scale = viewData.scale;
+    const canvas = viewData.canvas;
+
+    return {
+      view: viewKey,
+      // Source dimensions: the cropped image that scaleFactor was applied to
+      originalImageWidthPx: crop?.cropped_size?.width ?? null,
+      originalImageHeightPx: crop?.cropped_size?.height ?? null,
+      // Scale transform
+      scaleFactor: scale?.scale_factor ?? null,
+      scaledWidthPx: scale?.scaled_size?.width ?? null,
+      scaledHeightPx: scale?.scaled_size?.height ?? null,
+      // Canvas placement offsets
+      offsetX: canvas?.paste_position?.x ?? null,
+      offsetY: canvas?.paste_position?.y ?? null,
+      // Upstream provenance (preserved, not consumed by the evaluator)
+      _targetBodyHeightPx: scale?.target_body_height_px ?? null,
+      _realHeightCm: scale?.real_height_cm ?? null,
+      _validationExpectedHeightPx: scale?.validation?.expected_height_px ?? null,
+      _validationActualHeightPx: scale?.validation?.actual_height_px ?? null,
+      _validationErrorPx: scale?.validation?.error_px ?? null,
+      _originalImageSize: crop?.original_size ?? null,
+    };
+  }
+
+  return {
+    packageCalibration,
+    frontCalibration: mapViewCalibration('front'),
+    sideCalibration: mapViewCalibration('side'),
+  };
 }
 
 /**
@@ -194,13 +315,15 @@ export function resolvePackageArtifacts(filesMap, sampleId = null) {
   let packageCalibration = null;
 
   for (const [path, bytes] of filesMap.entries()) {
-    // If sampleId is known, prioritize files belonging to that sample directory
+    // If sampleId is known, prioritize files belonging to that sample directory.
+    // body/ paths (Align, Apose) are pipeline-wide and bypass sample filtering.
     if (sampleId) {
       const parts = path.split('/');
       const isInsideSample = parts.some((p) => p.toLowerCase() === sampleId.toLowerCase());
       const topLevelFolders = ['images', 'image', 'inputs', 'input', 'input_images', 'raw_images', 'photos'];
       const isTopLevelInput = parts.length === 1 || topLevelFolders.includes(parts[0].toLowerCase());
-      if (!isInsideSample && !isTopLevelInput) {
+      const isBodyPipelinePath = parts.some((p) => p.toLowerCase() === 'body');
+      if (!isInsideSample && !isTopLevelInput && !isBodyPipelinePath) {
         continue;
       }
     }
@@ -243,12 +366,30 @@ export function resolvePackageArtifacts(filesMap, sampleId = null) {
         continue;
       }
 
+      // Check for Body Pipeline Align result.json (explicit path + schema detection)
+      if (isAlignResultPath(path) && isAlignResultPayload(jsonPayload)) {
+        const mapped = mapAlignResultToCalibration(jsonPayload);
+        if (!packageCalibration) {
+          packageCalibration = mapped.packageCalibration;
+        }
+        if (mapped.frontCalibration && !front.calibration) {
+          front.calibration = mapped.frontCalibration;
+        }
+        if (mapped.sideCalibration && !side.calibration) {
+          side.calibration = mapped.sideCalibration;
+        }
+        // Align result.json is a calibration artifact, not a view-specific modality;
+        // skip further artifact classification for this file.
+        continue;
+      }
+
       // Check if this is a recognized calibration contract or Body Pipeline calibration payload
       const hasCalibContract = jsonPayload?.contract === 'metric-calibration-provenance-v0';
       const hasCalibFields = Boolean(
         jsonPayload
         && (typeof jsonPayload.pixelsPerCm === 'number' || typeof jsonPayload.pixels_per_cm === 'number')
-        && (typeof jsonPayload.subjectHeightCm === 'number' || typeof jsonPayload.subject_height_cm === 'number'),
+        && (typeof jsonPayload.subjectHeightCm === 'number' || typeof jsonPayload.subject_height_cm === 'number'
+          || typeof jsonPayload.height_cm === 'number'),
       );
 
       if (hasCalibContract || hasCalibFields) {

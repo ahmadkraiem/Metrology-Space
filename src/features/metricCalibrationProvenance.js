@@ -31,8 +31,29 @@ export const METRIC_CALIBRATION_STATUS = Object.freeze({
   UNAVAILABLE: 'unavailable',
 });
 
-/** Numeric tolerance for isotropic scale ratio comparisons. */
+/**
+ * Numeric tolerance for isotropic scale ratio comparisons (legacy).
+ * Retained for backward-compatible export; the primary isotropic check now uses
+ * pixel-domain rounding validation via ISOTROPIC_ROUNDING_TOLERANCE_PX.
+ */
 export const SCALE_FACTOR_NUMERIC_TOLERANCE = 1e-4;
+
+/**
+ * Pixel-domain tolerance for isotropic scaling validation.
+ *
+ * Upstream rasterization (e.g. body/Align) applies a single scalar scaleFactor to both
+ * width and height, then rounds each axis independently to the nearest integer pixel.
+ * This rounding can cause the realized ratio scaledPx/originalPx to deviate from the
+ * declared scaleFactor by up to ~0.5/min(originalW,originalH) per axis.
+ *
+ * A tolerance of 1.0 pixel accommodates normal integer rounding while still rejecting
+ * materially contradictory metadata (e.g. a 2-pixel discrepancy in a 400 px crop
+ * implies the scaleFactor is wrong, not a rounding artifact).
+ *
+ * Validation rule per axis:
+ *   |actualScaledPx - (originalPx × scaleFactor)| ≤ ISOTROPIC_ROUNDING_TOLERANCE_PX
+ */
+export const ISOTROPIC_ROUNDING_TOLERANCE_PX = 1.0;
 
 /** Numeric tolerance for canvas metric extent in cm compared to ROOM_SIZE (200 cm). */
 export const CANVAS_EXTENT_NUMERIC_TOLERANCE_CM = 1e-4;
@@ -154,8 +175,13 @@ export function evaluateMetricCalibrationProvenance(
     );
   }
 
-  // 3. Isotropic Scaling Check
-  const isIsotropic = packageCalibration.isIsotropic;
+  // 3. Isotropic / Uniform Scaling Check
+  //
+  // Upstream Align stages provide a single scalar scaleFactor per view (uniform scalar scaling).
+  // REVacity does not take an adapter's "isIsotropic: true" assertion as authoritative truth;
+  // instead, REVacity independently validates uniform/isotropic scaling consistency in the
+  // pixel domain against the declared scaleFactor and crop dimensions.
+  const declaredIsIsotropic = packageCalibration?.isIsotropic;
   const origW = viewCalibration?.originalImageWidthPx;
   const origH = viewCalibration?.originalImageHeightPx;
   const scaledW = viewCalibration?.scaledWidthPx;
@@ -163,12 +189,12 @@ export function evaluateMetricCalibrationProvenance(
   const scaleFactor = viewCalibration?.scaleFactor;
 
   let isotropicPass = true;
-  if (isIsotropic !== true) {
+  if (declaredIsIsotropic === false) {
     recordCheck(
       'isotropic_scale_validated',
       'Isotropic Scale Validation',
       'fail',
-      `Non-isotropic scaling declared: isIsotropic=${isIsotropic}. Non-uniform scaling invalidates metric calibration.`,
+      'Non-isotropic scaling declared: isIsotropic=false. Non-uniform scaling invalidates metric calibration.',
     );
     isotropicPass = false;
     isInvalid = true;
@@ -179,30 +205,43 @@ export function evaluateMetricCalibrationProvenance(
     && typeof scaledH === 'number' && scaledH > 0
     && typeof scaleFactor === 'number' && scaleFactor > 0
   ) {
-    const ratioW = scaledW / origW;
-    const ratioH = scaledH / origH;
-    const diffW = Math.abs(ratioW - scaleFactor);
-    const diffH = Math.abs(ratioH - scaleFactor);
-    const axisDiff = Math.abs(ratioW - ratioH);
+    // Pixel-domain rounding-aware validation:
+    // Compute the expected scaled dimension from the declared scaleFactor,
+    // then verify the actual integer pixel is within ±ISOTROPIC_ROUNDING_TOLERANCE_PX.
+    const expectedW = origW * scaleFactor;
+    const expectedH = origH * scaleFactor;
+    const pixelDiffW = Math.abs(scaledW - expectedW);
+    const pixelDiffH = Math.abs(scaledH - expectedH);
 
-    if (diffW > SCALE_FACTOR_NUMERIC_TOLERANCE || diffH > SCALE_FACTOR_NUMERIC_TOLERANCE || axisDiff > SCALE_FACTOR_NUMERIC_TOLERANCE) {
+    if (pixelDiffW > ISOTROPIC_ROUNDING_TOLERANCE_PX || pixelDiffH > ISOTROPIC_ROUNDING_TOLERANCE_PX) {
       recordCheck(
         'isotropic_scale_validated',
         'Isotropic Scale Validation',
         'fail',
-        `Contradictory scale ratios: horizontal ratio (${ratioW}) or vertical ratio (${ratioH}) does not match scaleFactor (${scaleFactor}) within tolerance ${SCALE_FACTOR_NUMERIC_TOLERANCE}.`,
+        `Contradictory scaled dimensions: expected [${expectedW.toFixed(2)}×${expectedH.toFixed(2)}] from scaleFactor ${scaleFactor}, got [${scaledW}×${scaledH}]. Pixel deltas: width=${pixelDiffW.toFixed(4)}, height=${pixelDiffH.toFixed(4)} exceed tolerance ${ISOTROPIC_ROUNDING_TOLERANCE_PX} px.`,
       );
       isotropicPass = false;
       isInvalid = true;
     }
+  } else if (declaredIsIsotropic !== true && typeof scaleFactor !== 'number') {
+    recordCheck(
+      'isotropic_scale_validated',
+      'Isotropic Scale Validation',
+      'fail',
+      'No uniform scaleFactor or isotropic scaling declaration present to validate scaling geometry.',
+    );
+    isotropicPass = false;
+    isInvalid = true;
   }
 
-  if (isotropicPass && isIsotropic === true) {
+  if (isotropicPass && declaredIsIsotropic !== false) {
     recordCheck(
       'isotropic_scale_validated',
       'Isotropic Scale Validation',
       'pass',
-      'Isotropic scaling confirmed (sx == sy) and consistent with scale factor provenance.',
+      typeof scaleFactor === 'number' && scaleFactor > 0
+        ? `Isotropic scaling confirmed: scaleFactor=${scaleFactor}, pixel-domain deltas within ±${ISOTROPIC_ROUNDING_TOLERANCE_PX} px.`
+        : 'Isotropic scaling declared; no per-axis dimensions available for cross-validation.',
     );
   }
 
@@ -367,7 +406,9 @@ export function evaluateMetricCalibrationProvenance(
       metricScaleSource: packageCalibration.metricScaleSource ?? null,
       subjectHeightCm: packageCalibration.subjectHeightCm ?? null,
       pixelsPerCm: packageCalibration.pixelsPerCm ?? null,
-      isIsotropic: Boolean(packageCalibration.isIsotropic),
+      isIsotropic: isotropicPass,
+      declaredIsIsotropic: packageCalibration.isIsotropic ?? null,
+      declaredScaleModel: packageCalibration.declaredScaleModel ?? null,
       standardizedCanvasWidthPx: canvasW ?? null,
       standardizedCanvasHeightPx: canvasH ?? null,
       standardizationSource: packageCalibration.standardizationSource ?? null,

@@ -968,7 +968,9 @@ export function normalizePackageCalibration(rawCalibration) {
     ? rawCanvasH
     : 2000;
 
-  const isIsotropic = rawCalibration.isIsotropic !== undefined ? Boolean(rawCalibration.isIsotropic) : true;
+  const isIsotropic = rawCalibration.isIsotropic !== undefined
+    ? Boolean(rawCalibration.isIsotropic)
+    : (rawCalibration.declaredIsotropic !== undefined ? Boolean(rawCalibration.declaredIsotropic) : null);
 
   const metricScaleSource = typeof rawCalibration.metricScaleSource === 'string'
     ? rawCalibration.metricScaleSource.trim()
