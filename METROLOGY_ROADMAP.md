@@ -115,7 +115,7 @@ Extract deterministic Side profile spans from validated Side segmentation eviden
   - Runtime getters in `src/features/bodyEvidence.js`: `getSideProfileSpan()`, `getSideProfileSpans()` (`side-profile-spans-report-v0`). Pure interpretation decoupled from direct segmentation or level scans (orchestrated by `bodyEvidence.js`: level readiness $\to$ `getSideHorizontalRasterSlice()` $\to$ `interpretSideProfileSpan()`).
   - Strict Guardrails: Authoritative term is **Side profile span**. Side $U$ remains 2D profile-coordinate evidence only; it is **NOT** canonical $Z$, and it is **NOT** validated physical depth. No $U \to Z$ conversion, no Front/Side fusion, no cross-view calculations, no circumference/cross-section/volume, no ellipse assumptions, and no pointmap/normals geometry.
 
-### 4.5 Cross-view Correspondence + QA — ACTIVE
+### 4.5 Cross-view Correspondence + QA — COMPLETED
 
 Extend beyond vertical-Y landmark alignment through explicit measurement correspondence and cross-view comparability QA contracts:
 
@@ -130,14 +130,48 @@ Extend beyond vertical-Y landmark alignment through explicit measurement corresp
   - Provenance & Evidence Preservation: Intact Front observation (`valueCm`, `leftXcm`, `rightXcm` in X-space) and Side observation (`valueCm`, `minUcm`, `maxUcm` in U-space) preserved without reinterpretation. Y-level provenance (`levelYcm`) preserved and verified (contradictory finite Y values trigger status `invalid`). No new Y alignment, correction, tolerance remapping, or modification to `frontSideAlignment.js`.
   - Runtime getters in `src/features/bodyEvidence.js`: `getCrossViewMeasurementCorrespondence()`, `getCrossViewMeasurementCorrespondences()` (`cross-view-measurement-correspondences-report-v0`).
   - Strict Guardrails: The status `ready` indicates **correspondence-readiness only**; it does NOT mean geometry-ready and does NOT validate Side U as physical depth. Side U remains 2D profile-coordinate evidence only; no $U \to Z$ conversion, no Front/Side geometry fusion, no depth fields, no ellipse/circumference/cross-section/volume calculations, and no pointmap/normals geometry.
-- **4.5B Cross-view Comparability QA v0 — NEXT**:
-  - Pure QA over established 4.5A correspondence evidence.
-  - Assess whether paired Front/Side observations are sufficiently qualified and internally consistent for later validated cross-view use.
-  - Preserve evidence/provenance/status; do NOT convert U to Z; do NOT declare validated physical depth; do NOT calculate circumference/cross-section; keep 4.6 BLOCKED.
+- **4.5B Cross-view Comparability QA v0 (`cross-view-comparability-qa-v0`) — COMPLETED**:
+  - Pure deterministic QA layer (`src/features/crossViewComparabilityQa.js`) evaluating whether established 4.5A correspondence evidence is sufficiently qualified and internally consistent for later cross-view use.
+  - 4-state QA taxonomy: `pass`, `warning`, `fail`, `unavailable`. Availability taxonomy: `available`, `unavailable`.
+  - Deterministic inspectable checks (10 total):
+    1. `correspondence_contract_valid`: Validates contract tag `cross-view-measurement-correspondence-v0`.
+    2. `supported_definition`: Confirms registry-supported correspondence definition.
+    3. `correspondence_status`: Inspects correspondence status (`ready` $\to$ pass; `partial` $\to$ warning; `unavailable` $\to$ skip; `invalid` $\to$ fail).
+    4. `front_observation_valid`: Validates Front observation contract, view `'front'`, and status `'valid'`.
+    5. `side_observation_valid`: Validates Side observation contract, view `'side'`, and status `'valid'`.
+    6. `source_level_consistent`: Confirms consistent source anatomical level across definition, Front, and Side provenance.
+    7. `y_provenance_consistent`: Reuses established 4.5A consistency rule (`|frontLevelYcm - sideLevelYcm| <= 1e-4`). No new alignment algorithm, Y correction, or tolerance remapping. `frontSideAlignment.js` remains unchanged.
+    8. `front_measurement_evidence_complete`: Confirms finite `valueCm > 0` and valid metric endpoints `leftXcm < rightXcm`.
+    9. `side_profile_evidence_complete`: Confirms finite `valueCm > 0` and valid metric endpoints `minUcm < maxUcm`.
+    10. `source_slice_provenance_complete`: Pure structural check verifying sampled row indices and slice contract identifiers without raster re-read or segmentation rescan.
+  - Status semantics:
+    - `pass`: Registered, structurally valid correspondence with status `ready`, valid Front/Side observations, consistent source level and Y provenance, complete metric evidence, and complete slice provenance.
+    - `warning`: Reserved for structurally valid but only partially qualified correspondence evidence (e.g. status `partial`).
+    - `fail`: Structural failure or contradiction (invalid correspondence/source, wrong contract/view, unsupported definition, mismatched level, contradictory Y provenance, missing required endpoints).
+    - `unavailable`: Correspondence/evidence absent or unavailable without structural contract contradiction.
+  - Runtime getters in `src/features/bodyEvidence.js`: `getCrossViewComparabilityQa()`, `getCrossViewComparabilityQaReport()` (`cross-view-comparability-qa-report-v0`).
+  - Critical Semantics: A QA `pass` strictly certifies that Front transverse width and Side profile span are **structurally comparable and sufficiently qualified at the current 2D evidence-contract level**. It does **NOT** validate physical depth, does **NOT** treat Side U as canonical $Z$, does **NOT** approve 3D geometry fusion, and does **NOT** certify circumference, ellipse, cross-section, or volume inference.
+
+### 4.5C Side Physical-Frame / Depth Semantics Validation v0 — NEXT
+
+Validation and design milestone to investigate and establish whether and under what proven calibration/frame assumptions Side U-space profile evidence can represent a physically meaningful body depth quantity.
+
+Explicit validation scope:
+- Side coordinate-frame semantics and camera/projection assumptions
+- Scale and calibration validity across views
+- Whether Side U metric spans correspond to physical body dimensions
+- Required provenance and calibration metadata
+- Failure and unknown states when physical depth semantics cannot be established
+
+Strict Guardrails:
+- Do NOT assume Side $U \equiv \text{canonical } Z$.
+- Do NOT assume Side profile span is already physical depth.
+- Do NOT assume Front/Side geometry fusion is already valid.
+- 4.6 remains BLOCKED until 4.5C validates the required physical semantics.
 
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 
-Blocked until Front transverse widths (4.3), Side profile spans (4.4), and cross-view correspondence QA (4.5) are fully validated.
+Blocked until Front transverse widths (4.3), Side profile spans (4.4), cross-view correspondence QA (4.5), and Side physical-frame / depth semantics validation (4.5C) are fully validated.
 Strict Guardrail: No premature ellipse/circumference assumptions.
 
 ## 5. Canonical / Latent Layer — LATER
@@ -211,5 +245,5 @@ When changing direction:
 
 ## 9. Immediate Next Milestone
 
-**4.5B — Cross-view Comparability QA v0**
+**4.5C — Side Physical-Frame / Depth Semantics Validation v0**
 

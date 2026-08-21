@@ -58,6 +58,8 @@ latent-space/
 │   │   ├── bodyMeasurementLevels.js # Measurement Reference Levels v0 compute (orphaned / internal helper)
 │   │   ├── bodyMeasurementLines.js  # Anatomical Measurement Lines v0 compute (candidate readiness lines)
 │   │   ├── bodyMeasurementPreview.js # Measurement Line Preview Overlay v0 (3D + Front 2D preview lines)
+│   │   ├── crossViewComparabilityQa.js # Cross-view Comparability QA Contract v0 — pure deterministic comparability QA over established 4.5A correspondence evidence across 10 inspectable checks
+│   │   ├── crossViewComparabilityQa.test.js # Cross-view Comparability QA Contract v0 unit tests
 │   │   ├── crossViewMeasurementCorrespondence.js # Cross-view Measurement Correspondence Contract v0 — pure deterministic correspondence pairing Front transverse width and Side profile span observations at matching anatomical source levels
 │   │   ├── crossViewMeasurementCorrespondence.test.js # Cross-view Measurement Correspondence Contract v0 unit tests
 │   │   ├── denseEvidenceQa.js       # Pointmap, Surface Normal, and Same-View Cross-Modal Dense Evidence QA Core v0
@@ -170,7 +172,7 @@ latent-space/
 | `bodyEvidenceZipAdapter.js` | **Body Evidence ZIP Import Adapter v0.** Temporary transport and discovery adapter. Unzips archives, detects single-sample subdirectories, filters debug/preview artifacts, matches Front and Side modalities, and builds normalized packages. Zero UI or scene coupling. |
 | `bodyEvidenceAdapter.js` | **Landmark & Segmentation Normalization.** Pure stateless algorithms for Core 13 / Secondary allowlist pose classification, face/head rejection, and 29-class segmentation decoding and validation. |
 | `denseEvidenceQa.js` | **Dense Evidence QA Core v0.** Pure deterministic Pointmap Numeric QA (`pointmap-numeric-qa-v0`), Surface Normal Numeric QA (`normal-numeric-qa-v0`), and Same-View Cross-Modal Dense QA (`same-view-dense-cross-modal-qa-v0`). Evaluates finite/non-finite element/vector statistics, raw channel bounds, normal magnitudes, declared range violations, raster compatibility, addressability, and observational mask groups without buffer mutations. |
-| `bodyEvidence.js` | **Body Evidence Runtime Store.** Retains active package, landmark/seg selections, derived `denseEvidenceQa` runtime state, async dense QA lifecycle integration with session race protection (`analyzeLoadedBodyEvidenceAsync`), subscriber notifications, horizontal raster slice, transverse width, profile span, and cross-view correspondence getters, and sanitized diagnostic export (`buildBodyEvidenceExport`). |
+| `bodyEvidence.js` | **Body Evidence Runtime Store.** Retains active package, landmark/seg selections, derived `denseEvidenceQa` runtime state, async dense QA lifecycle integration with session race protection (`analyzeLoadedBodyEvidenceAsync`), subscriber notifications, horizontal raster slice, transverse width, profile span, cross-view correspondence, and comparability QA getters, and sanitized diagnostic export (`buildBodyEvidenceExport`). |
 | `anatomicalRegions.js` | **Anatomical Region Contract v0.** Pure deterministic domain contract mapping normalized Front/Side segmentation `classes[]` into observed 29-class region records with metric `boundsCm` (`body_anatomical`, `clothing_apparel`, `face_head`, `accessory_other`, `context_background`). Owns authoritative `BODY_ANATOMICAL_CLASS_IDS` taxonomy. No DOM, Three.js, depth inference, or derived composites. |
 | `appMode.js` | Manages app interaction mode (`MODE_INSPECT_MEASURE` vs `MODE_ANNOTATE`). |
 | `selection.js` | Manages selected point state `{ x, y, z }` and selection highlight mesh in Annotate mode. Decoupled from direct DOM manipulation. |
@@ -188,6 +190,7 @@ latent-space/
 | `sideRasterSlice.js` | **Side Horizontal Raster Slice Contract v0.** Pure deterministic $O(W)$ single-row streaming scan across Side segmentation raster at canonical $Y$ levels returning contiguous horizontal runs in Side Metrology space ($U\text{ cm}$). |
 | `sideProfileSpan.js` | **Side Profile Span Interpretation Contract v0.** Pure deterministic interpretation of raster slice evidence into formal profile spans at shoulder/hip levels under `single_run_required` policy. |
 | `crossViewMeasurementCorrespondence.js` | **Cross-view Measurement Correspondence Contract v0.** Pure deterministic correspondence layer pairing Front transverse width and Side profile span observations at matching anatomical source levels under registry-driven definitions. |
+| `crossViewComparabilityQa.js` | **Cross-view Comparability QA Contract v0.** Pure deterministic QA evaluating whether 4.5A correspondence pairs are sufficiently qualified and internally consistent for later cross-view use across 10 inspectable checks. |
 | `bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute (orphaned / internal helper). |
 | `bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute (candidate readiness lines). |
 | `bodyMeasurementPreview.js` | Measurement Line Preview Overlay v0 (draws visual-only Ready preview lines in 3D and Front 2D). |

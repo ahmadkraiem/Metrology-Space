@@ -722,10 +722,11 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.4A: Side Horizontal Raster Slice Contract v0 (`side-horizontal-raster-slice-v0` — pure single-row O(W) streaming scan across Side segmentation raster returning contiguous horizontal runs in U/Y metrology space with normalized and metric U bounds)**
 - **Milestone 4.4B: Side Profile Span Interpretation Contract v0 (`side-profile-span-v0` — pure interpretation of Side raster slice evidence into formal profile spans at shoulder/hip levels under `single_run_required` policy with `getSideProfileSpan` and `getSideProfileSpans` runtime getters)**
 - **Milestone 4.5A: Cross-view Measurement Correspondence Contract v0 (`cross-view-measurement-correspondence-v0` — pure deterministic correspondence layer pairing Front transverse width and Side profile span observations at matching validated reference levels under registry-driven definitions with `getCrossViewMeasurementCorrespondence` and `getCrossViewMeasurementCorrespondences` runtime getters)**
+- **Milestone 4.5B: Cross-view Comparability QA v0 (`cross-view-comparability-qa-v0` — pure deterministic QA evaluating whether 4.5A correspondence pairs are sufficiently qualified and internally consistent for later cross-view use across 10 inspectable checks with `getCrossViewComparabilityQa` and `getCrossViewComparabilityQaReport` runtime getters)**
 
-### Next Active Milestone: Milestone 4.5B — Cross-view Comparability QA v0
-- **4.5B Cross-view Comparability QA v0**: Pure QA layer over established 4.5A correspondence evidence to assess whether paired Front/Side observations are sufficiently qualified and internally consistent for later validated cross-view use.
-- **Strict Guardrails**: `ready` indicates correspondence-readiness only. Side $U$ is 2D profile evidence only. It is **not** canonical $Z$, is **never** described as validated physical depth, and is **never** fused into 3D coordinates with Front $X$. Circumference and cross-section inference (4.6) remain blocked.
+### Next Active Milestone: Milestone 4.5C — Side Physical-Frame / Depth Semantics Validation v0
+- **4.5C Side Physical-Frame / Depth Semantics Validation v0**: Validation and design milestone to establish whether and under what proven calibration/frame assumptions Side U-space profile evidence can represent a physically meaningful body depth quantity.
+- **Strict Guardrails**: `pass` indicates 2D evidence comparability only. Side $U$ is 2D profile evidence only. It is **not** canonical $Z$, is **never** described as validated physical depth, and is **never** fused into 3D coordinates with Front $X$. Circumference and cross-section inference (4.6) remain blocked.
 
 ---
 
@@ -754,7 +755,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence getters, sanitized diagnostic export |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA getters, sanitized diagnostic export |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
 | `src/features/anatomicalLevels.js` | Anatomical Level Contract v0 (`anatomical-levels-v0`) — pure derivation of 7 reference Y levels (neck, shoulder, elbow, wrist, hip, knee, ankle) from promoted Front body landmarks |
@@ -771,6 +772,8 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/sideProfileSpan.test.js` | Side Profile Span Interpretation Contract v0 unit tests |
 | `src/features/crossViewMeasurementCorrespondence.js` | Cross-view Measurement Correspondence Contract v0 (`cross-view-measurement-correspondence-v0`) — pure deterministic correspondence pairing Front transverse width and Side profile span observations at matching anatomical source levels |
 | `src/features/crossViewMeasurementCorrespondence.test.js` | Cross-view Measurement Correspondence Contract v0 unit tests |
+| `src/features/crossViewComparabilityQa.js` | Cross-view Comparability QA Contract v0 (`cross-view-comparability-qa-v0`) — pure deterministic comparability QA over established 4.5A correspondence evidence across 10 inspectable checks |
+| `src/features/crossViewComparabilityQa.test.js` | Cross-view Comparability QA Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
 | `src/features/selection.js` | Selected point state and highlight (Annotate mode) |
 | `src/features/measurement.js` | Canonical shared Point A/B measurement state, markers, line, label, history |
