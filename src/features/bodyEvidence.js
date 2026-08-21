@@ -45,6 +45,10 @@ import {
   buildCrossViewMeasurementCorrespondence,
 } from './crossViewMeasurementCorrespondence.js';
 import {
+  CROSS_VIEW_COMPARABILITY_QA_CONTRACT_VERSION,
+  evaluateCrossViewComparabilityQa,
+} from './crossViewComparabilityQa.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -1231,6 +1235,71 @@ export function getCrossViewMeasurementCorrespondences({ annotations = null } = 
     contract: 'cross-view-measurement-correspondences-report-v0',
     version: CROSS_VIEW_MEASUREMENT_CORRESPONDENCE_CONTRACT_VERSION,
     correspondences,
+  };
+}
+
+/**
+ * Evaluates pure Cross-view comparability QA for a single correspondence from active runtime state.
+ *
+ * @param {{ id: string, annotations?: Array<object>|null }} options
+ * @returns {object|null}
+ */
+export function getCrossViewComparabilityQa({ id, annotations = null } = {}) {
+  if (!id) return null;
+  const correspondence = getCrossViewMeasurementCorrespondence({ id, annotations });
+  return evaluateCrossViewComparabilityQa(correspondence, { id });
+}
+
+/**
+ * Evaluates pure Cross-view comparability QA for all supported correspondences from active runtime state.
+ *
+ * @param {{ annotations?: Array<object>|null }} [options]
+ * @returns {{
+ *   contract: 'cross-view-comparability-qa-report-v0',
+ *   version: string,
+ *   summary: {
+ *     total: number,
+ *     passCount: number,
+ *     warningCount: number,
+ *     failCount: number,
+ *     unavailableCount: number,
+ *   },
+ *   results: Array<object>,
+ * }|null}
+ */
+export function getCrossViewComparabilityQaReport({ annotations = null } = {}) {
+  const frontRaster = getFrontSegmentationRaster();
+  const sideRaster = getSideSegmentationRaster();
+  if (!frontRaster && !sideRaster) return null;
+
+  const definitions = Object.values(SUPPORTED_CROSS_VIEW_CORRESPONDENCES_V0);
+  const results = definitions.map((def) =>
+    getCrossViewComparabilityQa({ id: def.id, annotations })
+  );
+
+  let passCount = 0;
+  let warningCount = 0;
+  let failCount = 0;
+  let unavailableCount = 0;
+
+  for (const res of results) {
+    if (res?.status === 'pass') passCount += 1;
+    else if (res?.status === 'warning') warningCount += 1;
+    else if (res?.status === 'fail') failCount += 1;
+    else unavailableCount += 1;
+  }
+
+  return {
+    contract: 'cross-view-comparability-qa-report-v0',
+    version: CROSS_VIEW_COMPARABILITY_QA_CONTRACT_VERSION,
+    summary: {
+      total: results.length,
+      passCount,
+      warningCount,
+      failCount,
+      unavailableCount,
+    },
+    results,
   };
 }
 
