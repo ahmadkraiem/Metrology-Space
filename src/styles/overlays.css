@@ -288,7 +288,7 @@
   cursor: not-allowed;
 }
 
-@container workspace-2d (max-width: 620px) {
+@container workspace-2d (max-width: 480px) {
   .workspace-2d-area {
     flex-direction: column;
     gap: 10px;

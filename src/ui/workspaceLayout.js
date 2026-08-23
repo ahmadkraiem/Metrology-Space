@@ -23,7 +23,7 @@ export const WORKSPACE_3D = '3d';
 export const WORKSPACE_SPLIT = 'split';
 export const WORKSPACE_BODY_GRAPH = 'body-graph';
 
-const MIN_PANE_WIDTH_PX = 200;
+const MIN_PANE_WIDTH_PX = 160;
 const DIVIDER_WIDTH_PX = 6;
 /** 3D share of the 2D Workspace: the Front + Side 2D area is the wider default. */
 const DEFAULT_SPLIT_RATIO = 0.36;
