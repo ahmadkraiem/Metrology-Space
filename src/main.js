@@ -98,6 +98,7 @@ setupDerivedMeasurementDeck();
 setupAdvancedQaPanel();
 setupBodyTabConsolidatedPanel();
 initCollapsibleSections();
+initCollapsibleSections(document.getElementById('advanced-qa-panel'));
 setupBodyGraphWorkspace();
 setupWorkspaceLayout();
 setupAppMenuBar({

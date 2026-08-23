@@ -53,12 +53,19 @@ function wireSection(section) {
 }
 
 /**
- * Wire all left-sidebar sections marked with data-collapsible.
- * Optional root defaults to #left-sidebar so right Session Data cards stay untouched.
+ * Wire sections marked with data-collapsible under root.
+ * Default root is #left-sidebar so Session Data cards stay untouched.
+ * Passing a [data-collapsible] element wires that section only.
  */
 export function initCollapsibleSections(root = document.getElementById('left-sidebar')) {
   if (!root) {
     return;
   }
-  root.querySelectorAll('[data-collapsible]').forEach(wireSection);
+
+  const sections = [];
+  if (typeof root.matches === 'function' && root.matches('[data-collapsible]')) {
+    sections.push(root);
+  }
+  sections.push(...root.querySelectorAll('[data-collapsible]'));
+  sections.forEach(wireSection);
 }

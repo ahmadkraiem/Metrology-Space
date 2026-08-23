@@ -75,9 +75,10 @@
 
 .info-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .info-row--highlight {
@@ -87,15 +88,22 @@
 }
 
 .info-label {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 52%;
   color: var(--text-muted);
   font-size: 10px;
+  line-height: 1.45;
 }
 
 .info-value {
+  flex: 1 1 auto;
+  min-width: 0;
   text-align: right;
   color: var(--text-secondary);
-  white-space: nowrap;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 
@@ -2514,23 +2522,32 @@ select:focus-visible {
   flex-direction: column;
   gap: 8px;
   padding: 2px 0;
+  min-width: 0;
 }
 
 .advanced-qa-drawer-content {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .advanced-qa-empty {
-  padding: 4px 0;
+  padding: 6px 0;
+}
+
+.advanced-qa-empty .session-empty-state {
+  margin-bottom: 0;
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .advanced-qa-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px 8px;
+  gap: 6px;
+  min-width: 0;
+  padding: 7px 9px;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(147, 51, 234, 0.14);
   border-radius: var(--radius-sm);
@@ -2538,34 +2555,66 @@ select:focus-visible {
 
 .advanced-qa-section-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 6px;
-  padding-bottom: 3px;
+  gap: 8px;
+  min-width: 0;
+  padding-bottom: 5px;
   border-bottom: 1px solid rgba(147, 51, 234, 0.1);
 }
 
 .advanced-qa-section-title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-family: var(--font-display);
-  font-size: 8.5px;
+  font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
+  line-height: 1.35;
   text-transform: uppercase;
   color: var(--purple-bright);
+  overflow-wrap: anywhere;
+}
+
+.advanced-qa-section-header .body-evidence-badge {
+  flex: 0 0 auto;
 }
 
 .advanced-qa-section-body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  font-size: 8.5px;
+  gap: 6px;
+  min-width: 0;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.advanced-qa-section .info-label {
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.advanced-qa-section .info-value {
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.advanced-qa-section .info-value--data {
+  font-family: var(--font-mono);
+}
+
+.advanced-qa-section .info-value .body-evidence-badge {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .qa-eligibility-pair {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px 0;
+  gap: 4px;
+  min-width: 0;
+  padding: 5px 0;
   border-bottom: 1px dashed rgba(147, 51, 234, 0.1);
 }
 
@@ -2577,7 +2626,8 @@ select:focus-visible {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  min-width: 0;
   margin-top: 1px;
 }
 
@@ -2590,8 +2640,8 @@ select:focus-visible {
 .qa-blocker-chip {
   display: inline-flex;
   align-items: center;
-  padding: 1px 4px;
-  font-size: 7px;
+  padding: 2px 5px;
+  font-size: 8px;
   font-weight: 500;
   color: var(--amber-dim, #fbbf24);
   background: rgba(245, 158, 11, 0.08);
