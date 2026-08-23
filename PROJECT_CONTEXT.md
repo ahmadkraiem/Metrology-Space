@@ -449,7 +449,9 @@ Package Contract v0 establishes 4 distinct QA status levels:
 - **`fail`**: Structural failure, view mismatch, corrupted data, or missing critical shapes.
 - **`unvalidated`**: Declared metadata present but geometry semantics explicitly deferred to future validation milestones. `unvalidated` is **not** equivalent to failure.
 
-Package v0 QA verifies structural readability, raster compatibility between modalities within the same view, and modality availability. Dense numeric tensor validation is scheduled for the next milestone.
+Package Contract structural QA verifies structural readability, raster compatibility between modalities within the same view, and modality availability. It remains separate from derived runtime Dense Evidence QA.
+
+Dense Evidence QA is implemented and integrated at runtime (see §18): Dense Layout / Pixel Index Contract v0, Pointmap Numeric QA, Normal Numeric QA, Same-View Dense Cross-Modal QA, derived `denseEvidenceQa` state, asynchronous evaluation lifecycle, and sanitized diagnostic export. Dense Evidence QA does **not** validate authoritative pointmap coordinate-frame or physical geometry semantics; those remain unvalidated.
 
 ### Runtime Memory & Lazy Buffer Management
 
@@ -722,7 +724,7 @@ When modifying this project, preserve the following unless explicitly instructed
 4. **Pointmap / Normal 3D Promotion:** Pointmap and normal evidence packages are accepted normalized inputs with numeric QA, but their geometry semantics remain unvalidated; they are not promoted into 3D geometry.
 5. **Side Landmark Promotion:** Side landmarks cannot be promoted to 3D annotations.
 6. **Derived / Composite Anatomical Regions:** No multi-class region unions or synthetic bounding volumes in v0.
-7. **Segmentation-Derived Measurements:** No direct circumference, width, or distance measurements derived from segmentation masks.
+7. **Segmentation-Derived Physical Geometry:** Segmentation-derived Front Transverse Width and Side Profile Span are implemented as metric-projected image-plane observations. Circumference, cross-section, contour reconstruction, authoritative physical body dimensions, and other physical geometry inference remain unimplemented.
 8. **Contour Extraction:** No polygon or bezier contour generation from segmentation rasters.
 9. **3D Reconstruction / Mesh Generation:** No point cloud generation, mesh surface reconstruction, or volumetric body partitioning.
 10. **Circumference / Cross-Section Inference:** No elliptical or convex hull circumference math.
