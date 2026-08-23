@@ -2331,6 +2331,132 @@
   color: var(--cyan-dim);
 }
 
+/* ── Right Sidebar: Primary Derived Measurement Deck (Stage 4) ── */
+
+.derived-measurement-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(147, 51, 234, 0.08) 0%, rgba(0, 0, 0, 0.25) 100%);
+  border-bottom: 1px solid rgba(147, 51, 234, 0.18);
+  flex-shrink: 0;
+}
+
+.deck-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.deck-title {
+  font-family: var(--font-display);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--purple-bright);
+}
+
+.deck-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--cyan-data);
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+
+.derived-measurement-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.derived-deck-empty {
+  padding: 4px 0;
+}
+
+.derived-measurement-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 9px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(147, 51, 234, 0.18);
+  border-radius: var(--radius-sm);
+}
+
+.derived-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(147, 51, 234, 0.12);
+}
+
+.derived-card-title {
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.derived-card-level {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  color: var(--cyan-dim);
+}
+
+.derived-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.derived-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 9px;
+}
+
+.derived-card-row--physical {
+  margin-top: 2px;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(147, 51, 234, 0.14);
+}
+
+.derived-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.derived-row-label {
+  font-size: 8px;
+  color: var(--text-muted);
+}
+
+.derived-row-value {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cyan-data);
+  letter-spacing: 0.02em;
+}
+
+.derived-row-badge {
+  flex-shrink: 0;
+}
+
 
 .measurement-context {
   gap: 4px;
