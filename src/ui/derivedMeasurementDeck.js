@@ -37,6 +37,30 @@ const DERIVED_CORRESPONDENCE_PAIRS = Object.freeze([
   },
 ]);
 
+export function mapBlockerToHumanLabel(code) {
+  switch (code) {
+    case 'clothing_authorization_missing':
+    case 'clothing_evaluation_failed':
+    case 'clothing_blocked':
+      return 'Clothing Validation Pending';
+    case 'view_pose_semantics_missing':
+    case 'view_pose_evaluation_failed':
+    case 'physical_orientation_unauthorized':
+      return 'Capture Orientation Validation Pending';
+    case 'authoritative_physical_evidence_missing':
+    case 'pointmap_evidence_missing':
+      return 'Physical Evidence Validation Pending';
+    case 'comparability_qa_missing':
+    case 'comparability_qa_failed':
+      return 'Cross-View Comparability Pending';
+    case 'correspondence_unavailable':
+    case 'correspondence_partial':
+      return 'View Alignment Incomplete';
+    default:
+      return String(code || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
 function renderMeasurementCard({ id, name, levelKey }, annotations) {
   const correspondence = getCrossViewMeasurementCorrespondence({ id, annotations });
   const eligibility = getPairedCrossViewEligibility({ id, annotations });
@@ -77,11 +101,20 @@ function renderMeasurementCard({ id, name, levelKey }, annotations) {
     sideBadge = renderBadge('Partial', 'warn');
   }
 
-  // Physical validation status
+  // Physical validation status & blockers
   let physicalBadge = renderBadge('Validation Pending', 'warn', 'Physical body measurement validation pending');
   if (eligibility?.pairedPhysicalEligibility === true) {
     physicalBadge = renderBadge('Validated', 'ok', 'Authoritative physical measurement validated');
   }
+
+  const blockers = Array.isArray(eligibility?.blockers) ? eligibility.blockers : [];
+  const blockersHtml = blockers.length > 0 && eligibility?.pairedPhysicalEligibility !== true
+    ? `
+      <div class="derived-blocker-list" aria-label="Physical validation blockers">
+        ${blockers.map((b) => `<span class="derived-blocker-chip" title="Blocker code: ${escapeHtml(b)}">${escapeHtml(mapBlockerToHumanLabel(b))}</span>`).join('')}
+      </div>
+    `
+    : '';
 
   return `
     <div class="derived-measurement-card" data-correspondence-id="${escapeHtml(id)}">
@@ -111,6 +144,7 @@ function renderMeasurementCard({ id, name, levelKey }, annotations) {
           <span class="derived-row-label">Physical Validation</span>
           <div class="derived-row-badge">${physicalBadge}</div>
         </div>
+        ${blockersHtml}
       </div>
     </div>
   `;

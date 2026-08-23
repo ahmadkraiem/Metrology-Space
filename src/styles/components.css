@@ -2457,6 +2457,120 @@
   flex-shrink: 0;
 }
 
+.derived-blocker-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(147, 51, 234, 0.12);
+}
+
+.derived-blocker-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  font-size: 7.5px;
+  font-weight: 500;
+  color: var(--amber-dim, #fbbf24);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.02em;
+}
+
+/* ── Right Sidebar: Advanced QA Drawer (Stage 5) ── */
+
+.advanced-qa-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.advanced-qa-drawer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.advanced-qa-empty {
+  padding: 4px 0;
+}
+
+.advanced-qa-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(147, 51, 234, 0.14);
+  border-radius: var(--radius-sm);
+}
+
+.advanced-qa-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(147, 51, 234, 0.1);
+}
+
+.advanced-qa-section-title {
+  font-family: var(--font-display);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--purple-bright);
+}
+
+.advanced-qa-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 8.5px;
+}
+
+.qa-eligibility-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  border-bottom: 1px dashed rgba(147, 51, 234, 0.1);
+}
+
+.qa-eligibility-pair:last-child {
+  border-bottom: none;
+}
+
+.qa-eligibility-blockers-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+}
+
+.qa-blocker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.qa-blocker-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 4px;
+  font-size: 7px;
+  font-weight: 500;
+  color: var(--amber-dim, #fbbf24);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-sm);
+}
+
 
 .measurement-context {
   gap: 4px;
