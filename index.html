@@ -437,19 +437,25 @@
             </div>
             <div class="workspace-2d-toolbar">
               <div class="workspace-2d-toolbar-group workspace-2d-toolbar-group--front">
-                <span class="workspace-2d-toolbar-label">Front</span>
+                <div class="workspace-2d-toolbar-header">
+                  <span class="workspace-2d-toolbar-label">Front · X/Y</span>
+                  <span id="grid2d-refinement-status" class="grid2d-refinement-status" aria-live="polite">Base 10 cm · Refined 0</span>
+                </div>
                 <div class="workspace-2d-toolbar-actions">
-                  <button type="button" id="grid2d-back" class="panel-button panel-button--compact" disabled>Back</button>
-                  <button type="button" id="grid2d-reset" class="panel-button panel-button--compact">Reset</button>
-                  <button type="button" id="grid2d-split" class="panel-button panel-button--compact" disabled>Split</button>
+                  <button type="button" id="grid2d-back" class="panel-button panel-button--compact" title="Undo last local grid refinement on Front surface" disabled>Back</button>
+                  <button type="button" id="grid2d-reset" class="panel-button panel-button--compact" title="Clear all Front refinements and reset zoom/pan">Reset</button>
+                  <button type="button" id="grid2d-split" class="panel-button panel-button--compact" title="Refine selected region from 10 cm to 5 cm" disabled>Split</button>
                 </div>
               </div>
               <div class="workspace-2d-toolbar-group workspace-2d-toolbar-group--side">
-                <span class="workspace-2d-toolbar-label">Side</span>
+                <div class="workspace-2d-toolbar-header">
+                  <span class="workspace-2d-toolbar-label">Side Profile · U/Y</span>
+                  <span id="side-grid2d-refinement-status" class="grid2d-refinement-status" aria-live="polite">Base 10 cm · Refined 0</span>
+                </div>
                 <div class="workspace-2d-toolbar-actions">
-                  <button type="button" id="side-grid-back" class="panel-button panel-button--compact" disabled>Back</button>
-                  <button type="button" id="side-grid-reset" class="panel-button panel-button--compact">Reset</button>
-                  <button type="button" id="side-grid-split" class="panel-button panel-button--compact" disabled>Split</button>
+                  <button type="button" id="side-grid-back" class="panel-button panel-button--compact" title="Undo last local grid refinement on Side profile" disabled>Back</button>
+                  <button type="button" id="side-grid-reset" class="panel-button panel-button--compact" title="Clear all Side refinements and reset zoom/pan">Reset</button>
+                  <button type="button" id="side-grid-split" class="panel-button panel-button--compact" title="Refine selected region from 10 cm to 5 cm" disabled>Split</button>
                 </div>
               </div>
             </div>

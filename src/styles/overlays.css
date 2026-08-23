@@ -235,10 +235,28 @@
   border-left: 1px solid rgba(147, 51, 234, 0.14);
 }
 
+.workspace-2d-toolbar-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.grid2d-refinement-status {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  color: var(--cyan-data, #22d3ee);
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  padding: 1px 5px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .workspace-2d-toolbar-label {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: 7px;
+  font-size: 7.5px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;

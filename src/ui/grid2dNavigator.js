@@ -573,6 +573,11 @@ function updateChrome() {
 
   grid2dViewReadout.textContent = statusParts.join(' · ');
 
+  const refinementStatusEl = document.getElementById('grid2d-refinement-status');
+  if (refinementStatusEl) {
+    refinementStatusEl.textContent = `Base 10 cm · Refined ${refinedRegions.length}`;
+  }
+
   grid2dBackBtn.disabled = refinedRegions.length === 0;
   grid2dSplitBtn.disabled = !split.canSplit;
 

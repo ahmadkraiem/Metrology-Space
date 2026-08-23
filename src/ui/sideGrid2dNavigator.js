@@ -556,6 +556,11 @@ function updateChrome() {
     sideEvidenceViewReadoutEl.textContent = statusParts.join(' · ');
   }
 
+  const refinementStatusEl = document.getElementById('side-grid2d-refinement-status');
+  if (refinementStatusEl) {
+    refinementStatusEl.textContent = `Base 10 cm · Refined ${refinedRegions.length}`;
+  }
+
   if (sideGridBackBtn) {
     sideGridBackBtn.disabled = refinedRegions.length === 0;
   }

@@ -39,6 +39,10 @@ import {
   getSecondaryCandidateLandmarks,
 } from './bodyEvidenceOverlay2d.js';
 import {
+  setWorkspace,
+  WORKSPACE_SPLIT,
+} from './workspaceLayout.js';
+import {
   getSideCandidateLandmarks,
 } from './bodyEvidenceOverlaySide2d.js';
 import { BASE_PALETTE_RGB } from './segmentationOverlay2d.js';
@@ -796,6 +800,7 @@ export function setupBodyEvidencePanel() {
         } else {
           const sampleTag = res.sampleId ? ` [${res.sampleId}]` : '';
           showStatus(`Body Evidence Package loaded${sampleTag}.`, 'ok');
+          setWorkspace(WORKSPACE_SPLIT);
         }
         refreshCandidateLists();
         renderSelectedLandmark();
