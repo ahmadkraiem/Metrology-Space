@@ -37,6 +37,17 @@ export function formatAxisReadout(axis, value) {
   return `${axis.toUpperCase()}: ${formatRangeValue(value)} cm`;
 }
 
+/**
+ * Single compact lattice-state label for a navigator. Refinement is one pass,
+ * so any refined region means the active detail step is `MIN_DETAIL_STEP`.
+ * @param {number} refinedRegionCount
+ */
+export function formatGridStateLabel(refinedRegionCount) {
+  return refinedRegionCount > 0
+    ? `Refined ${MIN_DETAIL_STEP} cm`
+    : `Base ${BASE_STEP} cm`;
+}
+
 export function generatePointsForBounds(bounds, step) {
   const points = [];
   const hStart = Math.ceil(bounds.hMin / step) * step;

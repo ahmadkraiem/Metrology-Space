@@ -11,10 +11,7 @@ import { formatCoordinate, formatDistance } from '../core/formatters.js';
 import { formatLandmarkDisplayName } from '../core/landmarkDisplay.js';
 import {
   clearSideEvidenceSelection,
-  getBodyEvidenceQa,
   getSelectedSideEvidenceLandmark,
-  hasAnalyzedBodyEvidence,
-  hasSidePoseSource,
   isSideCoreBodyEvidenceVisible,
   isSideSecondaryBodyEvidenceVisible,
   subscribeBodyEvidenceChange,
@@ -62,6 +59,7 @@ import {
   dedupePoints,
   findNearestDisplayPoint,
   formatAxisReadout,
+  formatGridStateLabel,
   formatRangeValue,
   generatePointsForBounds,
   getPointsInsideSelectionRect as getPointsInsideSelectionRectShared,
@@ -79,7 +77,6 @@ import {
   MEASURE_EMPHASIS_MULTIPLIER,
   updateLatticeStepLookup,
 } from './grid2dMarkerSizing.js';
-import { formatSideEvidenceStatus } from './sideEvidenceStatus.js';
 import {
   sideGridBackBtn,
   sideGridResetBtn,
@@ -90,12 +87,9 @@ import {
   sideEvidenceInspectEl,
   sideEvidenceLatticePointsEl,
   sideEvidenceLegendEl,
-  sideEvidenceModeReadoutEl,
   sideEvidenceSelectedRegionEl,
   sideEvidenceSelectionRectEl,
-  sideEvidenceSourceStatusEl,
   sideEvidenceStatusMessageEl,
-  sideEvidenceViewReadoutEl,
   sideEvidenceViewportEl,
   sideSegmentationCanvasEl,
   viewportEl,
@@ -119,21 +113,7 @@ let panState = null;
 let sideGridPointsVisible = true;
 
 function getSelectionHint() {
-  return 'Click a point or drag a region';
-}
-
-function updateSideEvidenceStatus() {
-  if (!sideEvidenceSourceStatusEl) {
-    return;
-  }
-
-  const qa = getBodyEvidenceQa()?.qa ?? {};
-  sideEvidenceSourceStatusEl.textContent = formatSideEvidenceStatus({
-    sidePoseLoaded: hasSidePoseSource(),
-    analyzed: hasAnalyzedBodyEvidence(),
-    coreCount: qa.sideCoreLandmarks ?? 0,
-    secondaryCount: qa.sideSecondaryLandmarks ?? 0,
-  });
+  return 'No selection';
 }
 
 function getBasePoints() {
@@ -501,10 +481,6 @@ function updateModeUI() {
 
   sideEvidenceViewportEl?.classList.toggle('grid2d-grid-wrapper--pick', isPick);
   sideEvidenceViewportEl?.classList.toggle('grid2d-grid-wrapper--region', !isPick);
-
-  if (sideEvidenceModeReadoutEl) {
-    sideEvidenceModeReadoutEl.textContent = `Mode: ${isPick ? 'Pick Point' : 'Select Region'}`;
-  }
 }
 
 function classifySplitSelection() {
@@ -548,17 +524,9 @@ function updateChrome() {
   const measurement = getActiveSideMeasurement();
   const selectedLandmark = getSelectedSideEvidenceLandmark();
 
-  const statusParts = [`Step ${BASE_STEP} cm`];
-  if (refinedRegions.length > 0) {
-    statusParts.push(`Refined ${refinedRegions.length}`);
-  }
-  if (sideEvidenceViewReadoutEl) {
-    sideEvidenceViewReadoutEl.textContent = statusParts.join(' · ');
-  }
-
   const refinementStatusEl = document.getElementById('side-grid2d-refinement-status');
   if (refinementStatusEl) {
-    refinementStatusEl.textContent = `Base 10 cm · Refined ${refinedRegions.length}`;
+    refinementStatusEl.textContent = formatGridStateLabel(refinedRegions.length);
   }
 
   if (sideGridBackBtn) {
@@ -639,8 +607,6 @@ function updateChrome() {
   if (selectionBlock) {
     selectionBlock.classList.toggle('grid2d-selection-block--empty', !hasSelectionDetails);
   }
-
-  updateSideEvidenceStatus();
 
   updateModeUI();
   updateLegend();

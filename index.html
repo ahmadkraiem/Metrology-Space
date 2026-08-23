@@ -298,23 +298,16 @@
           <section id="grid2d-navigator-panel" class="grid2d-navigator-panel workspace-pane workspace-pane--2d">
             <div class="workspace-2d-area">
               <div id="workspace-2d-front-pane" class="workspace-2d-pane">
-                <header class="grid2d-nav-header">
+                <header class="grid2d-nav-header" title="Control: mode · Scroll: zoom · Right-drag: pan">
                   <div class="grid2d-nav-heading">
                     <h3 class="grid2d-nav-title">Front</h3>
-                    <p id="grid2d-nav-view-mode" class="grid2d-nav-view-mode">Canonical Front Surface · X / Y</p>
-                    <p class="grid2d-helper">Control: mode · Scroll: zoom · Right-drag: pan</p>
+                    <p class="grid2d-nav-view-mode">X / Y</p>
                   </div>
                 </header>
                 <div class="grid2d-nav-body">
                   <div class="grid2d-readout">
-                    <p class="grid2d-status-row">
-                      <span id="grid2d-view-readout" class="grid2d-view-readout">Step 10 cm</span>
-                      <span class="grid2d-status-sep" aria-hidden="true">·</span>
-                      <span id="grid2d-mode-readout" class="grid2d-mode-readout">Mode: Pick Point</span>
-                    </p>
                     <div class="grid2d-selection-block grid2d-selection-block--empty">
-                      <p class="grid2d-readout-heading grid2d-readout-heading--selection">Selection</p>
-                      <p id="grid2d-selected-readout" class="grid2d-selected-readout grid2d-selected-readout--empty">Click a point or drag a region</p>
+                      <p id="grid2d-selected-readout" class="grid2d-selected-readout grid2d-selected-readout--empty">No selection</p>
                       <p id="grid2d-status-message" class="grid2d-status-message" hidden></p>
                     </div>
                   </div>
@@ -363,26 +356,17 @@
               </div>
 
               <aside id="side-evidence-pane" class="workspace-2d-pane workspace-2d-pane--side" aria-label="Side Profile Navigator">
-                <header class="grid2d-nav-header">
+                <header class="grid2d-nav-header" title="Control: mode · Scroll: zoom · Right-drag: pan">
                   <div class="grid2d-nav-heading">
                     <h3 class="grid2d-nav-title grid2d-nav-title--side">Side</h3>
-                    <p class="grid2d-nav-view-mode">Side Profile Navigator · U / Y</p>
-                    <p class="grid2d-helper">Control: mode · Scroll: zoom · Right-drag: pan</p>
+                    <p class="grid2d-nav-view-mode">U / Y</p>
                   </div>
                 </header>
                 <div class="grid2d-nav-body">
                   <div class="grid2d-readout">
-                    <p class="grid2d-status-row">
-                      <span id="side-evidence-view-readout" class="grid2d-view-readout">Step 10 cm</span>
-                      <span class="grid2d-status-sep" aria-hidden="true">·</span>
-                      <span id="side-evidence-mode-readout" class="grid2d-mode-readout">Mode: Pick Point</span>
-                      <span class="grid2d-status-sep" aria-hidden="true">·</span>
-                      <span id="side-evidence-source-status" class="grid2d-evidence-status" aria-live="polite">No Side Pose</span>
-                    </p>
                     <div class="grid2d-selection-block grid2d-selection-block--empty">
-                      <p class="grid2d-readout-heading grid2d-readout-heading--selection">Selection</p>
                       <div id="side-evidence-inspect" class="side-evidence-inspect" aria-live="polite">
-                        <p class="grid2d-selected-readout grid2d-selected-readout--empty">Click a point or drag a region</p>
+                        <p class="grid2d-selected-readout grid2d-selected-readout--empty">No selection</p>
                       </div>
                       <p id="side-evidence-status-message" class="grid2d-status-message" hidden></p>
                     </div>
@@ -432,7 +416,7 @@
               <div class="workspace-2d-toolbar-group workspace-2d-toolbar-group--front">
                 <div class="workspace-2d-toolbar-header">
                   <span class="workspace-2d-toolbar-label">Front · X/Y</span>
-                  <span id="grid2d-refinement-status" class="grid2d-refinement-status" aria-live="polite">Base 10 cm · Refined 0</span>
+                  <span id="grid2d-refinement-status" class="grid2d-refinement-status" aria-live="polite">Base 10 cm</span>
                 </div>
                 <div class="workspace-2d-toolbar-actions">
                   <button type="button" id="grid2d-back" class="panel-button panel-button--compact" title="Undo last local grid refinement on Front surface" disabled>Back</button>
@@ -443,7 +427,7 @@
               <div class="workspace-2d-toolbar-group workspace-2d-toolbar-group--side">
                 <div class="workspace-2d-toolbar-header">
                   <span class="workspace-2d-toolbar-label">Side Profile · U/Y</span>
-                  <span id="side-grid2d-refinement-status" class="grid2d-refinement-status" aria-live="polite">Base 10 cm · Refined 0</span>
+                  <span id="side-grid2d-refinement-status" class="grid2d-refinement-status" aria-live="polite">Base 10 cm</span>
                 </div>
                 <div class="workspace-2d-toolbar-actions">
                   <button type="button" id="side-grid-back" class="panel-button panel-button--compact" title="Undo last local grid refinement on Side profile" disabled>Back</button>

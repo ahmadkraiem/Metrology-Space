@@ -59,6 +59,7 @@ import {
   dedupePoints,
   findNearestDisplayPoint,
   formatAxisReadout,
+  formatGridStateLabel,
   formatRangeValue,
   generatePointsForBounds,
   getPointsInsideSelectionRect as getPointsInsideSelectionRectShared,
@@ -74,8 +75,6 @@ import {
   grid2dBackBtn,
   grid2dResetBtn,
   grid2dSplitBtn,
-  grid2dViewReadout,
-  grid2dModeReadout,
   grid2dSelectedReadout,
   grid2dStatusMessageEl,
   grid2dGridWrapperEl,
@@ -199,7 +198,7 @@ function syncGrid2dHoverTooltip(clientX, clientY) {
 }
 
 function getSelectionHint() {
-  return 'Click a point or drag a region';
+  return 'No selection';
 }
 
 function getBasePoints() {
@@ -497,8 +496,6 @@ function updateModeUI() {
 
   grid2dGridWrapperEl.classList.toggle('grid2d-grid-wrapper--pick', isPick);
   grid2dGridWrapperEl.classList.toggle('grid2d-grid-wrapper--region', !isPick);
-
-  grid2dModeReadout.textContent = `Mode: ${isPick ? 'Pick Point' : 'Select Region'}`;
 }
 
 function isGrid2dWorkspaceVisible() {
@@ -565,17 +562,9 @@ function updateChrome() {
   const split = classifySplitSelection();
   const selectionBlock = grid2dSelectedReadout.closest('.grid2d-selection-block');
 
-  const statusParts = [`Step ${BASE_STEP} cm`];
-
-  if (refinedRegions.length > 0) {
-    statusParts.push(`Refined ${refinedRegions.length}`);
-  }
-
-  grid2dViewReadout.textContent = statusParts.join(' · ');
-
   const refinementStatusEl = document.getElementById('grid2d-refinement-status');
   if (refinementStatusEl) {
-    refinementStatusEl.textContent = `Base 10 cm · Refined ${refinedRegions.length}`;
+    refinementStatusEl.textContent = formatGridStateLabel(refinedRegions.length);
   }
 
   grid2dBackBtn.disabled = refinedRegions.length === 0;

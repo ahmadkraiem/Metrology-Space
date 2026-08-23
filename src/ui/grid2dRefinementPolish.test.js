@@ -6,6 +6,7 @@ import {
   getWorkspace,
   setWorkspace,
 } from './workspaceLayout.js';
+import { formatGridStateLabel } from './grid2dNavShared.js';
 
 test('grid2dRefinementPolish: package-load target mode is 2D Workspace (WORKSPACE_SPLIT)', () => {
   setWorkspace(WORKSPACE_SPLIT);
@@ -22,10 +23,8 @@ test('grid2dRefinementPolish: refinement toolbar terminology strictly maintains 
   assert.equal(frontLabel.includes('X/Y'), true);
 });
 
-test('grid2dRefinementPolish: refinement state formatting indicates local refinement', () => {
-  const formatRefinementStatus = (count) => `Base 10 cm · Refined ${count}`;
-
-  assert.equal(formatRefinementStatus(0), 'Base 10 cm · Refined 0');
-  assert.equal(formatRefinementStatus(1), 'Base 10 cm · Refined 1');
-  assert.equal(formatRefinementStatus(2), 'Base 10 cm · Refined 2');
+test('grid2dRefinementPolish: grid state label stays a single compact base/refined indicator', () => {
+  assert.equal(formatGridStateLabel(0), 'Base 10 cm');
+  assert.equal(formatGridStateLabel(1), 'Refined 5 cm');
+  assert.equal(formatGridStateLabel(2), 'Refined 5 cm');
 });

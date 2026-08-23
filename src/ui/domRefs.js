@@ -63,8 +63,6 @@ export const bodyGraphNodesEl = el('body-graph-nodes');
 export const grid2dBackBtn = el('grid2d-back');
 export const grid2dResetBtn = el('grid2d-reset');
 export const grid2dSplitBtn = el('grid2d-split');
-export const grid2dViewReadout = el('grid2d-view-readout');
-export const grid2dModeReadout = el('grid2d-mode-readout');
 export const grid2dSelectedReadout = el('grid2d-selected-readout');
 export const grid2dStatusMessageEl = el('grid2d-status-message');
 export const grid2dGridWrapperEl = el('grid2d-grid-wrapper');
@@ -75,6 +73,8 @@ export const grid2dSelectionRectEl = el('grid2d-selection-rect');
 export const grid2dSelectedRegionEl = el('grid2d-selected-region');
 export const grid2dHoverTooltipEl = el('grid2d-hover-tooltip');
 export const grid2dLegendEl = el('grid2d-legend');
+// The Front header now carries a static compact axis label, so this resolves to
+// null; kept because projectionLinking still writes through it when present.
 export const grid2dNavViewModeEl = el('grid2d-nav-view-mode');
 export const grid2dAxisLabelsEl = el('grid2d-axis-labels');
 export const grid2dProjectionTooltipEl = el('grid2d-projection-tooltip');
@@ -94,9 +94,6 @@ export const sideEvidenceLandmarksEl = el('side-evidence-landmarks');
 export const sideSegmentationCanvasEl = el('side-segmentation-canvas');
 export const sideEvidenceTooltipEl = el('side-evidence-tooltip');
 export const sideEvidenceHoverTooltipEl = el('side-evidence-hover-tooltip');
-export const sideEvidenceSourceStatusEl = el('side-evidence-source-status');
-export const sideEvidenceViewReadoutEl = el('side-evidence-view-readout');
-export const sideEvidenceModeReadoutEl = el('side-evidence-mode-readout');
 export const sideEvidenceStatusMessageEl = el('side-evidence-status-message');
 export const sideEvidenceSelectionRectEl = el('side-evidence-selection-rect');
 export const sideEvidenceSelectedRegionEl = el('side-evidence-selected-region');

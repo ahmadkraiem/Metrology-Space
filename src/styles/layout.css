@@ -186,9 +186,15 @@
   background: transparent;
 }
 
-#right-sidebar.is-collapsed .sidebar-header-main,
-#right-sidebar.is-collapsed .session-tabs,
-#right-sidebar.is-collapsed .session-tab-content {
+/*
+ * Collapsed renders the rail only. Hiding by exclusion rather than listing the
+ * expanded panels keeps any child added to the sidebar later out of the rail.
+ */
+#right-sidebar.is-collapsed > :not(.sidebar-header):not(.sidebar-collapsed-rail) {
+  display: none;
+}
+
+#right-sidebar.is-collapsed .sidebar-header-main {
   display: none;
 }
 
