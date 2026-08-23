@@ -50,6 +50,13 @@ function syncWorkflowChrome() {
   if (statusHintEl) {
     statusHintEl.textContent = getWorkflowHint(workflow);
   }
+
+  if (workflow === WORKFLOW_BODY_EVIDENCE) {
+    const bodyEvidencePanel = document.getElementById('body-evidence-panel');
+    if (bodyEvidencePanel) {
+      bodyEvidencePanel.classList.remove('is-collapsed');
+    }
+  }
 }
 
 export function setInspectorWorkflow(workflow) {

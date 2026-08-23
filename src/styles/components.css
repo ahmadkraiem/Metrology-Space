@@ -2980,3 +2980,54 @@ select:focus-visible {
     min-width: 220px;
   }
 }
+
+/* ── Workflow-driven Left Sidebar Composition ── */
+
+/* 1. Inspect & Measure (measurement) */
+#left-sidebar[data-workflow='measurement'] #subject-package-card,
+#left-sidebar[data-workflow='measurement'] #anatomy-levels-card,
+#left-sidebar[data-workflow='measurement'] #selection-panel,
+#left-sidebar[data-workflow='measurement'] #measurement-panel {
+  display: block;
+}
+
+#left-sidebar[data-workflow='measurement'] #body-evidence-panel,
+#left-sidebar[data-workflow='measurement'] #annotation-add-controls,
+#left-sidebar[data-workflow='measurement'] #body-evidence-selected-block {
+  display: none;
+}
+
+/* 2. Annotate (annotation) */
+#left-sidebar[data-workflow='annotation'] #selection-panel {
+  display: block;
+}
+
+#left-sidebar[data-workflow='annotation'] #annotation-add-controls {
+  display: block;
+}
+
+#left-sidebar[data-workflow='annotation'] #subject-package-card,
+#left-sidebar[data-workflow='annotation'] #anatomy-levels-card,
+#left-sidebar[data-workflow='annotation'] #measurement-panel,
+#left-sidebar[data-workflow='annotation'] #body-evidence-panel,
+#left-sidebar[data-workflow='annotation'] #body-evidence-selected-block {
+  display: none;
+}
+
+/* 3. Body Evidence (body-evidence) */
+#left-sidebar[data-workflow='body-evidence'] #subject-package-card,
+#left-sidebar[data-workflow='body-evidence'] #anatomy-levels-card,
+#left-sidebar[data-workflow='body-evidence'] #selection-panel,
+#left-sidebar[data-workflow='body-evidence'] #body-evidence-panel {
+  display: block;
+}
+
+#left-sidebar[data-workflow='body-evidence'] #body-evidence-selected-block {
+  display: block;
+}
+
+#left-sidebar[data-workflow='body-evidence'] #annotation-add-controls,
+#left-sidebar[data-workflow='body-evidence'] #measurement-panel {
+  display: none;
+}
+
