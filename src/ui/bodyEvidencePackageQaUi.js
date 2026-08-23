@@ -8,14 +8,7 @@
  */
 
 import { getBodyEvidencePackage } from '../features/bodyEvidence.js';
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
+import { escapeHtml } from './badgeUi.js';
 
 function renderStatusBadge(label, type) {
   const baseClass = 'body-evidence-qa-pill';

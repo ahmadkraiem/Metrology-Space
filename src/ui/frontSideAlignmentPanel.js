@@ -26,14 +26,7 @@ import {
   computeFrontSideAlignment,
 } from '../features/frontSideAlignment.js';
 import { frontSideAlignmentQaEl } from './domRefs.js';
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
+import { escapeHtml, badgeClassForTone, renderBadge } from './badgeUi.js';
 
 function formatCm(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -47,21 +40,6 @@ function formatDelta(value) {
     return 'ΔY —';
   }
   return `ΔY ${(Math.round(value * 10) / 10).toFixed(1)} cm`;
-}
-
-function badgeClassForTone(tone) {
-  if (tone === 'ok') {
-    return 'body-evidence-badge body-evidence-badge--ok';
-  }
-  if (tone === 'warn') {
-    return 'body-evidence-badge body-evidence-badge--warn';
-  }
-  return 'body-evidence-badge body-evidence-badge--muted';
-}
-
-function renderBadge(label, tone = 'default', title = '') {
-  const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
-  return `<span class="${badgeClassForTone(tone)}"${titleAttr}>${escapeHtml(label)}</span>`;
 }
 
 function renderClassificationBadge(classification) {

@@ -28,6 +28,7 @@ import { renderBodyEvidencePackageQaHtml } from './bodyEvidencePackageQaUi.js';
 import { CORE_FRONT_BODY_ANCHORS } from '../features/bodyEvidenceAdapter.js';
 import { buildAnatomicalMeasurementLines } from '../features/bodyMeasurementLines.js';
 import { renderFrontSideAlignmentQa } from './frontSideAlignmentPanel.js';
+import { escapeHtml, badgeClassForTone, renderBadge } from './badgeUi.js';
 import {
   sessionBodyEvidenceStatusEl,
   bodyMeasurementReadinessEl,
@@ -39,28 +40,6 @@ import {
 const EMPTY_EVIDENCE = '<p class="session-empty-state">No body evidence analyzed.</p>';
 const DASH = '—';
 const CORE_ANCHOR_TOTAL = CORE_FRONT_BODY_ANCHORS.length;
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
-function badgeClassForTone(tone) {
-  if (tone === 'ok') {
-    return 'body-evidence-badge body-evidence-badge--ok';
-  }
-  if (tone === 'warn') {
-    return 'body-evidence-badge body-evidence-badge--warn';
-  }
-  return 'body-evidence-badge body-evidence-badge--muted';
-}
-
-function renderBadge(label, tone) {
-  return `<span class="${badgeClassForTone(tone)}">${escapeHtml(label)}</span>`;
-}
 
 function formatCount(value) {
   return typeof value === 'number' && Number.isFinite(value) ? String(value) : '0';

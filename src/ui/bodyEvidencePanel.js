@@ -65,6 +65,8 @@ import {
   promoteSelectedBodyLandmarkBtn,
 } from './domRefs.js';
 
+import { escapeHtml, badgeClassForTone, renderBadge } from './badgeUi.js';
+
 const BODY_EVIDENCE_TABS = Object.freeze(['front', 'side', 'selection']);
 const CANDIDATE_LAYERS = Object.freeze(['core', 'secondary']);
 const SEGMENTATION_FILTERS = Object.freeze(['present', 'absent']);
@@ -81,14 +83,6 @@ let frontSegFilter = 'present';
 let sideSegFilter = 'present';
 let lastSelectionKey = '';
 
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
 function formatCmValue(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return 'n/a';
@@ -101,24 +95,6 @@ function formatScore(score) {
     return 'n/a';
   }
   return score.toFixed(2);
-}
-
-function badgeClassForTone(tone) {
-  if (tone === 'ok') {
-    return 'body-evidence-badge body-evidence-badge--ok';
-  }
-  if (tone === 'warn') {
-    return 'body-evidence-badge body-evidence-badge--warn';
-  }
-  if (tone === 'muted') {
-    return 'body-evidence-badge body-evidence-badge--muted';
-  }
-  return 'body-evidence-badge';
-}
-
-function renderBadge(label, tone = 'default', title = '') {
-  const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
-  return `<span class="${badgeClassForTone(tone)}"${titleAttr}>${escapeHtml(label)}</span>`;
 }
 
 function getSegClassSwatchColor(classId) {
