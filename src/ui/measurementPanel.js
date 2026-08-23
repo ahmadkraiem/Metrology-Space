@@ -18,7 +18,6 @@ import {
   historyEmptyEl,
   historyListEl,
   measurementDistanceEl,
-  measurementPanel,
   pointACoordsEl,
   pointBCoordsEl,
   sideMeasurementDistanceEl,
@@ -33,10 +32,6 @@ import {
 } from '../core/frontSurface.js';
 
 export function updateMeasurementPanel(measurement) {
-  if (measurementPanel) {
-    measurementPanel.hidden = false;
-  }
-
   if (measurement?.pointA) {
     renderMeasurementPointDisplay(pointACoordsEl, measurement.pointA);
   } else if (pointACoordsEl) {

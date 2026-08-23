@@ -6,7 +6,6 @@ export const rightSidebarEl = el('right-sidebar');
 export const rightSidebarToggleBtn = el('right-sidebar-toggle');
 export const viewportEl = el('viewport');
 export const hoverTooltipEl = el('hover-coordinate-tooltip');
-export const selectionPanel = el('selection-panel');
 export const selectedXEl = el('selected-x');
 export const selectedYEl = el('selected-y');
 export const selectedZEl = el('selected-z');
@@ -64,13 +63,9 @@ export const grid2dSelectionRectEl = el('grid2d-selection-rect');
 export const grid2dSelectedRegionEl = el('grid2d-selected-region');
 export const grid2dHoverTooltipEl = el('grid2d-hover-tooltip');
 export const grid2dLegendEl = el('grid2d-legend');
-// The Front header now carries a static compact axis label, so this resolves to
-// null; kept because projectionLinking still writes through it when present.
-export const grid2dNavViewModeEl = el('grid2d-nav-view-mode');
 export const grid2dAxisLabelsEl = el('grid2d-axis-labels');
 export const grid2dProjectionTooltipEl = el('grid2d-projection-tooltip');
 export const referenceProjectionUtilityEl = el('reference-projection-utility');
-export const whyResultBlockedEl = el('why-result-blocked');
 export const importBodyEvidencePackageZipInput = el('import-body-evidence-package-zip');
 export const bodyEvidenceStatusEl = el('body-evidence-status');
 export const bodyEvidenceOverlayLayerEl = el('grid2d-body-evidence-markers');

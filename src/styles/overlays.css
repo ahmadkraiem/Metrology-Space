@@ -1182,7 +1182,6 @@
   border-color: rgba(34, 211, 238, 0.35);
 }
 
-.grid2d-legend-swatch--side-landmark,
 .grid2d-legend-swatch--side-core {
   width: 6px;
   height: 6px;
@@ -1223,14 +1222,6 @@
 
 .grid2d-legend-item[hidden] {
   display: none;
-}
-
-.grid2d-legend-item--dimmed {
-  opacity: 0.38;
-}
-
-.grid2d-legend-item--dimmed .grid2d-legend-label {
-  color: var(--text-muted);
 }
 
 .grid2d-legend-swatch {

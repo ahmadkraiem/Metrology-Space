@@ -140,14 +140,6 @@ export function getSecondaryCandidateLandmarks() {
   );
 }
 
-export function getFrontOverlayLandmarkCount() {
-  return getFrontOverlayLandmarks().length;
-}
-
-export function getSecondaryCandidateLandmarkCount() {
-  return getSecondaryCandidateLandmarks().length;
-}
-
 export function isBodyEvidenceMarkerHovered() {
   return hoveredMarkerId !== null;
 }

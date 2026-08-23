@@ -9,8 +9,6 @@ import { clearMeasurement } from '../features/measurement.js';
 import { clearSelection } from '../features/selection.js';
 import {
   annotationAddControls,
-  measurementPanel,
-  selectionPanel,
   statusModeValueEl,
 } from './domRefs.js';
 import {
@@ -29,12 +27,6 @@ function updateModeUI(mode, selectionHighlight) {
   statusModeValueEl.textContent = MODE_LABELS[mode];
   if (annotationAddControls) {
     annotationAddControls.hidden = mode !== APP_MODE_ANNOTATE;
-  }
-  if (selectionPanel) {
-    selectionPanel.hidden = false;
-  }
-  if (measurementPanel) {
-    measurementPanel.hidden = false;
   }
 
   if (mode === APP_MODE_INSPECT_MEASURE) {

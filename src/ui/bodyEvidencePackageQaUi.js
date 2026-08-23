@@ -1,10 +1,12 @@
 /**
- * Body Evidence Package QA Summary UI component (v0)
+ * Body Evidence Package QA Summary HTML helper (v0).
  *
- * Renders a compact, read-only summary of the normalized Full Body Evidence Package QA
- * status when a package is loaded.
+ * Reusable read-only renderer for the normalized Full Body Evidence Package QA
+ * contract. Not currently mounted in the live Diagnostics accordion (Advanced QA
+ * shows intake + calibration only). Kept for tests and as the Package QA HTML
+ * surface if that card is remounted later.
  *
- * Reuses getBodyEvidencePackage() without recomputing or duplicating any QA logic.
+ * Reuses getBodyEvidencePackage() without recomputing or duplicating QA logic.
  */
 
 import { getBodyEvidencePackage } from '../features/bodyEvidence.js';

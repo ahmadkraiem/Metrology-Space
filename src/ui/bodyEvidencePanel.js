@@ -49,7 +49,6 @@ import {
 } from './bodyEvidenceOverlaySide2d.js';
 import { BASE_PALETTE_RGB } from './segmentationOverlay2d.js';
 import { renderEvidenceCandidateList } from './bodyEvidenceCandidateList.js';
-import { focusBodyEvidenceWorkflow } from './inspectorWorkflow.js';
 import {
   bodyEvidenceFrontCandidatesEl,
   bodyEvidenceFrontListCountEl,
@@ -71,7 +70,7 @@ import {
   promoteSelectedBodyLandmarkBtn,
 } from './domRefs.js';
 
-import { escapeHtml, badgeClassForTone, renderBadge } from './badgeUi.js';
+import { escapeHtml, renderBadge } from './badgeUi.js';
 
 const BODY_EVIDENCE_TABS = Object.freeze(['front', 'side', 'selection']);
 const CANDIDATE_LAYERS = Object.freeze(['core', 'secondary']);
@@ -738,18 +737,6 @@ export function runDownloadBodyEvidenceAction() {
     return;
   }
   showStatus('Body Evidence JSON downloaded.', 'ok');
-}
-
-/**
- * Focus Body Evidence workflow and switch to the requested internal tab.
- * @param {'front'|'side'|'selection'} tab
- */
-export function focusBodyEvidenceTab(tab) {
-  if (!BODY_EVIDENCE_TABS.includes(tab)) {
-    return;
-  }
-  setBodyEvidencePanelTab(tab);
-  focusBodyEvidenceWorkflow();
 }
 
 export function getBodyEvidencePanelTab() {

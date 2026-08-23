@@ -81,7 +81,7 @@ setupAppModeControls(measurement, selectionHighlight);
 setupAnnotationControls();
 setupSceneExport(measurement);
 setupSceneImport(measurement, selectionHighlight);
-setupSceneGraphPanel(measurement);
+setupSceneGraphPanel();
 setupFrontSurfaceMeasurement(measurement);
 setupGrid2dNavigator(selectionHighlight);
 setupSideGrid2dNavigator();

@@ -18,8 +18,8 @@ It renders an interactive **200 cm × 200 cm × 200 cm** coordinate cube used to
 - Inspect Front Surface (X/Y) and Side Evidence (U/Y) 2D planes side-by-side
 - Promote verified front body landmarks into canonical 3D annotations
 - Import structured multi-modal Full Body Evidence Packages (`.zip`) with automatic analysis
-- Inspect Package QA metrics, modality availability, and raster compatibility in Session Data → Body
-- Inspect Front–Side Alignment v0 QA correspondence and vertical Y agreement in Session Data → Body
+- Inspect eligibility blockers, Front–Side Alignment, Body / Anchor Diagnostics, and Advanced QA in Right Sidebar → Diagnostics
+- Inspect Front–Side Alignment v0 QA correspondence and vertical Y agreement in Diagnostics → Front–Side Alignment
 - Inspect topological Body Graph v0 based on promoted Core 13 landmarks
 - Export the current metrology session as structured Scene State JSON
 - Load a previously exported Scene State JSON file to restore session data
@@ -142,41 +142,72 @@ Transitions use smoothstep blending (`LOD_FAR = 420`, `LOD_MID = 280`, `LOD_NEAR
 - It does not affect Point A, Point B, measurement line, floating distance label, or history
 - The **floating distance label** remains a `CSS2DObject` at the measurement line midpoint (see §7)
 
-### App modes and inspector workflows
+### Application shell
 
-The app has two **interaction modes** (Inspect & Measure vs Annotate) that control 3D/2D click behavior. Active workflow selection is managed via the **Workflow** top application menu (`#app-menu-bar [data-menu="workflow"]`):
+The live shell is a three-column layout (`#app-layout`):
 
-| Workflow | Menu Item | Default | Left-Sidebar Content | Interaction Mode Effect |
-|----------|-----------|---------|----------------------|-------------------------|
-| **Inspect & Measure** | `data-workflow="measurement"` | Yes | Distance Measurement panel (`#measurement-panel`) | Sets Inspect & Measure mode |
-| **Annotate** | `data-workflow="annotation"` | No | Selected Point panel (`#selection-panel`) with annotation controls | Sets Annotate mode |
-| **Body Evidence** | `data-workflow="body-evidence"` | No | Body Evidence panel (`#body-evidence-panel`) | Inspector-only — does **not** change app mode |
+#### Left Sidebar — Metrology Inspector (`#left-sidebar`)
+
+Workflow-driven. Visibility is CSS (`#left-sidebar[data-workflow]`), wired by `inspectorWorkflow.js` / `inspectorWorkflowState.js`. There is **no** standalone Current Selection card and **no** Subject / Package card. Package upload lives in the **File** menu.
+
+| Workflow | Menu Item | Default | Visible left panels | Interaction Mode Effect |
+|----------|-----------|---------|---------------------|-------------------------|
+| **Inspect & Measure** | `data-workflow="measurement"` | Yes | Anatomical Levels (`#anatomy-levels-card`) + Distance Measurement (`#measurement-panel`) | Sets Inspect & Measure mode |
+| **Annotate** | `data-workflow="annotation"` | No | Annotation (`#annotation-panel`) with embedded Selected Point coords | Sets Annotate mode |
+| **Body Evidence** | `data-workflow="body-evidence"` | No | Anatomical Levels + Advanced Evidence (`#body-evidence-panel`) | Inspector-only — does **not** change app mode |
 
 Body Evidence controls live **only** in the Body Evidence workflow. They do **not** appear inside Annotate. Annotate remains annotation-specific. Inspect & Measure remains measurement-specific.
 
-Workflow panel visibility itself is UI-only (`#left-sidebar[data-workflow]`, wired by `src/ui/inspectorWorkflow.js` and `src/ui/inspectorWorkflowState.js`). Switching between **Inspect & Measure** and **Annotate** also changes the app interaction mode and applies the documented mode-switch cleanup rules below. In contrast, switching to or from **Body Evidence** changes inspector workflow visibility only and does not clear measurements, annotations, or Body Evidence session state.
+#### Center workspace (`#viewport`)
+
+Three workspace tabs (`workspaceLayout.js`):
+
+- **3D Space** — volumetric cube, lattice, measurements, annotations
+- **2D Workspace** — Front Surface navigator (X/Y) beside Side Profile navigator (U/Y)
+- **Body Graph** — read-only Core 13 topology diagram (`bodyGraphWorkspace.js`)
+
+#### Right Sidebar — Results & Records (`#right-sidebar`)
+
+No Hist / Annos / Body / Graph tab strip. Composition:
+
+1. **Results** (`#derived-measurement-deck`, always visible at the top) — Shoulder / Hip derived result cards (`derivedMeasurementDeck.js`)
+2. **Session Records** (`#session-records-panel`, collapsible, expanded by default) — History + Annotations, including promoted body landmarks as annotation records
+3. **Diagnostics** (`#diagnostics-panel`, collapsible, collapsed by default) — independently collapsible subsections:
+   - Why This Result Is Blocked (`#why-result-blocked`)
+   - Front–Side Alignment (`#front-side-alignment-qa`)
+   - Body / Anchor Diagnostics (`#body-measurement-readiness`)
+   - Advanced QA (`#advanced-qa-content`) — intake identity + metric calibration only
+   - Origin / Center projection utility (`#reference-projection-utility`)
+
+The whole right sidebar can collapse to a vertical rail (`#right-sidebar-toggle`). Section accordions are wired by `initCollapsibleSections()` on `#left-sidebar` and again on `#right-sidebar`.
+
+### App modes and inspector workflows
+
+The app has two **interaction modes** (Inspect & Measure vs Annotate) that control 3D/2D click behavior. Active workflow selection is managed via the **Workflow** top application menu (`#app-menu-bar [data-menu="workflow"]`).
+
+Workflow panel visibility itself is UI-only. Switching between **Inspect & Measure** and **Annotate** also changes the app interaction mode and applies the documented mode-switch cleanup rules below. In contrast, switching to or from **Body Evidence** changes inspector workflow visibility only and does not clear measurements, annotations, or Body Evidence session state.
 
 #### Inspect & Measure mode
 - Default active mode on load
 - Hover works as described above (preview next A/B color)
 - Click advances the Point A / Point B measurement flow (see §7)
 - Promoted `body_landmark` annotation markers are valid measurement pick targets (see **Body Landmark Measurement Picking v0** in §7)
-- **Selected Point panel is hidden** in left sidebar
+- Annotation / Selected Point controls are hidden (Annotate workflow only)
 - Selection highlight mesh is **not shown** (does not compete with A/B markers)
 - Internal selection state is not updated on click; measurement state drives the active interaction
 - Distance Measurement panel is the active control panel in the left sidebar
-- Saved annotations remain visible in the scene and in the right Session Data sidebar
+- Saved annotations remain visible in the scene and in Right Sidebar → Session Records
 
 #### Annotate mode
 - Hover works; hover and selected point use the same orange/amber family
 - Click selects a volumetric point only — does **not** set Point A, Point B, or advance measurement
 - Clicking promoted `body_landmark` annotations does **not** set Point A/B (Annotate remains annotation-focused)
-- **Selected Point panel is visible** in left sidebar, showing X, Y, Z in cm
+- **Annotation panel** is visible, with embedded Selected Point coords (`#annotation-selected-coords`) showing X/Y/Z or Side U/Y in cm
 - Annotation name input, **Annotation Type** dropdown (default: Custom), **Landmark Preset** dropdown (default: Custom/manual), **Add Annotation**, and **Clear Selection** (`#clear-selection`) are visible
 - **Add Annotation** works only in this mode (from the currently selected point, chosen type, and final name in the name input)
 - Distance Measurement panel is hidden
 - Body Evidence actions/promote controls are **not** part of Annotate
-- Existing measurement history remains visible in the right Session Data sidebar
+- Existing measurement history remains visible in Right Sidebar → Session Records
 
 #### Mode / workflow switch cleanup
 - **Inspect & Measure → Annotate:** clears active Point A, Point B, measurement line, floating distance label, and Distance Measurement panel state; clears selected point if it matched A or B; **does not** clear measurement history or saved annotations
@@ -189,11 +220,11 @@ Saved annotations and measurement history remain visible across mode switches.
 ### Point selection
 - **Annotate mode only:** click (without drag) selects a volumetric point
 - Uses raycasting against LOD instanced meshes, with nearest-point fallback along the ray
-- **Selected Point panel** shows X, Y, Z in cm (Annotate mode only)
+- The Annotation panel Selected Point block shows X, Y, Z in cm (or Side U/Y) in Annotate mode only
 - Orange/amber selection highlight (`#ffa726`, higher opacity than hover) at the clicked point — the committed version of the Annotate hover preview
 - Only one selected point at a time; each click updates selection
 - **Clear Selection** button (`#clear-selection`) clears the active selected point, selection highlight mesh, and resets validation messages
-- **Inspect & Measure mode:** the Selected Point panel and selection highlight are hidden; clicks advance measurement instead
+- **Inspect & Measure mode:** the Annotation panel and selection highlight are hidden; clicks advance measurement instead
 
 ---
 
@@ -204,7 +235,7 @@ Saved annotations and measurement history remain visible across mode switches.
 2. **Second click** → **Point B** (magenta marker), line drawn, distance calculated
 3. **Third click** (when A and B already set) → starts a new measurement: new Point A, clears Point B and line
 
-In **Inspect & Measure mode**, each click advances this flow only — the Selected Point panel and selection highlight are not shown. Valid click targets include internal lattice / volume points, Front Surface 2D grid points, and promoted `body_landmark` annotation markers.
+In **Inspect & Measure mode**, each click advances this flow only — the Annotation / Selected Point controls and selection highlight are not shown. Valid click targets include internal lattice / volume points, Front Surface 2D grid points, and promoted `body_landmark` annotation markers.
 
 In **Annotate mode**, clicks do not advance measurement.
 
@@ -310,8 +341,8 @@ The left Metrology Inspector **Distance Measurement** panel (`#measurement-panel
 - Annotations are session-only and stored in memory.
 - Each annotation creates a stable 3D visual at the saved coordinate (`THREE.Group` with box marker and `CSS2DObject` label).
 - Adding annotations is blocked while OrbitControls dragging is active and outside Annotate mode.
-- Annotation delete buttons in the right Session Data sidebar **Annotations tab** remove the marker, label DOM node, and list entry.
-- Add Annotation controls live in the left Selected Point panel (`#annotation-add-controls`) and are visible only in Annotate mode.
+- Annotation delete buttons in Right Sidebar → Session Records → Annotations remove the marker, label DOM node, and list entry.
+- Add Annotation controls live in the left Annotation panel (`#annotation-add-controls`) and are visible only in Annotate mode.
 - **Clear Selection** button (`#clear-selection`) clears the active selected point and highlight mesh.
 - 3D annotation visuals can be hidden via the top application **View** menu item **Annotations** (checked by default).
 - Hiding annotations is **visual only** — annotations are not deleted, remain in the Annotation List, and are still included in Scene State JSON export.
@@ -368,7 +399,7 @@ setBodyEvidencePackage()
         ↓
 automatic Body Evidence analysis (analyzeLoadedBodyEvidence)
         ↓
-Front / Side evidence + Session Data Package QA
+Front / Side evidence + Right Sidebar Results / Session Records / Diagnostics
 ```
 
 Legacy standalone source setters (`setFrontPoseSource`, `setSidePoseSource`, `setFrontSegSource`, `setSideSegSource`) and individual per-modality file upload buttons no longer exist.
@@ -433,15 +464,17 @@ Dense pointmap and normal binary tensors are accessed on demand via `getDenseDat
 2. **Left Body Evidence Inspector (`#body-evidence-panel`):**
    - **Front Tab (`#body-evidence-tab-front`):** Front Core and Secondary candidate lists, Front Segmentation class list with Present/Absent filters.
    - **Side Tab (`#body-evidence-tab-side`):** Side Core and Secondary candidate lists, Side Segmentation class list with Present/Absent filters.
-   - **Selection Tab (`#body-evidence-tab-selection`):** Detailed inspect cards for active Front/Side landmark or segmentation class selections; **Promote Selected Landmark** button (Front only); **Clear Selection** button.
-   - Analysis executes automatically upon package upload; manual Actions buttons (Analyze, Download, Clear) have been eliminated.
+   - **Landmark Tab (`#body-evidence-tab-selection`):** Detailed inspect cards for the active Front/Side landmark or segmentation class; **Promote Selected Landmark** (Front only); **Clear Landmark Selection**.
+   - Analysis executes automatically upon package upload; manual Analyze / Download / Clear action buttons have been eliminated.
 
-3. **Session Data → Body Tab (`#tab-panel-body`):**
-   - **Package QA Card (`bodyEvidencePackageQaUi.js`):** Authoritative package QA breakdown rendering overall status badge, Front and Side modality status pills (Image, Pose, Segmentation, Pointmap, Normals, Raster Compatibility), and Deferred Geometry Semantics flags (`UNVALIDATED`).
-   - **Loaded Chips & Metrics:** Loaded modality indicators, Core/Secondary totals, scale metadata, and collapsible advanced details.
-   - **Front–Side Alignment QA:** Vertical $\Delta Y$ correspondence report.
-   - **Promoted Body Anchors Table:** Live annotation audit.
-   - **Body Measurement Readiness:** Canonical landmark readiness audit.
+3. **Right Sidebar (`#right-sidebar`):**
+   - **Results:** Shoulder / Hip derived measurement cards (`derivedMeasurementDeck.js`).
+   - **Session Records:** History + Annotations. Promoted body landmarks appear as `body_landmark` annotation records, not a second anchors table.
+   - **Diagnostics → Why This Result Is Blocked:** Eligibility / blocker reasons (`advancedQaPanel.js`).
+   - **Diagnostics → Front–Side Alignment:** Vertical $\Delta Y$ correspondence report (`frontSideAlignmentPanel.js`).
+   - **Diagnostics → Body / Anchor Diagnostics:** Promoted-anchor readiness and preview-span audit (`bodyTabConsolidatedPanel.js`).
+   - **Diagnostics → Advanced QA:** Package identity (sample / format / version) and metric calibration provenance only. The full Package QA modality card (`bodyEvidencePackageQaUi.js`) is a reusable HTML helper used by tests; it is **not** mounted in the live Diagnostics accordion.
+   - **Diagnostics → Origin / Center:** Compact projection utility (`sceneGraphPanel.js`). There is no Scene Graph tree.
 
 ---
 
@@ -582,7 +615,7 @@ $$\Delta Y = |front.y - side.y|$$
 
 ## 16. Current Scene Graph & Scene State Export / Import
 
-- **Scene Graph:** Tree visualization in Session Data **Graph** tab (`#tab-panel-graph`) with non-mutating 3D highlight previews.
+- **Reference projection utility:** Compact Origin / Center buttons in Diagnostics (`sceneGraphPanel.js`) activate non-mutating 3D/2D projection highlights via `projectionLinking.js` and `sceneGraphHighlight.js`. The old Scene Graph tree UI is gone.
 - **Scene State Export/Import:** Managed via **File** menu (**Export Scene State** and **Import Scene State…**). Canonical Schema v1 exports annotations, measurement history, active measurement, and coordinate metadata. Raw Body Evidence, Side measurements, 2D refinement state, and Body Graph are strictly excluded.
 
 ---
@@ -658,7 +691,7 @@ Milestone 3.2 establishes deterministic layout contracts, numeric QA evaluators,
 - **Public Getters:** `getDenseEvidenceQa()`, `getFrontDenseEvidenceQa()`, `getSideDenseEvidenceQa()`.
 - **Sanitized Diagnostic Export:** `buildBodyEvidenceExport()` includes sanitized, JSON-safe dense QA summaries in `views.front.denseQa`, `views.side.denseQa`, and top-level `denseQa: { front, side }` without raw typed arrays, base64 data, or functions.
 - **Separation of Concerns:** `package.qa.numericValues` inside `body-evidence-package-v0` remains strictly deferred/unvalidated, while derived runtime QA resides in `denseEvidenceQa`.
-- **UI State:** Dense Evidence QA UI / inspection panel is **intentionally deferred**. Package QA UI remains unchanged.
+- **UI State:** A dedicated Dense Evidence QA inspection panel is **intentionally deferred**. Live Advanced QA shows intake identity and calibration only. The unmounted Package QA HTML helper still encodes deferred pointmap/normal geometry flags (`VALIDATION PENDING` / `DEFERRED`) for tests.
 
 ---
 
@@ -728,9 +761,11 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.5D: Physical Measurement Eligibility Contract v0 (`physical-measurement-eligibility-v0` & `paired-cross-view-eligibility-v0` — authoritative downstream eligibility gate determining whether metric-projected measurements are qualified to be consumed as true physical body scalars across Tier 1 individual and Tier 2 paired evaluations, preserving multi-blocker diagnostics and decoupled physical-value provenance)**
 - **Milestone 4.5E: Authoritative View / Pose Semantics Validation v0 (`view-pose-semantics-v0` — pure deterministic domain qualification layer verifying Layer A declared view identity, Layer B 2D structural pose qualification with `LOW_CONFIDENCE_THRESHOLD = 0.5`, anatomical vertical ordering, and Front A-pose limb separation, while strictly requiring recognized evaluators for Layer C physical orientation certification; evaluates to `status: 'partial'`, `authorized: false` on current Body Pipeline evidence)**
 - **Milestone 4.5F: Clothing / Body-Surface Authorization v0 (`clothing-body-surface-semantics-v0` — pure deterministic domain qualification layer governing Layer A clothing participation from measurement support policy provenance, Layer B visual garment qualification with canonical `garmentFitStatus` taxonomy, and Layer C authoritative empirical body-surface authorization; derives the composite `clothingConstraintSatisfied` gate consumed by 4.5D to keep or clear the `clothing_authorization_missing` blocker; evaluates to `status: 'partial'`, `garmentFitStatus: 'unresolved'`, `clothingConstraintSatisfied: false` on current Body Pipeline evidence)**
+- **Application Shell / UI Modernization Checkpoint** — workflow-driven Left Sidebar; Right Sidebar Results / Session Records / Diagnostics accordions; Hist / Annos / Body / Graph tabs removed; Subject / Package and Current Selection cards removed; documentation synchronized to the cleaned implementation. **No Pointmap geometry milestone is implied.**
 
 ### Deferred Milestones / Dependency Checkpoints
-- **Milestone 4.5G: Authoritative Physical Evidence Semantics — DEFERRED / PENDING SAPIENS POINTMAP RUNTIME AUDIT** (Documentation-only dependency checkpoint; establishes that image-plane $10\text{ px/cm}$ projected measurements are verified $[30.80, 11.00, 42.20, 27.70\text{ cm}]$, but physical body dimension equivalence remains unproven; Sapiens2 1B pointmap runtime inference code is external and unreviewed; audit checklist of 12 items required before 4.5G design; active blocker `authoritative_physical_evidence_missing` preserved).
+- **Next investigation (not started): Body / Sapiens / Pointmap pipeline and evidence contract.** Inspect the actual Body Pipeline / Sapiens output contract before defining any new canonical geometry or depth semantics. Do **not** assume Pointmap $Z$ is canonical metrology $Z$, Side $U$ is depth, pointmap geometry is physically calibrated, or Front/Side pointmaps can be fused.
+- **Milestone 4.5G: Authoritative Physical Evidence Semantics — DEFERRED / PENDING SAPIENS POINTMAP RUNTIME AUDIT** (Documentation-only dependency checkpoint; not started and not completed. Image-plane $10\text{ px/cm}$ projected measurements are verified $[30.80, 11.00, 42.20, 27.70\text{ cm}]$, but physical body dimension equivalence remains unproven. Do not design 4.5G until the Body / Sapiens / Pointmap evidence contract has been inspected.)
 
 ### Active State & Physical Blockers
 - **Current Real Evaluation State (`output.zip`)**:
@@ -748,7 +783,7 @@ When modifying this project, preserve the following unless explicitly instructed
 
 | File | Purpose |
 |------|---------|
-| `src/main.js` | Thin app orchestrator: scene assembly, interaction/UI setup, resize, animation loop (~118 lines) |
+| `src/main.js` | Thin app orchestrator: scene assembly, interaction/UI setup, resize, animation loop (~122 lines) |
 | `src/core/constants.js` | Shared scale, grid, LOD, and tooltip constants |
 | `src/core/frontSurface.js` | Front Surface depth, 2D↔3D mapping helpers |
 | `src/core/annotationTypes.js` | Allowed annotation node types, landmark presets, display labels |
@@ -824,29 +859,32 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/ui/inspectorWorkflow.js` | Metrology Inspector workflow panel visibility manager |
 | `src/ui/inspectorWorkflowState.js` | Metrology Inspector workflow state store |
 | `src/ui/domRefs.js` | Safe cached DOM element references |
-| `src/ui/workspaceLayout.js` | Workspace tab management (3D / 2D / Body Graph), split divider, and right Session Data sidebar collapse/expand |
+| `src/ui/workspaceLayout.js` | Workspace tab management (3D / 2D / Body Graph), split divider, and right sidebar rail collapse |
+| `src/ui/leftPanel.js` | Anatomical Levels card renderer for the left inspector |
+| `src/ui/derivedMeasurementDeck.js` | Right Sidebar Results cards (Shoulder / Hip) |
+| `src/ui/advancedQaPanel.js` | Diagnostics Why Blocked + Advanced QA (intake / calibration) |
+| `src/ui/collapsibleSections.js` | Shared `[data-collapsible]` accordion wiring for left and right sidebars |
 | `src/ui/grid2dNavigator.js` | Front Surface 2D Grid Navigator (X/Y coordinates) |
 | `src/ui/sideGrid2dNavigator.js` | Side Evidence 2D Grid Navigator (U/Y coordinates) |
 | `src/ui/grid2dNavShared.js` | Shared 2D navigator geometry, zoom/pan transform, and lattice utilities |
 | `src/ui/grid2dPlotArea.js` | Shared 2D plot frame, axes, and CSS variable styling |
-| `src/ui/bodyEvidencePackageQaUi.js` | Body Evidence Package QA summary UI component (Session Data > Body tab) |
+| `src/ui/bodyEvidencePackageQaUi.js` | Reusable Package QA HTML helper (test / future remount; not currently mounted in Diagnostics) |
 | `src/ui/bodyEvidencePackageQaUi.test.js` | Package QA summary UI unit tests |
-| `src/ui/bodyEvidencePanel.js` | Body Evidence left workflow panel (Front / Side / Selection tabs, segmentation lists, inspect card, promote) |
+| `src/ui/bodyEvidencePanel.js` | Body Evidence left workflow panel (Front / Side / Landmark tabs, segmentation lists, inspect card, promote) |
 | `src/ui/bodyEvidenceCandidateList.js` | Candidate list DOM rendering with Core / Secondary filters and pill badges |
 | `src/ui/bodyEvidenceOverlay2d.js` | Front Surface Body Evidence overlay markers and inspect selection |
 | `src/ui/bodyEvidenceOverlaySide2d.js` | Side Evidence overlay markers (shared Core/Secondary colors; diamond/dot shapes) |
 | `src/ui/segmentationOverlay2d.js` | Translucent dense semantic segmentation overlays & highlight LUTs with isolated per-view caches |
 | `src/ui/segmentationOverlay2d.test.js` | Segmentation overlay rendering, cache isolation, and LUT unit tests |
-| `src/ui/segmentationInspection.test.js` | Segmentation inspection, filtering, and Selection tab unit tests |
-| `src/ui/frontSideAlignmentPanel.js` | Front–Side Alignment QA presentation panel (summary card, collapsible groups, compact rows) |
+| `src/ui/segmentationInspection.test.js` | Segmentation inspection, filtering, and Landmark-tab unit tests |
+| `src/ui/frontSideAlignmentPanel.js` | Diagnostics → Front–Side Alignment presentation (summary card, collapsible groups, compact rows) |
 | `src/ui/bodyGraphWorkspace.js` | Body Graph Workspace v0 — Core 13 topological diagram |
-| `src/ui/bodyTabConsolidatedPanel.js` | Session Data Body tab coordinator (Package QA / Status / Alignment QA / Promoted Anchors / Readiness) |
-| `src/ui/measurementPanel.js` | Distance Measurement inspector (Front/Canonical and Side/U-Y subgroups) |
-| `src/ui/selectionPanel.js` | Selected Point inspector panel helper |
+| `src/ui/bodyTabConsolidatedPanel.js` | Diagnostics coordinator for Front–Side Alignment + Body / Anchor readiness |
+| `src/ui/measurementPanel.js` | Distance Measurement inspector (Front/Canonical and Side/U-Y subgroups) + Session Records History |
+| `src/ui/selectionPanel.js` | Selected Point coordinate readouts inside the Annotation panel |
 | `src/ui/annotationControls.js` | Landmark Preset dropdown wiring |
-| `src/ui/annotationPanel.js` | Annotation list DOM rendering |
-| `src/ui/sessionTabs.js` | Session Data tab manager (Hist / Annos / Body / Graph) |
-| `src/ui/sceneGraphPanel.js` | Scene Graph tree DOM rendering |
+| `src/ui/annotationPanel.js` | Session Records annotation list renderer |
+| `src/ui/sceneGraphPanel.js` | Diagnostics Origin / Center projection utility |
 | `src/styles/variables.css` | Design tokens and color themes |
 | `src/styles/layout.css` | CSS grid layout, workspace panes, and split divider |
 | `src/styles/components.css` | Menus, sidebars, tabs, panels, cards, candidate lists, and buttons |

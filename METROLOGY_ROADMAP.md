@@ -10,6 +10,7 @@ Purpose: Keep the project aligned with the current architecture and evidence str
 - Body Landmark Evidence
 - Front–Side Alignment v0
 - Body Graph / Reference Levels
+- Application Shell / UI Modernization Checkpoint (workflow-driven Left Sidebar; Right Sidebar Results / Session Records / Diagnostics; Hist / Annos / Body / Graph tabs removed). **No Pointmap geometry work is included.**
 
 ## 2. Semantic Dense Evidence — COMPLETED
 
@@ -36,7 +37,7 @@ Key achievements:
 - Structural readability, modality availability, and raster dimension compatibility QA.
 - Lightweight lazy dense buffer access (`getDenseData`) without eager memory duplication.
 - In-memory ZIP transport adapter (`importBodyEvidenceZip`) for pipeline/testing workflows.
-- Authoritative Package QA presentation in Session Data → Body.
+- Package QA HTML helper retained for tests; live Diagnostics Advanced QA shows intake identity and metric calibration only.
 - Automatic analysis triggered upon package upload.
 - Strict preservation of geometry boundaries (no pointmap Z → canonical Z, no U → Z, no Front/Side 3D fusion).
 
@@ -50,7 +51,7 @@ Key achievements:
 - **Surface Normal Numeric QA Core v0 (`normal-numeric-qa-v0`):** Vector magnitude statistics, zero-magnitude tracking, observational near-unit ratio ($|\|v\| - 1.0| \le 0.01$, `NORMAL_UNIT_TOLERANCE = 0.01`), declared-range violation tracking, and raw `uint8` value preservation without heuristic remapping. Coordinate frame, orientation semantics, and encoding semantics explicitly marked `UNVALIDATED`.
 - **Same-View Cross-Modal Dense QA v0 (`same-view-dense-cross-modal-qa-v0`):** Independent Front and Side evaluations, pairwise raster compatibility (`segmentation ↔ pointmap ↔ normals`), pixel addressability, and observational mask scanning (`background`, `nonBackground`, `bodyAnatomical` using authoritative `BODY_ANATOMICAL_CLASS_IDS` from `anatomicalRegions.js`). Semantic pixel correspondence explicitly marked `UNVALIDATED`.
 - **Runtime Integration v0:** Derived runtime state `denseEvidenceQa = { front, side }` in `bodyEvidence.js`, automatic async evaluation, single-decode buffer reuse per modality per view, stale-session race protection, public getters, and sanitized JSON-safe diagnostic export. Package QA `numericValues` remain deferred/unvalidated.
-- **UI State:** Dedicated Dense Evidence QA inspection panel is **intentionally deferred** as an optional presentation feature; Package QA UI remains unchanged.
+- **UI State:** Dedicated Dense Evidence QA inspection panel is **intentionally deferred**. Live Advanced QA does not remount the full Package QA modality card.
 
 Guardrails: Pointmap Z is NOT canonical metrology Z, Side U is NOT canonical Z, no depth inference, no Front/Side geometry fusion, and no normal orientation inference.
 
@@ -367,6 +368,18 @@ Formalized the deterministic domain qualification layer governing clothing parti
 - **Measurement-Specific Scope**: Qualification is strictly evaluated per measurement, view, anatomical region, and support-policy provenance (e.g. upper-body garment qualification cannot authorize hip measurements).
 - **Separation from Measurement Support Policy**: `measurementSupportPolicy.js` answers which segmentation classes constitute the supported silhouette; `clothingBodySurfaceSemantics.js` interprets what that clothing participation means for downstream qualification.
 - **Strict Guardrails**: No VLM implementation, no user garment declaration path, no garment thickness or offset inference, no empirical tolerance invention, no Side $U \to Z$, no Front/Side geometry fusion, no pointmap $Z$ promotion, and no circumference or cross-section calculations.
+
+### Next investigation — Body / Sapiens / Pointmap pipeline and evidence contract (NOT STARTED)
+
+The next technical investigation is to inspect the **actual Body Pipeline / Sapiens / Pointmap output contract** before any new canonical geometry or depth semantics are defined.
+
+This is an inspection step, not a completed milestone. Do **not** assume:
+- Pointmap $Z$ is canonical metrology $Z$
+- Side $U$ is depth
+- Pointmap geometry is already physically calibrated
+- Front/Side pointmaps can already be fused
+
+Milestone 4.5G remains deferred until that contract is understood.
 
 ### 4.5G Authoritative Physical Evidence Semantics — DEFERRED / PENDING SAPIENS POINTMAP RUNTIME AUDIT
 

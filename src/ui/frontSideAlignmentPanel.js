@@ -26,7 +26,7 @@ import {
   computeFrontSideAlignment,
 } from '../features/frontSideAlignment.js';
 import { frontSideAlignmentQaEl } from './domRefs.js';
-import { escapeHtml, badgeClassForTone, renderBadge } from './badgeUi.js';
+import { escapeHtml, renderBadge } from './badgeUi.js';
 
 function formatCm(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {

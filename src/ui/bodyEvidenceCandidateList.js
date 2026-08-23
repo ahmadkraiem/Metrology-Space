@@ -6,14 +6,7 @@
  */
 
 import { formatLandmarkDisplayName } from '../core/landmarkDisplay.js';
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
+import { escapeHtml, renderBadge } from './badgeUi.js';
 
 function formatCmValue(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -27,24 +20,6 @@ function formatScore(score) {
     return 'n/a';
   }
   return score.toFixed(2);
-}
-
-function badgeClassForTone(tone) {
-  if (tone === 'ok') {
-    return 'body-evidence-badge body-evidence-badge--ok';
-  }
-  if (tone === 'warn') {
-    return 'body-evidence-badge body-evidence-badge--warn';
-  }
-  if (tone === 'muted') {
-    return 'body-evidence-badge body-evidence-badge--muted';
-  }
-  return 'body-evidence-badge';
-}
-
-function renderBadge(label, tone = 'default', title = '') {
-  const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
-  return `<span class="${badgeClassForTone(tone)}"${titleAttr}>${escapeHtml(label)}</span>`;
 }
 
 function coordLabel(landmark, source) {

@@ -16,7 +16,6 @@ import {
 import {
   grid2dMarkersEl,
   grid2dProjectionTooltipEl,
-  grid2dNavViewModeEl,
 } from '../ui/domRefs.js';
 import { applyProjectionMarkerSizeStyle } from '../ui/grid2dMarkerSizing.js';
 
@@ -383,12 +382,6 @@ export function hideProjectionLinkingTooltip() {
   hideProjectionTooltip();
 }
 
-function updateViewLabelUI() {
-  if (grid2dNavViewModeEl) {
-    grid2dNavViewModeEl.textContent = formatViewDisplayLabel();
-  }
-}
-
 export function setupProjectionLinking(refreshGrid2dNavigator) {
   refreshGrid2dNavigatorFn = refreshGrid2dNavigator;
 
@@ -403,6 +396,4 @@ export function setupProjectionLinking(refreshGrid2dNavigator) {
   subscribeLinkedSelection(() => {
     requestGrid2dRefresh();
   });
-
-  updateViewLabelUI();
 }

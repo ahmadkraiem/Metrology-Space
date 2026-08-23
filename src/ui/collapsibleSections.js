@@ -1,5 +1,6 @@
 /**
- * Left Metrology Inspector — UI-only collapsible section headers.
+ * Shared accordion wiring for `[data-collapsible]` sections.
+ * Used by the Left Metrology Inspector and Right Sidebar Records/Diagnostics.
  * Does not touch scene, measurement, annotation, or export/import state.
  */
 

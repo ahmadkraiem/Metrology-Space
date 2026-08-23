@@ -1,24 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
-import {
-  renderSubjectPackageCard,
-  renderAnatomicalLevelsCard,
-} from './leftPanel.js';
+import { renderAnatomicalLevelsCard } from './leftPanel.js';
 
-test('leftPanel: renderSubjectPackageCard renders empty state when no package is loaded', () => {
-  const container = { innerHTML: '' };
-  renderSubjectPackageCard(container);
+const rootDir = fileURLToPath(new URL('../..', import.meta.url));
+const markup = readFileSync(join(rootDir, 'index.html'), 'utf8');
 
-  assert.equal(container.innerHTML.includes('No Body Evidence Package Loaded'), true);
-  assert.equal(container.innerHTML.includes('Upload Evidence Package (.zip)'), true);
+test('leftPanel: Subject / Package card host is not in the live left sidebar', () => {
+  assert.equal(markup.includes('id="subject-package-summary"'), false);
+  assert.equal(markup.includes('subject-package-upload-btn'), false);
+  assert.equal(markup.includes('id="anatomy-levels-list"'), true);
+  assert.equal(markup.includes('data-command="import-body-evidence-package"'), true);
 });
 
 test('leftPanel: renderAnatomicalLevelsCard renders all 7 validated anatomical reference levels', () => {
   const container = { innerHTML: '' };
   renderAnatomicalLevelsCard(container);
 
-  // Must render all 7 level names
   assert.equal(container.innerHTML.includes('Neck'), true);
   assert.equal(container.innerHTML.includes('Shoulder'), true);
   assert.equal(container.innerHTML.includes('Elbow'), true);
