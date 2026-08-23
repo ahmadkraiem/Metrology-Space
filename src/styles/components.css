@@ -2217,16 +2217,118 @@
 }
 
 
-/* Workflow-scoped panel visibility. Hiding is presentation only — panel state,
-   measurements, annotations, and Body Evidence data are never reset. */
+/* ── Left Sidebar: Subject Package & Anatomical Levels (Stage 3) ── */
 
-#left-sidebar[data-workflow='measurement'] #body-evidence-panel,
-#left-sidebar[data-workflow='measurement'] #selection-panel,
-#left-sidebar[data-workflow='annotation'] #body-evidence-panel,
-#left-sidebar[data-workflow='annotation'] #measurement-panel,
-#left-sidebar[data-workflow='body-evidence'] #measurement-panel,
-#left-sidebar[data-workflow='body-evidence'] #selection-panel {
-  display: none;
+.subject-package-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.subject-package-empty-text {
+  margin: 0;
+  font-size: 9px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.subject-package-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.subject-modalities-matrix {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 6px;
+  background: rgba(147, 51, 234, 0.05);
+  border: 1px solid rgba(147, 51, 234, 0.12);
+  border-radius: var(--radius-sm);
+}
+
+.subject-modality-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.subject-modality-header {
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--purple-bright);
+  margin-bottom: 2px;
+}
+
+.modality-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 8.5px;
+  color: var(--text-secondary);
+}
+
+.modality-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  font-size: 7.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.modality-dot--present {
+  background: rgba(34, 211, 238, 0.18);
+  color: var(--cyan-data);
+  border: 1px solid rgba(34, 211, 238, 0.4);
+}
+
+.modality-dot--missing {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-muted);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.anatomy-levels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.anatomy-level-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 6px;
+  background: rgba(147, 51, 234, 0.04);
+  border: 1px solid rgba(147, 51, 234, 0.1);
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+}
+
+.anatomy-level-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.anatomy-level-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.anatomy-level-y {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  color: var(--cyan-dim);
 }
 
 

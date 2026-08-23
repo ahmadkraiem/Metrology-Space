@@ -75,18 +75,139 @@
         <div class="sidebar-title">Metrology Inspector</div>
         <div class="sidebar-scroll">
 
+          <!-- 1. Subject / Evidence Package Card -->
+          <section id="subject-package-card" class="inspector-section" data-collapsible>
+            <h2 class="section-title section-title--collapsible">Subject / Package</h2>
+            <div class="section-body">
+              <div id="subject-package-summary" class="subject-package-summary" aria-live="polite"></div>
+              <input type="file" id="import-body-evidence-package-zip" accept=".zip,application/zip,application/x-zip-compressed" hidden />
+            </div>
+          </section>
 
-          <section id="body-evidence-panel" class="inspector-section inspector-section--body-evidence" data-collapsible>
-            <h2 class="section-title">Body Evidence</h2>
+          <!-- 2. Anatomical Reference Levels Card -->
+          <section id="anatomy-levels-card" class="inspector-section" data-collapsible>
+            <h2 class="section-title section-title--collapsible">Anatomical Levels</h2>
+            <div class="section-body">
+              <div id="anatomy-levels-list" class="anatomy-levels-list" aria-live="polite"></div>
+              <p class="inspector-helper-text">Y-levels derived from promoted canonical landmarks.</p>
+            </div>
+          </section>
+
+          <!-- 3. Contextual Selection & Annotation -->
+          <section id="selection-panel" class="inspector-section" data-collapsible>
+            <h2 class="section-title section-title--collapsible">Current Selection</h2>
+            <div class="section-body">
+              <div class="info-row"><span class="info-label">X</span><span class="info-value info-value--data"><span id="selected-x">—</span> cm</span></div>
+              <div class="info-row"><span class="info-label">Y</span><span class="info-value info-value--data"><span id="selected-y">—</span> cm</span></div>
+              <div class="info-row"><span class="info-label">Z</span><span class="info-value info-value--data"><span id="selected-z">—</span> cm</span></div>
+
+              <div id="body-evidence-selected-block" class="body-evidence-selected-block" style="margin-top: 6px;">
+                <div id="body-evidence-selected" class="body-evidence-selected" aria-live="polite">
+                  <p class="body-evidence-selected-empty">No body landmark selected.</p>
+                </div>
+                <div class="body-evidence-inspect-actions" style="margin-top: 4px;">
+                  <button type="button" id="promote-selected-body-landmark" class="panel-button panel-button--compact body-evidence-inspect-promote" hidden disabled aria-disabled="true">Promote Selected Landmark</button>
+                  <button type="button" id="clear-body-landmark-selection" class="panel-button panel-button--compact body-evidence-inspect-clear" disabled aria-disabled="true">Clear Landmark Selection</button>
+                </div>
+                <p id="body-evidence-promote-status" class="body-evidence-promote-status" hidden></p>
+              </div>
+
+              <div id="annotation-add-controls" class="annotation-add">
+                <label class="annotation-field">
+                  <span class="annotation-field-label">Annotation Type</span>
+                  <select id="annotation-type-select" class="annotation-select">
+                    <option value="custom" selected>Custom</option>
+                    <option value="reference_point">Reference Point</option>
+                    <option value="body_landmark">Body Landmark</option>
+                    <option value="garment_landmark">Garment Landmark</option>
+                    <option value="measurement_point">Measurement Point</option>
+                  </select>
+                </label>
+                <label class="annotation-field">
+                  <span class="annotation-field-label">Landmark Preset</span>
+                  <select id="annotation-preset-select" class="annotation-select"></select>
+                </label>
+                <label class="annotation-field">
+                  <span class="annotation-field-label">Name</span>
+                  <input
+                    type="text"
+                    id="annotation-name-input"
+                    class="annotation-input"
+                    placeholder="Annotation name"
+                    maxlength="64"
+                  />
+                </label>
+                <p class="annotation-helper-text">Select a volumetric or grid point, then add an annotation.</p>
+                <p id="annotation-validation-message" class="annotation-validation-message" hidden></p>
+                <button type="button" id="add-annotation" class="panel-button">Add Annotation</button>
+              </div>
+              <button type="button" id="clear-selection" class="panel-button">Clear Selection</button>
+            </div>
+          </section>
+
+          <!-- 4. Manual Distance Measurement -->
+          <section id="measurement-panel" class="inspector-section" data-collapsible>
+            <h2 class="section-title section-title--collapsible">Distance Measurement</h2>
+            <div class="section-body">
+              <div class="inspector-subgroup measurement-context" data-measurement-context="front" data-collapsible>
+                <h3 class="inspector-subgroup-label">Front / Canonical (X/Y)</h3>
+                <div class="inspector-subgroup-body">
+                  <div class="info-row measurement-point-row">
+                    <span class="info-label measurement-point-label">Point A</span>
+                    <span class="info-value info-value--data measurement-point-value" id="point-a-coords">—</span>
+                  </div>
+                  <div class="info-row measurement-point-row">
+                    <span class="info-label measurement-point-label">Point B</span>
+                    <span class="info-value info-value--data measurement-point-value" id="point-b-coords">—</span>
+                  </div>
+                  <div class="info-row info-row--highlight">
+                    <span class="info-label">Distance</span>
+                    <span class="info-value info-value--measure"><span id="measurement-distance">—</span> cm</span>
+                  </div>
+                  <div class="measurement-actions">
+                    <button type="button" id="clear-point-a" class="panel-button panel-button--compact">Clear A</button>
+                    <button type="button" id="clear-point-b" class="panel-button panel-button--compact">Clear B</button>
+                  </div>
+                  <button type="button" id="clear-measurement" class="panel-button">Clear Measurement</button>
+                  <p class="inspector-helper-text">Click two points in 3D or on the Front Surface grid to measure distance in cm.</p>
+                </div>
+              </div>
+              <div class="inspector-subgroup measurement-context measurement-context--side" data-measurement-context="side" data-collapsible>
+                <h3 class="inspector-subgroup-label">Side Profile (U/Y)</h3>
+                <div class="inspector-subgroup-body">
+                  <div class="info-row measurement-point-row">
+                    <span class="info-label measurement-point-label">Point A</span>
+                    <span class="info-value info-value--data measurement-point-value" id="side-point-a-coords">—</span>
+                  </div>
+                  <div class="info-row measurement-point-row">
+                    <span class="info-label measurement-point-label">Point B</span>
+                    <span class="info-value info-value--data measurement-point-value" id="side-point-b-coords">—</span>
+                  </div>
+                  <div class="info-row info-row--highlight">
+                    <span class="info-label">Distance</span>
+                    <span class="info-value info-value--measure"><span id="side-measurement-distance">—</span> cm</span>
+                  </div>
+                  <div class="measurement-actions">
+                    <button type="button" id="clear-side-point-a" class="panel-button panel-button--compact">Clear A</button>
+                    <button type="button" id="clear-side-point-b" class="panel-button panel-button--compact">Clear B</button>
+                  </div>
+                  <button type="button" id="clear-side-measurement" class="panel-button">Clear Measurement</button>
+                  <p class="inspector-helper-text">Click two points on the Side Profile navigator to measure U/Y distance in cm.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 5. Advanced Evidence (Drawer) -->
+          <section id="body-evidence-panel" class="inspector-section inspector-section--body-evidence is-collapsed" data-collapsible>
+            <h2 class="section-title section-title--collapsible">Advanced Evidence</h2>
             <div class="section-body body-evidence">
               <div class="body-evidence-tabs" role="tablist" aria-label="Body Evidence views">
                 <button type="button" role="tab" data-body-evidence-tab="front" aria-selected="true" aria-controls="body-evidence-tab-front" id="body-evidence-tab-front-btn">Front</button>
                 <button type="button" role="tab" data-body-evidence-tab="side" aria-selected="false" aria-controls="body-evidence-tab-side" id="body-evidence-tab-side-btn">Side</button>
-                <button type="button" role="tab" data-body-evidence-tab="selection" aria-selected="false" aria-controls="body-evidence-tab-selection" id="body-evidence-tab-selection-btn">Selection</button>
+                <button type="button" role="tab" data-body-evidence-tab="selection" aria-selected="false" aria-controls="body-evidence-tab-selection" id="body-evidence-tab-selection-btn">Landmark</button>
               </div>
               <p id="body-evidence-status" class="body-evidence-status" hidden></p>
-
-              <input type="file" id="import-body-evidence-package-zip" accept=".zip,application/zip,application/x-zip-compressed" hidden />
 
               <div id="body-evidence-tab-front" class="body-evidence-tab-panel" data-body-evidence-panel="front" role="tabpanel" aria-labelledby="body-evidence-tab-front-btn">
                 <div class="body-evidence-layer-toggle" role="group" aria-label="Front candidate layer">
@@ -161,110 +282,11 @@
               </div>
 
               <div id="body-evidence-tab-selection" class="body-evidence-tab-panel" data-body-evidence-panel="selection" role="tabpanel" aria-labelledby="body-evidence-tab-selection-btn" hidden>
-                <div class="body-evidence-inspect-card">
-                  <div id="body-evidence-selected" class="body-evidence-selected" aria-live="polite">
-                    <p class="body-evidence-selected-empty">No body landmark selected.</p>
-                  </div>
-                  <div class="body-evidence-inspect-actions">
-                    <button type="button" id="promote-selected-body-landmark" class="panel-button panel-button--compact body-evidence-inspect-promote" hidden disabled aria-disabled="true">Promote Selected Landmark</button>
-                    <button type="button" id="clear-body-landmark-selection" class="panel-button panel-button--compact body-evidence-inspect-clear" disabled aria-disabled="true">Clear Selection</button>
-                  </div>
-                  <p id="body-evidence-promote-status" class="body-evidence-promote-status" hidden></p>
-                </div>
+                <p class="inspector-helper-text">Landmark selection actions are also available directly under Current Selection above.</p>
               </div>
             </div>
           </section>
 
-          <section id="selection-panel" class="inspector-section" data-collapsible>
-            <h2 class="section-title">Selected Point</h2>
-            <div class="section-body">
-              <div class="info-row"><span class="info-label">X</span><span class="info-value info-value--data"><span id="selected-x">—</span> cm</span></div>
-              <div class="info-row"><span class="info-label">Y</span><span class="info-value info-value--data"><span id="selected-y">—</span> cm</span></div>
-              <div class="info-row"><span class="info-label">Z</span><span class="info-value info-value--data"><span id="selected-z">—</span> cm</span></div>
-              <div id="annotation-add-controls" class="annotation-add" hidden>
-                <label class="annotation-field">
-                  <span class="annotation-field-label">Annotation Type</span>
-                  <select id="annotation-type-select" class="annotation-select">
-                    <option value="custom" selected>Custom</option>
-                    <option value="reference_point">Reference Point</option>
-                    <option value="body_landmark">Body Landmark</option>
-                    <option value="garment_landmark">Garment Landmark</option>
-                    <option value="measurement_point">Measurement Point</option>
-                  </select>
-                </label>
-                <label class="annotation-field">
-                  <span class="annotation-field-label">Landmark Preset</span>
-                  <select id="annotation-preset-select" class="annotation-select"></select>
-                </label>
-                <label class="annotation-field">
-                  <span class="annotation-field-label">Name</span>
-                  <input
-                    type="text"
-                    id="annotation-name-input"
-                    class="annotation-input"
-                    placeholder="Annotation name"
-                    maxlength="64"
-                  />
-                </label>
-                <p class="annotation-helper-text">Select a volumetric point, choose type/preset, then add an annotation.</p>
-                <p id="annotation-validation-message" class="annotation-validation-message" hidden></p>
-                <button type="button" id="add-annotation" class="panel-button">Add Annotation</button>
-              </div>
-              <button type="button" id="clear-selection" class="panel-button">Clear Selection</button>
-            </div>
-          </section>
-
-          <section id="measurement-panel" class="inspector-section" data-collapsible>
-            <h2 class="section-title">Distance Measurement</h2>
-            <div class="section-body">
-              <div class="inspector-subgroup measurement-context" data-measurement-context="front" data-collapsible>
-                <h3 class="inspector-subgroup-label">Front / Canonical (X/Y)</h3>
-                <div class="inspector-subgroup-body">
-                  <div class="info-row measurement-point-row">
-                    <span class="info-label measurement-point-label">Point A</span>
-                    <span class="info-value info-value--data measurement-point-value" id="point-a-coords">—</span>
-                  </div>
-                  <div class="info-row measurement-point-row">
-                    <span class="info-label measurement-point-label">Point B</span>
-                    <span class="info-value info-value--data measurement-point-value" id="point-b-coords">—</span>
-                  </div>
-                  <div class="info-row info-row--highlight">
-                    <span class="info-label">Distance</span>
-                    <span class="info-value info-value--measure"><span id="measurement-distance">—</span> cm</span>
-                  </div>
-                  <div class="measurement-actions">
-                    <button type="button" id="clear-point-a" class="panel-button panel-button--compact">Clear A</button>
-                    <button type="button" id="clear-point-b" class="panel-button panel-button--compact">Clear B</button>
-                  </div>
-                  <button type="button" id="clear-measurement" class="panel-button">Clear Measurement</button>
-                  <p class="inspector-helper-text">Click two points in 3D or on the Front Surface grid to measure distance in cm.</p>
-                </div>
-              </div>
-              <div class="inspector-subgroup measurement-context measurement-context--side" data-measurement-context="side" data-collapsible>
-                <h3 class="inspector-subgroup-label">Side Profile (U/Y)</h3>
-                <div class="inspector-subgroup-body">
-                  <div class="info-row measurement-point-row">
-                    <span class="info-label measurement-point-label">Point A</span>
-                    <span class="info-value info-value--data measurement-point-value" id="side-point-a-coords">—</span>
-                  </div>
-                  <div class="info-row measurement-point-row">
-                    <span class="info-label measurement-point-label">Point B</span>
-                    <span class="info-value info-value--data measurement-point-value" id="side-point-b-coords">—</span>
-                  </div>
-                  <div class="info-row info-row--highlight">
-                    <span class="info-label">Distance</span>
-                    <span class="info-value info-value--measure"><span id="side-measurement-distance">—</span> cm</span>
-                  </div>
-                  <div class="measurement-actions">
-                    <button type="button" id="clear-side-point-a" class="panel-button panel-button--compact">Clear A</button>
-                    <button type="button" id="clear-side-point-b" class="panel-button panel-button--compact">Clear B</button>
-                  </div>
-                  <button type="button" id="clear-side-measurement" class="panel-button">Clear Measurement</button>
-                  <p class="inspector-helper-text">Click two points on the Side Profile navigator to measure U/Y distance in cm.</p>
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
       </aside>
 
