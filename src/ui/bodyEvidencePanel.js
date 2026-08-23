@@ -13,6 +13,8 @@
 import {
   analyzeLoadedBodyEvidence,
   clearAllBodyEvidenceSelections,
+  clearBodyEvidenceSelection,
+  clearSideEvidenceSelection,
   downloadBodyEvidenceJson,
   getBodyEvidenceQa,
   getSelectedBodyEvidenceLandmark,
@@ -312,13 +314,13 @@ function resolveCandidateType(selected, source) {
   return found?.candidateType === 'secondary' ? 'secondary' : 'core';
 }
 
-function onFrontCandidateSelect(landmark) {
+export function onFrontCandidateSelect(landmark) {
   clearSideEvidenceSelection();
   selectBodyEvidenceLandmark(landmark);
   setBodyEvidencePanelTab('selection');
 }
 
-function onSideCandidateSelect(landmark) {
+export function onSideCandidateSelect(landmark) {
   clearBodyEvidenceSelection();
   selectSideEvidenceLandmark(landmark);
   setBodyEvidencePanelTab('selection');

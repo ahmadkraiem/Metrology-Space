@@ -69,22 +69,12 @@
           </span>
           <span class="status-badge status-badge--points">68,921 POINTS</span>
         </div>
-      </header>
-
-      <aside id="left-sidebar" data-workflow="measurement">
+      </header>      <aside id="left-sidebar" data-workflow="measurement">
         <div class="sidebar-title">Metrology Inspector</div>
         <div class="sidebar-scroll">
+          <input type="file" id="import-body-evidence-package-zip" accept=".zip,application/zip,application/x-zip-compressed" hidden />
 
-          <!-- 1. Subject / Evidence Package Card -->
-          <section id="subject-package-card" class="inspector-section" data-collapsible>
-            <h2 class="section-title section-title--collapsible">Subject / Package</h2>
-            <div class="section-body">
-              <div id="subject-package-summary" class="subject-package-summary" aria-live="polite"></div>
-              <input type="file" id="import-body-evidence-package-zip" accept=".zip,application/zip,application/x-zip-compressed" hidden />
-            </div>
-          </section>
-
-          <!-- 2. Anatomical Reference Levels Card -->
+          <!-- 1. Anatomical Reference Levels Card -->
           <section id="anatomy-levels-card" class="inspector-section" data-collapsible>
             <h2 class="section-title section-title--collapsible">Anatomical Levels</h2>
             <div class="section-body">
@@ -93,25 +83,10 @@
             </div>
           </section>
 
-          <!-- 3. Contextual Selection & Annotation -->
-          <section id="selection-panel" class="inspector-section" data-collapsible>
-            <h2 class="section-title section-title--collapsible">Current Selection</h2>
+          <!-- 2. Annotation Card (Annotate Workflow) -->
+          <section id="annotation-panel" class="inspector-section" data-collapsible>
+            <h2 class="section-title section-title--collapsible">Annotation</h2>
             <div class="section-body">
-              <div class="info-row"><span class="info-label">X</span><span class="info-value info-value--data"><span id="selected-x">—</span> cm</span></div>
-              <div class="info-row"><span class="info-label">Y</span><span class="info-value info-value--data"><span id="selected-y">—</span> cm</span></div>
-              <div class="info-row"><span class="info-label">Z</span><span class="info-value info-value--data"><span id="selected-z">—</span> cm</span></div>
-
-              <div id="body-evidence-selected-block" class="body-evidence-selected-block" style="margin-top: 6px;">
-                <div id="body-evidence-selected" class="body-evidence-selected" aria-live="polite">
-                  <p class="body-evidence-selected-empty">No body landmark selected.</p>
-                </div>
-                <div class="body-evidence-inspect-actions" style="margin-top: 4px;">
-                  <button type="button" id="promote-selected-body-landmark" class="panel-button panel-button--compact body-evidence-inspect-promote" hidden disabled aria-disabled="true">Promote Selected Landmark</button>
-                  <button type="button" id="clear-body-landmark-selection" class="panel-button panel-button--compact body-evidence-inspect-clear" disabled aria-disabled="true">Clear Landmark Selection</button>
-                </div>
-                <p id="body-evidence-promote-status" class="body-evidence-promote-status" hidden></p>
-              </div>
-
               <div id="annotation-add-controls" class="annotation-add">
                 <label class="annotation-field">
                   <span class="annotation-field-label">Annotation Type</span>
@@ -137,6 +112,15 @@
                     maxlength="64"
                   />
                 </label>
+                <div class="annotation-selected-point" id="annotation-selected-coords-block" style="margin: 8px 0; padding: 6px 8px; border-radius: 4px; background: rgba(0,0,0,0.25); border: 1px solid rgba(147,51,234,0.15);">
+                  <span class="annotation-field-label" style="display:block; margin-bottom:4px; font-size:8px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Selected Point</span>
+                  <div id="annotation-selected-empty" class="session-empty-state" style="padding:2px 0;">No point selected</div>
+                  <div id="annotation-selected-coords" hidden>
+                    <div class="info-row"><span class="info-label" id="selected-coord-1-label">X</span><span class="info-value info-value--data"><span id="selected-x">—</span> cm</span></div>
+                    <div class="info-row"><span class="info-label" id="selected-coord-2-label">Y</span><span class="info-value info-value--data"><span id="selected-y">—</span> cm</span></div>
+                    <div class="info-row" id="selected-z-row"><span class="info-label">Z</span><span class="info-value info-value--data"><span id="selected-z">—</span> cm</span></div>
+                  </div>
+                </div>
                 <p class="annotation-helper-text">Select a volumetric or grid point, then add an annotation.</p>
                 <p id="annotation-validation-message" class="annotation-validation-message" hidden></p>
                 <button type="button" id="add-annotation" class="panel-button">Add Annotation</button>
@@ -145,7 +129,7 @@
             </div>
           </section>
 
-          <!-- 4. Manual Distance Measurement -->
+          <!-- 3. Manual Distance Measurement (Inspect & Measure Workflow) -->
           <section id="measurement-panel" class="inspector-section" data-collapsible>
             <h2 class="section-title section-title--collapsible">Distance Measurement</h2>
             <div class="section-body">
@@ -198,7 +182,7 @@
             </div>
           </section>
 
-          <!-- 5. Advanced Evidence (Drawer) -->
+          <!-- 4. Advanced Evidence (Body Evidence Workflow) -->
           <section id="body-evidence-panel" class="inspector-section inspector-section--body-evidence is-collapsed" data-collapsible>
             <h2 class="section-title section-title--collapsible">Advanced Evidence</h2>
             <div class="section-body body-evidence">
@@ -282,7 +266,16 @@
               </div>
 
               <div id="body-evidence-tab-selection" class="body-evidence-tab-panel" data-body-evidence-panel="selection" role="tabpanel" aria-labelledby="body-evidence-tab-selection-btn" hidden>
-                <p class="inspector-helper-text">Landmark selection actions are also available directly under Current Selection above.</p>
+                <div id="body-evidence-selected-block" class="body-evidence-selected-block">
+                  <div id="body-evidence-selected" class="body-evidence-selected" aria-live="polite">
+                    <p class="body-evidence-selected-empty">No body landmark selected.</p>
+                  </div>
+                  <div class="body-evidence-inspect-actions" style="margin-top: 6px;">
+                    <button type="button" id="promote-selected-body-landmark" class="panel-button panel-button--compact body-evidence-inspect-promote" hidden disabled aria-disabled="true">Promote Selected Landmark</button>
+                    <button type="button" id="clear-body-landmark-selection" class="panel-button panel-button--compact body-evidence-inspect-clear" disabled aria-disabled="true">Clear Landmark Selection</button>
+                  </div>
+                  <p id="body-evidence-promote-status" class="body-evidence-promote-status" hidden></p>
+                </div>
               </div>
             </div>
           </section>

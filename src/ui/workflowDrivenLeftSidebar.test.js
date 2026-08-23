@@ -5,6 +5,7 @@ import {
   WORKFLOW_MEASUREMENT,
   WORKFLOW_ANNOTATION,
   WORKFLOW_BODY_EVIDENCE,
+  WORKFLOW_LABELS,
   getInspectorWorkflow,
   setInspectorWorkflowState,
   subscribeInspectorWorkflowChange,
@@ -38,32 +39,37 @@ test('workflowDrivenLeftSidebar: section mappings conform to required workflow c
   // Mapping verification
   const workflowSectionMap = {
     [WORKFLOW_MEASUREMENT]: [
-      'subject-package-card',
       'anatomy-levels-card',
-      'selection-panel',
       'measurement-panel',
     ],
     [WORKFLOW_ANNOTATION]: [
-      'selection-panel',
+      'annotation-panel',
     ],
     [WORKFLOW_BODY_EVIDENCE]: [
-      'subject-package-card',
       'anatomy-levels-card',
-      'selection-panel',
       'body-evidence-panel',
     ],
   };
 
   // Inspect & Measure checks
   assert.equal(workflowSectionMap[WORKFLOW_MEASUREMENT].includes('measurement-panel'), true);
+  assert.equal(workflowSectionMap[WORKFLOW_MEASUREMENT].includes('anatomy-levels-card'), true);
   assert.equal(workflowSectionMap[WORKFLOW_MEASUREMENT].includes('body-evidence-panel'), false);
 
   // Annotate checks
-  assert.equal(workflowSectionMap[WORKFLOW_ANNOTATION].includes('selection-panel'), true);
+  assert.equal(workflowSectionMap[WORKFLOW_ANNOTATION].includes('annotation-panel'), true);
   assert.equal(workflowSectionMap[WORKFLOW_ANNOTATION].includes('measurement-panel'), false);
-  assert.equal(workflowSectionMap[WORKFLOW_ANNOTATION].includes('subject-package-card'), false);
+  assert.equal(workflowSectionMap[WORKFLOW_ANNOTATION].includes('anatomy-levels-card'), false);
 
   // Body Evidence checks
   assert.equal(workflowSectionMap[WORKFLOW_BODY_EVIDENCE].includes('body-evidence-panel'), true);
+  assert.equal(workflowSectionMap[WORKFLOW_BODY_EVIDENCE].includes('anatomy-levels-card'), true);
   assert.equal(workflowSectionMap[WORKFLOW_BODY_EVIDENCE].includes('measurement-panel'), false);
 });
+
+test('workflowDrivenLeftSidebar: workflow labels map accurately for bottom status bar synchronization', () => {
+  assert.equal(WORKFLOW_LABELS[WORKFLOW_MEASUREMENT], 'Inspect & Measure');
+  assert.equal(WORKFLOW_LABELS[WORKFLOW_ANNOTATION], 'Annotate');
+  assert.equal(WORKFLOW_LABELS[WORKFLOW_BODY_EVIDENCE], 'Body Evidence');
+});
+

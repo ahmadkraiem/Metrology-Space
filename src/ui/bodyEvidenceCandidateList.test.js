@@ -2,6 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { renderEvidenceCandidateList } from './bodyEvidenceCandidateList.js';
+import {
+  onFrontCandidateSelect,
+  onSideCandidateSelect,
+  getBodyEvidencePanelTab,
+} from './bodyEvidencePanel.js';
+import {
+  getSelectedBodyEvidenceLandmark,
+  getSelectedSideEvidenceLandmark,
+  clearAllBodyEvidenceSelections,
+} from '../features/bodyEvidence.js';
 
 function createContainer() {
   return { innerHTML: '' };
@@ -103,3 +113,154 @@ test('Side rows never include a Promote badge and keep U/Y only in the title', (
   assert.equal(/Y\s/.test(visible), false);
   assert.match(container.innerHTML, /title="[^"]*U 100 \/ Y 150/);
 });
+
+function createMockDomContainer() {
+  const container = {
+    _innerHTML: '',
+    _buttons: [],
+    get innerHTML() {
+      return this._innerHTML;
+    },
+    set innerHTML(val) {
+      this._innerHTML = val;
+      const regex = /data-body-evidence-id="([^"]+)"/g;
+      this._buttons = [];
+      let match;
+      while ((match = regex.exec(val)) !== null) {
+        const id = match[1];
+        const btn = {
+          dataset: { bodyEvidenceId: id },
+          _listeners: {},
+          addEventListener(type, fn) {
+            this._listeners[type] = this._listeners[type] || [];
+            this._listeners[type].push(fn);
+          },
+          click() {
+            const handlers = this._listeners['click'] || [];
+            for (const fn of handlers) {
+              fn({ stopPropagation() {}, preventDefault() {} });
+            }
+          },
+        };
+        this._buttons.push(btn);
+      }
+    },
+    querySelectorAll(selector) {
+      if (selector === '[data-body-evidence-id]') {
+        return this._buttons;
+      }
+      return [];
+    },
+  };
+  return container;
+}
+
+test('Direct post-render click binding invokes onSelect with the exact clicked landmark', () => {
+  const container = createMockDomContainer();
+  const selected = [];
+
+  const rightHipLandmark = {
+    id: 'body-evidence-front-11-right_hip',
+    name: 'right_hip',
+    candidateType: 'core',
+    view: 'front',
+    score: 0.95,
+    spaceX: 110,
+    spaceY: 90,
+  };
+
+  renderEvidenceCandidateList({
+    container,
+    landmarks: [frontLandmark, rightHipLandmark],
+    source: 'front',
+    onSelect(landmark) {
+      selected.push(landmark);
+    },
+  });
+
+  const buttons = container.querySelectorAll('[data-body-evidence-id]');
+  assert.equal(buttons.length, 2);
+
+  // Click second button (Right Hip)
+  buttons[1].click();
+  assert.equal(selected.length, 1);
+  assert.deepEqual(selected[0], rightHipLandmark);
+
+  // Click first button (Left Shoulder)
+  buttons[0].click();
+  assert.equal(selected.length, 2);
+  assert.deepEqual(selected[1], frontLandmark);
+});
+
+test('Rerendering candidate list with new set rebinds listeners correctly', () => {
+  const container = createMockDomContainer();
+  const selected = [];
+
+  // Initial render with empty list
+  renderEvidenceCandidateList({
+    container,
+    landmarks: [],
+    source: 'front',
+    onSelect(landmark) {
+      selected.push(landmark);
+    },
+  });
+  assert.equal(container.querySelectorAll('[data-body-evidence-id]').length, 0);
+
+  // Subsequent render after evidence analysis
+  renderEvidenceCandidateList({
+    container,
+    landmarks: [frontLandmark],
+    source: 'front',
+    onSelect(landmark) {
+      selected.push(landmark);
+    },
+  });
+
+  const buttons = container.querySelectorAll('[data-body-evidence-id]');
+  assert.equal(buttons.length, 1);
+  buttons[0].click();
+
+  assert.equal(selected.length, 1);
+  assert.deepEqual(selected[0], frontLandmark);
+});
+
+test('Integration: candidate list click via onFrontCandidateSelect and onSideCandidateSelect updates selection state and tab', () => {
+  clearAllBodyEvidenceSelections();
+
+  const containerFront = createMockDomContainer();
+  renderEvidenceCandidateList({
+    container: containerFront,
+    landmarks: [frontLandmark],
+    source: 'front',
+    onSelect: onFrontCandidateSelect,
+  });
+
+  const frontButtons = containerFront.querySelectorAll('[data-body-evidence-id]');
+  assert.equal(frontButtons.length, 1);
+  frontButtons[0].click();
+
+  assert.equal(getSelectedBodyEvidenceLandmark()?.id, frontLandmark.id);
+  assert.equal(getSelectedSideEvidenceLandmark(), null);
+  assert.equal(getBodyEvidencePanelTab(), 'selection');
+
+  const containerSide = createMockDomContainer();
+  renderEvidenceCandidateList({
+    container: containerSide,
+    landmarks: [sideLandmark],
+    source: 'side',
+    onSelect: onSideCandidateSelect,
+  });
+
+  const sideButtons = containerSide.querySelectorAll('[data-body-evidence-id]');
+  assert.equal(sideButtons.length, 1);
+  sideButtons[0].click();
+
+  assert.equal(getSelectedSideEvidenceLandmark()?.id, sideLandmark.id);
+  assert.equal(getSelectedBodyEvidenceLandmark(), null);
+  assert.equal(getBodyEvidencePanelTab(), 'selection');
+
+  clearAllBodyEvidenceSelections();
+});
+
+

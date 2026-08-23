@@ -7,30 +7,61 @@ import {
 } from './domRefs.js';
 
 export function updateSelectionPanel(pointOrX, y, z) {
-  let xCoord = null;
-  let yCoord = null;
+  let hCoord = null;
+  let vCoord = null;
   let zCoord = null;
+  let isSide = false;
 
   if (pointOrX && typeof pointOrX === 'object') {
-    xCoord = pointOrX.x;
-    yCoord = pointOrX.y;
-    zCoord = pointOrX.z;
+    if (typeof pointOrX.u === 'number') {
+      hCoord = pointOrX.u;
+      vCoord = pointOrX.y ?? pointOrX.v;
+      isSide = true;
+    } else {
+      hCoord = pointOrX.x ?? pointOrX.h;
+      vCoord = pointOrX.y ?? pointOrX.v;
+      zCoord = pointOrX.z;
+    }
   } else if (typeof pointOrX === 'number') {
-    xCoord = pointOrX;
-    yCoord = y;
+    hCoord = pointOrX;
+    vCoord = y;
     zCoord = z;
   }
 
-  const hasPoint = xCoord != null && yCoord != null && zCoord != null;
+  const hasPoint = hCoord != null && vCoord != null;
+
+  if (typeof document !== 'undefined') {
+    const emptyEl = document.getElementById('annotation-selected-empty');
+    const coordsBlock = document.getElementById('annotation-selected-coords');
+    const coord1Label = document.getElementById('selected-coord-1-label');
+    const coord2Label = document.getElementById('selected-coord-2-label');
+    const zRow = document.getElementById('selected-z-row');
+
+    if (emptyEl) {
+      emptyEl.hidden = hasPoint;
+    }
+    if (coordsBlock) {
+      coordsBlock.hidden = !hasPoint;
+    }
+    if (coord1Label) {
+      coord1Label.textContent = isSide ? 'U' : 'X';
+    }
+    if (coord2Label) {
+      coord2Label.textContent = 'Y';
+    }
+    if (zRow) {
+      zRow.hidden = isSide || zCoord == null;
+    }
+  }
 
   if (selectedXEl) {
-    selectedXEl.textContent = hasPoint ? formatCoordinate(xCoord) : '—';
+    selectedXEl.textContent = hasPoint ? formatCoordinate(hCoord) : '—';
   }
   if (selectedYEl) {
-    selectedYEl.textContent = hasPoint ? formatCoordinate(yCoord) : '—';
+    selectedYEl.textContent = hasPoint ? formatCoordinate(vCoord) : '—';
   }
   if (selectedZEl) {
-    selectedZEl.textContent = hasPoint ? formatCoordinate(zCoord) : '—';
+    selectedZEl.textContent = hasPoint && zCoord != null ? formatCoordinate(zCoord) : '—';
   }
 
   if (clearSelectionBtn) {
@@ -38,3 +69,4 @@ export function updateSelectionPanel(pointOrX, y, z) {
     clearSelectionBtn.setAttribute('aria-disabled', hasPoint ? 'false' : 'true');
   }
 }
+

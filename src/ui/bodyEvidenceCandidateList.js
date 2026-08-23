@@ -7,9 +7,6 @@
 
 import { formatLandmarkDisplayName } from '../core/landmarkDisplay.js';
 
-const selectHandlers = new WeakMap();
-const boundContainers = new WeakSet();
-
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -117,39 +114,10 @@ function renderCandidateRow(landmark, { source, selectedId, promotedNames }) {
   );
 }
 
-function bindSelectHandler(container, landmarks, onSelect) {
-  if (typeof container.addEventListener !== 'function' || typeof onSelect !== 'function') {
-    return;
-  }
-
-  const byId = new Map(landmarks.map((landmark) => [landmark.id, landmark]));
-  selectHandlers.set(container, { onSelect, byId });
-
-  if (boundContainers.has(container)) {
-    return;
-  }
-
-  container.addEventListener('click', (event) => {
-    const row = event.target?.closest?.('.body-evidence-candidate-row');
-    if (!row) {
-      return;
-    }
-    const landmarkId = row.dataset?.bodyEvidenceId;
-    const bound = selectHandlers.get(container);
-    const landmark = bound?.byId.get(landmarkId);
-    if (!landmark) {
-      return;
-    }
-    event.preventDefault?.();
-    bound.onSelect(landmark);
-  });
-  boundContainers.add(container);
-}
-
 /**
  * Render a compact evidence candidate list into `container`.
  * @param {{
- *   container: { innerHTML: string, addEventListener?: Function },
+ *   container: { innerHTML: string, querySelectorAll?: Function },
  *   landmarks: Array<object>,
  *   source: 'front'|'side',
  *   selectedId?: string|null,
@@ -175,8 +143,6 @@ export function renderEvidenceCandidateList({
   const names = promotedNameSet(promotedNames);
   const rows = Array.isArray(landmarks) ? landmarks : [];
 
-  bindSelectHandler(container, rows, onSelect);
-
   if (rows.length === 0) {
     container.innerHTML = (
       `<p class="body-evidence-candidates-empty">${escapeHtml(emptyMessage(view, layer))}</p>`
@@ -191,4 +157,20 @@ export function renderEvidenceCandidateList({
       promotedNames: names,
     }))
     .join('');
+
+  const byId = new Map(rows.map((landmark) => [landmark.id, landmark]));
+
+  if (typeof container.querySelectorAll === 'function') {
+    container.querySelectorAll('[data-body-evidence-id]').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const landmarkId = btn.dataset.bodyEvidenceId;
+        const landmark = byId.get(landmarkId);
+        if (landmark && typeof onSelect === 'function') {
+          onSelect(landmark);
+        }
+      });
+    });
+  }
 }
+

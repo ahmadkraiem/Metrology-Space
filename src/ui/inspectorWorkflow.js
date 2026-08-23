@@ -11,6 +11,7 @@ import { APP_MODE_ANNOTATE } from '../features/appMode.js';
 import {
   leftSidebarEl,
   statusHintEl,
+  statusModeValueEl,
 } from './domRefs.js';
 import {
   WORKFLOW_ANNOTATION,
@@ -49,6 +50,10 @@ function syncWorkflowChrome() {
 
   if (statusHintEl) {
     statusHintEl.textContent = getWorkflowHint(workflow);
+  }
+
+  if (statusModeValueEl) {
+    statusModeValueEl.textContent = getWorkflowLabel(workflow);
   }
 
   if (workflow === WORKFLOW_BODY_EVIDENCE) {

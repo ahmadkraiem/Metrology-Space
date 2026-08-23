@@ -907,8 +907,9 @@ select:focus-visible {
 .body-evidence-candidate-row.is-selected,
 .body-evidence-candidate-row.is-selected:hover,
 .body-evidence-candidate-row.is-selected:focus-visible {
-  border-color: rgba(103, 232, 249, 0.35);
-  background: rgba(103, 232, 249, 0.08);
+  border-color: rgba(103, 232, 249, 0.45);
+  background: rgba(103, 232, 249, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(103, 232, 249, 0.2);
 }
 
 .body-evidence-candidate-main {
@@ -1085,9 +1086,8 @@ select:focus-visible {
   line-height: 1.35;
   color: var(--cyan-data);
   text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .body-evidence-inspect-actions {
@@ -1225,9 +1225,7 @@ select:focus-visible {
   font-size: 8px;
   letter-spacing: 0.01em;
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .body-evidence-inspect-card-section {
@@ -1276,7 +1274,7 @@ select:focus-visible {
 
 .body-evidence-bounds-table-row {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(36px, auto) minmax(0, 1fr) minmax(0, 1fr);
   align-items: baseline;
   gap: 4px 6px;
   font-size: 9px;
@@ -1296,12 +1294,11 @@ select:focus-visible {
   align-items: baseline;
   gap: 3px;
   color: var(--cyan-data);
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 500;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .body-evidence-bounds-axis {
@@ -2984,50 +2981,36 @@ select:focus-visible {
 /* ── Workflow-driven Left Sidebar Composition ── */
 
 /* 1. Inspect & Measure (measurement) */
-#left-sidebar[data-workflow='measurement'] #subject-package-card,
 #left-sidebar[data-workflow='measurement'] #anatomy-levels-card,
-#left-sidebar[data-workflow='measurement'] #selection-panel,
 #left-sidebar[data-workflow='measurement'] #measurement-panel {
   display: block;
 }
 
-#left-sidebar[data-workflow='measurement'] #body-evidence-panel,
-#left-sidebar[data-workflow='measurement'] #annotation-add-controls,
-#left-sidebar[data-workflow='measurement'] #body-evidence-selected-block {
+#left-sidebar[data-workflow='measurement'] #annotation-panel,
+#left-sidebar[data-workflow='measurement'] #body-evidence-panel {
   display: none;
 }
 
 /* 2. Annotate (annotation) */
-#left-sidebar[data-workflow='annotation'] #selection-panel {
+#left-sidebar[data-workflow='annotation'] #annotation-panel {
   display: block;
 }
 
-#left-sidebar[data-workflow='annotation'] #annotation-add-controls {
-  display: block;
-}
-
-#left-sidebar[data-workflow='annotation'] #subject-package-card,
 #left-sidebar[data-workflow='annotation'] #anatomy-levels-card,
 #left-sidebar[data-workflow='annotation'] #measurement-panel,
-#left-sidebar[data-workflow='annotation'] #body-evidence-panel,
-#left-sidebar[data-workflow='annotation'] #body-evidence-selected-block {
+#left-sidebar[data-workflow='annotation'] #body-evidence-panel {
   display: none;
 }
 
 /* 3. Body Evidence (body-evidence) */
-#left-sidebar[data-workflow='body-evidence'] #subject-package-card,
 #left-sidebar[data-workflow='body-evidence'] #anatomy-levels-card,
-#left-sidebar[data-workflow='body-evidence'] #selection-panel,
 #left-sidebar[data-workflow='body-evidence'] #body-evidence-panel {
   display: block;
 }
 
-#left-sidebar[data-workflow='body-evidence'] #body-evidence-selected-block {
-  display: block;
-}
-
-#left-sidebar[data-workflow='body-evidence'] #annotation-add-controls,
+#left-sidebar[data-workflow='body-evidence'] #annotation-panel,
 #left-sidebar[data-workflow='body-evidence'] #measurement-panel {
   display: none;
 }
+
 
