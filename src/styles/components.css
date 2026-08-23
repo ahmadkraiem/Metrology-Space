@@ -352,6 +352,37 @@
   color: #fff;
 }
 
+.panel-button:disabled,
+#clear-measurement:disabled,
+#clear-side-measurement:disabled,
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: rgba(148, 163, 184, 0.15);
+  background: rgba(148, 163, 184, 0.05);
+  color: var(--text-muted);
+}
+
+.panel-button:focus-visible,
+button:focus-visible,
+.session-tab-btn:focus-visible,
+.workspace-tab-btn:focus-visible {
+  outline: 2px solid var(--purple-bright, #c084fc);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--cyan-data, #22d3ee);
+  outline-offset: 1px;
+}
+
+.section-title--collapsible:focus-visible {
+  outline: 2px solid var(--purple-bright, #c084fc);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .measurement-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
