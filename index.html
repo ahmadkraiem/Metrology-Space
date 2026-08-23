@@ -218,7 +218,7 @@
             <h2 class="section-title">Distance Measurement</h2>
             <div class="section-body">
               <div class="inspector-subgroup measurement-context" data-measurement-context="front" data-collapsible>
-                <h3 class="inspector-subgroup-label">Front / Canonical</h3>
+                <h3 class="inspector-subgroup-label">Front / Canonical (X/Y)</h3>
                 <div class="inspector-subgroup-body">
                   <div class="info-row measurement-point-row">
                     <span class="info-label measurement-point-label">Point A</span>
@@ -241,7 +241,7 @@
                 </div>
               </div>
               <div class="inspector-subgroup measurement-context measurement-context--side" data-measurement-context="side" data-collapsible>
-                <h3 class="inspector-subgroup-label">Side / U-Y</h3>
+                <h3 class="inspector-subgroup-label">Side Profile (U/Y)</h3>
                 <div class="inspector-subgroup-body">
                   <div class="info-row measurement-point-row">
                     <span class="info-label measurement-point-label">Point A</span>
@@ -260,7 +260,7 @@
                     <button type="button" id="clear-side-point-b" class="panel-button panel-button--compact">Clear B</button>
                   </div>
                   <button type="button" id="clear-side-measurement" class="panel-button">Clear Measurement</button>
-                  <p class="inspector-helper-text">Click two points on the Side Evidence navigator to measure U/Y distance in cm.</p>
+                  <p class="inspector-helper-text">Click two points on the Side Profile navigator to measure U/Y distance in cm.</p>
                 </div>
               </div>
             </div>
@@ -347,11 +347,11 @@
                 </div>
               </div>
 
-              <aside id="side-evidence-pane" class="workspace-2d-pane workspace-2d-pane--side" aria-label="Side Evidence Navigator">
+              <aside id="side-evidence-pane" class="workspace-2d-pane workspace-2d-pane--side" aria-label="Side Profile Navigator">
                 <header class="grid2d-nav-header">
                   <div class="grid2d-nav-heading">
                     <h3 class="grid2d-nav-title grid2d-nav-title--side">Side</h3>
-                    <p class="grid2d-nav-view-mode">Side Evidence Navigator · U / Y</p>
+                    <p class="grid2d-nav-view-mode">Side Profile Navigator · U / Y</p>
                     <p class="grid2d-helper">Control: mode · Scroll: zoom · Right-drag: pan</p>
                   </div>
                 </header>
@@ -529,8 +529,8 @@
             </section>
             <section id="body-measurement-readiness-panel" class="inspector-section">
               <div class="section-body">
-                <h3 class="body-tab-section-title">Body Measurement Readiness</h3>
-                <p class="body-tab-section-subtitle">Based on promoted canonical body landmarks</p>
+                <h3 class="body-tab-section-title">Body Measurement Previews</h3>
+                <p class="body-tab-section-subtitle">Metric Projected estimates from promoted anchors</p>
                 <div id="body-measurement-readiness" class="body-measurement-readiness" aria-live="polite"></div>
               </div>
             </section>

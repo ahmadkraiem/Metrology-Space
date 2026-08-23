@@ -85,8 +85,8 @@ function renderViewSection(viewTitle, viewEvidence) {
       <div class="body-package-qa-row"><span>Image</span>${imageBadge}</div>
       <div class="body-package-qa-row"><span>Pose</span>${poseBadge}</div>
       <div class="body-package-qa-row"><span>Segmentation</span>${segBadge}</div>
-      <div class="body-package-qa-row"><span>Pointmap</span>${pointmapBadge}</div>
-      <div class="body-package-qa-row"><span>Normals</span>${normalsBadge}</div>
+      <div class="body-package-qa-row"><span>Pointmap Numeric QA</span>${pointmapBadge}</div>
+      <div class="body-package-qa-row"><span>Normal Numeric QA</span>${normalsBadge}</div>
       <div class="body-package-qa-row"><span>Raster Compatibility</span>${rasterBadge}</div>
     </div>
   `;
@@ -122,14 +122,14 @@ export function renderBodyEvidencePackageQaHtml(pkg = getBodyEvidencePackage()) 
         ${sideHtml}
       </div>
       <div class="body-package-qa-deferred">
-        <div class="body-package-qa-deferred-title">Deferred Geometry Semantics</div>
+        <div class="body-package-qa-deferred-title">Authoritative Physical Pointmap Geometry</div>
         <div class="body-package-qa-row">
-          <span>Pointmap Frame / Scale</span>
-          ${renderStatusBadge('UNVALIDATED', 'unvalidated')}
+          <span>Physical Pointmap Interpretation</span>
+          ${renderStatusBadge('VALIDATION PENDING', 'unvalidated')}
         </div>
         <div class="body-package-qa-row">
-          <span>Normal Frame / Orientation</span>
-          ${renderStatusBadge('UNVALIDATED', 'unvalidated')}
+          <span>Sapiens Runtime Audit</span>
+          ${renderStatusBadge('DEFERRED', 'unvalidated')}
         </div>
       </div>
     </div>

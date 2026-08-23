@@ -442,6 +442,7 @@ function renderMeasurementCandidate(line) {
   const fromLabel = formatAnchorLabel(line.from);
   const toLabel = formatAnchorLabel(line.to);
   const pairText = `${fromLabel} → ${toLabel}`;
+  const badgeLabel = line.status === 'Ready' ? 'Metric Projected' : line.status;
 
   let detailHtml;
   if (line.status === 'Ready' && Number.isFinite(line.distanceCm)) {
@@ -449,7 +450,7 @@ function renderMeasurementCandidate(line) {
       `<div class="body-readiness-line-detail">`
       + `<span>From: ${escapeHtml(fromLabel)}</span>`
       + `<span>To: ${escapeHtml(toLabel)}</span>`
-      + `<span>Distance: ${escapeHtml(formatDistance(line.distanceCm))} cm</span>`
+      + `<span>Metric Projected: ${escapeHtml(formatDistance(line.distanceCm))} cm</span>`
       + `</div>`
     );
   } else {
@@ -465,7 +466,7 @@ function renderMeasurementCandidate(line) {
     `<div class="body-readiness-line" data-line-id="${escapeHtml(line.id)}">`
     + `<div class="body-readiness-line-header">`
     + `<span class="body-readiness-line-name">${escapeHtml(line.name)}</span>`
-    + renderBadge(line.status, statusTone)
+    + renderBadge(badgeLabel, statusTone)
     + `</div>`
     + detailHtml
     + `</div>`
@@ -481,10 +482,11 @@ function renderBodyMeasurementReadiness() {
   const audit = buildBodyAnchorAudit(annotations);
   const { lines } = buildAnatomicalMeasurementLines(annotations);
   const statusTone = audit.status === 'Ready' ? 'ok' : 'warn';
+  const overallBadgeLabel = audit.status === 'Ready' ? 'Anchors Qualified' : audit.status;
 
   bodyMeasurementReadinessEl.innerHTML = [
     '<div class="body-readiness-overview">',
-    `<div class="body-readiness-overall">${renderBadge(audit.status, statusTone)}</div>`,
+    `<div class="body-readiness-overall">${renderBadge(overallBadgeLabel, statusTone)}</div>`,
     '<div class="body-readiness-metrics">',
     renderReadinessMetric('Missing core anchors', audit.missingCoreAnchors.length),
     renderReadinessMetric('Duplicate body anchor names', audit.duplicateNames.length),

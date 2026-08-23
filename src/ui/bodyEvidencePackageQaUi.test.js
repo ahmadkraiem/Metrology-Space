@@ -45,13 +45,14 @@ test('renderBodyEvidencePackageQaHtml renders complete Front/Side QA breakdown',
   assert.equal(html.includes('Image'), true);
   assert.equal(html.includes('Pose'), true);
   assert.equal(html.includes('Segmentation'), true);
-  assert.equal(html.includes('Pointmap'), true);
-  assert.equal(html.includes('Normals'), true);
+  assert.equal(html.includes('Pointmap Numeric QA'), true);
+  assert.equal(html.includes('Normal Numeric QA'), true);
   assert.equal(html.includes('Raster Compatibility'), true);
-  assert.equal(html.includes('Deferred Geometry Semantics'), true);
-  assert.equal(html.includes('Pointmap Frame / Scale'), true);
-  assert.equal(html.includes('Normal Frame / Orientation'), true);
-  assert.equal(html.includes('UNVALIDATED'), true);
+  assert.equal(html.includes('Authoritative Physical Pointmap Geometry'), true);
+  assert.equal(html.includes('Physical Pointmap Interpretation'), true);
+  assert.equal(html.includes('Sapiens Runtime Audit'), true);
+  assert.equal(html.includes('VALIDATION PENDING'), true);
+  assert.equal(html.includes('DEFERRED'), true);
   assert.equal(html.includes('Missing'), true);
 });
 
