@@ -26,6 +26,7 @@ import {
   sidePointBCoordsEl,
 } from './domRefs.js';
 import { updateSceneGraph } from './sceneGraphPanel.js';
+import { highlightMeasurement } from '../features/sceneGraphHighlight.js';
 import {
   areAllOnFrontSurface,
   FRONT_SURFACE_TYPE_LABEL,
@@ -156,12 +157,36 @@ function formatStackedPointCoords(point) {
   return `X: ${formatCoordinate(point.x)} cm · Y: ${formatCoordinate(point.y)} cm · Z: ${formatCoordinate(point.z)} cm`;
 }
 
+export function applyHistoryItemHighlightBehavior(item, entry, highlightFn = highlightMeasurement) {
+  item.classList.add('history-item--clickable');
+  item.setAttribute('role', 'button');
+  item.tabIndex = 0;
+
+  const activate = (event) => {
+    event?.stopPropagation?.();
+    highlightFn(entry.pointA, entry.pointB);
+  };
+
+  item.addEventListener('click', activate);
+  item.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    event.preventDefault();
+    activate(event);
+  });
+}
+
 /**
  * Renders the single measurement history. Front-surface measurements (driven
  * from the 2D workspace) live in the same list as measurements taken in 3D.
  * Pass current history from measurement.js to avoid import cycles.
  */
 export function renderMeasurementHistory(measurementHistory) {
+  if (!historyListEl || !historyEmptyEl) {
+    return;
+  }
+
   historyListEl.replaceChildren();
 
   if (measurementHistory.length === 0) {
@@ -198,6 +223,7 @@ export function renderMeasurementHistory(measurementHistory) {
     rowB.textContent = `B: ${formatPointCoords(entry.pointB)}`;
 
     item.append(rowA, rowB);
+    applyHistoryItemHighlightBehavior(item, entry);
     historyListEl.append(item);
   });
 

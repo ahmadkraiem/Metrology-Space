@@ -1,7 +1,7 @@
 /**
  * Front–Side Alignment QA presentation panel (v0)
  *
- * Read-only Session Data → Body tab inspector section.
+ * Read-only Diagnostics → Front–Side Alignment inspector.
  * Renders the deterministic Front–Side Alignment v0 report in compact form:
  * - Summary counts & tolerance (always visible)
  * - Collapsible Core Pairs (N)

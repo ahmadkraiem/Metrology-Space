@@ -460,114 +460,89 @@
       <aside id="right-sidebar">
         <div class="sidebar-header">
           <div class="sidebar-header-main">
-            <div class="sidebar-title">Session Data</div>
-            <p class="sidebar-subtitle">Saved measurements and annotations</p>
+            <div class="sidebar-title">Results &amp; Records</div>
+            <p class="sidebar-subtitle">Measurements, session records, and diagnostics</p>
           </div>
           <button
             type="button"
             id="right-sidebar-toggle"
             class="sidebar-toggle-btn"
-            aria-label="Collapse Session Data"
-            title="Collapse Session Data"
+            aria-label="Collapse Results &amp; Records"
+            title="Collapse Results &amp; Records"
             aria-expanded="true"
           >
             <span class="sidebar-toggle-icon" aria-hidden="true">›</span>
           </button>
         </div>
         <div class="sidebar-collapsed-rail" aria-hidden="true">
-          <span class="sidebar-collapsed-rail-text">Session Data</span>
+          <span class="sidebar-collapsed-rail-text">Results &amp; Records</span>
         </div>
 
-        <!-- Primary Derived Measurement Deck (Stage 4) -->
-        <section id="derived-measurement-deck" class="derived-measurement-deck" aria-label="Derived Body Measurements">
+        <section id="derived-measurement-deck" class="derived-measurement-deck" aria-label="Results">
           <div class="deck-header">
-            <span class="deck-title">Measurements</span>
-            <span class="deck-badge">Metric Projected</span>
+            <span class="deck-title">Results</span>
           </div>
           <div id="derived-measurement-cards" class="derived-measurement-cards" aria-live="polite"></div>
         </section>
 
-        <div id="session-tabs" class="session-tabs" role="tablist" aria-label="Session Data">
-          <button type="button" id="session-tab-history" class="session-tab-btn session-tab-btn--active" role="tab" aria-selected="true" data-tab="history" title="History" aria-label="History">Hist</button>
-          <button type="button" id="session-tab-annotations" class="session-tab-btn" role="tab" aria-selected="false" data-tab="annotations" title="Annotations" aria-label="Annotations">Annos</button>
-          <button type="button" id="session-tab-body" class="session-tab-btn" role="tab" aria-selected="false" data-tab="body" title="Body Evidence" aria-label="Body Evidence">Body</button>
-          <button type="button" id="session-tab-graph" class="session-tab-btn" role="tab" aria-selected="false" data-tab="graph" title="Graph" aria-label="Scene Graph">Graph</button>
-
-        </div>
-        <div class="sidebar-scroll session-tab-content">
-          <div id="tab-panel-history" class="session-tab-panel" role="tabpanel">
-            <section id="history-panel" class="inspector-section">
-              <div class="section-body">
+        <div class="sidebar-scroll">
+          <section id="session-records-panel" class="inspector-section">
+            <h2 class="section-title">Session Records</h2>
+            <div class="section-body">
+              <div class="session-records-block">
+                <h3 class="body-tab-section-title">History</h3>
                 <p id="history-empty" class="session-empty-state">No completed measurements yet.</p>
                 <div id="history-list"></div>
                 <div class="history-clear-actions">
                   <button type="button" id="clear-history" class="panel-button">Clear History</button>
                 </div>
               </div>
-            </section>
-          </div>
-
-          <div id="tab-panel-annotations" class="session-tab-panel tab-panel-hidden" role="tabpanel">
-            <section id="annotations-panel" class="inspector-section">
-              <div class="section-body">
+              <div class="session-records-block">
+                <h3 class="body-tab-section-title">Annotations</h3>
                 <p id="annotations-empty" class="session-empty-state">No annotations yet.</p>
                 <div id="annotation-list"></div>
               </div>
-            </section>
-          </div>
-
-          <div id="tab-panel-body" class="session-tab-panel tab-panel-hidden" role="tabpanel">
-            <section id="body-evidence-status-panel" class="inspector-section">
-              <div class="section-body">
-                <h3 class="body-tab-section-title">Body Evidence Status</h3>
-                <div id="session-body-evidence-status" class="session-body-evidence-status" aria-live="polite">
-                  <p class="session-empty-state">No body evidence analyzed.</p>
-                </div>
-              </div>
-            </section>
-            <section id="front-side-alignment-panel" class="inspector-section">
-              <div class="section-body">
-                <h3 class="body-tab-section-title">Front–Side Alignment QA</h3>
-                <div id="front-side-alignment-qa" class="front-side-alignment-qa" aria-live="polite">
-                  <p class="session-empty-state">No body evidence analyzed.</p>
-                </div>
-              </div>
-            </section>
-            <section id="promoted-body-anchors-panel" class="inspector-section">
-              <div class="section-body">
-                <h3 class="body-tab-section-title">Promoted Body Anchors</h3>
-                <p class="body-tab-section-subtitle">Canonical promoted anchors</p>
-                <p id="promoted-body-anchors-count" class="promoted-body-anchors-count" aria-live="polite">Total: 0</p>
-                <p id="promoted-body-anchors-empty" class="session-empty-state">No promoted body anchors yet.</p>
-                <div id="promoted-body-anchors-list" class="promoted-body-anchors-list" aria-live="polite"></div>
-              </div>
-            </section>
-            <section id="body-measurement-readiness-panel" class="inspector-section">
-              <div class="section-body">
-                <h3 class="body-tab-section-title">Body Measurement Previews</h3>
-                <p class="body-tab-section-subtitle">Metric Projected estimates from promoted anchors</p>
-                <div id="body-measurement-readiness" class="body-measurement-readiness" aria-live="polite"></div>
-              </div>
-            </section>
-          </div>
-
-          <div id="tab-panel-graph" class="session-tab-panel tab-panel-hidden" role="tabpanel">
-            <section id="scene-graph-panel" class="inspector-section">
-              <div class="section-body">
-                <div id="scene-graph-tree" class="scene-graph-tree"></div>
-              </div>
-            </section>
-          </div>
-
-          <!-- Advanced QA Drawer (Stage 5) -->
-          <section id="advanced-qa-panel" class="inspector-section is-collapsed" data-collapsible data-collapsed>
-            <h2 class="section-title section-title--collapsible">Advanced QA</h2>
-            <div class="section-body">
-              <div id="advanced-qa-content" class="advanced-qa-content" aria-live="polite"></div>
             </div>
           </section>
 
+          <section id="diagnostics-panel" class="inspector-section is-collapsed" data-collapsible data-collapsed>
+            <h2 class="section-title section-title--collapsible">Diagnostics</h2>
+            <div class="section-body">
+              <div class="inspector-subgroup" id="why-blocked-section">
+                <h3 class="inspector-subgroup-label">Why This Result Is Blocked</h3>
+                <div class="inspector-subgroup-body">
+                  <div id="why-result-blocked" class="why-result-blocked" aria-live="polite"></div>
+                </div>
+              </div>
 
+              <div class="inspector-subgroup" id="front-side-alignment-panel">
+                <h3 class="inspector-subgroup-label">Front–Side Alignment</h3>
+                <div class="inspector-subgroup-body">
+                  <div id="front-side-alignment-qa" class="front-side-alignment-qa" aria-live="polite">
+                    <p class="session-empty-state">No body evidence analyzed.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="inspector-subgroup" id="body-anchor-diagnostics-panel">
+                <h3 class="inspector-subgroup-label">Body / Anchor Diagnostics</h3>
+                <div class="inspector-subgroup-body">
+                  <h4 class="body-tab-section-title">Anchor-Based Measurement Previews</h4>
+                  <p class="body-tab-section-subtitle">Promoted-anchor preview spans — not the same contract as Front Transverse Width or Side Profile Span</p>
+                  <div id="body-measurement-readiness" class="body-measurement-readiness" aria-live="polite"></div>
+                </div>
+              </div>
+
+              <div id="advanced-qa-panel" class="inspector-subgroup is-collapsed" data-collapsible data-collapsed>
+                <h3 class="inspector-subgroup-label">Advanced QA</h3>
+                <div class="inspector-subgroup-body">
+                  <div id="advanced-qa-content" class="advanced-qa-content" aria-live="polite"></div>
+                </div>
+              </div>
+
+              <div id="reference-projection-utility" class="diagnostics-utility-row" aria-label="Reference projections"></div>
+            </div>
+          </section>
         </div>
       </aside>
 

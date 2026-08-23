@@ -54,7 +54,7 @@ function wireSection(section) {
 
 /**
  * Wire sections marked with data-collapsible under root.
- * Default root is #left-sidebar so Session Data cards stay untouched.
+ * Default root is #left-sidebar so Right Sidebar sections are wired separately.
  * Passing a [data-collapsible] element wires that section only.
  */
 export function initCollapsibleSections(root = document.getElementById('left-sidebar')) {

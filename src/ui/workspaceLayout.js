@@ -176,11 +176,11 @@ export function setRightSidebarCollapsed(collapsed) {
     rightSidebarToggleBtn.setAttribute('aria-expanded', rightSidebarCollapsed ? 'false' : 'true');
     rightSidebarToggleBtn.setAttribute(
       'aria-label',
-      rightSidebarCollapsed ? 'Expand Session Data' : 'Collapse Session Data',
+      rightSidebarCollapsed ? 'Expand Results & Records' : 'Collapse Results & Records',
     );
     rightSidebarToggleBtn.setAttribute(
       'title',
-      rightSidebarCollapsed ? 'Expand Session Data' : 'Collapse Session Data',
+      rightSidebarCollapsed ? 'Expand Results & Records' : 'Collapse Results & Records',
     );
     const iconEl = rightSidebarToggleBtn.querySelector('.sidebar-toggle-icon');
     if (iconEl) {

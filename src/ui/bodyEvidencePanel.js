@@ -3,7 +3,7 @@
  * Left Metrology Inspector — inspect Front/Side Body Evidence candidates & segmentation classes.
  * Tabbed workflow: Front / Side / Selection.
  * Evidence UI only — does not mutate scene or measurement state.
- * Compact summary counts render in Session Data > Body.
+ * Compact diagnostic counts render in Diagnostics when needed.
  * Package import available through File > Upload Body Evidence Package…
  * Promote Selected Landmark creates a normal annotation via the shared
  * annotation helper; Body Evidence evidence state is unchanged.

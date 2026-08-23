@@ -61,10 +61,29 @@ export function mapBlockerToHumanLabel(code) {
   }
 }
 
-function renderMeasurementCard({ id, name, levelKey }, annotations) {
-  const correspondence = getCrossViewMeasurementCorrespondence({ id, annotations });
-  const eligibility = getPairedCrossViewEligibility({ id, annotations });
+export function deriveMeasurementCardStatus(eligibility) {
+  const status = String(eligibility?.pairedStatus || 'unavailable').toLowerCase();
+  if (status === 'eligible') {
+    return { label: 'Eligible', tone: 'ok' };
+  }
+  if (status === 'partial') {
+    return { label: 'Partial', tone: 'warn' };
+  }
+  if (status === 'blocked') {
+    return { label: 'Blocked', tone: 'warn' };
+  }
+  return { label: 'Unavailable', tone: 'muted' };
+}
 
+function formatSpanDisplay(observation, fallbackSpanCm) {
+  const span = observation?.spanCm ?? observation?.valueCm ?? fallbackSpanCm;
+  if (typeof span === 'number' && Number.isFinite(span)) {
+    return `${formatDistance(span)} cm`;
+  }
+  return 'Unavailable';
+}
+
+export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, eligibility) {
   const frontObs = correspondence?.frontObservation;
   const sideObs = correspondence?.sideObservation;
 
@@ -77,77 +96,39 @@ function renderMeasurementCard({ id, name, levelKey }, annotations) {
     ? `Y ${formatDistance(yCm)} cm`
     : 'Y —';
 
-  // Front Transverse Width value & status
-  let frontDisplay = '—';
-  let frontBadge = renderBadge('Unavailable', 'muted');
-  const frontSpan = frontObs?.spanCm ?? frontObs?.valueCm ?? eligibility?.frontMetricSpanCm;
-  if (typeof frontSpan === 'number' && Number.isFinite(frontSpan)) {
-    frontDisplay = `${formatDistance(frontSpan)} cm`;
-    frontBadge = renderBadge('Metric Projected', 'ok');
-  } else if (frontObs?.status === 'partial') {
-    frontDisplay = 'Partial';
-    frontBadge = renderBadge('Partial', 'warn');
-  }
-
-  // Side Profile Span value & status (Guarded against "Depth" terminology)
-  let sideDisplay = '—';
-  let sideBadge = renderBadge('Unavailable', 'muted');
-  const sideSpan = sideObs?.spanCm ?? sideObs?.valueCm ?? eligibility?.sideMetricSpanCm;
-  if (typeof sideSpan === 'number' && Number.isFinite(sideSpan)) {
-    sideDisplay = `${formatDistance(sideSpan)} cm`;
-    sideBadge = renderBadge('Metric Projected', 'ok');
-  } else if (sideObs?.status === 'partial') {
-    sideDisplay = 'Partial';
-    sideBadge = renderBadge('Partial', 'warn');
-  }
-
-  // Physical validation status & blockers
-  let physicalBadge = renderBadge('Validation Pending', 'warn', 'Physical body measurement validation pending');
-  if (eligibility?.pairedPhysicalEligibility === true) {
-    physicalBadge = renderBadge('Validated', 'ok', 'Authoritative physical measurement validated');
-  }
-
-  const blockers = Array.isArray(eligibility?.blockers) ? eligibility.blockers : [];
-  const blockersHtml = blockers.length > 0 && eligibility?.pairedPhysicalEligibility !== true
-    ? `
-      <div class="derived-blocker-list" aria-label="Physical validation blockers">
-        ${blockers.map((b) => `<span class="derived-blocker-chip" title="Blocker code: ${escapeHtml(b)}">${escapeHtml(mapBlockerToHumanLabel(b))}</span>`).join('')}
-      </div>
-    `
-    : '';
+  const status = deriveMeasurementCardStatus(eligibility);
+  const frontDisplay = formatSpanDisplay(frontObs, eligibility?.frontMetricSpanCm);
+  const sideDisplay = formatSpanDisplay(sideObs, eligibility?.sideMetricSpanCm);
 
   return `
     <div class="derived-measurement-card" data-correspondence-id="${escapeHtml(id)}">
       <div class="derived-card-header">
         <span class="derived-card-title">${escapeHtml(name)}</span>
-        <span class="derived-card-level">${escapeHtml(yDisplay)}</span>
+        <div class="derived-card-meta">
+          <span class="derived-card-level">${escapeHtml(yDisplay)}</span>
+          ${renderBadge(status.label, status.tone)}
+        </div>
       </div>
 
       <div class="derived-card-body">
         <div class="derived-card-row">
-          <div class="derived-row-main">
-            <span class="derived-row-label">Front Transverse Width</span>
-            <span class="derived-row-value">${escapeHtml(frontDisplay)}</span>
-          </div>
-          <div class="derived-row-badge">${frontBadge}</div>
+          <span class="derived-row-label">Front Transverse Width</span>
+          <span class="derived-row-value">${escapeHtml(frontDisplay)}</span>
         </div>
 
         <div class="derived-card-row">
-          <div class="derived-row-main">
-            <span class="derived-row-label">Side Profile Span</span>
-            <span class="derived-row-value">${escapeHtml(sideDisplay)}</span>
-          </div>
-          <div class="derived-row-badge">${sideBadge}</div>
+          <span class="derived-row-label">Side Profile Span</span>
+          <span class="derived-row-value">${escapeHtml(sideDisplay)}</span>
         </div>
-
-        <div class="derived-card-row derived-card-row--physical">
-          <span class="derived-row-label">Physical Validation</span>
-          <div class="derived-row-badge">${physicalBadge}</div>
-        </div>
-        ${blockersHtml}
       </div>
     </div>
   `;
+}
+
+function renderMeasurementCard({ id, name }, annotations) {
+  const correspondence = getCrossViewMeasurementCorrespondence({ id, annotations });
+  const eligibility = getPairedCrossViewEligibility({ id, annotations });
+  return buildDerivedMeasurementCardHtml({ id, name }, correspondence, eligibility);
 }
 
 export function renderDerivedMeasurementDeck(containerEl) {
