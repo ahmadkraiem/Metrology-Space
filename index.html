@@ -486,8 +486,8 @@
         </section>
 
         <div class="sidebar-scroll">
-          <section id="session-records-panel" class="inspector-section">
-            <h2 class="section-title">Session Records</h2>
+          <section id="session-records-panel" class="inspector-section" data-collapsible>
+            <h2 class="section-title section-title--collapsible">Session Records</h2>
             <div class="section-body">
               <div class="session-records-block">
                 <h3 class="body-tab-section-title">History</h3>
@@ -508,15 +508,15 @@
           <section id="diagnostics-panel" class="inspector-section is-collapsed" data-collapsible data-collapsed>
             <h2 class="section-title section-title--collapsible">Diagnostics</h2>
             <div class="section-body">
-              <div class="inspector-subgroup" id="why-blocked-section">
-                <h3 class="inspector-subgroup-label">Why This Result Is Blocked</h3>
+              <div id="why-blocked-section" class="inspector-subgroup is-collapsed" data-collapsible data-collapsed>
+                <h3 class="inspector-subgroup-label inspector-subgroup-label--collapsible">Why This Result Is Blocked</h3>
                 <div class="inspector-subgroup-body">
                   <div id="why-result-blocked" class="why-result-blocked" aria-live="polite"></div>
                 </div>
               </div>
 
-              <div class="inspector-subgroup" id="front-side-alignment-panel">
-                <h3 class="inspector-subgroup-label">Front–Side Alignment</h3>
+              <div id="front-side-alignment-panel" class="inspector-subgroup is-collapsed" data-collapsible data-collapsed>
+                <h3 class="inspector-subgroup-label inspector-subgroup-label--collapsible">Front–Side Alignment</h3>
                 <div class="inspector-subgroup-body">
                   <div id="front-side-alignment-qa" class="front-side-alignment-qa" aria-live="polite">
                     <p class="session-empty-state">No body evidence analyzed.</p>
@@ -524,8 +524,8 @@
                 </div>
               </div>
 
-              <div class="inspector-subgroup" id="body-anchor-diagnostics-panel">
-                <h3 class="inspector-subgroup-label">Body / Anchor Diagnostics</h3>
+              <div id="body-anchor-diagnostics-panel" class="inspector-subgroup is-collapsed" data-collapsible data-collapsed>
+                <h3 class="inspector-subgroup-label inspector-subgroup-label--collapsible">Body / Anchor Diagnostics</h3>
                 <div class="inspector-subgroup-body">
                   <h4 class="body-tab-section-title">Anchor-Based Measurement Previews</h4>
                   <p class="body-tab-section-subtitle">Promoted-anchor preview spans — not the same contract as Front Transverse Width or Side Profile Span</p>
@@ -534,7 +534,7 @@
               </div>
 
               <div id="advanced-qa-panel" class="inspector-subgroup is-collapsed" data-collapsible data-collapsed>
-                <h3 class="inspector-subgroup-label">Advanced QA</h3>
+                <h3 class="inspector-subgroup-label inspector-subgroup-label--collapsible">Advanced QA</h3>
                 <div class="inspector-subgroup-body">
                   <div id="advanced-qa-content" class="advanced-qa-content" aria-live="polite"></div>
                 </div>

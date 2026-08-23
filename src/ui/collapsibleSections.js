@@ -9,6 +9,8 @@ const HEADER_VARIANTS = [
   { selector: ':scope > .inspector-subgroup-label', collapsibleClass: 'inspector-subgroup-label--collapsible' },
 ];
 
+const wiredSections = new WeakSet();
+
 function resolveHeader(section) {
   for (const variant of HEADER_VARIANTS) {
     const header = section.querySelector(variant.selector);
@@ -25,6 +27,10 @@ function setExpanded(section, header, expanded) {
 }
 
 function wireSection(section) {
+  if (wiredSections.has(section)) {
+    return;
+  }
+
   const resolved = resolveHeader(section);
   if (!resolved) {
     return;
@@ -50,12 +56,14 @@ function wireSection(section) {
       toggle();
     }
   });
+  wiredSections.add(section);
 }
 
 /**
  * Wire sections marked with data-collapsible under root.
- * Default root is #left-sidebar so Right Sidebar sections are wired separately.
- * Passing a [data-collapsible] element wires that section only.
+ * Default root is #left-sidebar; pass #right-sidebar to wire Session Records,
+ * Diagnostics, and nested diagnostic accordions in one pass.
+ * Already-wired sections are skipped so nested discovery cannot double-bind.
  */
 export function initCollapsibleSections(root = document.getElementById('left-sidebar')) {
   if (!root) {

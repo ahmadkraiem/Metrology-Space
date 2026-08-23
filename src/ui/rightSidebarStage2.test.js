@@ -139,11 +139,16 @@ test('rightSidebarStage2: Diagnostics initializes collapsed and hosts remaining 
   assert.equal(diagnostics.includes('Scene Metadata'), false);
 });
 
-test('rightSidebarStage2: Diagnostics accordion starts collapsed and toggles', () => {
+function createCollapsibleMock({
+  classes,
+  collapsed,
+  headerClass,
+  descendants = [],
+} = {}) {
   const headerAttrs = {};
   const headerListeners = {};
   const header = {
-    classList: createClassList(['section-title', 'section-title--collapsible']),
+    classList: createClassList([headerClass]),
     setAttribute(name, value) {
       headerAttrs[name] = String(value);
     },
@@ -159,34 +164,226 @@ test('rightSidebarStage2: Diagnostics accordion starts collapsed and toggles', (
         fn();
       }
     },
+    keydown(key) {
+      const event = { key, preventDefault() {} };
+      for (const fn of headerListeners.keydown || []) {
+        fn(event);
+      }
+    },
+    listenerCount(type) {
+      return (headerListeners[type] || []).length;
+    },
   };
 
+  const attrs = new Set(['data-collapsible']);
+  if (collapsed) {
+    attrs.add('data-collapsed');
+  }
+
   const section = {
-    classList: createClassList(['inspector-section', 'is-collapsed']),
+    classList: createClassList([
+      ...classes,
+      ...(collapsed ? ['is-collapsed'] : []),
+    ]),
     hasAttribute(name) {
-      return name === 'data-collapsible' || name === 'data-collapsed';
+      return attrs.has(name);
     },
     matches(selector) {
       return selector === '[data-collapsible]';
     },
     querySelector(selector) {
-      if (selector === ':scope > .section-title') {
+      if (selector === `:scope > .${headerClass}`) {
         return header;
       }
       return null;
     },
-    querySelectorAll() {
+    querySelectorAll(selector) {
+      if (selector === '[data-collapsible]') {
+        return descendants;
+      }
       return [];
     },
   };
 
-  initCollapsibleSections(section);
-  assert.equal(section.classList.contains('is-collapsed'), true);
-  assert.equal(header.getAttribute('aria-expanded'), 'false');
+  return { section, header };
+}
 
-  header.click();
-  assert.equal(section.classList.contains('is-collapsed'), false);
-  assert.equal(header.getAttribute('aria-expanded'), 'true');
+function createDiagnosticsAccordionTree() {
+  const whyBlocked = createCollapsibleMock({
+    classes: ['inspector-subgroup'],
+    collapsed: true,
+    headerClass: 'inspector-subgroup-label',
+  });
+  const alignment = createCollapsibleMock({
+    classes: ['inspector-subgroup'],
+    collapsed: true,
+    headerClass: 'inspector-subgroup-label',
+  });
+  const bodyAnchor = createCollapsibleMock({
+    classes: ['inspector-subgroup'],
+    collapsed: true,
+    headerClass: 'inspector-subgroup-label',
+  });
+  const advancedQa = createCollapsibleMock({
+    classes: ['inspector-subgroup'],
+    collapsed: true,
+    headerClass: 'inspector-subgroup-label',
+  });
+  const diagnostics = createCollapsibleMock({
+    classes: ['inspector-section'],
+    collapsed: true,
+    headerClass: 'section-title',
+    descendants: [
+      whyBlocked.section,
+      alignment.section,
+      bodyAnchor.section,
+      advancedQa.section,
+    ],
+  });
+
+  return { diagnostics, whyBlocked, alignment, bodyAnchor, advancedQa };
+}
+
+test('rightSidebarStage2: Diagnostics accordion starts collapsed and toggles', () => {
+  const { diagnostics } = createDiagnosticsAccordionTree();
+
+  initCollapsibleSections(diagnostics.section);
+  assert.equal(diagnostics.section.classList.contains('is-collapsed'), true);
+  assert.equal(diagnostics.header.getAttribute('aria-expanded'), 'false');
+
+  diagnostics.header.click();
+  assert.equal(diagnostics.section.classList.contains('is-collapsed'), false);
+  assert.equal(diagnostics.header.getAttribute('aria-expanded'), 'true');
+});
+
+test('rightSidebarStage2: Session Records markup is one expanded accordion, not History/Annotations', () => {
+  const records = sliceBetween(markup, 'id="session-records-panel"', 'id="diagnostics-panel"');
+  assert.match(records, /data-collapsible/);
+  assert.equal(/data-collapsed/.test(records), false);
+  assert.equal(/is-collapsed/.test(records), false);
+  assert.match(records, /id="history-list"/);
+  assert.match(records, /id="annotation-list"/);
+  assert.equal(/session-records-block[^>]*data-collapsible/.test(records), false);
+});
+
+test('rightSidebarStage2: Session Records initializes expanded, toggles, and keeps History + Annotations mounted', () => {
+  const mounted = {
+    historyList: { id: 'history-list' },
+    annotationList: { id: 'annotation-list' },
+    clearHistory: { id: 'clear-history' },
+  };
+  const records = createCollapsibleMock({
+    classes: ['inspector-section'],
+    collapsed: false,
+    headerClass: 'section-title',
+  });
+  records.section.mounted = mounted;
+
+  initCollapsibleSections(records.section);
+  assert.equal(records.section.classList.contains('is-collapsed'), false);
+  assert.equal(records.header.getAttribute('aria-expanded'), 'true');
+  assert.equal(records.header.getAttribute('role'), 'button');
+  assert.equal(records.header.getAttribute('tabindex'), '0');
+
+  records.header.click();
+  assert.equal(records.section.classList.contains('is-collapsed'), true);
+  assert.equal(records.header.getAttribute('aria-expanded'), 'false');
+  assert.equal(records.section.mounted.historyList.id, 'history-list');
+  assert.equal(records.section.mounted.annotationList.id, 'annotation-list');
+  assert.equal(records.section.mounted.clearHistory.id, 'clear-history');
+
+  records.header.click();
+  assert.equal(records.section.classList.contains('is-collapsed'), false);
+  assert.equal(records.header.getAttribute('aria-expanded'), 'true');
+  assert.equal(records.section.mounted.historyList.id, 'history-list');
+  assert.equal(records.section.mounted.annotationList.id, 'annotation-list');
+});
+
+test('rightSidebarStage2: Diagnostics subsections are independently collapsible and collapsed by default', () => {
+  const diagnostics = sliceBetween(markup, 'id="diagnostics-panel"', 'id="bottom-status-bar"');
+  const nestedIds = [
+    'why-blocked-section',
+    'front-side-alignment-panel',
+    'body-anchor-diagnostics-panel',
+    'advanced-qa-panel',
+  ];
+
+  for (const id of nestedIds) {
+    const idToken = `id="${id}"`;
+    const idIndex = diagnostics.indexOf(idToken);
+    assert.ok(idIndex > -1, `${id} must exist in Diagnostics`);
+    const tag = diagnostics.slice(diagnostics.lastIndexOf('<', idIndex), diagnostics.indexOf('>', idIndex));
+    assert.match(tag, /data-collapsible/);
+    assert.match(tag, /data-collapsed/);
+    assert.match(tag, /is-collapsed/);
+  }
+});
+
+test('rightSidebarStage2: nested Diagnostics accordions toggle independently of the outer drawer and siblings', () => {
+  const tree = createDiagnosticsAccordionTree();
+
+  initCollapsibleSections(tree.diagnostics.section);
+
+  assert.equal(tree.diagnostics.section.classList.contains('is-collapsed'), true);
+  assert.equal(tree.whyBlocked.section.classList.contains('is-collapsed'), true);
+  assert.equal(tree.alignment.section.classList.contains('is-collapsed'), true);
+  assert.equal(tree.bodyAnchor.section.classList.contains('is-collapsed'), true);
+  assert.equal(tree.advancedQa.section.classList.contains('is-collapsed'), true);
+
+  tree.diagnostics.header.click();
+  assert.equal(tree.diagnostics.section.classList.contains('is-collapsed'), false);
+  assert.equal(tree.whyBlocked.section.classList.contains('is-collapsed'), true);
+  assert.equal(tree.alignment.section.classList.contains('is-collapsed'), true);
+  assert.equal(tree.advancedQa.section.classList.contains('is-collapsed'), true);
+
+  tree.alignment.header.click();
+  assert.equal(tree.alignment.section.classList.contains('is-collapsed'), false);
+  assert.equal(tree.alignment.header.getAttribute('aria-expanded'), 'true');
+  assert.equal(tree.diagnostics.section.classList.contains('is-collapsed'), false);
+  assert.equal(tree.whyBlocked.section.classList.contains('is-collapsed'), true);
+  assert.equal(tree.bodyAnchor.section.classList.contains('is-collapsed'), true);
+  assert.equal(tree.advancedQa.section.classList.contains('is-collapsed'), true);
+
+  tree.whyBlocked.header.click();
+  assert.equal(tree.whyBlocked.section.classList.contains('is-collapsed'), false);
+  assert.equal(tree.alignment.section.classList.contains('is-collapsed'), false);
+  assert.equal(tree.advancedQa.section.classList.contains('is-collapsed'), true);
+
+  tree.advancedQa.header.click();
+  assert.equal(tree.advancedQa.section.classList.contains('is-collapsed'), false);
+  assert.equal(tree.advancedQa.header.getAttribute('aria-expanded'), 'true');
+  assert.equal(tree.bodyAnchor.section.classList.contains('is-collapsed'), true);
+
+  tree.alignment.header.keydown('Enter');
+  assert.equal(tree.alignment.section.classList.contains('is-collapsed'), true);
+  assert.equal(tree.diagnostics.section.classList.contains('is-collapsed'), false);
+
+  tree.alignment.header.keydown(' ');
+  assert.equal(tree.alignment.section.classList.contains('is-collapsed'), false);
+  assert.equal(tree.whyBlocked.section.classList.contains('is-collapsed'), false);
+});
+
+test('rightSidebarStage2: collapsible init does not double-bind nested Diagnostics sections', () => {
+  const tree = createDiagnosticsAccordionTree();
+
+  initCollapsibleSections(tree.diagnostics.section);
+  initCollapsibleSections(tree.diagnostics.section);
+
+  assert.equal(tree.diagnostics.header.listenerCount('click'), 1);
+  assert.equal(tree.whyBlocked.header.listenerCount('click'), 1);
+  assert.equal(tree.alignment.header.listenerCount('click'), 1);
+  assert.equal(tree.bodyAnchor.header.listenerCount('click'), 1);
+  assert.equal(tree.advancedQa.header.listenerCount('click'), 1);
+
+  tree.diagnostics.header.click();
+  assert.equal(tree.diagnostics.section.classList.contains('is-collapsed'), false);
+  tree.alignment.header.click();
+  assert.equal(tree.alignment.section.classList.contains('is-collapsed'), false);
+});
+
+test('rightSidebarStage2: right sidebar wires Session Records and Diagnostics through one shared helper root', () => {
+  const mainSource = readFileSync(join(rootDir, 'src', 'main.js'), 'utf8');
+  assert.match(mainSource, /initCollapsibleSections\(document\.getElementById\('right-sidebar'\)\)/);
 });
 
 test('rightSidebarStage2: sidebar identity is Results & Records', () => {

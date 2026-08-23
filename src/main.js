@@ -96,7 +96,7 @@ setupDerivedMeasurementDeck();
 setupAdvancedQaPanel();
 setupBodyTabConsolidatedPanel();
 initCollapsibleSections();
-initCollapsibleSections(document.getElementById('diagnostics-panel'));
+initCollapsibleSections(document.getElementById('right-sidebar'));
 setupBodyGraphWorkspace();
 setupWorkspaceLayout();
 setupAppMenuBar({
