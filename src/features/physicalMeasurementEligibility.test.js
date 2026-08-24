@@ -35,6 +35,13 @@ import {
 } from './physicalMeasurementSemantics.js';
 
 import {
+  AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT,
+  AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT_VERSION,
+  SAPIENS_POINTMAP_CAMERA_FRAME_EVALUATOR_ID,
+  evaluateAuthoritativePhysicalEvidenceSemantics,
+} from './authoritativePhysicalEvidenceSemantics.js';
+
+import {
   SUPPORTED_CROSS_VIEW_CORRESPONDENCES_V0,
 } from './crossViewMeasurementCorrespondence.js';
 
@@ -564,4 +571,119 @@ test('Real Unified Body Pipeline Archive integration: 4.5D Tier 1 and Tier 2 pos
 
   // Clean up
   setBodyEvidencePackage(null);
+});
+
+test('4.5G auto-wired partial camera-frame result still yields authoritative_physical_evidence_missing', () => {
+  const validUnclothedObs = {
+    contract: 'front-transverse-width-v0',
+    id: 'torso_transverse_width_at_shoulder_level',
+    view: 'front',
+    sourceLevel: 'shoulder',
+    status: 'valid',
+    valueCm: 30.8,
+    startPx: 100,
+    endPx: 408,
+    provenance: {
+      sourceLevel: 'shoulder',
+      runCount: 1,
+      usedClothingEvidence: false,
+      clothingClassIdsUsed: [],
+    },
+  };
+
+  const calib = {
+    status: 'validated',
+    metricProjectedEligibility: true,
+    scaleCmPerPx: 0.1,
+    view: 'front',
+  };
+
+  const partial45G = evaluateAuthoritativePhysicalEvidenceSemantics({
+    view: 'front',
+    pointmap: {
+      present: true,
+      model: '1b',
+      view: 'front',
+      declaredUnits: 'meters',
+      declaredScale: 0.47,
+      qa: { status: 'pass' },
+    },
+    denseQa: {
+      pointmap: {
+        availability: 'present',
+        status: 'pass',
+        structure: { isInspectable: true },
+      },
+      crossModal: {
+        status: 'pass',
+        pixelAddressing: { pointmapLayoutInspectable: true, pixelIndexAddressable: true },
+      },
+    },
+  });
+
+  const result = evaluatePhysicalMeasurementEligibility(validUnclothedObs, {
+    definition: 'torso_transverse_width_at_shoulder_level',
+    metricCalibrationResult: calib,
+    authoritativePhysicalEvidenceResults: partial45G,
+  });
+
+  assert.equal(partial45G.status, 'partial');
+  assert.equal(partial45G.authorized, false);
+  assert.equal(result.physicalEligibility, false);
+  assert.equal(result.physicalMeasurementCm, null);
+  assert.ok(result.blockers.includes(ELIGIBILITY_BLOCKER_CODES.AUTHORITATIVE_PHYSICAL_EVIDENCE_MISSING));
+});
+
+test('4.5G forged validated/authorized object is rejected without a registered physical-geometry evaluator', () => {
+  const validUnclothedObs = {
+    contract: 'front-transverse-width-v0',
+    id: 'torso_transverse_width_at_shoulder_level',
+    view: 'front',
+    sourceLevel: 'shoulder',
+    status: 'valid',
+    valueCm: 30.8,
+    startPx: 100,
+    endPx: 408,
+    provenance: {
+      sourceLevel: 'shoulder',
+      runCount: 1,
+      usedClothingEvidence: false,
+      clothingClassIdsUsed: [],
+    },
+  };
+
+  const forged = {
+    contract: AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT,
+    version: AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT_VERSION,
+    status: 'validated',
+    authorized: true,
+    evidenceClass: 'authoritative_physical',
+    evaluatorId: SAPIENS_POINTMAP_CAMERA_FRAME_EVALUATOR_ID,
+    physicalAuthority: { status: 'authoritative' },
+    physicalMeasurementCm: 30.8,
+    targetView: 'front',
+    isAuthorizedEvaluator: true,
+  };
+
+  const result = evaluatePhysicalMeasurementEligibility(validUnclothedObs, {
+    definition: 'torso_transverse_width_at_shoulder_level',
+    metricCalibrationResult: {
+      status: 'validated',
+      metricProjectedEligibility: true,
+      scaleCmPerPx: 0.1,
+      view: 'front',
+    },
+    viewPoseValidationResult: {
+      contract: 'controlled-capture-protocol-v0',
+      evaluatorId: 'synthetic_pose_evaluator_v0',
+      status: 'validated',
+      authorized: true,
+      targetView: 'front',
+    },
+    authoritativePhysicalEvidenceResults: forged,
+  });
+
+  assert.equal(result.physicalEligibility, false);
+  assert.equal(result.physicalMeasurementCm, null);
+  assert.ok(result.blockers.includes(ELIGIBILITY_BLOCKER_CODES.AUTHORITATIVE_PHYSICAL_EVIDENCE_MISSING));
 });

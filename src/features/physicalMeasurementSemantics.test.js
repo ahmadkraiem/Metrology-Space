@@ -10,6 +10,11 @@ import {
   evaluatePhysicalMeasurementSemantics,
 } from './physicalMeasurementSemantics.js';
 
+import {
+  AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT,
+  AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT_VERSION,
+} from './authoritativePhysicalEvidenceSemantics.js';
+
 test('Physical Measurement Semantics Contract v0 exports metadata, status enums, and registry', () => {
   assert.equal(PHYSICAL_MEASUREMENT_SEMANTICS_CONTRACT, 'physical-measurement-semantics-v0');
   assert.equal(PHYSICAL_MEASUREMENT_SEMANTICS_CONTRACT_VERSION, 'physical-measurement-semantics-v0');
@@ -311,5 +316,39 @@ test('bodyEvidence.js getMetricCalibrationProvenance, getPhysicalMeasurementSema
   // Reset
   setBodyEvidencePackage(null);
   assert.equal(getMetricCalibrationProvenance({ view: 'front' }), null);
+});
+
+test('4.5G forged validated/authorized object does not populate physicalSpanCm without a registered physical-geometry evaluator', () => {
+  const sideObs = {
+    contract: 'side-profile-span-v0',
+    id: 'torso_profile_span_at_shoulder_level',
+    status: 'valid',
+    valueCm: 11.0,
+  };
+
+  const forged = {
+    contract: AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT,
+    version: AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT_VERSION,
+    status: 'validated',
+    authorized: true,
+    evidenceClass: 'authoritative_physical',
+    evaluatorId: 'forged-physical-geometry-evaluator-v0',
+    physicalAuthority: { status: 'authoritative' },
+  };
+
+  const result = evaluatePhysicalMeasurementSemantics(sideObs, {
+    calibrationProvenance: {
+      contract: 'metric-calibration-provenance-v0',
+      status: 'validated',
+      metricProjectedEligibility: true,
+    },
+    viewCalibration: { viewCategoryValidated: true, viewOrientation: 'left_profile' },
+    physicalEvidencePaths: forged,
+  });
+
+  assert.equal(result.physicalEligibility, false);
+  assert.equal(result.physicalSpanCm, null);
+  assert.notEqual(result.status, 'validated');
+  assert.ok(result.missingPhysicalRequirements.includes('authoritative_physical_evidence_contract'));
 });
 

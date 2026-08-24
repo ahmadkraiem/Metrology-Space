@@ -46,6 +46,11 @@ import {
   evaluateClothingBodySurfaceSemantics,
 } from './clothingBodySurfaceSemantics.js';
 
+import {
+  AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT,
+  isValidatedAuthoritativePhysicalGeometryEvidence,
+} from './authoritativePhysicalEvidenceSemantics.js';
+
 export const PHYSICAL_MEASUREMENT_ELIGIBILITY_CONTRACT = 'physical-measurement-eligibility-v0';
 export const PHYSICAL_MEASUREMENT_ELIGIBILITY_CONTRACT_VERSION = 'physical-measurement-eligibility-v0';
 
@@ -659,9 +664,21 @@ export function evaluatePhysicalMeasurementEligibility(observation, {
 
     const contract = evidence.contract;
     const status = evidence.status;
-    const isRecognized = RECOGNIZED_PHYSICAL_EVALUATOR_CONTRACTS.includes(contract)
-      || IMPLEMENTED_PHYSICAL_EVALUATORS.includes(evidence.evaluatorId)
-      || (evidence.evaluatorId && evidence.isAuthorizedEvaluator === true);
+
+    // 4.5G objects never fall through to reserved-contract or caller-boolean shortcuts.
+    if (contract === AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT) {
+      if (!isValidatedAuthoritativePhysicalGeometryEvidence(evidence)) {
+        continue;
+      }
+    }
+
+    const isRecognized = contract === AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT
+      ? isValidatedAuthoritativePhysicalGeometryEvidence(evidence)
+      : (
+        RECOGNIZED_PHYSICAL_EVALUATOR_CONTRACTS.includes(contract)
+        || IMPLEMENTED_PHYSICAL_EVALUATORS.includes(evidence.evaluatorId)
+        || (evidence.evaluatorId && evidence.isAuthorizedEvaluator === true)
+      );
 
     if (isRecognized && (status === 'validated' || status === 'pass')) {
       const levelMatches = !evidence.applicableLevels

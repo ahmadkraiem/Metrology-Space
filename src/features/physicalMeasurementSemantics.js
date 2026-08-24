@@ -13,6 +13,11 @@
  * - Does NOT convert Side U to canonical Z, does NOT fuse Front/Side coordinates, and does NOT compute 3D geometry.
  */
 
+import {
+  AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT,
+  isValidatedAuthoritativePhysicalGeometryEvidence,
+} from './authoritativePhysicalEvidenceSemantics.js';
+
 export const PHYSICAL_MEASUREMENT_SEMANTICS_CONTRACT = 'physical-measurement-semantics-v0';
 export const PHYSICAL_MEASUREMENT_SEMANTICS_CONTRACT_VERSION = 'physical-measurement-semantics-v0';
 
@@ -326,6 +331,14 @@ export function evaluatePhysicalMeasurementSemantics(observation, {
     const contract = evidence.contract;
     const version = evidence.version;
     const status = evidence.status;
+
+    if (contract === AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT) {
+      if (isValidatedAuthoritativePhysicalGeometryEvidence(evidence)) {
+        hasValidPhysicalEvidence = true;
+        validatedPhysicalEvidencePaths.push(contract);
+      }
+      continue;
+    }
 
     if (SUPPORTED_PHYSICAL_EVIDENCE_CONTRACTS.includes(contract) && version && (status === 'validated' || status === 'pass')) {
       hasValidPhysicalEvidence = true;

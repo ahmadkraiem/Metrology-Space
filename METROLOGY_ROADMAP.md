@@ -252,9 +252,12 @@ Formalized the authoritative downstream eligibility gate determining whether met
   - Physical promotion requires authoritative stance/pose validation (Front: frontal orientation; Side: lateral/profile orientation).
   - Missing view/pose semantics prevents physical eligibility while keeping metric projections intact.
 - **Authoritative Evidence Architecture**:
-  - Production implemented evaluators: **NONE** (`IMPLEMENTED_PHYSICAL_EVALUATORS = []`).
-  - Reserved future evaluator families: `controlled-capture-protocol-v0`, `calibrated-camera-projection-v0`, `metric-reference-fiducial-v0`, `empirical-body-capture-calibration-v0`, `validated-dense-geometry-v0`, `fitted-garment-offset-compensation-v0`.
-  - Safety rule: Raw caller booleans (`{ physicalEligibility: true }`) or arbitrary contract strings are strictly rejected.
+  - Dimension E consumes Milestone 4.5G (`authoritative-physical-evidence-semantics-v0`) as the authoritative-physical-evidence input.
+  - A 4.5G result is accepted as authoritative physical evidence only when `contract === 'authoritative-physical-evidence-semantics-v0'`, `status === 'validated'`, `authorized === true`, `physicalAuthority.status === 'authoritative'`, and `evaluatorId` is registered in `IMPLEMENTED_AUTHORITATIVE_PHYSICAL_GEOMETRY_EVALUATORS`.
+  - Current authoritative physical-geometry evaluator registry is empty (`IMPLEMENTED_AUTHORITATIVE_PHYSICAL_GEOMETRY_EVALUATORS = []`). The implemented dense-geometry evaluator `sapiens-pointmap-camera-frame-evaluator-v0` classifies camera-frame evidence only and cannot satisfy Dimension E.
+  - Production 4.5D physical evaluators remain **NONE** (`IMPLEMENTED_PHYSICAL_EVALUATORS = []`).
+  - `validated-dense-geometry-v0` remains reserved and is not enabled.
+  - Anti-forgery / registry guard: raw caller booleans (`{ physicalEligibility: true }`), forged `validated` / `authorized` objects, and unregistered evaluator IDs are strictly rejected.
 - **Tier 2 Paired Cross-View Eligibility (`paired-cross-view-eligibility-v0`)**:
   - Consumes Front Tier 1, Side Tier 1, 4.5A correspondence, and 4.5B comparability QA without recomputing or coordinate fusion.
   - Requires **both** views to be `eligible`, 4.5A to be `ready`, and 4.5B to be `pass` for `pairedPhysicalEligibility: true`.
@@ -369,105 +372,240 @@ Formalized the deterministic domain qualification layer governing clothing parti
 - **Separation from Measurement Support Policy**: `measurementSupportPolicy.js` answers which segmentation classes constitute the supported silhouette; `clothingBodySurfaceSemantics.js` interprets what that clothing participation means for downstream qualification.
 - **Strict Guardrails**: No VLM implementation, no user garment declaration path, no garment thickness or offset inference, no empirical tolerance invention, no Side $U \to Z$, no Front/Side geometry fusion, no pointmap $Z$ promotion, and no circumference or cross-section calculations.
 
-### Next investigation — Body / Sapiens / Pointmap pipeline and evidence contract (NOT STARTED)
+### 4.5G Authoritative Physical Evidence Semantics v0 — COMPLETED at evidence-authority / semantics scope
 
-The next technical investigation is to inspect the **actual Body Pipeline / Sapiens / Pointmap output contract** before any new canonical geometry or depth semantics are defined.
+Formalized the deterministic domain contract that classifies dense pointmap evidence by authority **without creating new body measurements**.
 
-This is an inspection step, not a completed milestone. Do **not** assume:
-- Pointmap $Z$ is canonical metrology $Z$
-- Side $U$ is depth
-- Pointmap geometry is already physically calibrated
-- Front/Side pointmaps can already be fused
+**This does not mean authoritative physical body geometry has been established.**
 
-Milestone 4.5G remains deferred until that contract is understood.
+- **Status**: `COMPLETED` at evidence-authority / semantics scope only.
+- **Successful semantic outcome** (current Sapiens Front/Side evidence):
 
-### 4.5G Authoritative Physical Evidence Semantics — DEFERRED / PENDING SAPIENS POINTMAP RUNTIME AUDIT
+```text
+Projected Metric Evidence:
+AVAILABLE
 
-This milestone is a **formal dependency checkpoint / hold**, not an implementation milestone. It is **NOT** started and **NOT** completed.
+Sapiens Camera-Frame Geometric Evidence:
+AVAILABLE
 
-- **Status**: `DEFERRED / PENDING SAPIENS POINTMAP RUNTIME AUDIT`
-- **Current Verified Evidence**:
-  - Known subject height is provided to upstream Body Pipeline.
-  - Upstream body alignment uses height-derived isotropic scaling.
-  - Front and Side aligned canvases are standardized to $2000 \times 2000\text{ px}$.
-  - Metric calibration validates $10\text{ px/cm}$ ($0.10\text{ cm/px}$).
-  - REVacity therefore has valid metric projected image-plane measurements:
-    - Front Shoulder: **$30.80\text{ cm}$**
-    - Side Shoulder: **$11.00\text{ cm}$**
-    - Front Hip: **$42.20\text{ cm}$**
-    - Side Hip: **$27.70\text{ cm}$**
-  - **Explicit Metrological Distinction**:
-    $$\text{metric projected measurement} \ne \text{authoritative physical body measurement}$$
-    Current calibration validates 2D image-plane projected metric scale only.
-- **Active Physical-Evidence Blocker**:
-  - `authoritative_physical_evidence_missing` remains active and blocking.
-  - Current expected physical-evidence state is conceptually:
-    - `metricProjectionValidated = true`
-    - `authoritativeCaptureGeometryValidated = false` (unresolved)
-    - `empiricalPhysicalEquivalenceValidated = false` (unresolved)
-    - `authoritativeDenseGeometryValidated = false` (unresolved)
-    - `physicalEvidenceSatisfied = false`
-  - *(Runtime contracts and field shapes are not finalized yet).*
-- **Pointmap Runtime Dependency & Prohibited Assumptions**:
-  - A Sapiens2 1B pointmap (`*_pointmap.npy` / tensor) exists in real Body Pipeline artifacts (`output.zip`), but the actual Sapiens pointmap inference and post-processing runtime service code is not currently available in this repository for inspection.
-  - The reviewed Twenty-eight repository acts as a client to an external Sapiens service and does not contain the pointmap inference implementation. Therefore, the repository is insufficient to establish authoritative pointmap metric semantics.
-  - Do **NOT** assume:
-    - Stored pointmaps are raw vs. post-processed arrays.
-    - Stored pointmap coordinates are in true metric units.
-    - Focal scale or perspective correction has been applied.
-    - Camera intrinsics handling preserves physical scale.
-    - Pointmap $Z$ is canonical REVacity metrology $Z$.
-    - Pointmap $Z$ directly represents true anthropometric depth.
-    - Front and Side pointmaps share a unified physical coordinate frame.
-    - Preserved scale metadata exists before REVacity ingestion.
-- **Required Future Sapiens Service Audit Checklist**:
-  When access to the upstream Sapiens service codebase is provided, the audit must verify:
-  1. Exact Sapiens2 model variant and checkpoint weights used.
-  2. Input preprocessing pipeline (normalization, aspect ratio handling).
-  3. Image resize, crop, and padding behavior.
-  4. Raw pointmap output tensor format.
-  5. Post-processing operations applied to predictions.
-  6. `outputs.scales` and focal-scale handling.
-  7. Camera intrinsic and projection assumptions.
-  8. Coordinate frame orientation and axes conventions.
-  9. Physical units of stored $(X, Y, Z)$ arrays.
-  10. Serialization and compression routines into `output.zip`.
-  11. Front vs. Side camera-frame independence.
-  12. Identification of any scale metadata lost before REVacity ingestion.
-  *Only after completing this audit should the final Milestone 4.5G architecture be selected.*
-- **Candidate Future Physical-Evidence Paths (Exploratory Candidates Only)**:
-  - **Path A**: Controlled capture protocol + empirical anthropometric ground-truth validation.
-  - **Path B**: Empirically validated projected-to-physical correction model ($\text{metricProjectedSpanCm} \to \text{physicalMeasurementCm}$).
-  - **Path C**: Validated Sapiens2 dense pointmap geometry (if service audit and empirical validation succeed).
-  - **Path D**: Future validated body model, multi-view reconstruction, or parametric 3D estimator.
-- **Independence of Physical Blockers (4.5D Multi-Gate Architecture)**:
-  - The three 4.5D physical blockers are strictly independent:
-    1. `clothing_authorization_missing`
-    2. `view_pose_semantics_missing`
-    3. `authoritative_physical_evidence_missing`
-  - Resolving clothing authorization does not resolve physical evidence or pose semantics.
-  - Resolving physical evidence does not resolve clothing authorization or pose semantics.
-  - Downstream physical measurement eligibility requires all independent gates to pass.
-- **Hard Guardrails**:
-  - No decision to use Side $U$ as $Z$.
-  - No decision to promote pointmap $Z$ to canonical metrology $Z$.
-  - No decision to fuse Front and Side pointmaps.
-  - No decision to infer physical body depth from 2D silhouette spans.
-  - No pointmap-based measurements implemented.
-  - No invented correction coefficients or physical tolerances.
-  - No circumference or cross-section calculations.
+Authoritative Physical Body Geometry:
+NOT ESTABLISHED
+
+Cross-view Physical Geometry:
+BLOCKED
+
+4.6 Circumference / Cross-section:
+BLOCKED
+```
+
+- **Core Contract**: `authoritative-physical-evidence-semantics-v0` (`src/features/authoritativePhysicalEvidenceSemantics.js`).
+- **Test Suite**: `src/features/authoritativePhysicalEvidenceSemantics.test.js`.
+- **Purpose**: Classify dense pointmap evidence by authority. 4.5G does **not** invent measurements, circumferences, cross-sections, volumes, or 3D reconstructions.
+- **Current implemented evaluator**: `sapiens-pointmap-camera-frame-evaluator-v0`.
+- **Current registries**:
+
+```text
+IMPLEMENTED_DENSE_GEOMETRY_SEMANTICS_EVALUATORS = [
+  'sapiens-pointmap-camera-frame-evaluator-v0'
+]
+
+IMPLEMENTED_AUTHORITATIVE_PHYSICAL_GEOMETRY_EVALUATORS = []
+```
+
+- **Reserved / not enabled**: `validated-dense-geometry-v0` remains reserved and is **not** enabled in either registry. Additional reserved future identifiers (`controlled-capture-physical-geometry-v0`, `calibrated-camera-physical-geometry-v0`, `empirical-body-capture-physical-geometry-v0`) are similarly unused.
+- **Runtime Integration**: `src/features/bodyEvidence.js` (`getAuthoritativePhysicalEvidenceSemantics({ view })`, `getAuthoritativePhysicalEvidenceSemanticsReport()`). 4.5D auto-supplies the 4.5G result into Dimension E when the caller does not pass evidence.
+
+#### Current Sapiens Front / Side pointmap semantics
+
+Recognized Sapiens Front and Side pointmaps evaluate independently to:
+
+```text
+availability: present
+status: partial
+evidenceClass: camera_frame_geometric
+authorized: false
+```
+
+- **Frame** (per view, not shared):
+
+```text
+type: camera_local
+sharedAcrossViews: false
+```
+
+- **Axes** (Sapiens camera-local convention only):
+
+```text
+X = image_right
+Y = image_down
+Z = model_depth_channel
+```
+
+- Each Front/Side view remains independent. There is:
+  - no shared camera frame
+  - no Front$\leftrightarrow$Side transform
+  - no runtime camera extrinsics
+  - no validated canonical compatibility
+- **Canonical compatibility** remains:
+
+```text
+revacityXYZ = false
+revacityZ = false
+sideUToCanonicalZ = false
+frontSideFusion = false
+```
+
+#### Units semantics
+
+The Sapiens API reports `units: "meters"`, but this remains **service-reported / physically unverified**. It is **not** authoritative physical meter geometry.
+
+```text
+unitAuthority: service_reported
+physicalUnitsVerified: false
+```
+
+`"meters"` must not be treated as verified physical-unit authority.
+
+#### Sapiens scale semantics
+
+The pointmap `scale` is preserved as provenance only. Current meaning:
+
+```text
+predicted_focal_normalization
+```
+
+It is **not**:
+- REVacity pixels-per-cm
+- body-height calibration
+- physical body scale
+- Front/Side shared calibration
+- cross-view registration scale
+
+Sapiens `scale` must not be used to promote measurements into physical authority.
+
+#### Existing metric-projected measurements remain unchanged
+
+The real-archive silhouette observations remain **Metric Projected Measurements**, not authoritative physical body measurements:
+
+```text
+Front Shoulder: 30.80 cm
+Side Shoulder: 11.00 cm
+Front Hip: 42.20 cm
+Side Hip: 27.70 cm
+```
+
+4.5G references projected metric availability; it does not rewrite those values and does not merge:
+
+- landmark-to-landmark projected spans
+- Front Transverse Width (`front-transverse-width-v0`)
+- Side Profile Span (`side-profile-span-v0`)
+
+**Explicit metrological distinction**:
+
+$$\text{metric projected measurement} \ne \text{authoritative physical body measurement}$$
+
+#### Physical Measurement Eligibility integration (Dimension E)
+
+4.5G now feeds Dimension E of `physical-measurement-eligibility-v0`. 4.5C (`physical-measurement-semantics-v0`) uses the same acceptance guard.
+
+A 4.5G result is accepted as authoritative physical evidence only if:
+
+```text
+contract === 'authoritative-physical-evidence-semantics-v0'
+status === 'validated'
+authorized === true
+physicalAuthority.status === 'authoritative'
+evaluatorId is registered as an implemented authoritative physical geometry evaluator
+```
+
+The current authoritative evaluator registry is empty. Therefore current Sapiens evidence continues to produce:
+
+```text
+authoritative_physical_evidence_missing
+physicalEligibility: false
+physicalMeasurementCm: null
+```
+
+The anti-forgery / registry guard is architectural: a forged `{ status: 'validated', authorized: true }` object whose `evaluatorId` is not in `IMPLEMENTED_AUTHORITATIVE_PHYSICAL_GEOMETRY_EVALUATORS` is rejected.
+
+#### Body-surface authorization
+
+Serialized Sapiens pointmaps are not body-masked.
+
+```text
+pointmap value exists
+≠
+authorized body-surface evidence
+```
+
+4.5G does **not** bypass:
+- segmentation support
+- anatomical-region authorization
+- Dense Evidence QA
+- Clothing / Body-Surface Authorization (`clothing-body-surface-semantics-v0`)
+
+Layer C (authoritative empirical body-surface authorization) remains unimplemented (`IMPLEMENTED_BODY_SURFACE_EVALUATORS = []`). No new per-pixel body-surface authorization engine was introduced.
+
+#### Dense Evidence QA relationship
+
+4.5G consumes / references existing Dense Evidence QA. It does **not** duplicate:
+- Pointmap Numeric QA (`pointmap-numeric-qa-v0`)
+- Normal Numeric QA (`normal-numeric-qa-v0`)
+- Same-View Dense Cross-Modal QA (`same-view-dense-cross-modal-qa-v0`)
+
+Present-but-invalid or uninspectable dense evidence cannot become authoritative (`availability: present`, `status: invalid`, `physicalAuthority.status: not_authoritative`).
+
+Missing pointmap is represented as:
+
+```text
+availability: missing
+status: unavailable
+physicalAuthority.status: unavailable
+```
+
+This remains distinct from present-but-not-authoritative evidence:
+
+```text
+present but not_authoritative
+```
+
+#### Independence of Physical Blockers (4.5D Multi-Gate Architecture)
+
+The three 4.5D physical blockers remain strictly independent:
+1. `clothing_authorization_missing`
+2. `view_pose_semantics_missing`
+3. `authoritative_physical_evidence_missing`
+
+Resolving clothing authorization does not resolve physical evidence or pose semantics. Camera-frame geometric classification does not resolve clothing authorization, pose semantics, or authoritative physical geometry.
+
+#### Hard Guardrails
+
+- no Side $U \to Z$
+- no pointmap $Z \to$ REVacity canonical $Z$
+- no Front/Side pointmap fusion
+- no physical depth promotion
+- no circumference
+- no ellipse inference
+- no cross-section
+- no body volume
+- no 3D reconstruction
+- no physical authority from `"meters"`
+- no physical authority from Sapiens `scale`
+
+The next milestone after 4.5G is **not** selected in this checkpoint.
 
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 
-Remains strictly **BLOCKED**.
+Remains strictly **BLOCKED**. It is **not** active and **not** completed.
 
+- **Reason**: The current system has valid projected Front/Side metric evidence and camera-frame pointmap evidence, but authoritative physical cross-section/depth semantics have not yet been established.
 - **Model-Specific Unlock Rule**:
   - 4.6 is **not** globally unlocked.
   - A downstream *Physical Front+Side Cross-Section Model* requires:
     - Front: `physicalEligibility === true` and non-null `physicalMeasurementCm`.
     - Side: `physicalEligibility === true` and non-null `physicalMeasurementCm`.
     - Paired: `pairedPhysicalEligibility === true`.
-  - Current real archive evidence does **NOT** satisfy this (both views blocked by clothing, missing physical view/pose orientation certification, and missing authoritative physical evidence).
+  - Current real archive evidence does **NOT** satisfy this (both views blocked by clothing, missing physical view/pose orientation certification, and missing authoritative physical evidence). Camera-frame Sapiens pointmaps do not unlock 4.6.
   - A future empirical silhouette model may explicitly consume `pairedMetricProjectedEligibility: true`, but that model must declare, validate, and isolate its own empirical assumptions.
 - **Strict Guardrail**: Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z$ promotion, and no premature ellipse, circumference, or 3D cross-section calculations.
 
@@ -495,11 +633,13 @@ Use the validated canonical evidence/latent representation in later body, garmen
 Do not silently introduce:
 - direct U → Z conversion
 - Pointmap Z → canonical metrology Z
-- unvalidated depth inference
-- Front/Side geometry fusion
-- circumference before cross-section evidence is validated
+- unvalidated depth inference / physical depth promotion
+- Front/Side geometry fusion / Front/Side pointmap fusion
+- circumference, ellipse inference, or cross-section before authoritative physical geometry is established
 - body volume before geometry is validated
-- 3D reconstruction from unverified pointmaps
+- 3D reconstruction from camera-frame or otherwise non-authoritative pointmaps
+- physical authority from Sapiens API `"meters"`
+- physical authority from Sapiens pointmap `scale`
 - face data into the body-metrology pipeline
 - invented anatomical regions unsupported by current evidence
 - hard-coded pixel-to-cm assumptions that bypass the mapping contract
@@ -526,7 +666,7 @@ The canonical body evidence package is:
 Current usage:
 - Pose: active & normalized
 - Segmentation: active & normalized
-- Pointmap: active & normalized, with numeric and cross-modal QA evaluated; geometry semantics remain unvalidated
+- Pointmap: active & normalized, with numeric and cross-modal QA evaluated; 4.5G classifies recognized Sapiens Front/Side pointmaps as camera-frame geometric evidence (`partial`, `authorized: false`). Authoritative physical body geometry is not established. Front and Side pointmaps do not share a coordinate frame.
 - Normals: active & normalized, with numeric and cross-modal QA evaluated; geometry semantics remain unvalidated
 
 ## 8. Roadmap Change Policy

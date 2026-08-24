@@ -76,6 +76,11 @@ import {
   evaluateClothingBodySurfaceSemanticsReport,
 } from './clothingBodySurfaceSemantics.js';
 import {
+  AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT_VERSION,
+  evaluateAuthoritativePhysicalEvidenceSemantics,
+  evaluateAuthoritativePhysicalEvidenceSemanticsReport,
+} from './authoritativePhysicalEvidenceSemantics.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -1522,7 +1527,83 @@ export function getClothingBodySurfaceSemantics({
 }
 
 /**
- * Evaluates pure deterministic clothing and body-surface semantics report across all canonical measurements.
+ * Evaluates 4.5G authoritative physical evidence semantics for a single view
+ * from the currently loaded package and derived Dense Evidence QA.
+ *
+ * @param {{
+ *   view?: 'front'|'side'|string,
+ *   clothingBodySurfaceResult?: object|null,
+ *   projectedMetricResult?: object|null,
+ * }} [options]
+ * @returns {object|null}
+ */
+export function getAuthoritativePhysicalEvidenceSemantics({
+  view = 'front',
+  clothingBodySurfaceResult = null,
+  projectedMetricResult = null,
+} = {}) {
+  if (!currentPackage) return null;
+  const targetView = (view || 'front').toLowerCase().trim();
+  const viewPkg = targetView === 'front' ? currentPackage.front : currentPackage.side;
+  const denseQa = targetView === 'front' ? denseEvidenceQa?.front : denseEvidenceQa?.side;
+
+  let resolvedProjected = projectedMetricResult;
+  if (resolvedProjected == null) {
+    const canonicalId = targetView === 'front'
+      ? 'torso_transverse_width_at_shoulder_level'
+      : 'torso_profile_span_at_shoulder_level';
+    resolvedProjected = getPhysicalMeasurementSemantics({ id: canonicalId }) ?? null;
+  }
+
+  let resolvedClothing = clothingBodySurfaceResult;
+  if (resolvedClothing == null) {
+    const clothingId = targetView === 'front'
+      ? 'torso_transverse_width_at_shoulder_level'
+      : 'torso_profile_span_at_shoulder_level';
+    resolvedClothing = getClothingBodySurfaceSemantics({ id: clothingId }) ?? null;
+  }
+
+  return evaluateAuthoritativePhysicalEvidenceSemantics({
+    view: targetView,
+    pointmap: viewPkg?.pointmap ?? null,
+    denseQa,
+    clothingBodySurfaceResult: resolvedClothing,
+    projectedMetricResult: resolvedProjected,
+  });
+}
+
+/**
+ * Evaluates 4.5G authoritative physical evidence semantics for Front and Side.
+ *
+ * @param {{
+ *   clothingBodySurfaceResults?: { front?: object|null, side?: object|null },
+ *   projectedMetricResults?: { front?: object|null, side?: object|null },
+ * }} [options]
+ * @returns {object|null}
+ */
+export function getAuthoritativePhysicalEvidenceSemanticsReport({
+  clothingBodySurfaceResults = {},
+  projectedMetricResults = {},
+} = {}) {
+  if (!currentPackage) return null;
+  return evaluateAuthoritativePhysicalEvidenceSemanticsReport({
+    front: {
+      pointmap: currentPackage.front?.pointmap ?? null,
+      denseQa: denseEvidenceQa?.front ?? null,
+      clothingBodySurfaceResult: clothingBodySurfaceResults.front ?? null,
+      projectedMetricResult: projectedMetricResults.front ?? null,
+    },
+    side: {
+      pointmap: currentPackage.side?.pointmap ?? null,
+      denseQa: denseEvidenceQa?.side ?? null,
+      clothingBodySurfaceResult: clothingBodySurfaceResults.side ?? null,
+      projectedMetricResult: projectedMetricResults.side ?? null,
+    },
+  });
+}
+
+/**
+ * Evaluates clothing and body-surface semantics report across all canonical measurements.
  *
  * @param {{
  *   annotations?: Array<object>|null,
@@ -1598,10 +1679,15 @@ export function getPhysicalMeasurementEligibility({
   }
 
   const metricCalibrationResult = getMetricCalibrationProvenance({ view: def.view });
+
+  const resolvedPhysicalEvidence = authoritativePhysicalEvidenceResults !== null
+    ? authoritativePhysicalEvidenceResults
+    : getAuthoritativePhysicalEvidenceSemantics({ view: def.view });
+
   const physicalSemanticsResult = getPhysicalMeasurementSemantics({
     id: def.id,
     annotations,
-    physicalEvidencePaths: authoritativePhysicalEvidenceResults,
+    physicalEvidencePaths: resolvedPhysicalEvidence,
   });
 
   const resolvedViewPoseResult = viewPoseValidationResult !== null
@@ -1617,7 +1703,7 @@ export function getPhysicalMeasurementEligibility({
     physicalSemanticsResult,
     viewPoseValidationResult: resolvedViewPoseResult,
     clothingAuthorizationResult: resolvedClothingResult,
-    authoritativePhysicalEvidenceResults,
+    authoritativePhysicalEvidenceResults: resolvedPhysicalEvidence,
     definition: def,
   });
 }
@@ -2065,6 +2151,38 @@ function exportPointmapSummary(pointmap) {
   };
 }
 
+function exportAuthoritativePhysicalEvidenceSummary(result) {
+  if (!result || typeof result !== 'object') {
+    return null;
+  }
+  return {
+    contract: result.contract ?? null,
+    version: result.version ?? null,
+    view: result.view ?? null,
+    availability: result.availability ?? null,
+    status: result.status ?? null,
+    authorized: result.authorized === true,
+    evidenceClass: result.evidenceClass ?? null,
+    evaluatorId: result.evaluatorId ?? null,
+    frame: result.frame ? { ...result.frame } : null,
+    axes: result.axes ? { ...result.axes } : null,
+    scale: result.scale ? { ...result.scale } : null,
+    units: result.units ? { ...result.units } : null,
+    canonicalCompatibility: result.canonicalCompatibility ? { ...result.canonicalCompatibility } : null,
+    physicalAuthority: result.physicalAuthority
+      ? {
+        status: result.physicalAuthority.status ?? null,
+        blockers: [...(result.physicalAuthority.blockers ?? [])],
+      }
+      : null,
+    denseQaRef: result.denseQaRef ? { ...result.denseQaRef } : null,
+    bodySurfaceAuthorization: result.bodySurfaceAuthorization
+      ? { ...result.bodySurfaceAuthorization }
+      : null,
+    projectedMetricRef: result.projectedMetricRef ? { ...result.projectedMetricRef } : null,
+  };
+}
+
 function exportNormalsSummary(normals) {
   if (!normals || !normals.present) {
     return null;
@@ -2206,6 +2324,20 @@ export function buildBodyEvidenceExport(exportedAt = new Date()) {
       front: exportDenseQaSummary(denseEvidenceQa.front),
       side: exportDenseQaSummary(denseEvidenceQa.side),
     } : null,
+    authoritativePhysicalEvidence: (() => {
+      const report = getAuthoritativePhysicalEvidenceSemanticsReport();
+      if (!report) return null;
+      return {
+        contract: report.contract,
+        version: AUTHORITATIVE_PHYSICAL_EVIDENCE_CONTRACT_VERSION,
+        sharedAcrossViews: false,
+        summary: report.summary ? { ...report.summary } : null,
+        views: {
+          front: exportAuthoritativePhysicalEvidenceSummary(report.views?.front),
+          side: exportAuthoritativePhysicalEvidenceSummary(report.views?.side),
+        },
+      };
+    })(),
     qa: {
       totalLandmarks: qaResult.qa.totalLandmarks,
       acceptedBodyLandmarks: qaResult.qa.acceptedBodyLandmarks,
