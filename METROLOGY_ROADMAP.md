@@ -110,7 +110,7 @@ Extract deterministic Side profile spans from validated Side segmentation eviden
   - Core mapping helper in `src/core/pixelMetrologyMapping.js`: `pixelColumnSpanToSideMetrology()`.
 - **4.4B Side Profile Span Interpretation Contract v0 (`side-profile-span-v0`) — COMPLETED**:
   - Pure interpretation layer deriving Side profile spans ($\Delta U = maxU_{cm} - minU_{cm}$) from Side raster slice evidence under `single_run_required` policy (`src/features/sideProfileSpan.js`).
-  - Supported definitions: `torso_profile_span_at_shoulder_level` (`sourceLevel: 'shoulder'`, `TORSO_ONLY`, class `[22]`) and `torso_profile_span_at_hip_level` (`sourceLevel: 'hip'`, `TORSO_ONLY`, class `[22]`).
+  - Supported definitions: `torso_profile_span_at_shoulder_level` (`sourceLevel: 'shoulder'`, `trunk_core_support_v0`, classes `[22, 23]`) and `torso_profile_span_at_hip_level` (`sourceLevel: 'hip'`, `pelvic_core_support_v0`, classes `[12, 13, 21, 22]`).
   - Conservative selection policy: `single_run_required` (exactly 1 run $\to$ `valid`, 0 runs $\to$ `unavailable`, $> 1$ runs $\to$ `ambiguous` with `valueCm: null`, malformed/invalid source evidence $\to$ `invalid`, missing/partial anatomical level $\to$ `unavailable`).
   - Formula: $\text{valueCm} = maxU_{cm} - minU_{cm}$; preserves raw `minUcm`, `maxUcm`, source anatomical level provenance, sampled raster-row provenance, source slice contract, target policy/classes, run-selection policy, and issues.
   - Runtime getters in `src/features/bodyEvidence.js`: `getSideProfileSpan()`, `getSideProfileSpans()` (`side-profile-spans-report-v0`). Pure interpretation decoupled from direct segmentation or level scans (orchestrated by `bodyEvidence.js`: level readiness $\to$ `getSideHorizontalRasterSlice()` $\to$ `interpretSideProfileSpan()`).
@@ -592,7 +592,23 @@ Resolving clothing authorization does not resolve physical evidence or pose sema
 - no physical authority from `"meters"`
 - no physical authority from Sapiens `scale`
 
-The next milestone after 4.5G is **not** selected in this checkpoint.
+### Measurement Placement Audit Checkpoint — COMPLETED
+
+A strict read-only audit of measurement placement and semantics verified current runtime behavior before 4.5H:
+
+- **Audit Completed & Verified**: All measurement placement and interpretation logic across Front/Side raster slicing, support policies, transverse width, and profile span verified with 402 passing unit tests. Zero runtime algorithmic changes made.
+- **Shoulder Semantics Verified**:
+  - Effective policy: `trunk_core_support_v0` (`anatomicalClassIds: [22]`, `clothingBridgeClassIds: [23]`, `acceptedClassIds: [22, 23]`).
+  - `torso_width_at_shoulder_level` means **supported transverse silhouette width at shoulder landmark level** ($Y = (Y_{\text{left}} + Y_{\text{right}})/2$).
+  - It is **NOT** landmark-to-landmark shoulder breadth, **NOT** biacromial breadth, and **NOT** full arm-to-arm body span. The `shoulder` anatomical level serves as the vertical measurement anchor level, distinct from skeletal shoulder breadth lines.
+- **Hip Semantics Verified**:
+  - Effective policy: `pelvic_core_support_v0` (`anatomicalClassIds: [12, 21, 22]`, `clothingBridgeClassIds: [13]`, `acceptedClassIds: [12, 13, 21, 22]`).
+  - Current Hip measurement plane is strictly the **bilateral mean hip-landmark Y** ($Y = (Y_{\text{left}} + Y_{\text{right}})/2$).
+  - There is currently **no search** for maximum hip breadth, widest pelvic row, maximum buttock projection, or maximum seat/circumference level. The `hip` anatomical level serves as an anchor level, not a qualified maximum-hip or seat plane.
+- **Side Terminology**:
+  - Authoritative term remains **Side Profile Span** (projected Side-U profile span).
+  - It is **NOT** promoted to physical depth, AP depth, canonical Z, or body thickness at this stage (deferred to Milestone 4.5H).
+- **Immediate Next Milestone**: **4.5H — Side Physical Depth Qualification v0**.
 
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 

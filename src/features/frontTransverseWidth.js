@@ -14,7 +14,12 @@
  * - Does not modify or replace landmark-to-landmark chord distances in bodyMeasurementLines.js.
  * - Uses single_run_required policy in v0: multi-run slices are marked 'ambiguous' (valueCm: null);
  *   no automatic merging or heuristic selection.
- * - Torso class 22 only in v0: does not merge apparel/clothing classes into body width.
+ * - Slices under authoritative measurement-support-policy-v0:
+ *   - Shoulder: trunk_core_support_v0 ([22, 23] - Torso, Upper_Clothing).
+ *   - Hip: pelvic_core_support_v0 ([12, 13, 21, 22] - Upper Legs, Lower_Clothing, Torso).
+ * - Semantics: torso_width_at_shoulder_level means supported transverse silhouette width at
+ *   shoulder landmark level; does NOT mean landmark-to-landmark / biacromial breadth or full arm span.
+ * - Hip plane is bilateral mean hip-landmark Y; not qualified as maximum-hip / seat / buttock plane.
  * - Front only: does not use Side evidence, Pointmap, or Normals.
  */
 

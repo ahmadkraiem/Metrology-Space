@@ -11,11 +11,16 @@
  * STRICT GUARDRAILS:
  * - Evidence interpretation only: consumes pre-computed side-horizontal-raster-slice-v0
  *   results and anatomical-levels-v0 reports; does NOT rescan rasters or decode buffers.
- * - Side U is 2D profile coordinate evidence only; it is NOT canonical Z or validated physical depth.
+ * - Side U is 2D profile coordinate evidence only (projected Side-U profile span);
+ *   it is NOT canonical Z, AP depth, body thickness, or validated physical depth (deferred to 4.5H).
  * - No U -> Z conversion, no cross-view calculations, and no Front/Side fusion.
  * - Uses single_run_required policy in v0: multi-run slices are marked 'ambiguous' (valueCm: null);
  *   no automatic merging or heuristic selection.
- * - Torso class 22 only in v0: does not merge apparel/clothing classes into body profile span.
+ * - Slices under authoritative measurement-support-policy-v0:
+ *   - Shoulder: trunk_core_support_v0 ([22, 23] - Torso, Upper_Clothing).
+ *   - Hip: pelvic_core_support_v0 ([12, 13, 21, 22] - Upper Legs, Lower_Clothing, Torso).
+ * - Semantics: torso_profile_span_at_shoulder_level means projected Side-U profile span at shoulder landmark level.
+ * - Hip plane is bilateral mean hip-landmark Y; not qualified as maximum buttock projection or seat plane.
  * - Side only: does not consume Front evidence, Pointmap, or Normals.
  */
 

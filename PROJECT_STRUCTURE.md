@@ -71,7 +71,7 @@ latent-space/
 │   │   ├── frontSideAlignment.js    # Pure deterministic Front/Side semantic correspondence and vertical Y QA contract
 │   │   ├── frontSideAlignment.test.js # Front-Side alignment contract unit tests
 │   │   ├── frontSurfaceMeasurement.js # Front Surface advance/read helpers over shared measurement
-│   │   ├── frontTransverseWidth.js  # Front Transverse Width Interpretation Contract v0 — pure interpretation of raster slice evidence into formal transverse torso widths at shoulder/hip levels under single_run_required policy
+│   │   ├── frontTransverseWidth.js  # Front Transverse Width Interpretation Contract v0 — pure interpretation of raster slice evidence into formal transverse torso widths at shoulder/hip levels under measurement support policies and single_run_required policy
 │   │   ├── frontTransverseWidth.test.js # Front Transverse Width Interpretation Contract v0 unit tests
 │   │   ├── linkedSelection.js       # Linked selection id for Scene Graph ↔ projected marker highlight sync
 │   │   ├── measurement.js           # Canonical shared Point A/B measurement state, markers, line, history
