@@ -16,6 +16,7 @@ import {
   getPairedCrossViewEligibility,
   getSidePhysicalDepthQualification,
   getCrossSectionEvidence,
+  getDirectBodyMeasurements,
   hasAnalyzedBodyEvidence,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
@@ -25,6 +26,7 @@ import {
 } from '../features/annotations.js';
 import { escapeHtml, renderBadge } from './badgeUi.js';
 import { formatDistance } from '../core/formatters.js';
+import { initCollapsibleSections } from './collapsibleSections.js';
 
 const DERIVED_CORRESPONDENCE_PAIRS = Object.freeze([
   {
@@ -37,6 +39,13 @@ const DERIVED_CORRESPONDENCE_PAIRS = Object.freeze([
     name: 'Hip Level',
     levelKey: 'hip',
   },
+]);
+
+const groupCollapseStates = new Map([
+  ['cross_section_evidence', false],
+  ['vertical_measurements', true],
+  ['arm_segments', true],
+  ['leg_segments', true],
 ]);
 
 export function mapBlockerToHumanLabel(code) {
@@ -235,6 +244,67 @@ function renderMeasurementCard({ id, name, levelKey }, annotations) {
   return buildDerivedMeasurementCardHtml({ id, name, levelKey }, correspondence, eligibility, depthQual, crossSectionEvidence);
 }
 
+export function buildDirectMeasurementsGroupHtml(groupIdOrTitle, groupTitleOrMeasurements, measurementsOrExpanded = [], isExpanded = false) {
+  let groupId;
+  let groupTitle;
+  let measurements;
+  let expanded;
+
+  if (Array.isArray(groupTitleOrMeasurements)) {
+    groupTitle = groupIdOrTitle;
+    groupId = String(groupIdOrTitle).toLowerCase().replace(/\s+/g, '_');
+    measurements = groupTitleOrMeasurements;
+    expanded = Boolean(measurementsOrExpanded);
+  } else {
+    groupId = groupIdOrTitle;
+    groupTitle = groupTitleOrMeasurements;
+    measurements = Array.isArray(measurementsOrExpanded) ? measurementsOrExpanded : [];
+    expanded = Boolean(isExpanded);
+  }
+
+  if (!measurements || measurements.length === 0) {
+    return '';
+  }
+
+  const rowsHtml = measurements.map((m) => {
+    const isVal = m.status === 'valid' && typeof m.valueCm === 'number';
+    const valDisplay = isVal ? `${formatDistance(m.valueCm)} cm` : '—';
+    const badge = isVal ? renderBadge('Valid', 'ok') : renderBadge('Unavailable', 'muted');
+    return `
+      <div class="derived-card-row direct-measurement-row" data-direct-measurement-id="${escapeHtml(m.id)}">
+        <span class="derived-row-label">${escapeHtml(m.displayName)}</span>
+        <div class="direct-measurement-value-wrap">
+          <span class="derived-row-value ${isVal ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(valDisplay)}</span>
+          ${badge}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const readyCount = measurements.filter((m) => m.status === 'valid').length;
+  const collapsedAttr = expanded ? '' : 'data-collapsed';
+  const collapsedClass = expanded ? '' : 'is-collapsed';
+
+  return `
+    <div
+      class="derived-measurement-card direct-measurement-group-card ${collapsedClass}"
+      data-collapsible
+      ${collapsedAttr}
+      data-group-id="${escapeHtml(groupId)}"
+    >
+      <div class="derived-card-header derived-card-header--collapsible">
+        <div class="derived-card-header-main">
+          <span class="derived-card-title">${escapeHtml(groupTitle)}</span>
+          <span class="derived-card-level">${readyCount}/${measurements.length} Ready</span>
+        </div>
+      </div>
+      <div class="derived-card-body">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+}
+
 export function renderDerivedMeasurementDeck(containerEl) {
   if (!containerEl) {
     return;
@@ -249,12 +319,90 @@ export function renderDerivedMeasurementDeck(containerEl) {
     return;
   }
 
+  if (containerEl && typeof containerEl.querySelectorAll === 'function') {
+    const existingGroups = containerEl.querySelectorAll('[data-collapsible][data-group-id]');
+    for (const group of existingGroups) {
+      const gid = group.getAttribute('data-group-id');
+      if (gid) {
+        groupCollapseStates.set(gid, group.classList.contains('is-collapsed'));
+      }
+    }
+  }
+
   const annotations = getAnnotations();
-  const cardsHtml = DERIVED_CORRESPONDENCE_PAIRS.map((pair) =>
+  const pairedCardsHtml = DERIVED_CORRESPONDENCE_PAIRS.map((pair) =>
     renderMeasurementCard(pair, annotations)
   ).join('');
 
-  containerEl.innerHTML = cardsHtml;
+  const isCsCollapsed = groupCollapseStates.get('cross_section_evidence') ?? false;
+  const csCollapsedAttr = isCsCollapsed ? 'data-collapsed' : '';
+  const csCollapsedClass = isCsCollapsed ? 'is-collapsed' : '';
+
+  const crossSectionHtml = `
+    <div
+      class="results-subgroup results-subgroup--cross-section ${csCollapsedClass}"
+      data-collapsible
+      ${csCollapsedAttr}
+      data-group-id="cross_section_evidence"
+    >
+      <div class="results-subgroup-header results-subgroup-header--collapsible">
+        <span class="results-subgroup-label">Cross-Section Evidence</span>
+      </div>
+      <div class="results-subgroup-body">
+        ${pairedCardsHtml}
+      </div>
+    </div>
+  `;
+
+  const directReport = getDirectBodyMeasurements({ annotations });
+  let directHtml = '';
+  if (directReport && directReport.byGroup) {
+    const isDirectCollapsed = groupCollapseStates.get('direct_measurements') ?? true;
+    const directCollapsedAttr = isDirectCollapsed ? 'data-collapsed' : '';
+    const directCollapsedClass = isDirectCollapsed ? 'is-collapsed' : '';
+
+    const isVerticalExpanded = !(groupCollapseStates.get('vertical_measurements') ?? true);
+    const isArmsExpanded = !(groupCollapseStates.get('arm_segments') ?? true);
+    const isLegsExpanded = !(groupCollapseStates.get('leg_segments') ?? true);
+
+    const verticalHtml = buildDirectMeasurementsGroupHtml(
+      'vertical_measurements',
+      'Vertical Measurements',
+      directReport.byGroup.vertical_inter_level ?? [],
+      isVerticalExpanded,
+    );
+    const armsHtml = buildDirectMeasurementsGroupHtml(
+      'arm_segments',
+      'Arm Segments',
+      directReport.byGroup.arm_segments ?? [],
+      isArmsExpanded,
+    );
+    const legsHtml = buildDirectMeasurementsGroupHtml(
+      'leg_segments',
+      'Leg Segments',
+      directReport.byGroup.leg_segments ?? [],
+      isLegsExpanded,
+    );
+    directHtml = `
+      <div
+        class="results-subgroup results-subgroup--direct ${directCollapsedClass}"
+        data-collapsible
+        ${directCollapsedAttr}
+        data-group-id="direct_measurements"
+      >
+        <div class="results-subgroup-header results-subgroup-header--collapsible">
+          <span class="results-subgroup-label">Direct Measurements</span>
+        </div>
+        <div class="results-subgroup-body">
+          ${verticalHtml}
+          ${armsHtml}
+          ${legsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  containerEl.innerHTML = crossSectionHtml + directHtml;
 }
 
 export function setupDerivedMeasurementDeck() {
@@ -263,8 +411,12 @@ export function setupDerivedMeasurementDeck() {
     return;
   }
 
+  const deckEl = containerEl.closest('#derived-measurement-deck') || containerEl.parentElement || containerEl;
+  initCollapsibleSections(deckEl);
+
   const update = () => {
     renderDerivedMeasurementDeck(containerEl);
+    initCollapsibleSections(containerEl);
   };
 
   subscribeBodyEvidenceChange(update);

@@ -9,6 +9,8 @@ const HEADER_VARIANTS = [
   { selector: ':scope > .section-title', collapsibleClass: 'section-title--collapsible' },
   { selector: ':scope > .inspector-subgroup-label', collapsibleClass: 'inspector-subgroup-label--collapsible' },
   { selector: ':scope > .deck-header', collapsibleClass: 'deck-header--collapsible' },
+  { selector: ':scope > .derived-card-header', collapsibleClass: 'derived-card-header--collapsible' },
+  { selector: ':scope > .results-subgroup-header', collapsibleClass: 'results-subgroup-header--collapsible' },
 ];
 
 const wiredSections = new WeakSet();
@@ -46,7 +48,10 @@ function wireSection(section) {
   const startExpanded = !section.hasAttribute('data-collapsed');
   setExpanded(section, header, startExpanded);
 
-  const toggle = () => {
+  const toggle = (event) => {
+    if (event && typeof event.stopPropagation === 'function') {
+      event.stopPropagation();
+    }
     const expanded = section.classList.contains('is-collapsed');
     setExpanded(section, header, expanded);
   };
@@ -55,7 +60,10 @@ function wireSection(section) {
   header.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      toggle();
+      if (typeof event.stopPropagation === 'function') {
+        event.stopPropagation();
+      }
+      toggle(event);
     }
   });
   wiredSections.add(section);
@@ -76,6 +84,8 @@ export function initCollapsibleSections(root = document.getElementById('left-sid
   if (typeof root.matches === 'function' && root.matches('[data-collapsible]')) {
     sections.push(root);
   }
-  sections.push(...root.querySelectorAll('[data-collapsible]'));
+  if (typeof root.querySelectorAll === 'function') {
+    sections.push(...root.querySelectorAll('[data-collapsible]'));
+  }
   sections.forEach(wireSection);
 }

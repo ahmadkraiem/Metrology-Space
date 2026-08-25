@@ -103,6 +103,12 @@ import {
   evaluateCrossSectionEvidence,
 } from './crossSectionEvidence.js';
 import {
+  DIRECT_BODY_MEASUREMENTS_CONTRACT_VERSION,
+  SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0,
+  evaluateDirectBodyMeasurement,
+  evaluateDirectBodyMeasurements,
+} from './directBodyMeasurements.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -1467,6 +1473,61 @@ export function getPhysicalMeasurementSemanticsReport({ annotations = null, phys
     },
     results,
   };
+}
+
+/**
+ * Evaluates a single Direct Body Measurement from active runtime state.
+ *
+ * @param {{ id: string, annotations?: Array<object>|null }} options
+ * @returns {object|null}
+ */
+export function getDirectBodyMeasurement({ id, annotations = null } = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0[id];
+  if (!def) return null;
+
+  const resolvedAnnotations = annotations ?? (typeof getAnnotations === 'function' ? getAnnotations() : []);
+  const levelsReport = computeAnatomicalLevels(resolvedAnnotations);
+  const metricCalibrationFront = getMetricCalibrationProvenance({ view: 'front' });
+
+  return evaluateDirectBodyMeasurement(id, {
+    annotations: resolvedAnnotations,
+    levelsReport,
+    metricCalibrationFront,
+  });
+}
+
+/**
+ * Evaluates all supported Direct Body Measurements from active runtime state.
+ *
+ * @param {{ annotations?: Array<object>|null }} [options]
+ * @returns {{
+ *   contract: 'direct-body-measurements-report-v0',
+ *   version: string,
+ *   view: 'front',
+ *   summary: { total: number, valid: number, unavailable: number, invalid: number },
+ *   measurements: Array<object>,
+ *   measurementsById: Record<string, object>,
+ *   byGroup: Record<string, Array<object>>,
+ * }|null}
+ */
+export function getDirectBodyMeasurements({ annotations = null } = {}) {
+  const resolvedAnnotations = annotations ?? (typeof getAnnotations === 'function' ? getAnnotations() : []);
+  const levelsReport = computeAnatomicalLevels(resolvedAnnotations);
+  const metricCalibrationFront = getMetricCalibrationProvenance({ view: 'front' });
+
+  return evaluateDirectBodyMeasurements({
+    annotations: resolvedAnnotations,
+    levelsReport,
+    metricCalibrationFront,
+  });
+}
+
+/**
+ * Alias for getDirectBodyMeasurements for uniform reporting convention.
+ */
+export function getDirectBodyMeasurementsReport(options = {}) {
+  return getDirectBodyMeasurements(options);
 }
 
 /**

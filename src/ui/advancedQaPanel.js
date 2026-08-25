@@ -229,7 +229,7 @@ export function buildPhysicalEligibilityHtml(eligibilityReport) {
 
     return `
       <div class="qa-eligibility-pair">
-        <div class="info-row">
+        <div class="info-row qa-eligibility-row">
           <span class="info-label font-semibold">${escapeHtml(levelName)} Paired Eligibility</span>
           <span class="info-value">${badge}</span>
         </div>

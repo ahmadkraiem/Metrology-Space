@@ -478,17 +478,22 @@
           <span class="sidebar-collapsed-rail-text">Results &amp; Records</span>
         </div>
 
-        <section id="derived-measurement-deck" class="derived-measurement-deck" aria-label="Results" data-collapsible>
-          <div class="deck-header">
-            <span class="deck-title">Results</span>
-          </div>
-          <div id="derived-measurement-cards" class="derived-measurement-cards" aria-live="polite"></div>
-        </section>
-
         <div class="sidebar-scroll">
+          <section id="derived-measurement-deck" class="derived-measurement-deck inspector-section" aria-label="Results" data-collapsible>
+            <div class="deck-header" role="button" tabindex="0" aria-expanded="true">
+              <span class="deck-title">Results</span>
+            </div>
+            <div id="derived-measurement-cards" class="derived-measurement-cards section-body" aria-live="polite"></div>
+          </section>
+
           <section id="session-records-panel" class="inspector-section" data-collapsible>
             <h2 class="section-title section-title--collapsible">Session Records</h2>
             <div class="section-body">
+              <div class="session-records-block">
+                <h3 class="body-tab-section-title">Annotations</h3>
+                <p id="annotations-empty" class="session-empty-state">No annotations yet.</p>
+                <div id="annotation-list"></div>
+              </div>
               <div class="session-records-block">
                 <h3 class="body-tab-section-title">History</h3>
                 <p id="history-empty" class="session-empty-state">No completed measurements yet.</p>
@@ -496,11 +501,6 @@
                 <div class="history-clear-actions">
                   <button type="button" id="clear-history" class="panel-button">Clear History</button>
                 </div>
-              </div>
-              <div class="session-records-block">
-                <h3 class="body-tab-section-title">Annotations</h3>
-                <p id="annotations-empty" class="session-empty-state">No annotations yet.</p>
-                <div id="annotation-list"></div>
               </div>
             </div>
           </section>

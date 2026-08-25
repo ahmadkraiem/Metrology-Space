@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   buildDerivedMeasurementCardHtml,
+  buildDirectMeasurementsGroupHtml,
   deriveMeasurementCardStatus,
   renderDerivedMeasurementDeck,
 } from './derivedMeasurementDeck.js';
@@ -275,4 +276,642 @@ test('derivedMeasurementDeck: underlying Side Profile Span evidence contract rem
   const { getSideProfileSpan, getSideProfileSpans } = await import('../features/bodyEvidence.js');
   assert.equal(typeof getSideProfileSpan, 'function');
   assert.equal(typeof getSideProfileSpans, 'function');
+});
+
+test('derivedMeasurementDeck: buildDirectMeasurementsGroupHtml renders clean group cards with formatted values and status badges', () => {
+  const measurements = [
+    { id: 'vertical_torso_length_neck_to_hip', displayName: 'Vertical Torso Length', status: 'valid', valueCm: 46.60 },
+    { id: 'vertical_shoulder_drop_neck_to_shoulder', displayName: 'Vertical Shoulder Drop', status: 'valid', valueCm: 17.15 },
+    { id: 'vertical_thigh_length_hip_to_knee', displayName: 'Vertical Thigh Length', status: 'unavailable', valueCm: null },
+  ];
+
+  const html = buildDirectMeasurementsGroupHtml('Vertical Measurements', measurements);
+
+  assert.equal(html.includes('Vertical Measurements'), true);
+  assert.equal(html.includes('2/3 Ready'), true);
+  assert.equal(html.includes('Vertical Torso Length'), true);
+  assert.equal(html.includes('46.60 cm') || html.includes('46.6 cm'), true);
+  assert.equal(html.includes('Vertical Shoulder Drop'), true);
+  assert.equal(html.includes('17.15 cm'), true);
+  assert.equal(html.includes('Vertical Thigh Length'), true);
+  assert.equal(html.includes('—'), true);
+  assert.equal(html.includes('Valid'), true);
+  assert.equal(html.includes('Unavailable'), true);
+});
+
+test('derivedMeasurementDeck: getDirectBodyMeasurements getter is exported and functional', async () => {
+  const { getDirectBodyMeasurement, getDirectBodyMeasurements } = await import('../features/bodyEvidence.js');
+  assert.equal(typeof getDirectBodyMeasurement, 'function');
+  assert.equal(typeof getDirectBodyMeasurements, 'function');
+});
+
+test('derivedMeasurementDeck: buildDirectMeasurementsGroupHtml renders collapsible group cards with data-collapsible, data-collapsed, and is-collapsed by default', () => {
+  const measurements = [
+    { id: 'left_upper_arm_segment_length_projected', displayName: 'Left Upper Arm Length', status: 'valid', valueCm: 26.93 },
+    { id: 'right_upper_arm_segment_length_projected', displayName: 'Right Upper Arm Length', status: 'valid', valueCm: 29.15 },
+  ];
+
+  const html = buildDirectMeasurementsGroupHtml('arm_segments', 'Arm Segments', measurements, false);
+
+  assert.equal(html.includes('data-collapsible'), true);
+  assert.equal(html.includes('data-collapsed'), true);
+  assert.equal(html.includes('is-collapsed'), true);
+  assert.equal(html.includes('derived-card-header--collapsible'), true);
+  assert.equal(html.includes('Arm Segments'), true);
+  assert.equal(html.includes('2/2 Ready'), true);
+});
+
+test('derivedMeasurementDeck: initCollapsibleSections wires and toggles direct-measurement-group-card', async () => {
+  const { initCollapsibleSections } = await import('./collapsibleSections.js');
+
+  const headerAttrs = {};
+  const listeners = {};
+  const header = {
+    classList: {
+      classes: new Set(['derived-card-header']),
+      add(cls) { this.classes.add(cls); },
+      contains(cls) { return this.classes.has(cls); },
+    },
+    setAttribute(k, v) { headerAttrs[k] = String(v); },
+    getAttribute(k) { return headerAttrs[k] ?? null; },
+    addEventListener(type, fn) {
+      listeners[type] = listeners[type] || [];
+      listeners[type].push(fn);
+    },
+    click() {
+      for (const fn of listeners.click || []) fn();
+    },
+  };
+
+  const sectionClasses = new Set(['derived-measurement-card', 'direct-measurement-group-card', 'is-collapsed']);
+  const sectionAttrs = new Set(['data-collapsible', 'data-collapsed']);
+  const groupSection = {
+    classList: {
+      classes: sectionClasses,
+      add(cls) { sectionClasses.add(cls); },
+      contains(cls) { return sectionClasses.has(cls); },
+      toggle(cls, force) {
+        const should = force === undefined ? !sectionClasses.has(cls) : Boolean(force);
+        if (should) sectionClasses.add(cls);
+        else sectionClasses.delete(cls);
+      },
+    },
+    hasAttribute(name) { return sectionAttrs.has(name); },
+    matches(selector) { return selector === '[data-collapsible]'; },
+    querySelector(selector) {
+      if (selector === ':scope > .derived-card-header') return header;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+
+  initCollapsibleSections(groupSection);
+
+  // Starts collapsed
+  assert.equal(groupSection.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
+  assert.equal(header.getAttribute('role'), 'button');
+  assert.equal(header.getAttribute('tabindex'), '0');
+
+  // Click to expand
+  header.click();
+  assert.equal(groupSection.classList.contains('is-collapsed'), false);
+  assert.equal(header.getAttribute('aria-expanded'), 'true');
+
+  // Click to collapse
+  header.click();
+  assert.equal(groupSection.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
+});
+
+test('derivedMeasurementDeck: right sidebar markup places derived-measurement-deck inside sidebar-scroll alongside session-records-panel and diagnostics-panel', () => {
+  const rightSidebarStart = markup.indexOf('id="right-sidebar"');
+  const rightSidebarEnd = markup.indexOf('</aside>', rightSidebarStart);
+  assert.ok(rightSidebarStart > -1 && rightSidebarEnd > rightSidebarStart, 'right-sidebar must exist');
+
+  const rightSidebarContent = markup.slice(rightSidebarStart, rightSidebarEnd);
+  const scrollStart = rightSidebarContent.indexOf('class="sidebar-scroll"');
+  assert.ok(scrollStart > -1, 'sidebar-scroll must exist within right-sidebar');
+
+  const scrollContent = rightSidebarContent.slice(scrollStart);
+  assert.equal(scrollContent.includes('id="derived-measurement-deck"'), true, 'Results deck must be inside sidebar-scroll');
+  assert.equal(scrollContent.includes('id="session-records-panel"'), true, 'Session Records must be inside sidebar-scroll');
+  assert.equal(scrollContent.includes('id="diagnostics-panel"'), true, 'Diagnostics must be inside sidebar-scroll');
+});
+
+test('derivedMeasurementDeck: top-level Results deck collapses, expands, and updates aria-expanded', async () => {
+  const { initCollapsibleSections } = await import('./collapsibleSections.js');
+
+  const headerAttrs = {};
+  const listeners = {};
+  const header = {
+    classList: {
+      classes: new Set(['deck-header']),
+      add(cls) { this.classes.add(cls); },
+      contains(cls) { return this.classes.has(cls); },
+    },
+    setAttribute(k, v) { headerAttrs[k] = String(v); },
+    getAttribute(k) { return headerAttrs[k] ?? null; },
+    addEventListener(type, fn) {
+      listeners[type] = listeners[type] || [];
+      listeners[type].push(fn);
+    },
+    click() {
+      for (const fn of listeners.click || []) fn();
+    },
+  };
+
+  const deckClasses = new Set(['derived-measurement-deck', 'inspector-section']);
+  const deckAttrs = new Set(['data-collapsible']);
+  const deckSection = {
+    classList: {
+      classes: deckClasses,
+      add(cls) { deckClasses.add(cls); },
+      contains(cls) { return deckClasses.has(cls); },
+      toggle(cls, force) {
+        const should = force === undefined ? !deckClasses.has(cls) : Boolean(force);
+        if (should) deckClasses.add(cls);
+        else deckClasses.delete(cls);
+      },
+    },
+    hasAttribute(name) { return deckAttrs.has(name); },
+    matches(selector) { return selector === '[data-collapsible]'; },
+    querySelector(selector) {
+      if (selector === ':scope > .deck-header') return header;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+
+  initCollapsibleSections(deckSection);
+
+  // Starts expanded by default
+  assert.equal(deckSection.classList.contains('is-collapsed'), false);
+  assert.equal(header.getAttribute('aria-expanded'), 'true');
+  assert.equal(header.getAttribute('role'), 'button');
+  assert.equal(header.getAttribute('tabindex'), '0');
+
+  // Click to collapse
+  header.click();
+  assert.equal(deckSection.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
+
+  // Click to expand
+  header.click();
+  assert.equal(deckSection.classList.contains('is-collapsed'), false);
+  assert.equal(header.getAttribute('aria-expanded'), 'true');
+});
+
+test('derivedMeasurementDeck: Cross-Section Evidence is collapsible, expanded by default, and toggles Shoulder and Hip cards together', async () => {
+  const { initCollapsibleSections } = await import('./collapsibleSections.js');
+
+  const headerAttrs = {};
+  const listeners = {};
+  const header = {
+    classList: {
+      classes: new Set(['results-subgroup-header']),
+      add(cls) { this.classes.add(cls); },
+      contains(cls) { return this.classes.has(cls); },
+    },
+    setAttribute(k, v) { headerAttrs[k] = String(v); },
+    getAttribute(k) { return headerAttrs[k] ?? null; },
+    addEventListener(type, fn) {
+      listeners[type] = listeners[type] || [];
+      listeners[type].push(fn);
+    },
+    click() {
+      for (const fn of listeners.click || []) fn();
+    },
+  };
+
+  const sectionClasses = new Set(['results-subgroup', 'results-subgroup--cross-section']);
+  const sectionAttrs = new Set(['data-collapsible']);
+  const csSection = {
+    classList: {
+      classes: sectionClasses,
+      add(cls) { sectionClasses.add(cls); },
+      contains(cls) { return sectionClasses.has(cls); },
+      toggle(cls, force) {
+        const should = force === undefined ? !sectionClasses.has(cls) : Boolean(force);
+        if (should) sectionClasses.add(cls);
+        else sectionClasses.delete(cls);
+      },
+    },
+    hasAttribute(name) { return sectionAttrs.has(name); },
+    matches(selector) { return selector === '[data-collapsible]'; },
+    querySelector(selector) {
+      if (selector === ':scope > .results-subgroup-header') return header;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+
+  initCollapsibleSections(csSection);
+
+  // Starts expanded by default
+  assert.equal(csSection.classList.contains('is-collapsed'), false);
+  assert.equal(header.getAttribute('aria-expanded'), 'true');
+  assert.equal(header.getAttribute('role'), 'button');
+  assert.equal(header.getAttribute('tabindex'), '0');
+
+  // Click to collapse
+  header.click();
+  assert.equal(csSection.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
+
+  // Click to expand
+  header.click();
+  assert.equal(csSection.classList.contains('is-collapsed'), false);
+  assert.equal(header.getAttribute('aria-expanded'), 'true');
+});
+
+test('derivedMeasurementDeck: Cross-Section Evidence subgroup structure wraps Shoulder and Hip cards', () => {
+  const shoulderCard = buildDerivedMeasurementCardHtml(
+    { id: 'torso_shoulder_cross_view_correspondence', name: 'Shoulder Level' },
+    null,
+    { pairedStatus: 'unavailable' },
+  );
+  const hipCard = buildDerivedMeasurementCardHtml(
+    { id: 'torso_hip_cross_view_correspondence', name: 'Hip Level' },
+    null,
+    { pairedStatus: 'unavailable' },
+  );
+
+  assert.equal(shoulderCard.includes('Shoulder Level'), true);
+  assert.equal(hipCard.includes('Hip Level'), true);
+  assert.equal(shoulderCard.includes('derived-measurement-card'), true);
+  assert.equal(hipCard.includes('derived-measurement-card'), true);
+});
+
+test('derivedMeasurementDeck: Direct Measurements is a parent collapsible subgroup, collapsed by default, and expands/collapses', async () => {
+  const { initCollapsibleSections } = await import('./collapsibleSections.js');
+
+  const headerAttrs = {};
+  const listeners = {};
+  const header = {
+    classList: {
+      classes: new Set(['results-subgroup-header']),
+      add(cls) { this.classes.add(cls); },
+      contains(cls) { return this.classes.has(cls); },
+    },
+    setAttribute(k, v) { headerAttrs[k] = String(v); },
+    getAttribute(k) { return headerAttrs[k] ?? null; },
+    addEventListener(type, fn) {
+      listeners[type] = listeners[type] || [];
+      listeners[type].push(fn);
+    },
+    click() {
+      for (const fn of listeners.click || []) fn();
+    },
+  };
+
+  const sectionClasses = new Set(['results-subgroup', 'results-subgroup--direct', 'is-collapsed']);
+  const sectionAttrs = new Set(['data-collapsible', 'data-collapsed']);
+  const directSection = {
+    classList: {
+      classes: sectionClasses,
+      add(cls) { sectionClasses.add(cls); },
+      contains(cls) { return sectionClasses.has(cls); },
+      toggle(cls, force) {
+        const should = force === undefined ? !sectionClasses.has(cls) : Boolean(force);
+        if (should) sectionClasses.add(cls);
+        else sectionClasses.delete(cls);
+      },
+    },
+    hasAttribute(name) { return sectionAttrs.has(name); },
+    matches(selector) { return selector === '[data-collapsible]'; },
+    querySelector(selector) {
+      if (selector === ':scope > .results-subgroup-header') return header;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+
+  initCollapsibleSections(directSection);
+
+  // Starts collapsed by default
+  assert.equal(directSection.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
+  assert.equal(header.getAttribute('role'), 'button');
+  assert.equal(header.getAttribute('tabindex'), '0');
+
+  // Click to expand
+  header.click();
+  assert.equal(directSection.classList.contains('is-collapsed'), false);
+  assert.equal(header.getAttribute('aria-expanded'), 'true');
+
+  // Click to collapse
+  header.click();
+  assert.equal(directSection.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
+});
+
+test('derivedMeasurementDeck: nested child toggle calls stopPropagation and does not bubble to parent', async () => {
+  const { initCollapsibleSections } = await import('./collapsibleSections.js');
+
+  let childStopPropagationCalled = false;
+  const childListeners = {};
+  const childHeader = {
+    classList: {
+      classes: new Set(['derived-card-header']),
+      add(cls) { this.classes.add(cls); },
+      contains(cls) { return this.classes.has(cls); },
+    },
+    setAttribute() {},
+    getAttribute() { return 'false'; },
+    addEventListener(type, fn) {
+      childListeners[type] = childListeners[type] || [];
+      childListeners[type].push(fn);
+    },
+    click() {
+      const event = {
+        stopPropagation() { childStopPropagationCalled = true; },
+      };
+      for (const fn of childListeners.click || []) fn(event);
+    },
+  };
+
+  const childSectionClasses = new Set(['derived-measurement-card', 'direct-measurement-group-card', 'is-collapsed']);
+  const childSection = {
+    classList: {
+      classes: childSectionClasses,
+      add(cls) { childSectionClasses.add(cls); },
+      contains(cls) { return childSectionClasses.has(cls); },
+      toggle(cls, force) {
+        const should = force === undefined ? !childSectionClasses.has(cls) : Boolean(force);
+        if (should) childSectionClasses.add(cls);
+        else childSectionClasses.delete(cls);
+      },
+    },
+    hasAttribute(name) { return name === 'data-collapsible' || name === 'data-collapsed'; },
+    matches(selector) { return selector === '[data-collapsible]'; },
+    querySelector(selector) {
+      if (selector === ':scope > .derived-card-header') return childHeader;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+
+  initCollapsibleSections(childSection);
+
+  childHeader.click();
+  assert.equal(childStopPropagationCalled, true, 'Clicking child header must stop event propagation');
+  assert.equal(childSection.classList.contains('is-collapsed'), false);
+});
+
+test('derivedMeasurementDeck: runtime scenario - Results toggle sequence with nested subgroups and rerenders', async () => {
+  const { initCollapsibleSections } = await import('./collapsibleSections.js');
+
+  function createElement(tag, initialClasses = [], attrs = {}) {
+    const classSet = new Set(initialClasses);
+    const attributes = { ...attrs };
+    const eventListeners = {};
+    const children = [];
+
+    const el = {
+      tagName: tag.toUpperCase(),
+      classList: {
+        classes: classSet,
+        add(cls) { classSet.add(cls); },
+        remove(cls) { classSet.delete(cls); },
+        contains(cls) { return classSet.has(cls); },
+        toggle(cls, force) {
+          const should = force === undefined ? !classSet.has(cls) : Boolean(force);
+          if (should) classSet.add(cls);
+          else classSet.delete(cls);
+        },
+      },
+      hasAttribute(name) { return name in attributes; },
+      getAttribute(name) { return attributes[name] ?? null; },
+      setAttribute(name, val) { attributes[name] = String(val); },
+      removeAttribute(name) { delete attributes[name]; },
+      addEventListener(type, fn) {
+        eventListeners[type] = eventListeners[type] || [];
+        eventListeners[type].push(fn);
+      },
+      click() {
+        let propagationStopped = false;
+        const ev = {
+          stopPropagation() { propagationStopped = true; },
+          preventDefault() {},
+        };
+        for (const fn of eventListeners.click || []) {
+          fn(ev);
+        }
+      },
+      matches(selector) {
+        if (selector === '[data-collapsible]') return el.hasAttribute('data-collapsible');
+        return false;
+      },
+      querySelector(selector) {
+        for (const child of children) {
+          if (selector === ':scope > .deck-header' && child.classList.contains('deck-header')) return child;
+          if (selector === ':scope > .section-title' && child.classList.contains('section-title')) return child;
+          if (selector === ':scope > .results-subgroup-header' && child.classList.contains('results-subgroup-header')) return child;
+          if (selector === ':scope > .derived-card-header' && child.classList.contains('derived-card-header')) return child;
+        }
+        return null;
+      },
+      querySelectorAll(selector) {
+        const matches = [];
+        function scan(node) {
+          for (const c of node.children || []) {
+            if (selector === '[data-collapsible]' && c.hasAttribute('data-collapsible')) {
+              matches.push(c);
+            }
+            if (selector === '[data-collapsible][data-group-id]' && c.hasAttribute('data-collapsible') && c.hasAttribute('data-group-id')) {
+              matches.push(c);
+            }
+            scan(c);
+          }
+        }
+        scan(el);
+        return matches;
+      },
+      appendChild(child) {
+        child.parentElement = el;
+        children.push(child);
+        return child;
+      },
+      children,
+    };
+    return el;
+  }
+
+  // 1. Build DOM matching index.html
+  const deckSection = createElement('section', ['derived-measurement-deck', 'inspector-section'], {
+    'data-collapsible': '',
+    'aria-label': 'Results',
+  });
+  const deckHeader = createElement('div', ['deck-header']);
+  const deckCards = createElement('div', ['derived-measurement-cards', 'section-body']);
+  deckSection.appendChild(deckHeader);
+  deckSection.appendChild(deckCards);
+
+  // 2. Build Cross-Section Evidence subgroup inside deckCards
+  const csSubgroup = createElement('div', ['results-subgroup', 'results-subgroup--cross-section'], {
+    'data-collapsible': '',
+    'data-group-id': 'cross_section_evidence',
+  });
+  const csHeader = createElement('div', ['results-subgroup-header', 'results-subgroup-header--collapsible']);
+  const csBody = createElement('div', ['results-subgroup-body']);
+  csSubgroup.appendChild(csHeader);
+  csSubgroup.appendChild(csBody);
+  deckCards.appendChild(csSubgroup);
+
+  // 3. Build Direct Measurements subgroup inside deckCards
+  const directSubgroup = createElement('div', ['results-subgroup', 'results-subgroup--direct', 'is-collapsed'], {
+    'data-collapsible': '',
+    'data-collapsed': '',
+    'data-group-id': 'direct_measurements',
+  });
+  const directHeader = createElement('div', ['results-subgroup-header', 'results-subgroup-header--collapsible']);
+  const directBody = createElement('div', ['results-subgroup-body']);
+  directSubgroup.appendChild(directHeader);
+  directSubgroup.appendChild(directBody);
+  deckCards.appendChild(directSubgroup);
+
+  // Initialize
+  initCollapsibleSections(deckSection);
+
+  // 1. Initial state: Results expanded
+  assert.equal(deckSection.classList.contains('is-collapsed'), false, 'Results starts expanded');
+  assert.equal(deckHeader.getAttribute('aria-expanded'), 'true');
+  assert.equal(csSubgroup.classList.contains('is-collapsed'), false, 'Cross-section starts expanded');
+  assert.equal(directSubgroup.classList.contains('is-collapsed'), true, 'Direct starts collapsed');
+
+  // 2. Click RESULTS: Results collapsed
+  deckHeader.click();
+  assert.equal(deckSection.classList.contains('is-collapsed'), true, 'Results collapsed after click');
+  assert.equal(deckHeader.getAttribute('aria-expanded'), 'false');
+
+  // 3. Click RESULTS: Results expanded
+  deckHeader.click();
+  assert.equal(deckSection.classList.contains('is-collapsed'), false, 'Results expanded after second click');
+  assert.equal(deckHeader.getAttribute('aria-expanded'), 'true');
+
+  // 4. Toggle Cross-Section: collapse then expand
+  csHeader.click();
+  assert.equal(csSubgroup.classList.contains('is-collapsed'), true, 'Cross-section collapsed');
+  assert.equal(deckSection.classList.contains('is-collapsed'), false, 'Results still expanded');
+
+  csHeader.click();
+  assert.equal(csSubgroup.classList.contains('is-collapsed'), false, 'Cross-section expanded again');
+  assert.equal(deckSection.classList.contains('is-collapsed'), false, 'Results still expanded');
+
+  // 5. Expand Direct Measurements
+  directHeader.click();
+  assert.equal(directSubgroup.classList.contains('is-collapsed'), false, 'Direct measurements expanded');
+  assert.equal(deckSection.classList.contains('is-collapsed'), false, 'Results still expanded');
+
+  // 6. Click RESULTS: Results collapsed
+  deckHeader.click();
+  assert.equal(deckSection.classList.contains('is-collapsed'), true, 'Results collapsed');
+  assert.equal(deckHeader.getAttribute('aria-expanded'), 'false');
+
+  // 7. Click RESULTS: Results expanded and Direct remains expanded
+  deckHeader.click();
+  assert.equal(deckSection.classList.contains('is-collapsed'), false, 'Results expanded');
+  assert.equal(deckHeader.getAttribute('aria-expanded'), 'true');
+  assert.equal(directSubgroup.classList.contains('is-collapsed'), false, 'Direct measurements preserved expanded');
+
+  // 8. Subsequent child wiring on containerEl does not break top-level Results
+  initCollapsibleSections(deckCards);
+  deckHeader.click();
+  assert.equal(deckSection.classList.contains('is-collapsed'), true, 'Results collapses after child re-init');
+  deckHeader.click();
+  assert.equal(deckSection.classList.contains('is-collapsed'), false, 'Results expands after child re-init');
+});
+
+test('derivedMeasurementDeck: hit target test - visible Results header and children receive pointer interaction and toggle section', async () => {
+  const { initCollapsibleSections } = await import('./collapsibleSections.js');
+
+  const headerListeners = [];
+
+  const textSpan = {
+    tagName: 'SPAN',
+    classList: {
+      contains(cls) { return cls === 'deck-title'; },
+    },
+    click() {
+      // Event bubbles to header
+      header.click();
+    },
+  };
+
+  const headerClasses = new Set(['deck-header']);
+  const headerAttrs = {
+    role: 'button',
+    tabindex: '0',
+    'aria-expanded': 'true',
+  };
+
+  const header = {
+    tagName: 'DIV',
+    classList: {
+      classes: headerClasses,
+      add(cls) { headerClasses.add(cls); },
+      contains(cls) { return headerClasses.has(cls); },
+    },
+    setAttribute(k, v) { headerAttrs[k] = String(v); },
+    getAttribute(k) { return headerAttrs[k] ?? null; },
+    addEventListener(type, fn) {
+      if (type === 'click') headerListeners.push(fn);
+    },
+    click() {
+      const ev = {
+        stopPropagation() {},
+        preventDefault() {},
+      };
+      for (const fn of headerListeners) fn(ev);
+    },
+    children: [textSpan],
+  };
+
+  const sectionClasses = new Set(['derived-measurement-deck', 'inspector-section']);
+  const section = {
+    tagName: 'SECTION',
+    classList: {
+      classes: sectionClasses,
+      add(cls) { sectionClasses.add(cls); },
+      contains(cls) { return sectionClasses.has(cls); },
+      toggle(cls, force) {
+        const should = force === undefined ? !sectionClasses.has(cls) : Boolean(force);
+        if (should) sectionClasses.add(cls);
+        else sectionClasses.delete(cls);
+      },
+    },
+    hasAttribute(name) { return name === 'data-collapsible'; },
+    matches(selector) { return selector === '[data-collapsible]'; },
+    querySelector(selector) {
+      if (selector === ':scope > .deck-header') return header;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+
+  initCollapsibleSections(section);
+
+  // 1. Initial expanded state
+  assert.equal(section.classList.contains('is-collapsed'), false);
+  assert.equal(header.getAttribute('aria-expanded'), 'true');
+  assert.equal(header.classList.contains('deck-header--collapsible'), true);
+
+  // 2. Clicking the text label bubbles to header and collapses
+  textSpan.click();
+  assert.equal(section.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
+
+  // 3. Clicking the header row / whitespace expands
+  header.click();
+  assert.equal(section.classList.contains('is-collapsed'), false);
+  assert.equal(header.getAttribute('aria-expanded'), 'true');
+
+  // 4. CSS inspection check: verify .deck-header has cursor: pointer and pointer-events: auto
+  const css = readFileSync(
+    fileURLToPath(new URL('../styles/components.css', import.meta.url)),
+    'utf8',
+  );
+  assert.match(css, /\.deck-header\s*\{[^}]*cursor:\s*pointer/);
+  assert.match(css, /\.deck-header\s*\{[^}]*pointer-events:\s*auto/);
 });
