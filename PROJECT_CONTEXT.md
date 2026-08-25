@@ -170,8 +170,15 @@ Three workspace tabs (`workspaceLayout.js`):
 
 No Hist / Annos / Body / Graph tab strip. Composition:
 
-1. **Results** (`#derived-measurement-deck`, always visible at the top) — Shoulder / Hip derived result cards (`derivedMeasurementDeck.js`)
-2. **Session Records** (`#session-records-panel`, collapsible, expanded by default) — History + Annotations, including promoted body landmarks as annotation records
+1. **Results** (`#derived-measurement-deck`, collapsible, expanded by default at the top) — `derivedMeasurementDeck.js`:
+   - **Cross-Section Evidence**: Collapsible subgroup containing Shoulder and Hip paired orthogonal measurement cards.
+   - **Direct Measurements**: Collapsible parent subgroup containing three category groups:
+     - *Vertical Measurements* (5 inter-level metrics)
+     - *Arm Segments* (6 segment/chord metrics + 2 kinematic chains)
+     - *Leg Segments* (4 segment metrics + 2 kinematic chains)
+2. **Session Records** (`#session-records-panel`, collapsible, expanded by default):
+   - **Annotations**: Promoted body landmarks and custom annotations with per-item Delete actions.
+   - **History**: Canonical Point A/B measurement log with embedded `Clear History` action (`#clear-history`).
 3. **Diagnostics** (`#diagnostics-panel`, collapsible, collapsed by default) — independently collapsible subsections:
    - Why This Result Is Blocked (`#why-result-blocked`)
    - Front–Side Alignment (`#front-side-alignment-qa`)
@@ -179,7 +186,7 @@ No Hist / Annos / Body / Graph tab strip. Composition:
    - Advanced QA (`#advanced-qa-content`) — intake identity + metric calibration only
    - Origin / Center projection utility (`#reference-projection-utility`)
 
-The whole right sidebar can collapse to a vertical rail (`#right-sidebar-toggle`). Section accordions are wired by `initCollapsibleSections()` on `#left-sidebar` and again on `#right-sidebar`.
+The whole right sidebar can collapse to a vertical rail (`#right-sidebar-toggle`). Section accordions are wired by `initCollapsibleSections()` on `#left-sidebar` and `#right-sidebar`. Diagnostics remains strictly separated from primary measurement Results.
 
 ### App modes and inspector workflows
 
@@ -697,7 +704,92 @@ Milestone 3.2 establishes deterministic layout contracts, numeric QA evaluators,
 
 ---
 
-## 19. Important Do-Not-Break Rules
+## 19. Measurement Taxonomy, Capability Audit & Direct Body Measurements Contract v0
+
+### 1. Measurement Taxonomy & 11 Formal Geometry Families
+A formal measurement taxonomy and capability audit established 11 distinct geometric families:
+1. **Transverse Width**: 2D horizontal transverse extent across Front image plane (e.g. `Torso Transverse Width at Shoulder Level`).
+2. **AP Depth / Projection**: 2D horizontal profile extent across Side image plane (e.g. `Torso AP Depth Estimate at Shoulder Level`).
+3. **Vertical Height**: Absolute vertical coordinate from physical ground contact plane (DEFERRED under `NEEDS_GROUND_REFERENCE`).
+4. **Vertical Inter-Level Distance**: Calibrated vertical difference $\Delta Y = |Y_A - Y_B|$ between two validated anatomical reference levels.
+5. **Landmark-to-Landmark Projected Distance**: Calibrated 2D Euclidean chord length $\sqrt{(X_A - X_B)^2 + (Y_A - Y_B)^2}$ between two promoted Front landmarks.
+6. **Segment / Kinematic Chain Length**: Compound path length summing consecutive constituent projected 2D segment lengths.
+7. **Circumference / Girth**: Closed perimeter around cross-sectional body boundary (NOT IMPLEMENTED).
+8. **Partial Surface Arc**: Open surface contour/geodesic across body topography (NOT IMPLEMENTED / DEFERRED).
+9. **Coordinate / Semantic Location**: Spatial point coordinates in canonical metrology space (e.g. landmark annotations, reference levels).
+10. **Angular Measurement**: 2D projected or 3D joint/collinearity angles (e.g. Side T-pose 2D projected elbow deviation).
+11. **Invalid / Non-Geometric Historical Definitions**: Historical or heuristic definitions lacking sound geometric formulation (strictly rejected).
+
+### 2. Critical Semantic Naming Rule
+Every measurement name must unambiguously distinguish:
+- **Anatomical region** (e.g. `Torso`, `Arm`, `Leg`)
+- **Measurement quantity** (e.g. `Transverse Width`, `AP Depth Estimate`, `Inter-Level Distance`, `Segment Length`)
+- **Anatomical reference level** (e.g. `at Shoulder Level`, `at Hip Level`, `Neck to Hip`)
+
+*Example*: `Torso Transverse Width at Shoulder Level` must remain strictly distinct from skeletal `Biacromial Shoulder Breadth` and from any future `Shoulder Circumference`.
+
+### 3. Source-Verification Corrections
+Empirical source-verification audit corrected several legacy assumptions:
+- **Landmark Measurement Lines (`bodyMeasurementLines.js`)**: Confirmed as display/evidence geometry only; existing candidate lines are **NOT** authoritative measurement contracts and must not be described as already-supported named physical measurements.
+- **Stature Semantics**: Declared subject stature ($169.0\text{ cm}$ in current capture) is `known_subject_height` supplied as metric calibration input provenance, **NOT** an independently measured optical stature output.
+- **Ground / Floor Reference**: Canvas bottom edge ($Y = 0\text{ cm}$) represents standardized metrology workspace coordinate boundary, **NOT** a verified subject floor/contact plane. Absolute anatomical heights from floor remain explicitly deferred under `NEEDS_GROUND_REFERENCE`.
+- **Relative Vertical Distances**: Differences between two validated anatomical levels ($|Y_A - Y_B|$) are mathematically valid calibrated relative distances because global canvas placement offsets cancel out.
+- **Anatomical Level Scope**: Exactly 7 reference levels are validated: `neck`, `shoulder`, `elbow`, `wrist`, `hip`, `knee`, `ankle`. Torso sub-levels (`bust`, `underbust`, `chest`, `waist`, `abdomen`, `crotch`, `buttock maximum / seat plane`) remain strictly **deferred** (no landmark anchors; no synthetic proportional percentages).
+- **Authoritative Width / Depth / Cross-Section Evidence**:
+  - Front Transverse Width supported at Shoulder Level (`Torso Transverse Width at Shoulder Level`) and Hip Level (`Torso Transverse Width at Hip Level`). Generic "Shoulder Width" / "Hip Width" descriptions are prohibited.
+  - Side AP Depth supported/qualified at Shoulder Level (`Torso AP Depth Estimate at Shoulder Level`) and Hip Level (`Torso AP Depth Estimate at Hip Level`).
+  - Cross-Section Evidence v0 (`cross-section-evidence-v0`) pairs qualified Front transverse width and Side AP depth at matching reference levels.
+  - Cross-Section Evidence is **NOT** a reconstructed 3D slice, ellipse, circumference, volume, or canonical Z geometry. Shoulder cross-section must not be called Shoulder Circumference; Hip cross-section must not be equated with maximum Hip/Seat Circumference (current bilateral hip landmark level is not yet qualified as the maximum buttock/seat plane).
+
+### 4. Direct Body Measurements Contract v0 (`direct-body-measurements-v0`)
+Pure deterministic domain contract implemented in `src/features/directBodyMeasurements.js`, integrated at runtime in `src/features/bodyEvidence.js`, and rendered in `src/ui/derivedMeasurementDeck.js`. Supports 19 Batch A direct measurements:
+
+- **Vertical Inter-Level Measurements (5)** (Semantics: `calibrated_relative_vertical_distance`, Formula: $|Y_A - Y_B|$):
+  1. `vertical_torso_length_neck_to_hip`: Vertical Torso Length (Neck to Hip)
+  2. `vertical_shoulder_drop_neck_to_shoulder`: Vertical Shoulder Drop (Neck to Shoulder)
+  3. `vertical_thigh_length_hip_to_knee`: Vertical Thigh Length (Hip to Knee)
+  4. `vertical_lower_leg_length_knee_to_ankle`: Vertical Lower Leg Length (Knee to Ankle)
+  5. `vertical_total_leg_length_hip_to_ankle`: Vertical Total Leg Length (Hip to Ankle)
+
+- **Projected Landmark Segment Measurements (10, Left/Right independently)** (Semantics: `calibrated_projected_2d_distance`, Formula: $\sqrt{(X_A - X_B)^2 + (Y_A - Y_B)^2}$):
+  - `left_upper_arm_segment_length_projected` / `right_upper_arm_segment_length_projected`: Upper Arm Segment Length (Projected)
+  - `left_forearm_segment_length_projected` / `right_forearm_segment_length_projected`: Forearm Segment Length (Projected)
+  - `left_direct_arm_chord_projected` / `right_direct_arm_chord_projected`: Direct Arm Chord (Shoulder to Wrist, Projected)
+  - `left_thigh_segment_length_projected` / `right_thigh_segment_length_projected`: Thigh Segment Length (Projected)
+  - `left_lower_leg_segment_length_projected` / `right_lower_leg_segment_length_projected`: Lower Leg Segment Length (Projected)
+
+- **Kinematic Chain Measurements (4, Left/Right)** (Semantics: `calibrated_projected_2d_chain_length`, Formula: $\sum d_{2D}$ of constituent segments):
+  - `left_total_arm_chain_length_projected` / `right_total_arm_chain_length_projected`: Total Arm Kinematic Chain Length (Projected) ($d(\text{Shoulder}, \text{Elbow}) + d(\text{Elbow}, \text{Wrist})$)
+  - `left_total_leg_chain_length_projected` / `right_total_leg_chain_length_projected`: Total Leg Kinematic Chain Length (Projected) ($d(\text{Hip}, \text{Knee}) + d(\text{Knee}, \text{Ankle})$)
+
+- **Strict Guardrails**: Front A-pose calibrated projected 2D distances only. Must **NOT** be described as true 3D anatomical lengths, skeletal bone lengths, or surface distances. Zero bilateral averaging is performed.
+
+### 5. Direct Measurement Qualification Semantics
+- **`valid`**: All required evidence exists, is finite, and Front metric calibration is validated.
+- **`unavailable`**: Required evidence is missing or insufficient (e.g. missing landmark, unready anatomical level, unvalidated calibration).
+- **`invalid`**: Evidence exists but contains corrupted or non-finite coordinate values.
+- **Kinematic Chain Rule**: A kinematic chain strictly requires **all** constituent segments to evaluate to `valid`. If any constituent segment is `unavailable` or `invalid`, the chain measurement cannot be valid.
+
+### 6. Deferred Measurement Batch B (Bilateral Spans & Breadths)
+Candidates for future direct measurement expansion remain intentionally deferred:
+- Candidate definitions: Biacromial Shoulder Breadth, Inter-Hip Landmark Breadth, Bilateral Elbow Span, Bilateral Wrist Span, Bilateral Knee Span, Bilateral Ankle Span, Neck Transverse Width.
+- Deferral rationale: Formal semantic decision is required between horizontal $\Delta X = |X_{\text{left}} - X_{\text{right}}|$ breadth versus 2D Euclidean projected chord length $\sqrt{\Delta X^2 + \Delta Y^2}$ when bilateral landmarks exhibit vertical elevation delta ($\Delta Y > 0$).
+- Batch B is **NOT** marked as implemented.
+
+### 7. Circumference Readiness Correctly
+- Circumference estimation remains **NOT YET IMPLEMENTED**.
+- Qualified paired transverse width and AP depth exist at Torso Shoulder and Hip Landmark Levels.
+- These anatomical landmark levels do **NOT** automatically define named anthropometric circumferences.
+- Anthropometric Hip/Seat Circumference requires authoritative localization of the maximum buttock/seat plane (current bilateral hip landmark level is related evidence, not automatically that plane).
+- Bust, underbust, waist, and abdomen circumferences remain blocked primarily by anatomical-level localization.
+
+### 8. Future Development — VTON Relevance Mapping
+- Purpose: Map validated body measurements to downstream sizing, grading, garment fitting, garment anchoring (neckline, shoulder seams, waistbands, hemlines), sleeve placement, bust/underbust fitting, and pelvic/seat fitting.
+- Strict boundary: VTON Relevance Mapping is an application-layer consumer of metrology outputs and must **never** redefine measurement geometry or semantics. Marked **INACTIVE / FUTURE**.
+
+---
+
+## 20. Important Do-Not-Break Rules
 
 When modifying this project, preserve the following unless explicitly instructed otherwise:
 
@@ -729,10 +821,17 @@ When modifying this project, preserve the following unless explicitly instructed
 9. **3D Reconstruction / Mesh Generation:** No point cloud generation, mesh surface reconstruction, or volumetric body partitioning.
 10. **Circumference / Cross-Section Inference:** No elliptical, superelliptical, or convex hull circumference math. Circumference estimation remains not yet implemented (next milestone is Circumference Estimation v0 design/audit).
 11. **Dense Evidence QA UI Panel:** Dedicated Dense Evidence QA inspection panel in the UI is intentionally deferred.
+12. **Absolute Height from Floor:** Absolute heights from floor deferred under `NEEDS_GROUND_REFERENCE` (canvas $Y = 0$ is not a verified ground contact plane).
+13. **Measured Optical Stature:** Declared stature ($169.0\text{ cm}$) is `known_subject_height` calibration input provenance, not measured optical stature.
+14. **Bilateral Limb Averaging:** Bilateral left and right limb measurements are evaluated independently without averaging.
+15. **Clear Measurements Batch B:** Bilateral spans and breadths remain deferred pending horizontal vs chord geometry resolution.
+16. **Torso Sub-Levels:** Bust, underbust, chest, waist, abdomen, crotch, and buttock maximum / seat plane remain deferred.
+17. **Maximum Buttock / Seat Plane Localization:** Bilateral hip landmark level is not yet qualified as the maximum seat plane.
+18. **VTON Relevance Mapping:** Virtual try-on mapping is an application-layer consumer and not part of core measurement geometry.
 
 ---
 
-## 20. Metrology Roadmap
+## 21. Metrology Roadmap & Verification Baseline
 
 ### Completed Milestones
 - **3D Metrology Coordinate Cube & Volumetric Lattice Sampling (5 cm, 68,921 points)**
@@ -764,26 +863,49 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.5E: Authoritative View / Pose Semantics Validation v0 (`view-pose-semantics-v0` — pure deterministic domain qualification layer verifying Layer A declared view identity, Layer B 2D structural pose qualification with `LOW_CONFIDENCE_THRESHOLD = 0.5`, anatomical vertical ordering, and Front A-pose limb separation, while strictly requiring recognized evaluators for Layer C physical orientation certification; evaluates to `status: 'partial'`, `authorized: false` on current Body Pipeline evidence)**
 - **Milestone 4.5F: Clothing / Body-Surface Authorization v0 (`clothing-body-surface-semantics-v0` — pure deterministic domain qualification layer governing Layer A clothing participation from measurement support policy provenance, Layer B visual garment qualification with canonical `garmentFitStatus` taxonomy, and Layer C authoritative empirical body-surface authorization; derives the composite `clothingConstraintSatisfied` gate consumed by 4.5D to keep or clear the `clothing_authorization_missing` blocker; evaluates to `status: 'partial'`, `garmentFitStatus: 'unresolved'`, `clothingConstraintSatisfied: false` on current Body Pipeline evidence)**
 - **Milestone 4.5G: Authoritative Physical Evidence Semantics v0 (`authoritative-physical-evidence-semantics-v0` — COMPLETED at evidence-authority / semantics scope; classifies dense pointmap evidence by authority without creating body measurements; implemented evaluator `sapiens-pointmap-camera-frame-evaluator-v0` classifies current Sapiens Front/Side pointmaps as `availability: present`, `status: 'partial'`, `evidenceClass: 'camera_frame_geometric'`, `authorized: false`; authoritative physical-geometry evaluator registry is empty; `validated-dense-geometry-v0` remains reserved and is not enabled. This does not establish authoritative physical body geometry)**
-- **Application Shell / UI Modernization Checkpoint** — workflow-driven Left Sidebar; Right Sidebar Results / Session Records / Diagnostics accordions; Hist / Annos / Body / Graph tabs removed; Subject / Package and Current Selection cards removed; documentation synchronized to the cleaned implementation. **No Pointmap geometry milestone is implied.**
+- **Application Shell / UI Modernization Checkpoint** — workflow-driven Left Sidebar; Right Sidebar Results / Session Records / Diagnostics accordions; Hist / Annos / Body / Graph tabs removed; Subject / Package and Current Selection cards removed; documentation synchronized to the cleaned implementation.
 - **Measurement Placement Audit Checkpoint — COMPLETED** — Strict read-only audit of Shoulder and Hip measurement placement and semantics verified current runtime behavior: Shoulder uses `trunk_core_support_v0` (`[22, 23]`) and means supported transverse silhouette width at bilateral shoulder landmark Y (not landmark-to-landmark / biacromial breadth); Hip uses `pelvic_core_support_v0` (`[12, 13, 21, 22]`) and slices strictly at bilateral mean hip landmark Y (no search for maximum hip breadth, buttock projection, or seat plane); Side measurements remain projected Side-U profile spans without physical depth promotion; 402 unit tests verified with zero algorithmic changes.
-- **Milestone 4.5H: Side Physical Depth Qualification v0 (`side-physical-depth-qualification-v0` — pure deterministic domain qualification evaluating when valid Side profile spans qualify as side-derived physical AP depth estimates; integrates Side T-pose stance `side-t-pose-qualification-v0`, approximately-lateral orientation `side-view-orientation-qualification-v0` via bilateral collapse consensus, metric calibration, and fitted-clothing/body-surface authorization; evaluates 2D projected elbow deviation without claiming anatomical elbow flexion; treats moderate projected elbow deviation in the 30°–45° warning range as an advisory diagnostic signal that does not block AP depth when arm reach, elevation, and torso clearance pass; severe bend >45°, poor reach <0.70, and lowered arms >35° remain disqualifying; Shoulder depth is anchored at bilateral mean shoulder landmark level; Hip depth is anchored at bilateral mean hip landmark level; Front A-pose / Side T-pose mismatch recorded as downstream cross-section limitation; does not convert U to Z, use pointmap Z, or perform 3D fusion; circumference remains strictly blocked; immediate next milestone: Cross-Section Evidence v0; subsequent milestone: Circumference Estimation v0)**
-- **Milestone 4.5I: Cross-Section Evidence v0 (`cross-section-evidence-v0` — pure deterministic compositional evidence layer combining already-qualified Front transverse width, qualified Side AP physical depth, matching anatomical reference level, cross-view correspondence, comparability QA, and metric calibration compatibility; supported levels: exactly `shoulder` and `hip` only; verified Shoulder: Front Transverse Width 30.80 cm, Side AP Depth 11.00 cm -> QUALIFIED; verified Hip: Front Transverse Width 42.20 cm, Side AP Depth 27.70 cm -> QUALIFIED; preserves Side T-pose advisory ~44.2° projected elbow semantics; pure evidence pairing only: does NOT compute circumference, assume an ellipse, reconstruct a 3D slice/contour, or fuse pointmaps; 456/456 tests passing, clean production build; next milestone: Circumference Estimation v0 Design & Audit Stage)**
+- **Milestone 4.5H: Side Physical Depth Qualification v0 (`side-physical-depth-qualification-v0` — pure deterministic domain qualification evaluating when valid Side profile spans qualify as side-derived physical AP depth estimates; integrates Side T-pose stance `side-t-pose-qualification-v0`, approximately-lateral orientation `side-view-orientation-qualification-v0` via bilateral collapse consensus, metric calibration, and fitted-clothing/body-surface authorization; evaluates 2D projected elbow deviation without claiming anatomical elbow flexion; treats moderate projected elbow deviation in the 30°–45° warning range as an advisory diagnostic signal; Shoulder depth is anchored at bilateral mean shoulder landmark level; Hip depth is anchored at bilateral mean hip landmark level)**
+- **Milestone 4.5I: Cross-Section Evidence v0 (`cross-section-evidence-v0` — pure deterministic compositional evidence layer combining already-qualified Front transverse width, qualified Side AP physical depth, matching anatomical reference level, cross-view correspondence, comparability QA, and metric calibration compatibility; supported levels: exactly `shoulder` and `hip` only; verified Shoulder: Front Transverse Width 30.80 cm, Side AP Depth 11.00 cm -> QUALIFIED; verified Hip: Front Transverse Width 42.20 cm, Side AP Depth 27.70 cm -> QUALIFIED; preserves Side T-pose advisory ~44.2° projected elbow semantics; pure evidence pairing only: does NOT compute circumference, assume an ellipse, reconstruct a 3D slice/contour, or fuse pointmaps)**
+- **Milestone 4.5J: Measurement Taxonomy & Capability Audit v0 (`measurement-taxonomy-audit-v0` — established 11 formal geometric families and strict anatomical region / quantity / reference level naming rules)**
+- **Milestone 4.5K: Measurement Source-Verification & Correction Pass — COMPLETED (`bodyMeasurementLines.js` verified display-only; declared stature verified calibration input, not measured output; ground reference floor heights deferred under `NEEDS_GROUND_REFERENCE`; relative vertical distances $|Y_A - Y_B|$ validated; 7 reference levels validated; sub-levels deferred; Shoulder/Hip authoritative width/depth/cross-section evidence verified)**
+- **Milestone 4.5L: Clear Measurements v0 — Batch A (`direct-body-measurements-v0` — pure deterministic evaluation of 19 direct Front measurements across 5 vertical inter-level, 10 projected landmark segment, and 4 kinematic chain measurements; `valid` / `unavailable` / `invalid` qualification statuses; all constituent segments required for chain validity; Front A-pose calibrated 2D projected distances, not 3D lengths/bones/surfaces; zero bilateral averaging)**
+- **Milestone 4.5M: Results Right-Sidebar Usability & Accordion Cleanup — COMPLETED (collapsible Results deck with Cross-Section Evidence and Direct Measurements parent subgroup; Session Records ordered Annotations then History with embedded Clear History; Diagnostics separated)**
+
+### Deferred Milestones
+- **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)**
+- **Measured optical stature**
+- **Clear Measurements Batch B (Bilateral Spans & Breadths)**
+- **Bust / Waist / Abdomen / Crotch localization**
+- **Surface arcs / geodesic measurements**
+- **Maximum Buttock / Seat Plane localization**
+- **VTON Relevance Mapping (Future Application Layer)**
+
+### Next Milestone
+- **Circumference Estimation v0 Design & Audit Stage** (Milestone 4.6 — read-only geometry and model audit stage before implementation).
 
 ### Active State & Physical Blockers
 - **Current Real Evaluation State (`output.zip`)**:
   - Front Pose Semantics: `status: 'partial'`, `authorized: false` (7/8 checks pass; Layer C skipped).
   - Side Pose Semantics: `status: 'partial'`, `authorized: false` (6/8 checks pass; Layer C skipped).
   - Clothing / Body-Surface Semantics: `status: 'partial'`, `authorized: false`, `garmentFitStatus: 'unresolved'`, `clothingConstraintSatisfied: false` across all 4 canonical measurements.
-  - Authoritative Physical Evidence Semantics (4.5G): Front and Side independently `availability: present`, `status: 'partial'`, `evidenceClass: 'camera_frame_geometric'`, `authorized: false`, `frame.type: 'camera_local'`, `frame.sharedAcrossViews: false`. Units remain `unitAuthority: service_reported`, `physicalUnitsVerified: false`. Scale remains `predicted_focal_normalization`. Serialized pointmaps are not body-masked (`pointmap value exists` $\ne$ authorized body-surface evidence); 4.5G does not bypass segmentation support, anatomical-region authorization, Dense Evidence QA, or Clothing / Body-Surface Authorization, and introduces no per-pixel body-surface engine. Layer C remains unimplemented. Authoritative Physical Body Geometry: **NOT ESTABLISHED**. Cross-view Physical Geometry: **BLOCKED**.
+  - Authoritative Physical Evidence Semantics (4.5G): Front and Side independently `availability: present`, `status: 'partial'`, `evidenceClass: 'camera_frame_geometric'`, `authorized: false`, `frame.type: 'camera_local'`, `frame.sharedAcrossViews: false`. Units remain `unitAuthority: service_reported`, `physicalUnitsVerified: false`. Scale remains `predicted_focal_normalization`. Serialized pointmaps are not body-masked (`pointmap value exists` $\ne$ authorized body-surface evidence); Layer C remains unimplemented. Authoritative Physical Body Geometry: **NOT ESTABLISHED**. Cross-view Physical Geometry: **BLOCKED**.
   - 4.5D Physical Blockers remain active on all 4 canonical measurements: `clothing_authorization_missing`, `view_pose_semantics_missing`, `authoritative_physical_evidence_missing`. Current Sapiens 4.5G results cannot satisfy Dimension E (`physicalEligibility: false`, `physicalMeasurementCm: null`).
   - Metric Projected measurements remain positive and valid, and remain **Metric Projected Measurements** (not authoritative physical body measurements): Front Shoulder ($30.80\text{ cm}$), Side Shoulder ($11.00\text{ cm}$), Front Hip ($42.20\text{ cm}$), Side Hip ($27.70\text{ cm}$). Landmark-to-landmark projected spans, Front Transverse Width, and Side Profile Span remain separate.
   - Cross-Section Evidence v0 evaluated: Shoulder paired orthogonal physical observations ($30.80\text{ cm}$ Front, $11.00\text{ cm}$ Side AP Depth) evaluate to `status: 'qualified'`; Hip paired orthogonal physical observations ($42.20\text{ cm}$ Front, $27.70\text{ cm}$ Side AP Depth) evaluate to `status: 'qualified'`.
+  - Batch A Direct Measurements evaluated: 19 calibrated measurements evaluated under `direct-body-measurements-v0`.
   - Metrological Principle: `metric projected measurement != authoritative physical body measurement`.
 - **Strict Guardrails**: Circumference Estimation v0 remains **not yet implemented**. Reason: Cross-Section Evidence v0 establishes paired orthogonal observations at matching levels, but circumference geometry requires a dedicated design and audit milestone. Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z \to$ REVacity canonical $Z$, no Front/Side pointmap fusion, no physical depth promotion beyond qualified 4.5H AP depth, no circumference, no ellipse inference, no 3D contour reconstruction, no body volume, no 3D reconstruction, no physical authority from `"meters"`, and no physical authority from Sapiens `scale`.
 
+### Verification Baseline
+- **483 tests passing**
+- **0 failures**
+- **10 test suites**
+- Clean production Vite build (`npm run build`)
+
 ---
 
-## 21. Key Source Files
+## 22. Key Source Files
 
 | File | Purpose |
 |------|---------|
@@ -808,7 +930,9 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, rawSources staging metadata capture (aposeResult, alignResult), and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics / clothing body-surface semantics / authoritative physical evidence semantics getters, sanitized diagnostic export |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics / clothing body-surface semantics / authoritative physical evidence semantics / direct body measurements getters, sanitized diagnostic export |
+| `src/features/directBodyMeasurements.js` | Direct Body Measurements Contract v0 (`direct-body-measurements-v0`) — pure deterministic derivation of 19 direct Batch A body measurements across Vertical Inter-Level, Projected Landmark Segments, and Kinematic Chains |
+| `src/features/directBodyMeasurements.test.js` | Direct Body Measurements Contract v0 unit tests |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
 | `src/features/anatomicalLevels.js` | Anatomical Level Contract v0 (`anatomical-levels-v0`) — pure derivation of 7 reference Y levels (neck, shoulder, elbow, wrist, hip, knee, ankle) from promoted Front body landmarks |
@@ -875,7 +999,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/ui/domRefs.js` | Safe cached DOM element references |
 | `src/ui/workspaceLayout.js` | Workspace tab management (3D / 2D / Body Graph), split divider, and right sidebar rail collapse |
 | `src/ui/leftPanel.js` | Anatomical Levels card renderer for the left inspector |
-| `src/ui/derivedMeasurementDeck.js` | Right Sidebar Results cards (Shoulder / Hip) |
+| `src/ui/derivedMeasurementDeck.js` | Right Sidebar Results cards (Cross-Section Evidence and Direct Measurements) |
 | `src/ui/advancedQaPanel.js` | Diagnostics Why Blocked + Advanced QA (intake / calibration) |
 | `src/ui/collapsibleSections.js` | Shared `[data-collapsible]` accordion wiring for left and right sidebars |
 | `src/ui/grid2dNavigator.js` | Front Surface 2D Grid Navigator (X/Y coordinates) |
