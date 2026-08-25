@@ -90,10 +90,16 @@ latent-space/
 │   │   ├── selection.js             # Selected point state and highlight (Annotate mode)
 │   │   ├── sideMeasurement.js       # Local Side Evidence A/B measurement state (U/Y Euclidean distance)
 │   │   ├── sideMeasurement.test.js  # Side measurement unit tests
+│   │   ├── sidePhysicalDepthQualification.js # Side Physical Depth Qualification Contract v0 — decides when Side profile span qualifies as physical AP depth estimate
+│   │   ├── sidePhysicalDepthQualification.test.js # Side Physical Depth Qualification Contract v0 unit tests
+│   │   ├── sidePoseQualification.js # Side T-Pose Qualification Contract v0 — evaluates Side arm reach, alignment, elbow straightness
+│   │   ├── sidePoseQualification.test.js # Side T-Pose Qualification Contract v0 unit tests
 │   │   ├── sideProfileSpan.js       # Side Profile Span Interpretation Contract v0 — pure interpretation of Side raster slice evidence into formal profile spans under measurement support policies and single_run_required policy
 │   │   ├── sideProfileSpan.test.js  # Side Profile Span Interpretation Contract v0 unit tests
 │   │   ├── sideRasterSlice.js       # Side Horizontal Raster Slice Contract v0 — pure single-row O(W) streaming scan returning contiguous horizontal runs with encountered class tracking
-│   │   └── sideRasterSlice.test.js  # Side Horizontal Raster Slice Contract v0 unit tests
+│   │   ├── sideRasterSlice.test.js  # Side Horizontal Raster Slice Contract v0 unit tests
+│   │   ├── sideViewOrientationQualification.js # Approximately-Lateral Side View Qualification Contract v0 — evaluates bilateral collapse consensus across stable pairs
+│   │   └── sideViewOrientationQualification.test.js # Approximately-Lateral Side View Qualification Contract v0 unit tests
 │   ├── interactions/
 │   │   ├── hover.js                 # Hover highlight and tooltip coordination
 │   │   ├── picking.js               # Mode-aware click picking (promoted landmark priority, lattice, selection)
@@ -213,6 +219,9 @@ latent-space/
 | `physicalMeasurementSemantics.js` | **Physical Measurement Semantics Contract v0 (`physical-measurement-semantics-v0`).** Pure deterministic domain contract classifying measurements into workspace, metric projected, and physical semantic tiers. 4.5G objects are accepted as physical evidence only through `isValidatedAuthoritativePhysicalGeometryEvidence` (registry-guarded). |
 | `viewPoseSemantics.js` | **View / Pose Semantics Contract v0 (`view-pose-semantics-v0`).** Pure deterministic domain qualification layer verifying Layer A declared view identity, Layer B 2D structural pose qualification (core landmarks, $LOW\_CONFIDENCE\_THRESHOLD = 0.5$, vertical ordering, A-pose arm separation), and Layer C physical orientation certification under recognized evaluators. |
 | `clothingBodySurfaceSemantics.js` | **Clothing / Body-Surface Semantics Contract v0 (`clothing-body-surface-semantics-v0`).** Pure deterministic domain qualification layer governing Layer A clothing participation from measurement support policy provenance, Layer B visual garment qualification with canonical `garmentFitStatus` taxonomy, and Layer C authoritative empirical body-surface authorization; derives the composite `clothingConstraintSatisfied` gate consumed by 4.5D to keep or clear the `clothing_authorization_missing` blocker. |
+| `sidePoseQualification.js` | **Side T-Pose Qualification Contract v0 (`side-t-pose-qualification-v0`).** Pure deterministic domain evaluator qualifying Side arm horizontal reach, shoulder-elbow-wrist alignment, elbow straightness, and bilateral symmetry against centralized engineering thresholds. |
+| `sideViewOrientationQualification.js` | **Approximately-Lateral Side View Qualification Contract v0 (`side-view-orientation-qualification-v0`).** Pure deterministic domain evaluator determining whether Side acquisition is lateral-compatible using bilateral landmark collapse consensus across stable body pairs (shoulders, hips, knees, ankles). |
+| `sidePhysicalDepthQualification.js` | **Side Physical Depth Qualification Contract v0 (`side-physical-depth-qualification-v0`).** Pure deterministic domain contract qualifying when a valid Side profile span observation may be interpreted as a qualified side-derived physical AP depth estimate across source validity, calibration, T-pose, lateral orientation, and fitted clothing gates. |
 | `physicalMeasurementEligibility.js` | **Physical Measurement Eligibility Contract v0 (`physical-measurement-eligibility-v0`) & Paired Cross-View Eligibility Contract v0 (`paired-cross-view-eligibility-v0`).** Authoritative downstream eligibility gate evaluating whether individual and paired measurements meet all constraints (structural integrity, metric calibration, view/pose semantics, clothing attribution, and authoritative physical evidence) to be consumed as true physical body scalars. Dimension E consumes 4.5G only when `contract`, `status === 'validated'`, `authorized === true`, `physicalAuthority.status === 'authoritative'`, and `evaluatorId` are registered as an implemented authoritative physical-geometry evaluator. |
 | `bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute (orphaned / internal helper). |
 | `bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute (candidate readiness lines). |

@@ -608,7 +608,38 @@ A strict read-only audit of measurement placement and semantics verified current
 - **Side Terminology**:
   - Authoritative term remains **Side Profile Span** (projected Side-U profile span).
   - It is **NOT** promoted to physical depth, AP depth, canonical Z, or body thickness at this stage (deferred to Milestone 4.5H).
-- **Immediate Next Milestone**: **4.5H — Side Physical Depth Qualification v0**.
+### 4.5H Side Physical Depth Qualification v0 (`side-physical-depth-qualification-v0`) — COMPLETED
+
+Pure deterministic domain qualification layer evaluating when a valid `side-profile-span-v0` observation may be interpreted as a **qualified side-derived physical anterior–posterior (AP) depth estimate**:
+
+- **Core Contracts**:
+  - `side-t-pose-qualification-v0` (`src/features/sidePoseQualification.js`): Evaluates Side-view arm horizontal reach, shoulder-elbow-wrist alignment, elbow straightness, and bilateral symmetry with centralized engineering thresholds (`SIDE_T_POSE_THRESHOLDS`). Does NOT require Front T-pose (Front is intentionally A-pose).
+  - `side-view-orientation-qualification-v0` (`src/features/sideViewOrientationQualification.js`): Evaluates bilateral landmark projection collapse across stable body pairs (`shoulders`, `hips`, `knees`, `ankles`). Wrists and elbows are strictly excluded due to Front A-pose / Side T-pose asymmetry. Evaluates to `approximately_lateral` without claiming exact 90° camera yaw or extrinsics.
+  - `side-physical-depth-qualification-v0` (`src/features/sidePhysicalDepthQualification.js`): Integrates source Side profile span validity, metric calibration provenance, Side T-pose stance, approximately-lateral orientation, and fitted-clothing/body-surface authorization.
+- **Runtime Getters (`src/features/bodyEvidence.js`)**:
+  - `getSidePoseQualification({ sidePoseSource })`
+  - `getSideViewOrientationQualification({ frontPoseSource, sidePoseSource, annotations })`
+  - `getSidePhysicalDepthQualification({ id, annotations, ... })`
+  - `getSidePhysicalDepthQualifications({ annotations, ... })`
+- **Acquisition Protocol Assumptions**:
+  - Front view = A-pose, Side view = T-pose.
+  - Clothing = bikini / lingerie / tight body-following activewear under `trunk_core_support_v0` and `pelvic_core_support_v0`.
+  - Side view = approximately lateral.
+- **Qualified Depth Semantics**:
+  - **Shoulder**: Qualified side-derived AP depth estimate at bilateral mean shoulder landmark level. NOT canonical Z, NOT biacromial breadth, NOT full arm span.
+  - **Hip**: Qualified side-derived AP depth estimate at bilateral mean hip landmark level. NOT maximum buttock depth, NOT maximum seat depth, NOT widest pelvic row.
+- **Value Assignment Rule**:
+  - When `status === 'qualified'`: `qualifiedDepthEstimateCm = sourceSideProfileSpan.valueCm`.
+  - When `status !== 'qualified'` (`warning`, `disqualified`, `unavailable`): `qualifiedDepthEstimateCm = null`.
+- **Downstream Limitation (Cross-Section Compatibility)**:
+  - 4.5H qualifies the Side AP depth estimate itself. It does **NOT** claim that Front transverse width and Side AP depth form a certified common physical cross-section (Front A-pose / Side T-pose mismatch deferred to the future Cross-Section Evidence milestone).
+- **Strict Guardrails**:
+  - No Side $U \to Z$ conversion.
+  - No Sapiens pointmap Z dependency.
+  - No Front/Side 3D fusion.
+  - No claim of ground-truth validated depth.
+  - No circumference estimation.
+- **Immediate Next Milestone**: **Cross-Section Evidence v0** (prerequisite before Circumference Estimation).
 
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 

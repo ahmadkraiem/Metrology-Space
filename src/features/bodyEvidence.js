@@ -81,6 +81,22 @@ import {
   evaluateAuthoritativePhysicalEvidenceSemanticsReport,
 } from './authoritativePhysicalEvidenceSemantics.js';
 import {
+  SIDE_T_POSE_CONTRACT_VERSION,
+  SIDE_T_POSE_STATUS,
+  evaluateSidePoseQualification,
+} from './sidePoseQualification.js';
+import {
+  SIDE_VIEW_ORIENTATION_CONTRACT_VERSION,
+  SIDE_VIEW_ORIENTATION_STATUS,
+  evaluateSideViewOrientationQualification,
+} from './sideViewOrientationQualification.js';
+import {
+  SIDE_PHYSICAL_DEPTH_CONTRACT_VERSION,
+  SIDE_PHYSICAL_DEPTH_STATUS,
+  SUPPORTED_SIDE_PHYSICAL_DEPTH_DEFINITIONS_V0,
+  evaluateSidePhysicalDepthQualification,
+} from './sidePhysicalDepthQualification.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -1880,6 +1896,153 @@ export function getPairedCrossViewEligibilityReport({
     contract: 'paired-cross-view-eligibility-report-v0',
     version: PAIRED_CROSS_VIEW_ELIGIBILITY_CONTRACT_VERSION,
     pairs,
+  };
+}
+
+/**
+ * Evaluates pure deterministic Side T-pose stance qualification from active runtime state.
+ *
+ * @param {{ sidePoseSource?: object|null }} [options]
+ * @returns {object|null} SideTPoseQualificationResult
+ */
+export function getSidePoseQualification({ sidePoseSource = null } = {}) {
+  const resolvedSidePose = sidePoseSource
+    ?? currentPackage?.side?.pose
+    ?? qaResult?.views?.side?.pose
+    ?? null;
+  if (!resolvedSidePose) return null;
+  return evaluateSidePoseQualification(resolvedSidePose);
+}
+
+/**
+ * Evaluates pure deterministic approximately-lateral Side view qualification from active runtime state.
+ *
+ * @param {{ frontPoseSource?: object|null, sidePoseSource?: object|null, annotations?: Array<object>|null }} [options]
+ * @returns {object|null} SideViewOrientationQualificationResult
+ */
+export function getSideViewOrientationQualification({
+  frontPoseSource = null,
+  sidePoseSource = null,
+  annotations = null,
+} = {}) {
+  const resolvedFrontPose = frontPoseSource
+    ?? annotations
+    ?? currentPackage?.front?.pose
+    ?? qaResult?.views?.front?.pose
+    ?? null;
+
+  const resolvedSidePose = sidePoseSource
+    ?? currentPackage?.side?.pose
+    ?? qaResult?.views?.side?.pose
+    ?? null;
+
+  const resolvedSideSeg = currentPackage?.side?.segmentation
+    ?? qaResult?.views?.side?.segmentation
+    ?? null;
+
+  if (!resolvedFrontPose || !resolvedSidePose) return null;
+
+  return evaluateSideViewOrientationQualification({
+    frontPoseSource: resolvedFrontPose,
+    sidePoseSource: resolvedSidePose,
+    sideSegmentation: resolvedSideSeg,
+  });
+}
+
+/**
+ * Evaluates pure deterministic Side physical depth qualification for a single Side observation.
+ *
+ * @param {{
+ *   id: string,
+ *   annotations?: Array<object>|null,
+ *   metricCalibrationProvenance?: object|null,
+ *   sidePoseQualification?: object|null,
+ *   sideViewOrientationQualification?: object|null,
+ *   clothingSemantics?: object|null,
+ * }} options
+ * @returns {object|null} SidePhysicalDepthQualificationResult
+ */
+export function getSidePhysicalDepthQualification({
+  id,
+  annotations = null,
+  metricCalibrationProvenance = null,
+  sidePoseQualification = null,
+  sideViewOrientationQualification = null,
+  clothingSemantics = null,
+} = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_SIDE_PHYSICAL_DEPTH_DEFINITIONS_V0[id]
+    ?? Object.values(SUPPORTED_SIDE_PHYSICAL_DEPTH_DEFINITIONS_V0).find((d) => d.id === id || d.sourceObservationDefinitionId === id);
+  if (!def) return null;
+
+  const sourceObs = getSideProfileSpan({ id: def.sourceObservationDefinitionId, annotations });
+  if (!sourceObs) return null;
+
+  const resolvedCalibration = metricCalibrationProvenance
+    ?? getMetricCalibrationProvenance({ view: 'side' });
+
+  const resolvedSidePose = sidePoseQualification
+    ?? getSidePoseQualification();
+
+  const resolvedOrientation = sideViewOrientationQualification
+    ?? getSideViewOrientationQualification({ annotations });
+
+  const resolvedClothing = clothingSemantics
+    ?? getClothingBodySurfaceSemantics({ id: def.sourceObservationDefinitionId, annotations });
+
+  return evaluateSidePhysicalDepthQualification(sourceObs, {
+    definition: def,
+    metricCalibrationProvenance: resolvedCalibration,
+    sidePoseQualification: resolvedSidePose,
+    sideViewOrientationQualification: resolvedOrientation,
+    clothingSemantics: resolvedClothing,
+  });
+}
+
+/**
+ * Evaluates pure deterministic Side physical depth qualification report for all supported definitions.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   metricCalibrationProvenance?: object|null,
+ *   sidePoseQualification?: object|null,
+ *   sideViewOrientationQualification?: object|null,
+ *   clothingSemantics?: object|null,
+ * }} [options]
+ * @returns {{
+ *   contract: 'side-physical-depth-qualifications-report-v0',
+ *   version: string,
+ *   view: 'side',
+ *   qualifications: Array<object>,
+ * }|null}
+ */
+export function getSidePhysicalDepthQualifications({
+  annotations = null,
+  metricCalibrationProvenance = null,
+  sidePoseQualification = null,
+  sideViewOrientationQualification = null,
+  clothingSemantics = null,
+} = {}) {
+  const sideRaster = getSideSegmentationRaster();
+  if (!sideRaster && !currentPackage) return null;
+
+  const definitions = Object.values(SUPPORTED_SIDE_PHYSICAL_DEPTH_DEFINITIONS_V0);
+  const qualifications = definitions.map((def) =>
+    getSidePhysicalDepthQualification({
+      id: def.id,
+      annotations,
+      metricCalibrationProvenance,
+      sidePoseQualification,
+      sideViewOrientationQualification,
+      clothingSemantics,
+    })
+  ).filter(Boolean);
+
+  return {
+    contract: 'side-physical-depth-qualifications-report-v0',
+    version: SIDE_PHYSICAL_DEPTH_CONTRACT_VERSION,
+    view: 'side',
+    qualifications,
   };
 }
 
