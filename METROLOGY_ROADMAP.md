@@ -613,9 +613,15 @@ A strict read-only audit of measurement placement and semantics verified current
 Pure deterministic domain qualification layer evaluating when a valid `side-profile-span-v0` observation may be interpreted as a **qualified side-derived physical anterior–posterior (AP) depth estimate**:
 
 - **Core Contracts**:
-  - `side-t-pose-qualification-v0` (`src/features/sidePoseQualification.js`): Evaluates Side-view arm horizontal reach, shoulder-elbow-wrist alignment, elbow straightness, and bilateral symmetry with centralized engineering thresholds (`SIDE_T_POSE_THRESHOLDS`). Does NOT require Front T-pose (Front is intentionally A-pose).
+  - `side-t-pose-qualification-v0` (`src/features/sidePoseQualification.js`): Evaluates Side-view arm horizontal reach, shoulder-elbow-wrist alignment, 2D projected elbow collinearity deviation, and bilateral symmetry with centralized engineering thresholds (`SIDE_T_POSE_THRESHOLDS`). Does NOT require Front T-pose (Front is intentionally A-pose).
   - `side-view-orientation-qualification-v0` (`src/features/sideViewOrientationQualification.js`): Evaluates bilateral landmark projection collapse across stable body pairs (`shoulders`, `hips`, `knees`, `ankles`). Wrists and elbows are strictly excluded due to Front A-pose / Side T-pose asymmetry. Evaluates to `approximately_lateral` without claiming exact 90° camera yaw or extrinsics.
   - `side-physical-depth-qualification-v0` (`src/features/sidePhysicalDepthQualification.js`): Integrates source Side profile span validity, metric calibration provenance, Side T-pose stance, approximately-lateral orientation, and fitted-clothing/body-surface authorization.
+- **Side T-Pose & Elbow Deviation Semantics**:
+  - **2D Projected Geometry**: The `shoulder → elbow → wrist` angle is a **2D projected landmark collinearity deviation**, NOT authoritative anatomical elbow flexion (single-view 2D pose keypoints cannot recover 3D anatomical joint rotations).
+  - **Thresholds Preserved**: `MAX_ELBOW_BEND_DEGREES = 30.0` (straight arm boundary), `WARNING_ELBOW_BEND_DEGREES = 45.0` (severe bend boundary).
+  - **Advisory Warning Range ($30^\circ - 45^\circ$)**: A projected elbow deviation in the $30^\circ - 45^\circ$ range is treated as an **advisory diagnostic signal** when horizontal arm reach ($\text{extensionRatio} \ge 0.70$), arm elevation ($\le 20^\circ$ or non-lowered), and torso clearance are maintained. It does **not** independently block Side physical depth qualification.
+  - **Conservative Disqualifiers**: Severe projected elbow deviation ($> 45^\circ$), poor reach ($< 0.70$), lowered arm ($> 35^\circ$), or missing required landmarks continue to disqualify the stance.
+  - **Semantic Decoupling**: Side T-Pose stance diagnostics may retain `status: 'warning'` while Side Physical Depth evaluates to `status: 'qualified'`. (Verified behavior on real capture: left projected elbow deviation $\approx 44.2^\circ \to$ pose diagnostic warning retained, Side AP depth qualified).
 - **Runtime Getters (`src/features/bodyEvidence.js`)**:
   - `getSidePoseQualification({ sidePoseSource })`
   - `getSideViewOrientationQualification({ frontPoseSource, sidePoseSource, annotations })`
@@ -637,9 +643,10 @@ Pure deterministic domain qualification layer evaluating when a valid `side-prof
   - No Side $U \to Z$ conversion.
   - No Sapiens pointmap Z dependency.
   - No Front/Side 3D fusion.
-  - No claim of ground-truth validated depth.
+  - No claim of ground-truth validated depth or 3D anatomical joint angles.
   - No circumference estimation.
 - **Immediate Next Milestone**: **Cross-Section Evidence v0** (prerequisite before Circumference Estimation).
+- **Subsequent Milestone**: **Circumference Estimation v0** (Milestone 4.6).
 
 ### 4.6 Circumference / Cross-section Inference — BLOCKED
 
