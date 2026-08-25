@@ -502,3 +502,57 @@ test('rightSidebarStage2: live UI no longer references removed Session tab IDs',
     }
   }
 });
+
+test('rightSidebarStage2: Results deck is marked data-collapsible and expanded by default', () => {
+  const deck = sliceBetween(markup, 'id="derived-measurement-deck"', 'id="session-records-panel"');
+  assert.match(deck, /data-collapsible/);
+  assert.equal(/data-collapsed/.test(deck), false);
+  assert.equal(/is-collapsed/.test(deck), false);
+  assert.match(deck, /class="deck-header"/);
+  assert.match(deck, /class="deck-title">Results</);
+  assert.match(deck, /id="derived-measurement-cards"/);
+});
+
+test('rightSidebarStage2: Results deck initializes expanded, toggles collapse/expand, and keeps measurement cards mounted', () => {
+  const mountedCards = {
+    id: 'derived-measurement-cards',
+    children: [
+      { id: 'shoulder-card', text: 'Shoulder Level' },
+      { id: 'hip-card', text: 'Hip Level' },
+    ],
+  };
+  const resultsDeck = createCollapsibleMock({
+    classes: ['derived-measurement-deck'],
+    collapsed: false,
+    headerClass: 'deck-header',
+  });
+  resultsDeck.section.mounted = mountedCards;
+
+  initCollapsibleSections(resultsDeck.section);
+  assert.equal(resultsDeck.section.classList.contains('is-collapsed'), false);
+  assert.equal(resultsDeck.header.getAttribute('aria-expanded'), 'true');
+  assert.equal(resultsDeck.header.getAttribute('role'), 'button');
+  assert.equal(resultsDeck.header.getAttribute('tabindex'), '0');
+
+  // Collapse Results
+  resultsDeck.header.click();
+  assert.equal(resultsDeck.section.classList.contains('is-collapsed'), true);
+  assert.equal(resultsDeck.header.getAttribute('aria-expanded'), 'false');
+  assert.equal(resultsDeck.section.mounted.id, 'derived-measurement-cards');
+  assert.equal(resultsDeck.section.mounted.children.length, 2);
+
+  // Expand Results
+  resultsDeck.header.click();
+  assert.equal(resultsDeck.section.classList.contains('is-collapsed'), false);
+  assert.equal(resultsDeck.header.getAttribute('aria-expanded'), 'true');
+  assert.equal(resultsDeck.section.mounted.id, 'derived-measurement-cards');
+  assert.equal(resultsDeck.section.mounted.children.length, 2);
+});
+
+test('rightSidebarStage2: QA key-value styles prevent awkward word breaking on short technical labels', () => {
+  const css = readFileSync(join(rootDir, 'src', 'styles', 'components.css'), 'utf8');
+  assert.match(css, /\.info-label\s*\{[^}]*white-space:\s*nowrap/);
+  assert.match(css, /\.info-value\s*\{[^}]*overflow-wrap:\s*break-word/);
+  assert.match(css, /\.advanced-qa-section \.info-label\s*\{[^}]*white-space:\s*nowrap/);
+  assert.match(css, /\.deck-header--collapsible/);
+});

@@ -77,8 +77,14 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
+}
+
+.info-row--stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .info-row--highlight {
@@ -88,12 +94,21 @@
 }
 
 .info-label {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 52%;
+  flex: 0 0 auto;
+  min-width: fit-content;
+  max-width: 65%;
   color: var(--text-muted);
   font-size: 10px;
   line-height: 1.45;
+  white-space: nowrap;
+}
+
+.info-row--stacked .info-label {
+  max-width: 100%;
+  font-size: 8.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
 }
 
 .info-value {
@@ -102,8 +117,17 @@
   text-align: right;
   color: var(--text-secondary);
   line-height: 1.45;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.info-row--stacked .info-value {
+  flex: 0 0 auto;
+  width: 100%;
+  text-align: left;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-secondary);
 }
 
 
@@ -1896,6 +1920,42 @@ select:focus-visible {
   gap: 6px;
 }
 
+.deck-header--collapsible {
+  cursor: pointer;
+  user-select: none;
+  width: 100%;
+}
+
+.deck-header--collapsible::after {
+  content: '▾';
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+  line-height: 1;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.deck-header--collapsible:hover::after {
+  color: var(--purple-bright);
+}
+
+.derived-measurement-deck[data-collapsible].is-collapsed > .deck-header--collapsible::after {
+  content: '▸';
+}
+
+.derived-measurement-deck[data-collapsible].is-collapsed {
+  gap: 0;
+  padding: 8px 12px;
+}
+
+.derived-measurement-deck[data-collapsible].is-collapsed > .derived-measurement-cards {
+  display: none;
+}
+
 .deck-title {
   font-family: var(--font-display);
   font-size: 9.5px;
@@ -1973,6 +2033,7 @@ select:focus-visible {
 .derived-row-label {
   font-size: 8px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .derived-row-value {
@@ -2042,31 +2103,31 @@ select:focus-visible {
   gap: 6px;
   min-width: 0;
   padding: 7px 9px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(147, 51, 234, 0.14);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(147, 51, 234, 0.18);
   border-radius: var(--radius-sm);
 }
 
 .advanced-qa-section-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-  padding-bottom: 5px;
-  border-bottom: 1px solid rgba(147, 51, 234, 0.1);
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(147, 51, 234, 0.12);
 }
 
 .advanced-qa-section-title {
   flex: 1 1 auto;
   min-width: 0;
   font-family: var(--font-display);
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.08em;
   line-height: 1.35;
   text-transform: uppercase;
-  color: var(--purple-bright);
+  color: var(--text-primary);
   overflow-wrap: anywhere;
 }
 
@@ -2077,25 +2138,45 @@ select:focus-visible {
 .advanced-qa-section-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
   font-size: 10px;
   line-height: 1.45;
 }
 
 .advanced-qa-section .info-label {
-  font-size: 10px;
-  line-height: 1.45;
+  font-size: 8.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .advanced-qa-section .info-value {
-  font-size: 10.5px;
-  line-height: 1.45;
+  font-size: 10px;
+  line-height: 1.4;
   color: var(--text-primary);
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .advanced-qa-section .info-value--data {
   font-family: var(--font-mono);
+  color: var(--cyan-data);
+}
+
+.advanced-qa-section .info-value--muted {
+  color: var(--text-muted);
+}
+
+.advanced-qa-section .info-row--stacked .info-value {
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.qa-numeric-value {
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--cyan-data);
 }
 
 .advanced-qa-section .info-value .body-evidence-badge {

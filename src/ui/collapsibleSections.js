@@ -4,10 +4,11 @@
  * Does not touch scene, measurement, annotation, or export/import state.
  */
 
-/** Panel sections and inner subgroups collapse the same way, with their own header/caret class. */
+/** Panel sections, inner subgroups, and deck headers collapse the same way, with their own header/caret class. */
 const HEADER_VARIANTS = [
   { selector: ':scope > .section-title', collapsibleClass: 'section-title--collapsible' },
   { selector: ':scope > .inspector-subgroup-label', collapsibleClass: 'inspector-subgroup-label--collapsible' },
+  { selector: ':scope > .deck-header', collapsibleClass: 'deck-header--collapsible' },
 ];
 
 const wiredSections = new WeakSet();

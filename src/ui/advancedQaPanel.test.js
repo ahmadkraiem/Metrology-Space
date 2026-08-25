@@ -225,3 +225,34 @@ test('advancedQaPanel: 4.5H renders Side T-Pose, Lateral Orientation, and AP Dep
   assert.equal(html.includes('Hip Level AP Depth') || html.includes('Hip AP Depth'), true);
   assert.equal(html.includes('27.70 cm'), true);
 });
+
+test('advancedQaPanel: long diagnostic values render in stacked rows and short values remain inline', () => {
+  const html = buildAdvancedQaContentHtml({
+    pkg: { sampleId: 'subject-01', version: 'body-evidence-package-v0', sourceFormat: 'REVacity Package' },
+    qa: { version: 'v0' },
+    provenance: { status: 'validated', calibration: { isIsotropic: true, pixelsPerCm: 10 } },
+    sidePoseQual: {
+      status: 'warning',
+      qualified: false,
+      summary: { evaluatedArms: ['left'], dominantArm: 'left' },
+      issues: [],
+      warnings: ['left projected elbow deviation: 44.2°'],
+    },
+    sideOrientationQual: {
+      status: 'qualified',
+      qualified: true,
+      orientationSemantics: 'approximately_lateral',
+      summary: { usablePairsCount: 4, passedPairsCount: 4, aggregateCollapseRatio: 0.078 },
+    },
+  });
+
+  // Long diagnostic value renders in stacked row
+  assert.match(html, /<div class="info-row info-row--stacked">\s*<span class="info-label">Stance Geometry<\/span>\s*<span class="info-value">left projected elbow deviation: 44\.2°<\/span>\s*<\/div>/);
+  assert.match(html, /<div class="info-row info-row--stacked">\s*<span class="info-label">Bilateral Consensus<\/span>\s*<span class="info-value">4\/4 pairs passed \(7\.8% collapse\)<\/span>\s*<\/div>/);
+  assert.match(html, /<div class="info-row info-row--stacked">\s*<span class="info-label">Fidelity Scope<\/span>\s*<span class="info-value info-value--muted">Projection collapse · No 90° claim<\/span>\s*<\/div>/);
+
+  // Short properties remain in standard inline rows
+  assert.match(html, /<div class="info-row"><span class="info-label">Sample ID<\/span><span class="info-value info-value--data">subject-01<\/span><\/div>/);
+  assert.match(html, /<div class="info-row"><span class="info-label">Evaluated Arms<\/span><span class="info-value">left \(left arm\)<\/span><\/div>/);
+  assert.match(html, /<div class="info-row"><span class="info-label">Orientation Stance<\/span><span class="info-value">Approximately Lateral<\/span><\/div>/);
+});

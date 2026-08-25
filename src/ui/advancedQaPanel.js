@@ -111,7 +111,7 @@ function renderSidePoseQaSection(sidePoseQual) {
       </div>
       <div class="advanced-qa-section-body">
         <div class="info-row"><span class="info-label">Evaluated Arms</span><span class="info-value">${escapeHtml(armText)}</span></div>
-        <div class="info-row"><span class="info-label">Stance Geometry</span><span class="info-value">${escapeHtml(postureText)}</span></div>
+        <div class="info-row info-row--stacked"><span class="info-label">Stance Geometry</span><span class="info-value">${escapeHtml(postureText)}</span></div>
       </div>
     </div>
   `;
@@ -140,8 +140,8 @@ function renderSideOrientationQaSection(sideOrientationQual) {
       </div>
       <div class="advanced-qa-section-body">
         <div class="info-row"><span class="info-label">Orientation Stance</span><span class="info-value">${escapeHtml(orientationText)}</span></div>
-        <div class="info-row"><span class="info-label">Bilateral Consensus</span><span class="info-value">${escapeHtml(consensusText)}</span></div>
-        <div class="info-row"><span class="info-label">Fidelity Scope</span><span class="info-value info-value--muted">Projection collapse · No 90° claim</span></div>
+        <div class="info-row info-row--stacked"><span class="info-label">Bilateral Consensus</span><span class="info-value">${escapeHtml(consensusText)}</span></div>
+        <div class="info-row info-row--stacked"><span class="info-label">Fidelity Scope</span><span class="info-value info-value--muted">Projection collapse · No 90° claim</span></div>
       </div>
     </div>
   `;
