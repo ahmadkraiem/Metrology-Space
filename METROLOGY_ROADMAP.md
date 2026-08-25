@@ -645,23 +645,68 @@ Pure deterministic domain qualification layer evaluating when a valid `side-prof
   - No Front/Side 3D fusion.
   - No claim of ground-truth validated depth or 3D anatomical joint angles.
   - No circumference estimation.
-- **Immediate Next Milestone**: **Cross-Section Evidence v0** (prerequisite before Circumference Estimation).
-- **Subsequent Milestone**: **Circumference Estimation v0** (Milestone 4.6).
+- **Completed Milestone**: **Cross-Section Evidence v0** (Milestone 4.5I).
+- **Next Milestone**: **Circumference Estimation v0 Design & Audit Stage** (Milestone 4.6).
 
-### 4.6 Circumference / Cross-section Inference — BLOCKED
+### 4.5I Cross-Section Evidence v0 (`cross-section-evidence-v0`) — COMPLETED
 
-Remains strictly **BLOCKED**. It is **not** active and **not** completed.
+Pure deterministic compositional evidence layer combining already-qualified Front transverse width and Side AP physical depth observations at matching validated anatomical reference levels into a unified paired physical observation contract:
 
-- **Reason**: The current system has valid projected Front/Side metric evidence and camera-frame pointmap evidence, but authoritative physical cross-section/depth semantics have not yet been established.
-- **Model-Specific Unlock Rule**:
-  - 4.6 is **not** globally unlocked.
-  - A downstream *Physical Front+Side Cross-Section Model* requires:
-    - Front: `physicalEligibility === true` and non-null `physicalMeasurementCm`.
-    - Side: `physicalEligibility === true` and non-null `physicalMeasurementCm`.
-    - Paired: `pairedPhysicalEligibility === true`.
-  - Current real archive evidence does **NOT** satisfy this (both views blocked by clothing, missing physical view/pose orientation certification, and missing authoritative physical evidence). Camera-frame Sapiens pointmaps do not unlock 4.6.
-  - A future empirical silhouette model may explicitly consume `pairedMetricProjectedEligibility: true`, but that model must declare, validate, and isolate its own empirical assumptions.
-- **Strict Guardrail**: Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z$ promotion, and no premature ellipse, circumference, or 3D cross-section calculations.
+- **Core Contract (`src/features/crossSectionEvidence.js`)**:
+  - `cross-section-evidence-v0`: Composes existing upstream evidence contracts without recalculating raster slices or re-estimating scalar values.
+  - Consumes:
+    - `front-transverse-width-v0` (`src/features/frontTransverseWidth.js`)
+    - `side-physical-depth-qualification-v0` (`src/features/sidePhysicalDepthQualification.js`)
+    - `cross-view-measurement-correspondence-v0` (`src/features/crossViewMeasurementCorrespondence.js`)
+    - `cross-view-comparability-qa-v0` (`src/features/crossViewComparabilityQa.js`)
+    - `metric-calibration-provenance-v0` (`src/features/metricCalibrationProvenance.js`)
+- **Supported Anatomical Levels**:
+  - Strictly limited to currently validated and shared physical measurement levels: **Shoulder** and **Hip**.
+  - Chest, waist, abdomen, and other levels are not supported.
+- **Verified Runtime Results**:
+  - **Shoulder Level**:
+    - Front Transverse Width = $30.80\text{ cm}$ (`valid`, Trunk core support policy `[22, 23]`)
+    - Side AP Depth = $11.00\text{ cm}$ (`qualified`, physical AP depth estimate)
+    - Correspondence = `ready` ($Y = 132.85\text{ cm}$, $\Delta Y = 0.0\text{ cm}$)
+    - Comparability QA = `pass` (10/10 checks)
+    - Cross-Section Evidence = **`QUALIFIED`** (`isQualified: true`)
+  - **Hip Level**:
+    - Front Transverse Width = $42.20\text{ cm}$ (`valid`, Pelvic core support policy `[12, 13, 21, 22]`)
+    - Side AP Depth = $27.70\text{ cm}$ (`qualified`, physical AP depth estimate)
+    - Correspondence = `ready` ($Y = 86.25\text{ cm}$, $\Delta Y = 0.0\text{ cm}$)
+    - Comparability QA = `pass` (10/10 checks)
+    - Cross-Section Evidence = **`QUALIFIED`** (`isQualified: true`)
+- **Preserved Side T-Pose Semantics**:
+  - 2D projected elbow deviation remains an advisory diagnostic signal in the $30^\circ - 45^\circ$ range.
+  - A moderate advisory note (e.g. left projected elbow deviation $\approx 44.2^\circ$) does **not** block Cross-Section Evidence when downstream Side Physical Depth is `qualified`. The evaluator trusts authoritative downstream qualification and forwards advisory notes into `warnings`.
+- **Runtime Getters (`src/features/bodyEvidence.js`)**:
+  - `getCrossSectionEvidence({ id, annotations, ... })`
+  - `getCrossSectionEvidenceReport({ annotations, ... })`
+- **Minimal UI Integration (`src/ui/derivedMeasurementDeck.js`)**:
+  - Read-only Shoulder and Hip cards display `Front Transverse Width`, `Side Profile Span`, `Side AP Depth`, and `Cross-Section Evidence` status (`QUALIFIED`, `BLOCKED`, `UNAVAILABLE`).
+- **Semantic Definition & Strict Boundaries**:
+  - Cross-Section Evidence v0 represents **paired orthogonal physical observations at a matching anatomical level**.
+  - It does **NOT** represent:
+    - a reconstructed 3D cross-section or slice
+    - a closed contour or polygon
+    - an ellipse or semi-axis model ($a = w/2, b = d/2$)
+    - circumference or perimeter
+    - body volume
+    - canonical Z geometry
+    - Front/Side pointmap fusion
+- **Verification Baseline**:
+  - 456/456 unit and DOM tests passing.
+  - Clean production bundle build (`npm run build`).
+- **Next Milestone**: **Circumference Estimation v0 Design & Audit Stage** (Milestone 4.6).
+
+### 4.6 Circumference Estimation v0 Design & Audit Stage — NEXT
+
+Next milestone in the RVEacity Metrology Space roadmap. Circumference estimation remains **not yet implemented**.
+
+- **Prerequisite Met**: Cross-Section Evidence v0 is completed and verified for Shoulder and Hip levels.
+- **Stage Objective**: Perform a rigorous read-only design and audit phase for Circumference Estimation v0 before writing implementation code.
+- **Model Agnostic**: Does not prematurely prescribe a specific geometric model (such as ellipse, superellipse, B-spline, or contour reconstruction).
+- **Strict Guardrail**: Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z$ promotion, and no premature circumference emission until formal audit and specification approval.
 
 ## 5. Canonical / Latent Layer — LATER
 

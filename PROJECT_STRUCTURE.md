@@ -60,6 +60,8 @@ latent-space/
 │   │   ├── bodyMeasurementLevels.js # Measurement Reference Levels v0 compute (orphaned / internal helper)
 │   │   ├── bodyMeasurementLines.js  # Anatomical Measurement Lines v0 compute (candidate readiness lines)
 │   │   ├── bodyMeasurementPreview.js # Measurement Line Preview Overlay v0 (3D + Front 2D preview lines)
+│   │   ├── crossSectionEvidence.js  # Cross-Section Evidence Contract v0 — pure deterministic compositional layer pairing qualified Front transverse width and Side AP depth at validated reference levels (shoulder, hip)
+│   │   ├── crossSectionEvidence.test.js # Cross-Section Evidence Contract v0 unit tests
 │   │   ├── crossViewComparabilityQa.js # Cross-view Comparability QA Contract v0 — pure deterministic comparability QA over established 4.5A correspondence evidence across 10 inspectable checks
 │   │   ├── crossViewComparabilityQa.test.js # Cross-view Comparability QA Contract v0 unit tests
 │   │   ├── crossViewMeasurementCorrespondence.js # Cross-view Measurement Correspondence Contract v0 — pure deterministic correspondence pairing Front transverse width and Side profile span observations at matching anatomical source levels
@@ -222,6 +224,7 @@ latent-space/
 | `sidePoseQualification.js` | **Side T-Pose Qualification Contract v0 (`side-t-pose-qualification-v0`).** Pure deterministic domain evaluator qualifying Side arm horizontal reach, shoulder-elbow-wrist alignment, 2D projected elbow collinearity deviation, and bilateral symmetry against centralized engineering thresholds. |
 | `sideViewOrientationQualification.js` | **Approximately-Lateral Side View Qualification Contract v0 (`side-view-orientation-qualification-v0`).** Pure deterministic domain evaluator determining whether Side acquisition is lateral-compatible using bilateral landmark collapse consensus across stable body pairs (shoulders, hips, knees, ankles). |
 | `sidePhysicalDepthQualification.js` | **Side Physical Depth Qualification Contract v0 (`side-physical-depth-qualification-v0`).** Pure deterministic domain contract qualifying when a valid Side profile span observation may be interpreted as a qualified side-derived physical AP depth estimate across source validity, calibration, T-pose, lateral orientation, and fitted clothing gates. |
+| `crossSectionEvidence.js` | **Cross-Section Evidence Contract v0 (`cross-section-evidence-v0`).** Pure deterministic compositional evidence layer combining qualified Front transverse width and Side AP physical depth observations at matching validated reference levels (`shoulder`, `hip`). Reuses upstream evidence without recalculating raster slices or re-estimating values; preserves Side T-pose advisory ~44.2° projected elbow semantics; emits zero circumference or 3D contour fields. |
 | `physicalMeasurementEligibility.js` | **Physical Measurement Eligibility Contract v0 (`physical-measurement-eligibility-v0`) & Paired Cross-View Eligibility Contract v0 (`paired-cross-view-eligibility-v0`).** Authoritative downstream eligibility gate evaluating whether individual and paired measurements meet all constraints (structural integrity, metric calibration, view/pose semantics, clothing attribution, and authoritative physical evidence) to be consumed as true physical body scalars. Dimension E consumes 4.5G only when `contract`, `status === 'validated'`, `authorized === true`, `physicalAuthority.status === 'authoritative'`, and `evaluatorId` are registered as an implemented authoritative physical-geometry evaluator. |
 | `bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute (orphaned / internal helper). |
 | `bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute (candidate readiness lines). |
@@ -273,7 +276,7 @@ latent-space/
 | `frontSideAlignmentPanel.js` | Read-only Diagnostics → Front–Side Alignment presentation. Derives the alignment report on demand; renders top summary card and collapsible Core Pairs, Secondary Pairs, and Issues groups. |
 | `bodyGraphWorkspace.js` | Renders the read-only Core 13 Body Graph topology workspace and summary statistics. |
 | `bodyTabConsolidatedPanel.js` | Wires Diagnostics Front–Side Alignment and Body / Anchor readiness (promoted-anchor preview spans). Does not remount the old Package QA card or anchors table. |
-| `derivedMeasurementDeck.js` | Right Sidebar Results cards for Shoulder / Hip Front Transverse Width and Side Profile Span. |
+| `derivedMeasurementDeck.js` | Right Sidebar Results cards for Shoulder / Hip Front Transverse Width, Side Profile Span, Side AP Depth, and Cross-Section Evidence status. |
 | `advancedQaPanel.js` | Diagnostics Why This Result Is Blocked plus Advanced QA intake/calibration. |
 | `leftPanel.js` | Anatomical Levels card. Package upload is File-menu only. |
 | `measurementPanel.js` | Distance Measurement inspector (Front / Canonical and Side / U-Y) plus Session Records History. |
