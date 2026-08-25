@@ -322,6 +322,7 @@ export function evaluateSidePoseQualification(sidePoseSource, {
       totalYRatio,
       armAngleDegrees,
       bendDegrees,
+      projectedElbowDeviationDegrees: bendDegrees,
     };
 
     // Check Arm Extension
@@ -378,34 +379,34 @@ export function evaluateSidePoseQualification(sidePoseSource, {
       );
     }
 
-    // Check Elbow Straightness
+    // Check Projected Elbow Straightness (2D landmark collinearity deviation)
     if (bendDegrees > thresholds.WARNING_ELBOW_BEND_DEGREES) {
       addCheck(
         `${armKey}_elbow_straightness`,
-        `${armKey.toUpperCase()} Elbow Straightness`,
+        `${armKey.toUpperCase()} Projected Elbow Straightness`,
         'fail',
-        `${armKey} elbow is bent (${bendDegrees.toFixed(1)}° > ${thresholds.WARNING_ELBOW_BEND_DEGREES}°).`,
+        `${armKey} projected elbow deviation (${bendDegrees.toFixed(1)}°) exceeds severe threshold (${thresholds.WARNING_ELBOW_BEND_DEGREES}°).`,
         { bendDegrees, threshold: thresholds.WARNING_ELBOW_BEND_DEGREES },
       );
-      issues.push(`${armKey} elbow is significantly bent (${bendDegrees.toFixed(1)}°).`);
+      issues.push(`${armKey} projected elbow deviation is severe (${bendDegrees.toFixed(1)}°).`);
       hasDisqualification = true;
       allArmsQualified = false;
     } else if (bendDegrees > thresholds.MAX_ELBOW_BEND_DEGREES) {
       addCheck(
         `${armKey}_elbow_straightness`,
-        `${armKey.toUpperCase()} Elbow Straightness`,
+        `${armKey.toUpperCase()} Projected Elbow Straightness`,
         'warning',
-        `${armKey} elbow exhibits moderate bend (${bendDegrees.toFixed(1)}° > ${thresholds.MAX_ELBOW_BEND_DEGREES}°).`,
+        `${armKey} projected elbow deviation (${bendDegrees.toFixed(1)}°) exhibits moderate 2D projection deviation (advisory threshold: ${thresholds.MAX_ELBOW_BEND_DEGREES}°).`,
         { bendDegrees, threshold: thresholds.MAX_ELBOW_BEND_DEGREES },
       );
-      warnings.push(`${armKey} elbow is moderately bent (${bendDegrees.toFixed(1)}°).`);
+      warnings.push(`${armKey} projected elbow deviation: ${bendDegrees.toFixed(1)}°`);
       hasWarning = true;
     } else {
       addCheck(
         `${armKey}_elbow_straightness`,
-        `${armKey.toUpperCase()} Elbow Straightness`,
+        `${armKey.toUpperCase()} Projected Elbow Straightness`,
         'pass',
-        `${armKey} elbow is straight (${bendDegrees.toFixed(1)}° <= ${thresholds.MAX_ELBOW_BEND_DEGREES}°).`,
+        `${armKey} projected elbow is straight (${bendDegrees.toFixed(1)}° <= ${thresholds.MAX_ELBOW_BEND_DEGREES}°).`,
         { bendDegrees },
       );
     }

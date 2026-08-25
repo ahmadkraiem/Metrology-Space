@@ -14,6 +14,7 @@
 import {
   getCrossViewMeasurementCorrespondence,
   getPairedCrossViewEligibility,
+  getSidePhysicalDepthQualification,
   hasAnalyzedBodyEvidence,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
@@ -61,6 +62,35 @@ export function mapBlockerToHumanLabel(code) {
   }
 }
 
+export function mapDepthIssueToShortReason(depthQual) {
+  if (!depthQual) return null;
+  const issues = depthQual.issues ?? [];
+  const allText = issues.join(' ').toLowerCase();
+
+  if (allText.includes('t-pose') || allText.includes('arm') || allText.includes('elbow') || allText.includes('lowered')) {
+    return 'Side pose not qualified';
+  }
+  if (allText.includes('lateral') || allText.includes('collapse') || allText.includes('bilateral')) {
+    return 'Lateral evidence insufficient';
+  }
+  if (allText.includes('calibration') || allText.includes('scale')) {
+    return 'Calibration unavailable';
+  }
+  if (allText.includes('clothing') || allText.includes('garment') || allText.includes('body-surface')) {
+    return 'Body-surface authorization failed';
+  }
+  if (allText.includes('source') || allText.includes('missing')) {
+    return 'Source span unavailable';
+  }
+  if (depthQual.status === 'warning') {
+    return 'Provisional qualification';
+  }
+  if (depthQual.status === 'disqualified') {
+    return 'Disqualified';
+  }
+  return null;
+}
+
 export function deriveMeasurementCardStatus(eligibility) {
   const status = String(eligibility?.pairedStatus || 'unavailable').toLowerCase();
   if (status === 'eligible') {
@@ -83,14 +113,15 @@ function formatSpanDisplay(observation, fallbackSpanCm) {
   return 'Unavailable';
 }
 
-export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, eligibility) {
+export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, eligibility, depthQual = null) {
   const frontObs = correspondence?.frontObservation;
   const sideObs = correspondence?.sideObservation;
 
   const yCm = correspondence?.provenance?.frontLevelYcm
     ?? correspondence?.provenance?.sideLevelYcm
     ?? frontObs?.level?.yCm
-    ?? sideObs?.level?.yCm;
+    ?? sideObs?.level?.yCm
+    ?? depthQual?.levelYcm;
 
   const yDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
     ? `Y ${formatDistance(yCm)} cm`
@@ -99,6 +130,20 @@ export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, el
   const status = deriveMeasurementCardStatus(eligibility);
   const frontDisplay = formatSpanDisplay(frontObs, eligibility?.frontMetricSpanCm);
   const sideDisplay = formatSpanDisplay(sideObs, eligibility?.sideMetricSpanCm);
+
+  // 4.5H: Side-derived AP Depth Estimate tier
+  const isDepthQualified = depthQual?.status === 'qualified' && typeof depthQual?.qualifiedDepthEstimateCm === 'number';
+  const depthDisplay = isDepthQualified
+    ? `${formatDistance(depthQual.qualifiedDepthEstimateCm)} cm`
+    : '—';
+
+  const depthReason = !isDepthQualified && depthQual?.status && depthQual.status !== 'unavailable'
+    ? mapDepthIssueToShortReason(depthQual)
+    : null;
+
+  const depthReasonHtml = depthReason
+    ? `<span class="derived-row-hint" title="${escapeHtml(depthReason)}">${escapeHtml(depthReason)}</span>`
+    : '';
 
   return `
     <div class="derived-measurement-card" data-correspondence-id="${escapeHtml(id)}">
@@ -120,15 +165,29 @@ export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, el
           <span class="derived-row-label">Side Profile Span</span>
           <span class="derived-row-value">${escapeHtml(sideDisplay)}</span>
         </div>
+
+        <div class="derived-card-row derived-card-row--depth">
+          <div class="derived-row-label-group">
+            <span class="derived-row-label">AP Depth Estimate</span>
+            ${depthReasonHtml}
+          </div>
+          <span class="derived-row-value ${isDepthQualified ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(depthDisplay)}</span>
+        </div>
       </div>
     </div>
   `;
 }
 
-function renderMeasurementCard({ id, name }, annotations) {
+function renderMeasurementCard({ id, name, levelKey }, annotations) {
   const correspondence = getCrossViewMeasurementCorrespondence({ id, annotations });
   const eligibility = getPairedCrossViewEligibility({ id, annotations });
-  return buildDerivedMeasurementCardHtml({ id, name }, correspondence, eligibility);
+  const depthDefId = levelKey === 'shoulder'
+    ? 'torso_ap_depth_at_shoulder_level'
+    : 'torso_ap_depth_at_hip_level';
+  const depthQual = getSidePhysicalDepthQualification
+    ? getSidePhysicalDepthQualification({ id: depthDefId, annotations })
+    : null;
+  return buildDerivedMeasurementCardHtml({ id, name, levelKey }, correspondence, eligibility, depthQual);
 }
 
 export function renderDerivedMeasurementDeck(containerEl) {

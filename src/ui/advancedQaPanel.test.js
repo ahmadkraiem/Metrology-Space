@@ -182,3 +182,46 @@ test('advancedQaPanel: Stage 2 keeps intake and calibration, drops eligibility a
   assert.equal(html.includes('Pose Qualified'), false);
   assert.equal(html.includes('View Consistency'), false);
 });
+
+test('advancedQaPanel: 4.5H renders Side T-Pose, Lateral Orientation, and AP Depth Qualification sections', () => {
+  const html = buildAdvancedQaContentHtml({
+    pkg: { sampleId: 'subject-01', version: 'body-evidence-package-v0', sourceFormat: 'REVacity Package' },
+    qa: { version: 'v0' },
+    provenance: { status: 'validated', calibration: { isIsotropic: true, pixelsPerCm: 10 } },
+    sidePoseQual: {
+      status: 'qualified',
+      qualified: true,
+      summary: { evaluatedArms: ['left', 'right'], dominantArm: 'left' },
+    },
+    sideOrientationQual: {
+      status: 'qualified',
+      qualified: true,
+      orientationSemantics: 'approximately_lateral',
+      summary: { usablePairsCount: 4, passedPairsCount: 4, aggregateCollapseRatio: 0.078 },
+    },
+    depthQualReport: {
+      qualifications: [
+        { sourceLevel: 'shoulder', status: 'qualified', qualifiedDepthEstimateCm: 11.00 },
+        { sourceLevel: 'hip', status: 'qualified', qualifiedDepthEstimateCm: 27.70 },
+      ],
+    },
+  });
+
+  // Side T-Pose section
+  assert.equal(html.includes('Side T-Pose Stance'), true);
+  assert.equal(html.includes('left, right (left arm)'), true);
+  assert.equal(html.includes('Horizontal reach &amp; straight elbows verified') || html.includes('Horizontal reach & straight elbows verified'), true);
+
+  // Side Lateral Orientation section
+  assert.equal(html.includes('Side Lateral Orientation'), true);
+  assert.equal(html.includes('Approximately Lateral'), true);
+  assert.equal(html.includes('4/4 pairs passed (7.8% collapse)'), true);
+  assert.equal(html.includes('Projection collapse · No 90° claim') || html.includes('Projection collapse · No 90&deg; claim'), true);
+
+  // Side AP Depth Qualification section
+  assert.equal(html.includes('Side AP Depth Qualification'), true);
+  assert.equal(html.includes('Shoulder Level AP Depth') || html.includes('Shoulder AP Depth'), true);
+  assert.equal(html.includes('11.00 cm'), true);
+  assert.equal(html.includes('Hip Level AP Depth') || html.includes('Hip AP Depth'), true);
+  assert.equal(html.includes('27.70 cm'), true);
+});

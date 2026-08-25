@@ -57,8 +57,8 @@ describe('sidePoseQualification v0', () => {
     assert.ok(result.checks.length > 0);
   });
 
-  it('2. Bent elbow produces warning or disqualification according to bend severity', () => {
-    // Moderate bend (~37 degrees): elbow at (70, 140), wrist bent down to (50, 125)
+  it('2. Projected elbow deviation produces advisory warning or disqualification according to bend severity', () => {
+    // Moderate deviation (~37 degrees): elbow at (70, 140), wrist bent down to (50, 125)
     const moderateBentLandmarks = createSyntheticSideTPose({
       leftShoulderU: 100, leftShoulderY: 140,
       leftElbowU: 70, leftElbowY: 140,
@@ -70,7 +70,22 @@ describe('sidePoseQualification v0', () => {
     const modResult = evaluateSidePoseQualification(moderateBentLandmarks);
     assert.equal(modResult.status, SIDE_T_POSE_STATUS.WARNING);
     assert.equal(modResult.qualified, false);
-    assert.ok(modResult.warnings.some((w) => w.toLowerCase().includes('bent')));
+    assert.ok(modResult.warnings.some((w) => w.toLowerCase().includes('projected elbow deviation')));
+
+    // Test specific ~44.2° deviation case with horizontal reach intact:
+    const case442Landmarks = createSyntheticSideTPose({
+      leftShoulderU: 100, leftShoulderY: 140,
+      leftElbowU: 73, leftElbowY: 129,
+      leftWristU: 46, leftWristY: 140,
+      rightShoulderU: 100, rightShoulderY: 140,
+      rightElbowU: 127, rightElbowY: 129,
+      rightWristU: 154, rightWristY: 140,
+    });
+    const res442 = evaluateSidePoseQualification(case442Landmarks);
+    assert.equal(res442.status, SIDE_T_POSE_STATUS.WARNING);
+    assert.ok(res442.summary.armSummaries.left.projectedElbowDeviationDegrees > 30);
+    assert.ok(res442.summary.armSummaries.left.projectedElbowDeviationDegrees <= 45);
+    assert.ok(res442.warnings.some((w) => w.toLowerCase().includes('projected elbow deviation')));
 
     // Severe bend (~90 degrees): elbow at (70, 140), wrist at (70, 110)
     const severeBentLandmarks = createSyntheticSideTPose({
@@ -84,7 +99,7 @@ describe('sidePoseQualification v0', () => {
     const severeResult = evaluateSidePoseQualification(severeBentLandmarks);
     assert.equal(severeResult.status, SIDE_T_POSE_STATUS.DISQUALIFIED);
     assert.equal(severeResult.qualified, false);
-    assert.ok(severeResult.issues.some((iss) => iss.toLowerCase().includes('bent') || iss.toLowerCase().includes('extended')));
+    assert.ok(severeResult.issues.some((iss) => iss.toLowerCase().includes('projected elbow deviation') || iss.toLowerCase().includes('extended')));
   });
 
   it('3. Arms significantly lowered evaluates to status: disqualified', () => {

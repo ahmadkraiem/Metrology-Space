@@ -321,4 +321,91 @@ describe('sidePhysicalDepthQualification v0', () => {
 
     assert.equal(getSidePhysicalDepthQualifications(), null);
   });
+
+  it('30. Moderate projected elbow deviation (30-45°, e.g. 44.2°) does NOT block Side AP depth qualification', () => {
+    const sourceSpan = createMockSideProfileSpan({
+      id: 'torso_profile_span_at_shoulder_level',
+      sourceLevel: 'shoulder',
+      valueCm: 25.4,
+    });
+    const result = evaluateSidePhysicalDepthQualification(sourceSpan, {
+      metricCalibrationProvenance: createMockMetricCalibration(),
+      sidePoseQualification: {
+        contract: 'side-t-pose-qualification-v0',
+        status: 'warning',
+        qualified: false,
+        summary: { dominantArm: 'left', armCount: 1 },
+        issues: [],
+        warnings: ['left projected elbow deviation: 44.2°'],
+      },
+      sideViewOrientationQualification: createMockSideViewOrientationQualification(),
+    });
+
+    assert.equal(result.status, SIDE_PHYSICAL_DEPTH_STATUS.QUALIFIED);
+    assert.equal(result.qualificationTier, 'physical_ap_depth_estimate');
+    assert.equal(result.qualifiedDepthEstimateCm, 25.4);
+    assert.ok(result.checks.some((c) => c.id === 'side_t_pose_qualification' && c.status === 'pass'));
+  });
+
+  it('31. Severe projected elbow deviation (> 45°) disqualifies Side AP depth estimate', () => {
+    const sourceSpan = createMockSideProfileSpan({
+      id: 'torso_profile_span_at_shoulder_level',
+      sourceLevel: 'shoulder',
+      valueCm: 25.4,
+    });
+    const result = evaluateSidePhysicalDepthQualification(sourceSpan, {
+      metricCalibrationProvenance: createMockMetricCalibration(),
+      sidePoseQualification: {
+        contract: 'side-t-pose-qualification-v0',
+        status: 'disqualified',
+        qualified: false,
+        summary: { dominantArm: 'left', armCount: 1 },
+        issues: ['left projected elbow deviation is severe (52.0°).'],
+        warnings: [],
+      },
+      sideViewOrientationQualification: createMockSideViewOrientationQualification(),
+    });
+
+    assert.equal(result.status, SIDE_PHYSICAL_DEPTH_STATUS.DISQUALIFIED);
+    assert.equal(result.qualifiedDepthEstimateCm, null);
+    assert.ok(result.issues.some((iss) => iss.includes('T-pose qualification')));
+  });
+
+  it('32. Poor horizontal arm extension (< 0.70) disqualifies Side AP depth estimate', () => {
+    const sourceSpan = createMockSideProfileSpan();
+    const result = evaluateSidePhysicalDepthQualification(sourceSpan, {
+      metricCalibrationProvenance: createMockMetricCalibration(),
+      sidePoseQualification: {
+        contract: 'side-t-pose-qualification-v0',
+        status: 'disqualified',
+        qualified: false,
+        summary: { dominantArm: 'left', armCount: 1 },
+        issues: ['left arm is not extended horizontally away from torso.'],
+        warnings: [],
+      },
+      sideViewOrientationQualification: createMockSideViewOrientationQualification(),
+    });
+
+    assert.equal(result.status, SIDE_PHYSICAL_DEPTH_STATUS.DISQUALIFIED);
+    assert.equal(result.qualifiedDepthEstimateCm, null);
+  });
+
+  it('33. Lowered arm (> 35°) disqualifies Side AP depth estimate', () => {
+    const sourceSpan = createMockSideProfileSpan();
+    const result = evaluateSidePhysicalDepthQualification(sourceSpan, {
+      metricCalibrationProvenance: createMockMetricCalibration(),
+      sidePoseQualification: {
+        contract: 'side-t-pose-qualification-v0',
+        status: 'disqualified',
+        qualified: false,
+        summary: { dominantArm: 'left', armCount: 1 },
+        issues: ['left arm is significantly lowered or raised (42.0°).'],
+        warnings: [],
+      },
+      sideViewOrientationQualification: createMockSideViewOrientationQualification(),
+    });
+
+    assert.equal(result.status, SIDE_PHYSICAL_DEPTH_STATUS.DISQUALIFIED);
+    assert.equal(result.qualifiedDepthEstimateCm, null);
+  });
 });

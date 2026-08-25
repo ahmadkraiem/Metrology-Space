@@ -16,6 +16,9 @@ import {
   getBodyEvidenceQa,
   getMetricCalibrationProvenance,
   getPairedCrossViewEligibilityReport,
+  getSidePoseQualification,
+  getSideViewOrientationQualification,
+  getSidePhysicalDepthQualifications,
   hasAnalyzedBodyEvidence,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
@@ -28,13 +31,13 @@ import { mapBlockerToHumanLabel } from './derivedMeasurementDeck.js';
 
 function toneForStatus(status) {
   const s = String(status || '').toLowerCase();
-  if (s === 'pass' || s === 'ok' || s === 'ready' || s === 'validated' || s === 'eligible') {
+  if (s === 'pass' || s === 'ok' || s === 'ready' || s === 'validated' || s === 'eligible' || s === 'qualified') {
     return 'ok';
   }
   if (s === 'warning' || s === 'warn' || s === 'partial' || s === 'blocked') {
     return 'warn';
   }
-  if (s === 'fail' || s === 'invalid' || s === 'error') {
+  if (s === 'fail' || s === 'invalid' || s === 'error' || s === 'disqualified') {
     return 'fail';
   }
   return 'muted';
@@ -85,6 +88,93 @@ function renderCalibrationSection(provenance) {
       <div class="advanced-qa-section-body">
         <div class="info-row"><span class="info-label">Calibration Scale</span><span class="info-value">${escapeHtml(scaleText)}</span></div>
         <div class="info-row"><span class="info-label">Scale Model</span><span class="info-value">${isotropicBadge}</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSidePoseQaSection(sidePoseQual) {
+  const status = sidePoseQual?.status || 'unavailable';
+  const armSummary = sidePoseQual?.summary?.evaluatedArms?.join(', ') || 'None';
+  const dominantArm = sidePoseQual?.summary?.dominantArm ? ` (${sidePoseQual.summary.dominantArm} arm)` : '';
+  const armText = sidePoseQual ? `${armSummary}${dominantArm}` : '—';
+  const isQualified = sidePoseQual?.qualified === true;
+  const postureText = sidePoseQual
+    ? (isQualified ? 'Horizontal reach & straight elbows verified' : (sidePoseQual.issues?.[0] || sidePoseQual.warnings?.[0] || 'Pose unverified'))
+    : '—';
+
+  return `
+    <div class="advanced-qa-section" data-qa-section="side-pose">
+      <div class="advanced-qa-section-header">
+        <span class="advanced-qa-section-title">Side T-Pose Stance</span>
+        ${renderBadge(String(status).toUpperCase(), toneForStatus(status))}
+      </div>
+      <div class="advanced-qa-section-body">
+        <div class="info-row"><span class="info-label">Evaluated Arms</span><span class="info-value">${escapeHtml(armText)}</span></div>
+        <div class="info-row"><span class="info-label">Stance Geometry</span><span class="info-value">${escapeHtml(postureText)}</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSideOrientationQaSection(sideOrientationQual) {
+  const status = sideOrientationQual?.status || 'unavailable';
+  const orientationText = sideOrientationQual?.orientationSemantics
+    ? sideOrientationQual.orientationSemantics.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : '—';
+  const usablePairs = sideOrientationQual?.summary?.usablePairsCount ?? 0;
+  const passedPairs = sideOrientationQual?.summary?.passedPairsCount ?? 0;
+  const aggRatio = sideOrientationQual?.summary?.aggregateCollapseRatio;
+  const ratioText = typeof aggRatio === 'number' && Number.isFinite(aggRatio)
+    ? `${(aggRatio * 100).toFixed(1)}% collapse`
+    : '—';
+  const consensusText = sideOrientationQual
+    ? `${passedPairs}/${usablePairs} pairs passed (${ratioText})`
+    : '—';
+
+  return `
+    <div class="advanced-qa-section" data-qa-section="side-orientation">
+      <div class="advanced-qa-section-header">
+        <span class="advanced-qa-section-title">Side Lateral Orientation</span>
+        ${renderBadge(String(status).toUpperCase(), toneForStatus(status))}
+      </div>
+      <div class="advanced-qa-section-body">
+        <div class="info-row"><span class="info-label">Orientation Stance</span><span class="info-value">${escapeHtml(orientationText)}</span></div>
+        <div class="info-row"><span class="info-label">Bilateral Consensus</span><span class="info-value">${escapeHtml(consensusText)}</span></div>
+        <div class="info-row"><span class="info-label">Fidelity Scope</span><span class="info-value info-value--muted">Projection collapse · No 90° claim</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSidePhysicalDepthSection(depthQualReport) {
+  const quals = depthQualReport?.qualifications || [];
+  if (quals.length === 0) return '';
+
+  const shoulderQual = quals.find((q) => q.sourceLevel === 'shoulder') || null;
+  const hipQual = quals.find((q) => q.sourceLevel === 'hip') || null;
+
+  const renderRow = (label, qual) => {
+    const status = qual?.status || 'unavailable';
+    const val = typeof qual?.qualifiedDepthEstimateCm === 'number'
+      ? `${qual.qualifiedDepthEstimateCm.toFixed(2)} cm`
+      : '—';
+    return `
+      <div class="info-row">
+        <span class="info-label">${escapeHtml(label)}</span>
+        <span class="info-value">${renderBadge(status.toUpperCase(), toneForStatus(status))} <strong style="margin-left:4px;">${escapeHtml(val)}</strong></span>
+      </div>
+    `;
+  };
+
+  return `
+    <div class="advanced-qa-section" data-qa-section="side-depth-qualification">
+      <div class="advanced-qa-section-header">
+        <span class="advanced-qa-section-title">Side AP Depth Qualification</span>
+      </div>
+      <div class="advanced-qa-section-body">
+        ${renderRow('Shoulder AP Depth', shoulderQual)}
+        ${renderRow('Hip AP Depth', hipQual)}
       </div>
     </div>
   `;
@@ -168,11 +258,17 @@ export function buildAdvancedQaContentHtml({
   pkg = null,
   qa = null,
   provenance = null,
+  sidePoseQual = null,
+  sideOrientationQual = null,
+  depthQualReport = null,
 } = {}) {
   return `
     <div class="advanced-qa-drawer-content">
       ${renderIntakeSection(pkg, qa)}
       ${renderCalibrationSection(provenance)}
+      ${renderSidePoseQaSection(sidePoseQual)}
+      ${renderSideOrientationQaSection(sideOrientationQual)}
+      ${renderSidePhysicalDepthSection(depthQualReport)}
     </div>
   `;
 }
@@ -194,11 +290,17 @@ export function renderAdvancedQaPanel(containerEl) {
   const pkg = getBodyEvidencePackage();
   const qa = getBodyEvidenceQa();
   const provenance = getMetricCalibrationProvenance();
+  const sidePoseQual = getSidePoseQualification ? getSidePoseQualification() : null;
+  const sideOrientationQual = getSideViewOrientationQualification ? getSideViewOrientationQualification() : null;
+  const depthQualReport = getSidePhysicalDepthQualifications ? getSidePhysicalDepthQualifications() : null;
 
   containerEl.innerHTML = buildAdvancedQaContentHtml({
     pkg,
     qa,
     provenance,
+    sidePoseQual,
+    sideOrientationQual,
+    depthQualReport,
   });
 }
 

@@ -105,7 +105,9 @@ test('derivedMeasurementDeck: slim cards keep results and one status without blo
   assert.equal(html.includes('Physical Validation'), false);
   assert.equal(html.includes('Validation Pending'), false);
   assert.equal(html.includes('Metric Projected'), false);
-  assert.equal(/depth/i.test(html), false);
+  assert.equal(html.includes('AP Depth Estimate'), true);
+  assert.equal(/z-depth/i.test(html), false);
+  assert.equal(/circumference/i.test(html), false);
 });
 
 test('derivedMeasurementDeck: missing spans render Unavailable instead of overlapping statuses', () => {
@@ -119,4 +121,82 @@ test('derivedMeasurementDeck: missing spans render Unavailable instead of overla
   assert.equal(html.includes('Unavailable'), true);
   assert.equal(html.includes('View Alignment Incomplete'), false);
   assert.equal(html.includes('derived-blocker'), false);
+});
+
+test('derivedMeasurementDeck: qualified Shoulder renders all 3 measurement tiers with numeric AP Depth Estimate', () => {
+  const html = buildDerivedMeasurementCardHtml(
+    { id: 'torso_shoulder_cross_view_correspondence', name: 'Shoulder Level' },
+    {
+      frontObservation: { spanCm: 30.80, level: { yCm: 132.85 } },
+      sideObservation: { spanCm: 11.00, level: { yCm: 132.85 } },
+      provenance: { frontLevelYcm: 132.85 },
+    },
+    { pairedStatus: 'eligible', frontMetricSpanCm: 30.80, sideMetricSpanCm: 11.00 },
+    {
+      status: 'qualified',
+      qualifiedDepthEstimateCm: 11.00,
+      levelYcm: 132.85,
+    },
+  );
+
+  assert.equal(html.includes('Shoulder Level'), true);
+  assert.equal(html.includes('Front Transverse Width'), true);
+  assert.equal(html.includes('30.80 cm') || html.includes('30.8 cm'), true);
+  assert.equal(html.includes('Side Profile Span'), true);
+  assert.equal(html.includes('11.00 cm') || html.includes('11.0 cm') || html.includes('11 cm'), true);
+  assert.equal(html.includes('AP Depth Estimate'), true);
+  assert.equal(html.includes('11.00 cm') || html.includes('11.0 cm') || html.includes('11 cm'), true);
+  assert.equal(html.includes('Eligible'), true);
+});
+
+test('derivedMeasurementDeck: qualified Hip renders all 3 measurement tiers with numeric AP Depth Estimate', () => {
+  const html = buildDerivedMeasurementCardHtml(
+    { id: 'torso_hip_cross_view_correspondence', name: 'Hip Level' },
+    {
+      frontObservation: { spanCm: 42.20, level: { yCm: 86.25 } },
+      sideObservation: { spanCm: 27.70, level: { yCm: 86.25 } },
+      provenance: { frontLevelYcm: 86.25 },
+    },
+    { pairedStatus: 'eligible', frontMetricSpanCm: 42.20, sideMetricSpanCm: 27.70 },
+    {
+      status: 'qualified',
+      qualifiedDepthEstimateCm: 27.70,
+      levelYcm: 86.25,
+    },
+  );
+
+  assert.equal(html.includes('Hip Level'), true);
+  assert.equal(html.includes('Front Transverse Width'), true);
+  assert.equal(html.includes('42.20 cm') || html.includes('42.2 cm'), true);
+  assert.equal(html.includes('Side Profile Span'), true);
+  assert.equal(html.includes('27.70 cm') || html.includes('27.7 cm'), true);
+  assert.equal(html.includes('AP Depth Estimate'), true);
+  assert.equal(html.includes('27.70 cm') || html.includes('27.7 cm'), true);
+});
+
+test('derivedMeasurementDeck: blocked/disqualified AP Depth renders dash and reason hint without breaking Side Profile Span', () => {
+  const html = buildDerivedMeasurementCardHtml(
+    { id: 'torso_shoulder_cross_view_correspondence', name: 'Shoulder Level' },
+    {
+      frontObservation: { spanCm: 30.80, level: { yCm: 132.85 } },
+      sideObservation: { spanCm: 11.00, level: { yCm: 132.85 } },
+      provenance: { frontLevelYcm: 132.85 },
+    },
+    { pairedStatus: 'blocked', frontMetricSpanCm: 30.80, sideMetricSpanCm: 11.00 },
+    {
+      status: 'disqualified',
+      qualifiedDepthEstimateCm: null,
+      issues: ['Side pose does not qualify as T-pose: Left arm is significantly lowered.'],
+    },
+  );
+
+  assert.equal(html.includes('Shoulder Level'), true);
+  // Original Side Profile Span is intact
+  assert.equal(html.includes('Side Profile Span'), true);
+  assert.equal(html.includes('11.00 cm') || html.includes('11.0 cm') || html.includes('11 cm'), true);
+  // AP Depth Estimate is dashed
+  assert.equal(html.includes('AP Depth Estimate'), true);
+  assert.equal(html.includes('—'), true);
+  // Shows short human-readable reason
+  assert.equal(html.includes('Side pose not qualified'), true);
 });

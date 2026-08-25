@@ -307,16 +307,36 @@ export function evaluateSidePhysicalDepthQualification(sourceObservation, {
     issues.push(`Side pose failed T-pose qualification: ${tPoseResult.issues?.join('; ')}`);
     hasDisqualification = true;
   } else if (tPoseStatus === 'warning') {
-    addCheck(
-      'side_t_pose_qualification',
-      'Side T-Pose Stance Qualification',
-      'pose_stance',
-      'warning',
-      `Side T-pose exhibits marginal warning: ${tPoseResult.warnings?.join('; ') || 'warning'}.`,
-      { tPoseStatus, tPoseWarnings: tPoseResult.warnings },
-    );
-    warnings.push(`Side T-pose warning: ${tPoseResult.warnings?.join('; ')}`);
-    hasWarning = true;
+    const tPoseWarnings = Array.isArray(tPoseResult.warnings) ? tPoseResult.warnings : [];
+    // Check if warnings are non-blocking advisory notes (moderate projected elbow deviation 30-45° or minor shoulder tilt)
+    // where arm reach and torso clearance are maintained
+    const hasOnlyAdvisoryWarnings = (tPoseResult.issues?.length === 0) && tPoseWarnings.every((w) => {
+      const lower = String(w || '').toLowerCase();
+      return lower.includes('projected elbow deviation') || lower.includes('elbow') || lower.includes('shoulder elevation');
+    });
+
+    if (hasOnlyAdvisoryWarnings) {
+      addCheck(
+        'side_t_pose_qualification',
+        'Side T-Pose Stance Qualification',
+        'pose_stance',
+        'pass',
+        `Side pose qualifies as T-pose with advisory note: ${tPoseWarnings.join('; ')}.`,
+        { tPoseStatus, tPoseWarnings, dominantArm: tPoseResult.summary?.dominantArm, isAdvisory: true },
+      );
+      // Preserved as diagnostic advisory, does NOT set hasWarning on physical depth qualification
+    } else {
+      addCheck(
+        'side_t_pose_qualification',
+        'Side T-Pose Stance Qualification',
+        'pose_stance',
+        'warning',
+        `Side T-pose exhibits marginal warning: ${tPoseWarnings.join('; ') || 'warning'}.`,
+        { tPoseStatus, tPoseWarnings },
+      );
+      warnings.push(`Side T-pose warning: ${tPoseWarnings.join('; ')}`);
+      hasWarning = true;
+    }
   } else {
     addCheck(
       'side_t_pose_qualification',

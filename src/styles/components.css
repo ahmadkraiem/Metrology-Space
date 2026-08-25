@@ -1983,6 +1983,32 @@ select:focus-visible {
   letter-spacing: 0.02em;
 }
 
+.derived-card-row--depth {
+  padding-top: 3px;
+  border-top: 1px dashed rgba(147, 51, 234, 0.12);
+}
+
+.derived-row-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.derived-row-hint {
+  font-size: 7.5px;
+  color: var(--amber-dim, #d97706);
+  letter-spacing: 0.02em;
+}
+
+.derived-row-value--qualified {
+  color: var(--green-bright, #22c55e);
+}
+
+.derived-row-value--muted {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
 /* ── Right Sidebar: Advanced QA ── */
 
 .advanced-qa-content {
