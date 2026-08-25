@@ -408,4 +408,16 @@ describe('sidePhysicalDepthQualification v0', () => {
     assert.equal(result.status, SIDE_PHYSICAL_DEPTH_STATUS.DISQUALIFIED);
     assert.equal(result.qualifiedDepthEstimateCm, null);
   });
+
+  it('34. getSideViewOrientationQualification does not shadow package front pose when empty annotations array is passed', async () => {
+    const { getSideViewOrientationQualification } = await import('./bodyEvidence.js');
+    const result = getSideViewOrientationQualification({
+      annotations: [],
+      frontPoseSource: null,
+      sidePoseSource: null,
+    });
+    // When no package is loaded and no pose source is passed, returns null
+    assert.equal(result, null);
+  });
 });
+

@@ -92,7 +92,23 @@ export function mapDepthIssueToShortReason(depthQual) {
   return null;
 }
 
-export function deriveMeasurementCardStatus(eligibility) {
+export function deriveMeasurementCardStatus(eligibility, crossSectionEvidence = null) {
+  if (crossSectionEvidence) {
+    const csStatus = String(crossSectionEvidence.status || 'unavailable').toLowerCase();
+    if (csStatus === 'qualified') {
+      return { label: 'Qualified', tone: 'ok' };
+    }
+    if (csStatus === 'warning') {
+      return { label: 'Warning', tone: 'warn' };
+    }
+    if (csStatus === 'blocked') {
+      return { label: 'Blocked', tone: 'warn' };
+    }
+    if (csStatus === 'invalid') {
+      return { label: 'Invalid', tone: 'warn' };
+    }
+    return { label: 'Unavailable', tone: 'muted' };
+  }
   const status = String(eligibility?.pairedStatus || 'unavailable').toLowerCase();
   if (status === 'eligible') {
     return { label: 'Eligible', tone: 'ok' };
@@ -146,7 +162,7 @@ export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, el
     ? `Y ${formatDistance(yCm)} cm`
     : 'Y —';
 
-  const status = deriveMeasurementCardStatus(eligibility);
+  const status = deriveMeasurementCardStatus(eligibility, crossSectionEvidence);
   const csStatus = deriveCrossSectionStatus(crossSectionEvidence);
   const frontDisplay = formatSpanDisplay(frontObs, eligibility?.frontMetricSpanCm ?? crossSectionEvidence?.frontObservation?.transverseWidthCm);
   const sideDisplay = formatSpanDisplay(sideObs, eligibility?.sideMetricSpanCm ?? crossSectionEvidence?.sideObservation?.projectedSpanCm);
@@ -182,11 +198,6 @@ export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, el
         <div class="derived-card-row">
           <span class="derived-row-label">Front Transverse Width</span>
           <span class="derived-row-value">${escapeHtml(frontDisplay)}</span>
-        </div>
-
-        <div class="derived-card-row">
-          <span class="derived-row-label">Side Profile Span</span>
-          <span class="derived-row-value">${escapeHtml(sideDisplay)}</span>
         </div>
 
         <div class="derived-card-row derived-card-row--depth">

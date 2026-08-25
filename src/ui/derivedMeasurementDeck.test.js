@@ -90,9 +90,8 @@ test('derivedMeasurementDeck: slim cards keep results and one status without blo
 
   assert.equal(html.includes('Shoulder Level'), true);
   assert.equal(html.includes('Front Transverse Width'), true);
-  assert.equal(html.includes('Side Profile Span'), true);
+  assert.equal(html.includes('Side Profile Span'), false);
   assert.equal(html.includes('38.25 cm') || html.includes('38.3 cm') || html.includes('38.2 cm'), true);
-  assert.equal(html.includes('21.5 cm') || html.includes('21.50 cm'), true);
   assert.equal(html.includes('Y '), true);
   assert.equal(html.includes('Blocked'), true);
 
@@ -124,7 +123,7 @@ test('derivedMeasurementDeck: missing spans render Unavailable instead of overla
   assert.equal(html.includes('derived-blocker'), false);
 });
 
-test('derivedMeasurementDeck: qualified Shoulder renders all measurement tiers with numeric Side AP Depth and Cross-Section status', () => {
+test('derivedMeasurementDeck: qualified Shoulder renders Front Width, Side AP Depth, and Cross-Section status without Side Profile Span row', () => {
   const html = buildDerivedMeasurementCardHtml(
     { id: 'torso_shoulder_cross_view_correspondence', name: 'Shoulder Level' },
     {
@@ -146,16 +145,15 @@ test('derivedMeasurementDeck: qualified Shoulder renders all measurement tiers w
   assert.equal(html.includes('Shoulder Level'), true);
   assert.equal(html.includes('Front Transverse Width'), true);
   assert.equal(html.includes('30.80 cm') || html.includes('30.8 cm'), true);
-  assert.equal(html.includes('Side Profile Span'), true);
-  assert.equal(html.includes('11.00 cm') || html.includes('11.0 cm') || html.includes('11 cm'), true);
+  assert.equal(html.includes('Side Profile Span'), false);
   assert.equal(html.includes('Side AP Depth'), true);
   assert.equal(html.includes('11.00 cm') || html.includes('11.0 cm') || html.includes('11 cm'), true);
   assert.equal(html.includes('Cross-Section Evidence'), true);
   assert.equal(html.includes('QUALIFIED'), true);
-  assert.equal(html.includes('Eligible'), true);
+  assert.equal(html.includes('Qualified'), true);
 });
 
-test('derivedMeasurementDeck: qualified Hip renders all measurement tiers with numeric Side AP Depth and Cross-Section status', () => {
+test('derivedMeasurementDeck: qualified Hip renders Front Width, Side AP Depth, and Cross-Section status without Side Profile Span row', () => {
   const html = buildDerivedMeasurementCardHtml(
     { id: 'torso_hip_cross_view_correspondence', name: 'Hip Level' },
     {
@@ -177,15 +175,15 @@ test('derivedMeasurementDeck: qualified Hip renders all measurement tiers with n
   assert.equal(html.includes('Hip Level'), true);
   assert.equal(html.includes('Front Transverse Width'), true);
   assert.equal(html.includes('42.20 cm') || html.includes('42.2 cm'), true);
-  assert.equal(html.includes('Side Profile Span'), true);
-  assert.equal(html.includes('27.70 cm') || html.includes('27.7 cm'), true);
+  assert.equal(html.includes('Side Profile Span'), false);
   assert.equal(html.includes('Side AP Depth'), true);
   assert.equal(html.includes('27.70 cm') || html.includes('27.7 cm'), true);
   assert.equal(html.includes('Cross-Section Evidence'), true);
   assert.equal(html.includes('QUALIFIED'), true);
+  assert.equal(html.includes('Qualified'), true);
 });
 
-test('derivedMeasurementDeck: blocked/disqualified AP Depth renders dash and reason hint without breaking Side Profile Span', () => {
+test('derivedMeasurementDeck: blocked/disqualified AP Depth renders dash and reason hint without rendering Side Profile Span in Results', () => {
   const html = buildDerivedMeasurementCardHtml(
     { id: 'torso_shoulder_cross_view_correspondence', name: 'Shoulder Level' },
     {
@@ -205,9 +203,8 @@ test('derivedMeasurementDeck: blocked/disqualified AP Depth renders dash and rea
   );
 
   assert.equal(html.includes('Shoulder Level'), true);
-  // Original Side Profile Span is intact
-  assert.equal(html.includes('Side Profile Span'), true);
-  assert.equal(html.includes('11.00 cm') || html.includes('11.0 cm') || html.includes('11 cm'), true);
+  // Side Profile Span row is not rendered in Results cards
+  assert.equal(html.includes('Side Profile Span'), false);
   // Side AP Depth is dashed
   assert.equal(html.includes('Side AP Depth'), true);
   assert.equal(html.includes('—'), true);
@@ -215,4 +212,67 @@ test('derivedMeasurementDeck: blocked/disqualified AP Depth renders dash and rea
   assert.equal(html.includes('Side pose not qualified'), true);
   assert.equal(html.includes('Cross-Section Evidence'), true);
   assert.equal(html.includes('BLOCKED'), true);
+});
+
+test('derivedMeasurementDeck: 44.2° projected elbow advisory does NOT cause Results to revert to blocked when Side Physical Depth remains qualified', () => {
+  const html = buildDerivedMeasurementCardHtml(
+    { id: 'torso_shoulder_cross_view_correspondence', name: 'Shoulder Level' },
+    {
+      frontObservation: { spanCm: 30.80, level: { yCm: 132.85 } },
+      sideObservation: { spanCm: 11.00, level: { yCm: 132.85 } },
+      provenance: { frontLevelYcm: 132.85 },
+    },
+    { pairedStatus: 'eligible', frontMetricSpanCm: 30.80, sideMetricSpanCm: 11.00 },
+    {
+      status: 'qualified',
+      qualifiedDepthEstimateCm: 11.00,
+      levelYcm: 132.85,
+      warnings: ['Side pose qualifies as T-pose with advisory note: Left projected elbow deviation of 44.2° is in advisory warning range (30°–45°).'],
+    },
+    {
+      status: 'qualified',
+      warnings: ['Side pose qualifies as T-pose with advisory note: Left projected elbow deviation of 44.2° is in advisory warning range (30°–45°).'],
+    },
+  );
+
+  assert.equal(html.includes('30.80 cm') || html.includes('30.8 cm'), true);
+  assert.equal(html.includes('11.00 cm') || html.includes('11.0 cm') || html.includes('11 cm'), true);
+  assert.equal(html.includes('QUALIFIED'), true);
+  assert.equal(html.includes('Side Profile Span'), false);
+  assert.equal(html.includes('Lateral evidence insufficient'), false);
+});
+
+test('derivedMeasurementDeck: consistency between Advanced QA and Results card evidence', () => {
+  const shoulderQual = {
+    status: 'qualified',
+    qualifiedDepthEstimateCm: 11.00,
+    levelYcm: 132.85,
+  };
+  const shoulderCrossSection = {
+    status: 'qualified',
+    frontObservation: { transverseWidthCm: 30.80 },
+    sideObservation: { apDepthCm: 11.00 },
+  };
+
+  const resultsHtml = buildDerivedMeasurementCardHtml(
+    { id: 'torso_shoulder_cross_view_correspondence', name: 'Shoulder Level' },
+    {
+      frontObservation: { spanCm: 30.80, level: { yCm: 132.85 } },
+      sideObservation: { spanCm: 11.00, level: { yCm: 132.85 } },
+      provenance: { frontLevelYcm: 132.85 },
+    },
+    null,
+    shoulderQual,
+    shoulderCrossSection,
+  );
+
+  assert.equal(resultsHtml.includes('11.00 cm') || resultsHtml.includes('11.0 cm') || resultsHtml.includes('11 cm'), true);
+  assert.equal(resultsHtml.includes('30.80 cm') || resultsHtml.includes('30.8 cm'), true);
+  assert.equal(resultsHtml.includes('QUALIFIED'), true);
+});
+
+test('derivedMeasurementDeck: underlying Side Profile Span evidence contract remains available internally', async () => {
+  const { getSideProfileSpan, getSideProfileSpans } = await import('../features/bodyEvidence.js');
+  assert.equal(typeof getSideProfileSpan, 'function');
+  assert.equal(typeof getSideProfileSpans, 'function');
 });

@@ -1932,8 +1932,8 @@ export function getSideViewOrientationQualification({
   annotations = null,
 } = {}) {
   const resolvedFrontPose = frontPoseSource
-    ?? annotations
     ?? currentPackage?.front?.pose
+    ?? (Array.isArray(annotations) && annotations.length > 0 ? annotations : null)
     ?? qaResult?.views?.front?.pose
     ?? null;
 
