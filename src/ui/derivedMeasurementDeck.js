@@ -15,6 +15,7 @@ import {
   getCrossViewMeasurementCorrespondence,
   getPairedCrossViewEligibility,
   getSidePhysicalDepthQualification,
+  getCrossSectionEvidence,
   hasAnalyzedBodyEvidence,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
@@ -105,6 +106,23 @@ export function deriveMeasurementCardStatus(eligibility) {
   return { label: 'Unavailable', tone: 'muted' };
 }
 
+export function deriveCrossSectionStatus(crossSectionEvidence) {
+  const status = String(crossSectionEvidence?.status || 'unavailable').toLowerCase();
+  if (status === 'qualified') {
+    return { label: 'Qualified', tone: 'ok' };
+  }
+  if (status === 'warning') {
+    return { label: 'Warning', tone: 'warn' };
+  }
+  if (status === 'blocked') {
+    return { label: 'Blocked', tone: 'warn' };
+  }
+  if (status === 'invalid') {
+    return { label: 'Invalid', tone: 'warn' };
+  }
+  return { label: 'Unavailable', tone: 'muted' };
+}
+
 function formatSpanDisplay(observation, fallbackSpanCm) {
   const span = observation?.spanCm ?? observation?.valueCm ?? fallbackSpanCm;
   if (typeof span === 'number' && Number.isFinite(span)) {
@@ -113,7 +131,7 @@ function formatSpanDisplay(observation, fallbackSpanCm) {
   return 'Unavailable';
 }
 
-export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, eligibility, depthQual = null) {
+export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, eligibility, depthQual = null, crossSectionEvidence = null) {
   const frontObs = correspondence?.frontObservation;
   const sideObs = correspondence?.sideObservation;
 
@@ -121,24 +139,29 @@ export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, el
     ?? correspondence?.provenance?.sideLevelYcm
     ?? frontObs?.level?.yCm
     ?? sideObs?.level?.yCm
-    ?? depthQual?.levelYcm;
+    ?? depthQual?.levelYcm
+    ?? crossSectionEvidence?.levelYcm;
 
   const yDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
     ? `Y ${formatDistance(yCm)} cm`
     : 'Y —';
 
   const status = deriveMeasurementCardStatus(eligibility);
-  const frontDisplay = formatSpanDisplay(frontObs, eligibility?.frontMetricSpanCm);
-  const sideDisplay = formatSpanDisplay(sideObs, eligibility?.sideMetricSpanCm);
+  const csStatus = deriveCrossSectionStatus(crossSectionEvidence);
+  const frontDisplay = formatSpanDisplay(frontObs, eligibility?.frontMetricSpanCm ?? crossSectionEvidence?.frontObservation?.transverseWidthCm);
+  const sideDisplay = formatSpanDisplay(sideObs, eligibility?.sideMetricSpanCm ?? crossSectionEvidence?.sideObservation?.projectedSpanCm);
 
-  // 4.5H: Side-derived AP Depth Estimate tier
-  const isDepthQualified = depthQual?.status === 'qualified' && typeof depthQual?.qualifiedDepthEstimateCm === 'number';
-  const depthDisplay = isDepthQualified
-    ? `${formatDistance(depthQual.qualifiedDepthEstimateCm)} cm`
+  // 4.5H / Cross-Section: Side-derived AP Depth tier
+  const isDepthQualified = (depthQual?.status === 'qualified' && typeof depthQual?.qualifiedDepthEstimateCm === 'number')
+    || (crossSectionEvidence?.sideObservation?.status === 'qualified' && typeof crossSectionEvidence?.sideObservation?.apDepthCm === 'number');
+  const depthValue = depthQual?.qualifiedDepthEstimateCm ?? crossSectionEvidence?.sideObservation?.apDepthCm ?? null;
+  const depthDisplay = (isDepthQualified && depthValue !== null)
+    ? `${formatDistance(depthValue)} cm`
     : '—';
 
-  const depthReason = !isDepthQualified && depthQual?.status && depthQual.status !== 'unavailable'
-    ? mapDepthIssueToShortReason(depthQual)
+  const depthReason = !isDepthQualified && (depthQual?.status || crossSectionEvidence?.sideObservation?.status)
+    && (depthQual?.status !== 'unavailable' && crossSectionEvidence?.sideObservation?.status !== 'unavailable')
+    ? mapDepthIssueToShortReason(depthQual ?? crossSectionEvidence?.sideObservation)
     : null;
 
   const depthReasonHtml = depthReason
@@ -168,10 +191,15 @@ export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, el
 
         <div class="derived-card-row derived-card-row--depth">
           <div class="derived-row-label-group">
-            <span class="derived-row-label">AP Depth Estimate</span>
+            <span class="derived-row-label">Side AP Depth</span>
             ${depthReasonHtml}
           </div>
           <span class="derived-row-value ${isDepthQualified ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(depthDisplay)}</span>
+        </div>
+
+        <div class="derived-card-row derived-card-row--cross-section">
+          <span class="derived-row-label">Cross-Section Evidence</span>
+          <span class="derived-row-value ${csStatus.tone === 'ok' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(csStatus.label.toUpperCase())}</span>
         </div>
       </div>
     </div>
@@ -187,7 +215,13 @@ function renderMeasurementCard({ id, name, levelKey }, annotations) {
   const depthQual = getSidePhysicalDepthQualification
     ? getSidePhysicalDepthQualification({ id: depthDefId, annotations })
     : null;
-  return buildDerivedMeasurementCardHtml({ id, name, levelKey }, correspondence, eligibility, depthQual);
+  const csDefId = levelKey === 'shoulder'
+    ? 'torso_cross_section_evidence_at_shoulder_level'
+    : 'torso_cross_section_evidence_at_hip_level';
+  const crossSectionEvidence = getCrossSectionEvidence
+    ? getCrossSectionEvidence({ id: csDefId, annotations })
+    : null;
+  return buildDerivedMeasurementCardHtml({ id, name, levelKey }, correspondence, eligibility, depthQual, crossSectionEvidence);
 }
 
 export function renderDerivedMeasurementDeck(containerEl) {

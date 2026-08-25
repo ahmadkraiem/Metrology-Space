@@ -97,6 +97,12 @@ import {
   evaluateSidePhysicalDepthQualification,
 } from './sidePhysicalDepthQualification.js';
 import {
+  CROSS_SECTION_EVIDENCE_CONTRACT_VERSION,
+  CROSS_SECTION_EVIDENCE_STATUS,
+  SUPPORTED_CROSS_SECTION_EVIDENCE_DEFINITIONS_V0,
+  evaluateCrossSectionEvidence,
+} from './crossSectionEvidence.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -2043,6 +2049,108 @@ export function getSidePhysicalDepthQualifications({
     version: SIDE_PHYSICAL_DEPTH_CONTRACT_VERSION,
     view: 'side',
     qualifications,
+  };
+}
+
+/**
+ * Evaluates pure deterministic Cross-Section Evidence for a single anatomical level from active runtime state.
+ *
+ * @param {{
+ *   id: string,
+ *   annotations?: Array<object>|null,
+ *   frontObservation?: object|null,
+ *   sideDepthQualification?: object|null,
+ *   correspondence?: object|null,
+ *   comparabilityQa?: object|null,
+ *   metricCalibrationFront?: object|null,
+ *   metricCalibrationSide?: object|null,
+ * }} options
+ * @returns {object|null} CrossSectionEvidenceResultV0
+ */
+export function getCrossSectionEvidence({
+  id,
+  annotations = null,
+  frontObservation = null,
+  sideDepthQualification = null,
+  correspondence = null,
+  comparabilityQa = null,
+  metricCalibrationFront = null,
+  metricCalibrationSide = null,
+} = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_CROSS_SECTION_EVIDENCE_DEFINITIONS_V0[id]
+    ?? Object.values(SUPPORTED_CROSS_SECTION_EVIDENCE_DEFINITIONS_V0).find(
+      (d) => d.id === id || d.sourceLevel === id || d.correspondenceId === id,
+    );
+  if (!def) return null;
+
+  const resolvedFront = frontObservation
+    ?? getFrontTransverseWidth({ id: def.frontDefinitionId, annotations });
+
+  const resolvedSideDepth = sideDepthQualification
+    ?? getSidePhysicalDepthQualification({ id: def.sideDepthDefinitionId, annotations });
+
+  const resolvedCorrespondence = correspondence
+    ?? getCrossViewMeasurementCorrespondence({ id: def.correspondenceId, annotations });
+
+  const resolvedComparabilityQa = comparabilityQa
+    ?? getCrossViewComparabilityQa({ id: def.correspondenceId, annotations });
+
+  const resolvedCalFront = metricCalibrationFront
+    ?? getMetricCalibrationProvenance({ view: 'front' });
+
+  const resolvedCalSide = metricCalibrationSide
+    ?? getMetricCalibrationProvenance({ view: 'side' });
+
+  return evaluateCrossSectionEvidence({
+    frontObservation: resolvedFront,
+    sideDepthQualification: resolvedSideDepth,
+    correspondence: resolvedCorrespondence,
+    comparabilityQa: resolvedComparabilityQa,
+    metricCalibrationFront: resolvedCalFront,
+    metricCalibrationSide: resolvedCalSide,
+  }, {
+    definition: def,
+  });
+}
+
+/**
+ * Evaluates pure deterministic Cross-Section Evidence report for all supported definitions from active runtime state.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   metricCalibrationFront?: object|null,
+ *   metricCalibrationSide?: object|null,
+ * }} [options]
+ * @returns {{
+ *   contract: 'cross-section-evidence-report-v0',
+ *   version: string,
+ *   crossSections: Array<object>,
+ * }|null}
+ */
+export function getCrossSectionEvidenceReport({
+  annotations = null,
+  metricCalibrationFront = null,
+  metricCalibrationSide = null,
+} = {}) {
+  const frontRaster = getFrontSegmentationRaster();
+  const sideRaster = getSideSegmentationRaster();
+  if (!frontRaster && !sideRaster && !currentPackage) return null;
+
+  const definitions = Object.values(SUPPORTED_CROSS_SECTION_EVIDENCE_DEFINITIONS_V0);
+  const crossSections = definitions.map((def) =>
+    getCrossSectionEvidence({
+      id: def.id,
+      annotations,
+      metricCalibrationFront,
+      metricCalibrationSide,
+    })
+  ).filter(Boolean);
+
+  return {
+    contract: 'cross-section-evidence-report-v0',
+    version: CROSS_SECTION_EVIDENCE_CONTRACT_VERSION,
+    crossSections,
   };
 }
 

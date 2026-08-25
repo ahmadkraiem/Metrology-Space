@@ -2044,7 +2044,8 @@ select:focus-visible {
   letter-spacing: 0.02em;
 }
 
-.derived-card-row--depth {
+.derived-card-row--depth,
+.derived-card-row--cross-section {
   padding-top: 3px;
   border-top: 1px dashed rgba(147, 51, 234, 0.12);
 }
