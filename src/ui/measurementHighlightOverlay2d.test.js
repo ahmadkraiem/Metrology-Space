@@ -703,8 +703,11 @@ test('24. Natural Waist Plane renders horizontal reference guide, Front slice sp
   assert.equal(frontGuide.style.top, `${mockWorldToPlotPx(100, 115.25).py}px`);
   assert.ok(frontLine, 'Front slice line is rendered');
   assert.equal(frontDots.length, 2, 'Two Front endpoint dots rendered');
-  assert.ok(frontBadge.textContent.includes('Natural Waist'));
-  assert.ok(frontBadge.textContent.includes('115.25 cm'));
+  assert.equal(frontBadge.textContent, 'Natural Waist · 115.25 cm', 'Front badge uses concise format without slice width or parentheses');
+  assert.equal(frontBadge.style.left, '10px', 'Front badge placed at safe 10px left inset from plot boundary');
+  assert.equal(frontBadge.style.transform, 'translateY(-50%)', 'Front badge uses left-anchored vertical transform to avoid clipping');
+  assert.equal(frontBadge.style.top, `${mockWorldToPlotPx(100, 115.25).py - 14}px`, 'Front badge aligned 14px above canonical Y');
+  assert.ok(frontBadge.classList.contains('grid2d-highlight-badge--left'));
 
   // Side Layer verification
   const sideGuide = sideLayer.querySelector('.grid2d-highlight-level-guide');
@@ -717,8 +720,11 @@ test('24. Natural Waist Plane renders horizontal reference guide, Front slice sp
   assert.equal(frontGuide.style.top, sideGuide.style.top, 'Front and Side guides share exact same Py');
   assert.ok(sideLine, 'Side slice line is rendered');
   assert.equal(sideDots.length, 2, 'Two Side endpoint dots rendered');
-  assert.ok(sideBadge.textContent.includes('Natural Waist (Side)'));
-  assert.ok(sideBadge.textContent.includes('115.25 cm'));
+  assert.equal(sideBadge.textContent, 'Natural Waist · 115.25 cm', 'Side badge uses concise format without depth span or parentheses');
+  assert.equal(sideBadge.style.left, '10px', 'Side badge placed at safe 10px left inset from plot boundary');
+  assert.equal(sideBadge.style.transform, 'translateY(-50%)', 'Side badge uses left-anchored vertical transform to avoid clipping');
+  assert.equal(sideBadge.style.top, `${mockWorldToPlotPx(100, 115.25).py - 14}px`, 'Side badge aligned 14px above canonical Y');
+  assert.ok(sideBadge.classList.contains('grid2d-highlight-badge--left'));
 });
 
 test('25. Natural Waist Plane with unequal Front and Side raster rows preserves identical canonical Y', () => {
@@ -776,7 +782,7 @@ test('26. Natural Waist Plane Front-only ready (Side unavailable) renders Front 
   assert.ok(sideLayer.querySelector('.grid2d-highlight-level-guide'));
   assert.equal(sideLayer.querySelector('.grid2d-highlight-line'), null);
   assert.equal(sideLayer.querySelectorAll('.grid2d-highlight-dot').length, 0);
-  assert.ok(sideLayer.querySelector('.grid2d-highlight-badge').textContent.includes('115.00 cm'));
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge').textContent, 'Natural Waist · 115.00 cm');
 });
 
 test('27. Ambiguous, unavailable, or invalid Natural Waist localization clears both Front and Side overlays', () => {

@@ -1435,6 +1435,11 @@
   z-index: 9;
 }
 
+.grid2d-highlight-badge--left {
+  left: 10px;
+  transform: translateY(-50%);
+}
+
 .grid2d-highlight-level-guide {
   position: absolute;
   left: var(--grid2d-plot-left, 0%);

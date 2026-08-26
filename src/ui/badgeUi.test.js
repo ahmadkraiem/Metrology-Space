@@ -31,3 +31,13 @@ test('badgeUi: renderBadge renders formatted badge html string with optional tit
     '<span class="body-evidence-badge body-evidence-badge--muted">&lt;script&gt;</span>',
   );
 });
+
+test('badgeUi: status badges render full semantic strings without ellipsis truncation', () => {
+  const localizedHtml = renderBadge('Localized', 'ok');
+  assert.ok(localizedHtml.includes('Localized'), 'Localized is rendered in full');
+  assert.ok(!localizedHtml.includes('Locali...'), 'No truncated substring');
+
+  const metricProjectedHtml = renderBadge('Metric Projected', 'ok');
+  assert.ok(metricProjectedHtml.includes('Metric Projected'), 'Metric Projected is rendered in full');
+  assert.ok(!metricProjectedHtml.includes('Metric Proje...'), 'No truncated substring');
+});
