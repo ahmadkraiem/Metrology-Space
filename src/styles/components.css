@@ -2303,6 +2303,65 @@ select:focus-visible {
   letter-spacing: 0.01em;
 }
 
+.modeled-perimeter-primary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.modeled-perimeter-primary-row .modeled-perimeter-value {
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.modeled-perimeter-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+.modeled-perimeter-meta-row .modeled-perimeter-label,
+.modeled-perimeter-meta-row .modeled-perimeter-value {
+  width: 100%;
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: normal;
+}
+
+.modeled-perimeter-meta-row .modeled-perimeter-value {
+  text-align: left;
+}
+
+.modeled-perimeter-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 5px;
+  margin-top: 4px;
+  border-top: 1px dashed rgba(147, 51, 234, 0.12);
+}
+
+.modeled-perimeter-note {
+  margin: 0;
+  font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+  font-size: 8px;
+  color: var(--cyan-dim, #67e8f9);
+  line-height: 1.35;
+}
+
+.modeled-perimeter-qualification {
+  margin: 0;
+  font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--amber-dim, #d97706);
+  line-height: 1.35;
+}
+
 /* ── Right Sidebar: Advanced QA ── */
 
 .advanced-qa-content {

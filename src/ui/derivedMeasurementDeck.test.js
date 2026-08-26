@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   buildDerivedMeasurementCardHtml,
   buildDirectMeasurementsGroupHtml,
+  buildModeledPerimeterCardHtml,
   deriveMeasurementCardStatus,
   renderDerivedMeasurementDeck,
 } from './derivedMeasurementDeck.js';
@@ -915,3 +916,222 @@ test('derivedMeasurementDeck: hit target test - visible Results header and child
   assert.match(css, /\.deck-header\s*\{[^}]*cursor:\s*pointer/);
   assert.match(css, /\.deck-header\s*\{[^}]*pointer-events:\s*auto/);
 });
+
+test('derivedMeasurementDeck: buildModeledPerimeterCardHtml renders Hip Landmark Perimeter Estimate with formatted 110.98 cm and Modeled badge', () => {
+  const mockModeledResult = {
+    contract: 'modeled-cross-section-perimeter-v0',
+    version: 'modeled-cross-section-perimeter-v0',
+    id: 'torso_modeled_perimeter_at_hip_landmark_level',
+    name: 'Torso Modeled Perimeter Estimate at Hip Landmark Level',
+    sourceLevel: 'hip',
+    levelYcm: 86.25,
+    status: 'modeled',
+    isModeled: true,
+    isQualified: true,
+    valueCm: 110.9830618865289,
+    model: {
+      family: 'ellipse',
+      implementation: 'ellipse_ramanujan_ii',
+      semiMajorAxisCm: 21.1,
+      semiMinorAxisCm: 13.85,
+      transverseWidthCm: 42.2,
+      apDepthCm: 27.7,
+      hParameter: 0.04303102122181495,
+    },
+    provenance: {
+      sourceCrossSectionContract: 'cross-section-evidence-v0',
+      sourceCrossSectionId: 'torso_cross_section_evidence_at_hip_level',
+      sourceLevel: 'hip',
+      levelYcm: 86.25,
+    },
+    semantics: {
+      statement: 'Pure deterministic ellipse-modeled perimeter estimate at hip landmark level. NOT measured contour length, NOT 3D slice, NOT canonical Z, NOT anthropometric Hip Circumference, NOT maximum Hip/Seat Circumference, NOT maximum buttock plane.',
+      isModeledQuantity: true,
+      isMeasuredContour: false,
+      isAnthropometricHipCircumference: false,
+      isMaximumSeatPlane: false,
+      is3dReconstruction: false,
+      isBodyVolume: false,
+    },
+  };
+
+  const html = buildModeledPerimeterCardHtml(mockModeledResult);
+
+  // 1. Primary visible title
+  assert.equal(html.includes('Hip Landmark Perimeter Estimate'), true);
+
+  // 2. Y level and Modeled badge
+  assert.equal(html.includes('Y 86.25 cm') || html.includes('Y 86.3 cm') || html.includes('Y 86.2 cm'), true);
+  assert.equal(html.includes('Modeled'), true);
+
+  // 3. Formatted perimeter value
+  assert.equal(html.includes('110.98 cm'), true);
+
+  // 4. Model and reference level rows
+  assert.equal(html.includes('Model Implementation'), true);
+  assert.equal(html.includes('Ellipse (Ramanujan II)'), true);
+  assert.equal(html.includes('Reference Level'), true);
+  assert.equal(html.includes('Hip Landmark Level'), true);
+
+  // 5. Notes and explicit qualification
+  assert.equal(html.includes('Ellipse-modeled perimeter from qualified Front width + Side AP depth.'), true);
+  assert.equal(html.includes('Not anthropometric Hip Circumference.'), true);
+
+  // 6. Horizontal primary row and stacked metadata row classes
+  assert.equal(html.includes('modeled-perimeter-primary-row'), true);
+  assert.equal(html.includes('modeled-perimeter-meta-row'), true);
+  assert.equal(html.includes('modeled-perimeter-label'), true);
+  assert.equal(html.includes('modeled-perimeter-value'), true);
+
+  // 7. CSS inspection: verify horizontal primary row and stacked metadata layout rules
+  const css = readFileSync(
+    fileURLToPath(new URL('../styles/components.css', import.meta.url)),
+    'utf8',
+  );
+  assert.match(css, /\.modeled-perimeter-primary-row\s*\{[^}]*justify-content:\s*space-between/);
+  assert.match(css, /\.modeled-perimeter-meta-row\s*\{[^}]*flex-direction:\s*column/);
+  assert.match(css, /\.modeled-perimeter-meta-row \.modeled-perimeter-value\s*\{[^}]*text-align:\s*left/);
+
+  // 8. Naming guardrail: primary title is NOT Hip Circumference or Hip Girth
+  assert.equal(html.includes('<span class="derived-card-title">Hip Circumference</span>'), false);
+  assert.equal(html.includes('<span class="derived-card-title">Hip Girth</span>'), false);
+  assert.equal(html.includes('<span class="derived-card-title">Maximum Hip Circumference</span>'), false);
+});
+
+test('derivedMeasurementDeck: buildModeledPerimeterCardHtml value is derived from runtime inputs, not hardcoded', () => {
+  const mockDynamicResult = {
+    id: 'torso_modeled_perimeter_at_hip_landmark_level',
+    sourceLevel: 'hip',
+    levelYcm: 90.0,
+    status: 'modeled',
+    valueCm: 125.456,
+  };
+
+  const html = buildModeledPerimeterCardHtml(mockDynamicResult);
+  assert.equal(html.includes('125.46 cm'), true);
+  assert.equal(html.includes('110.98 cm'), false);
+});
+
+test('derivedMeasurementDeck: buildModeledPerimeterCardHtml handles blocked, unavailable, and invalid states with dash', () => {
+  const blockedHtml = buildModeledPerimeterCardHtml({
+    id: 'torso_modeled_perimeter_at_hip_landmark_level',
+    sourceLevel: 'hip',
+    status: 'blocked',
+    valueCm: null,
+  });
+  assert.equal(blockedHtml.includes('Blocked'), true);
+  assert.equal(blockedHtml.includes('—'), true);
+  assert.equal(blockedHtml.includes('cm'), false);
+
+  const unavailHtml = buildModeledPerimeterCardHtml({
+    id: 'torso_modeled_perimeter_at_hip_landmark_level',
+    sourceLevel: 'hip',
+    status: 'unavailable',
+    valueCm: null,
+  });
+  assert.equal(unavailHtml.includes('Unavailable'), true);
+  assert.equal(unavailHtml.includes('—'), true);
+
+  const invalidHtml = buildModeledPerimeterCardHtml({
+    id: 'torso_modeled_perimeter_at_hip_landmark_level',
+    sourceLevel: 'hip',
+    status: 'invalid',
+    valueCm: null,
+  });
+  assert.equal(invalidHtml.includes('Invalid'), true);
+  assert.equal(invalidHtml.includes('—'), true);
+
+  // Null input returns empty string
+  assert.equal(buildModeledPerimeterCardHtml(null), '');
+});
+
+test('derivedMeasurementDeck: Modeled Perimeter Estimates subgroup supports collapsible toggle', async () => {
+  const { initCollapsibleSections } = await import('./collapsibleSections.js');
+
+  const headerAttrs = {};
+  const listeners = {};
+  const header = {
+    classList: {
+      classes: new Set(['results-subgroup-header']),
+      add(cls) { this.classes.add(cls); },
+      contains(cls) { return this.classes.has(cls); },
+    },
+    setAttribute(k, v) { headerAttrs[k] = String(v); },
+    getAttribute(k) { return headerAttrs[k] ?? null; },
+    addEventListener(type, fn) {
+      listeners[type] = listeners[type] || [];
+      listeners[type].push(fn);
+    },
+    click() {
+      for (const fn of listeners.click || []) fn();
+    },
+  };
+
+  const sectionClasses = new Set(['results-subgroup', 'results-subgroup--modeled-perimeter']);
+  const sectionAttrs = new Set(['data-collapsible']);
+  const section = {
+    classList: {
+      classes: sectionClasses,
+      add(cls) { sectionClasses.add(cls); },
+      contains(cls) { return sectionClasses.has(cls); },
+      toggle(cls, force) {
+        const should = force === undefined ? !sectionClasses.has(cls) : Boolean(force);
+        if (should) sectionClasses.add(cls);
+        else sectionClasses.delete(cls);
+      },
+    },
+    hasAttribute(name) { return sectionAttrs.has(name); },
+    matches(selector) { return selector === '[data-collapsible]'; },
+    querySelector(selector) {
+      if (selector === ':scope > .results-subgroup-header') return header;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+
+  initCollapsibleSections(section);
+
+  // Starts expanded by default
+  assert.equal(section.classList.contains('is-collapsed'), false);
+  assert.equal(header.getAttribute('aria-expanded'), 'true');
+
+  // Click to collapse
+  header.click();
+  assert.equal(section.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
+
+  // Click to expand
+  header.click();
+  assert.equal(section.classList.contains('is-collapsed'), false);
+  assert.equal(header.getAttribute('aria-expanded'), 'true');
+});
+
+test('derivedMeasurementDeck: guardrail verifies no domain formula is duplicated in UI code', () => {
+  const uiSource = readFileSync(
+    fileURLToPath(new URL('./derivedMeasurementDeck.js', import.meta.url)),
+    'utf8',
+  );
+
+  // UI must NOT contain ellipse formulas or math implementations
+  assert.equal(/ramanujan/i.test(uiSource) && uiSource.includes('Math.sqrt'), false, 'UI must not compute Ramanujan formula');
+  assert.equal(uiSource.includes('Math.PI'), false, 'UI must not use Math.PI');
+  assert.equal(uiSource.includes('** 2'), false, 'UI must not perform axis exponentiation');
+});
+
+test('derivedMeasurementDeck: Shoulder perimeter card is never rendered', () => {
+  const shoulderNullHtml = buildModeledPerimeterCardHtml(null);
+  assert.equal(shoulderNullHtml, '');
+
+  const shoulderInvalidObj = {
+    id: 'torso_modeled_perimeter_at_shoulder_level',
+    sourceLevel: 'shoulder',
+    status: 'invalid',
+    valueCm: null,
+  };
+  const shoulderInvalidHtml = buildModeledPerimeterCardHtml(shoulderInvalidObj);
+  assert.equal(shoulderInvalidHtml.includes('Shoulder Landmark Perimeter Estimate'), false);
+  assert.equal(shoulderInvalidHtml.includes('Shoulder Circumference'), false);
+  assert.equal(shoulderInvalidHtml.includes('—'), true);
+});
+
+

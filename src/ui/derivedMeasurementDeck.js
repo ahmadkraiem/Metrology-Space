@@ -16,6 +16,7 @@ import {
   getPairedCrossViewEligibility,
   getSidePhysicalDepthQualification,
   getCrossSectionEvidence,
+  getModeledCrossSectionPerimeter,
   getDirectBodyMeasurements,
   hasAnalyzedBodyEvidence,
   subscribeBodyEvidenceChange,
@@ -43,6 +44,8 @@ const DERIVED_CORRESPONDENCE_PAIRS = Object.freeze([
 
 const groupCollapseStates = new Map([
   ['cross_section_evidence', false],
+  ['modeled_perimeter_estimates', false],
+  ['direct_measurements', true],
   ['vertical_measurements', true],
   ['arm_segments', true],
   ['leg_segments', true],
@@ -305,6 +308,65 @@ export function buildDirectMeasurementsGroupHtml(groupIdOrTitle, groupTitleOrMea
   `;
 }
 
+export function buildModeledPerimeterCardHtml(modeledPerimeter) {
+  if (!modeledPerimeter) {
+    return '';
+  }
+
+  const isModeled = modeledPerimeter.status === 'modeled' && typeof modeledPerimeter.valueCm === 'number';
+  const valDisplay = isModeled ? `${formatDistance(modeledPerimeter.valueCm)} cm` : '—';
+
+  let statusBadge;
+  if (modeledPerimeter.status === 'modeled') {
+    statusBadge = renderBadge('Modeled', 'ok');
+  } else if (modeledPerimeter.status === 'blocked') {
+    statusBadge = renderBadge('Blocked', 'warn');
+  } else if (modeledPerimeter.status === 'invalid') {
+    statusBadge = renderBadge('Invalid', 'warn');
+  } else {
+    statusBadge = renderBadge('Unavailable', 'muted');
+  }
+
+  const yCm = modeledPerimeter.levelYcm;
+  const yDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
+    ? `Y ${formatDistance(yCm)} cm`
+    : 'Y —';
+
+  return `
+    <div class="derived-measurement-card modeled-perimeter-card" data-modeled-perimeter-id="${escapeHtml(modeledPerimeter.id || '')}">
+      <div class="derived-card-header">
+        <span class="derived-card-title">Hip Landmark Perimeter Estimate</span>
+        <div class="derived-card-meta">
+          <span class="derived-card-level">${escapeHtml(yDisplay)}</span>
+          ${statusBadge}
+        </div>
+      </div>
+
+      <div class="derived-card-body">
+        <div class="derived-card-row modeled-perimeter-primary-row">
+          <span class="derived-row-label modeled-perimeter-label">Perimeter Estimate</span>
+          <span class="derived-row-value modeled-perimeter-value ${isModeled ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(valDisplay)}</span>
+        </div>
+
+        <div class="derived-card-row modeled-perimeter-meta-row">
+          <span class="derived-row-label modeled-perimeter-label">Model Implementation</span>
+          <span class="derived-row-value modeled-perimeter-value derived-row-value--muted">Ellipse (Ramanujan II)</span>
+        </div>
+
+        <div class="derived-card-row modeled-perimeter-meta-row">
+          <span class="derived-row-label modeled-perimeter-label">Reference Level</span>
+          <span class="derived-row-value modeled-perimeter-value derived-row-value--muted">Hip Landmark Level</span>
+        </div>
+
+        <div class="modeled-perimeter-notes">
+          <p class="modeled-perimeter-note">Ellipse-modeled perimeter from qualified Front width + Side AP depth.</p>
+          <p class="modeled-perimeter-qualification">Not anthropometric Hip Circumference.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export function renderDerivedMeasurementDeck(containerEl) {
   if (!containerEl) {
     return;
@@ -354,6 +416,35 @@ export function renderDerivedMeasurementDeck(containerEl) {
     </div>
   `;
 
+  const modeledPerimeterResult = getModeledCrossSectionPerimeter({
+    id: 'torso_modeled_perimeter_at_hip_landmark_level',
+    annotations,
+  });
+
+  let modeledPerimeterHtml = '';
+  if (modeledPerimeterResult) {
+    const isPerimeterCollapsed = groupCollapseStates.get('modeled_perimeter_estimates') ?? false;
+    const perimeterCollapsedAttr = isPerimeterCollapsed ? 'data-collapsed' : '';
+    const perimeterCollapsedClass = isPerimeterCollapsed ? 'is-collapsed' : '';
+    const hipCardHtml = buildModeledPerimeterCardHtml(modeledPerimeterResult);
+
+    modeledPerimeterHtml = `
+    <div
+      class="results-subgroup results-subgroup--modeled-perimeter ${perimeterCollapsedClass}"
+      data-collapsible
+      ${perimeterCollapsedAttr}
+      data-group-id="modeled_perimeter_estimates"
+    >
+      <div class="results-subgroup-header results-subgroup-header--collapsible">
+        <span class="results-subgroup-label">Modeled Perimeter Estimates</span>
+      </div>
+      <div class="results-subgroup-body">
+        ${hipCardHtml}
+      </div>
+    </div>
+  `;
+  }
+
   const directReport = getDirectBodyMeasurements({ annotations });
   let directHtml = '';
   if (directReport && directReport.byGroup) {
@@ -402,7 +493,7 @@ export function renderDerivedMeasurementDeck(containerEl) {
     `;
   }
 
-  containerEl.innerHTML = crossSectionHtml + directHtml;
+  containerEl.innerHTML = crossSectionHtml + modeledPerimeterHtml + directHtml;
 }
 
 export function setupDerivedMeasurementDeck() {
