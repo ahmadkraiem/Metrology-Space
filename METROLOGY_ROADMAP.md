@@ -977,11 +977,52 @@ Visual inspection and highlight integration for the localized Natural Waist plan
   - **NOT** a measured 3D contour.
   - **NOT** a 3D slice reconstruction.
 
-### 4.13 Deferred Torso Planes & Circumference Workstreams — DEFERRED / NEXT
+### 4.13 Modeled Natural Waist Circumference v0 (`modeled-natural-waist-circumference-v0`) — COMPLETED
 
-The current state of remaining torso anatomical planes and circumferences:
-- **Modeled Natural Waist Circumference v0**: **NOT IMPLEMENTED / NEXT ACTIVE SUB-MILESTONE**. Will derive ellipse-modeled perimeter from qualified Front width + Side AP depth at localized Natural Waist plane.
-- **Bust Level Localization & Bust Circumference**: **DEFERRED**. Blocked by missing anatomical landmark anchors and unvalidated chest apex plane localization.
+Pure deterministic domain contract (`src/features/modeledNaturalWaistCircumference.js`) and UI presentation deriving an ellipse-based modeled Natural Waist circumference estimate:
+- **Definition & Modeling Semantics**:
+  - A deterministic ellipse-based modeled Natural Waist circumference estimate evaluated at the already-localized Natural Waist plane using calibrated Front transverse width and qualified Side physical AP depth at the exact same canonical Y.
+  - Explicitly modeled using the Ramanujan II ellipse perimeter formula ($a = \text{Front Width}/2$, $b = \text{Qualified Side AP Depth}/2$).
+  - **NOT** tape-measured ground truth.
+  - **NOT** a measured body contour.
+  - **NOT** a reconstructed 3D circumference or dense-geometry perimeter.
+  - **NOT** pointmap-derived.
+  - The Front and Side diameters are evidence-derived physical scalars; the ellipse is explicitly a modeling assumption, not the actual body contour.
+- **Evidence Consumption & Invariants**:
+  - Consumes authoritative upstream `natural-waist-plane-localization-v0` output directly without independently rescanning rasters, relocalizing the waist, or averaging candidate Y values.
+  - Requires finite positive Front transverse width with ordered endpoints ($minX_{cm} < maxX_{cm}$) and supported slice evidence.
+  - Requires qualified Side physical AP depth ($sideQualifiedApDepthCm > 0$) with ordered endpoints ($minU_{cm} < maxU_{cm}$).
+  - **Core Invariant**: *Front and Side share the exact same canonical physical Y, while their raster-row indices remain independent and view-local.*
+- **Strict Front-Only Blocking Semantics**:
+  - While Natural Waist plane localization may evaluate to `status: 'ready'` with advisory warnings when Side evidence is unavailable, **Modeled Natural Waist Circumference MUST NOT be produced from Front-only localization**.
+  - If Side AP depth is unavailable or unqualified, circumference status evaluates to `unavailable` or `blocked` (`valueCm: null`), emitting an explicit blocker. Raw Side profile span is never substituted as physical depth.
+- **Dedicated Embedded Cross-Section Evidence**:
+  - Embeds `natural-waist-cross-section-evidence-v0` preserving `yCm`, Front width/endpoints, Side AP depth/endpoints, same-Y consistency, and qualification status.
+  - Avoids polluting the static anatomical landmark registry in `crossSectionEvidence.js` (which is strictly reserved for static levels like Shoulder and Hip) while maintaining clean architectural isolation.
+- **Runtime Integration & Zero Recomputation**:
+  - Exported runtime getters in `src/features/bodyEvidence.js`: `getModeledNaturalWaistCircumference()` and `getModeledNaturalWaistCircumferenceReport()`.
+  - Pure, lazy, and non-mutating evaluation consuming cached scan/localization data without triggering redundant raster scans or recomputation.
+- **Results UI & Live Composition**:
+  - Results → **Modeled Perimeter Estimates** subgroup renders both:
+    1. **Modeled Natural Waist Circumference** (`torso_modeled_natural_waist_circumference_at_natural_waist_plane`)
+    2. **Modeled Hip / Seat Circumference Estimate** (`torso_modeled_hip_seat_circumference_at_maximum_seat_plane`)
+  - Displays formatted Circumference Estimate, Waist Plane Y, Front Width, Side AP Depth, Model (`Ellipse (Ramanujan II)`), and disclaimer (`"Modeled estimate; not tape-measured ground truth."`).
+  - When evidence is analyzed without annotations, renders a clear `Unavailable` card with dashes rather than disappearing silently.
+- **Click-to-Highlight & Ellipse Preview**:
+  - Clicking the Natural Waist card activates `selectMeasurement('torso_modeled_natural_waist_circumference_at_natural_waist_plane')`, routing to `VISUALIZATION_TYPES.NATURAL_WAIST_PLANE` to display the exact 2D Front/Side reference guides and slice bounds.
+  - Generalized `src/ui/modeledEllipseCrossSectionPreview.js` dynamically renders the Front $29.00\text{ cm} \times$ Side $23.20\text{ cm}$ cross-section labeled `Waist Plane Y: 107.15 cm` with disclaimer `"Ellipse model — not measured contour"`.
+- **Real-Package Validation Sample (`output.zip`)**:
+  - Natural Waist Plane Y: $107.15\text{ cm}$
+  - Front Transverse Width: $29.00\text{ cm}$
+  - Qualified Side AP Depth: $23.20\text{ cm}$
+  - Modeled Natural Waist Circumference: $82.2488\text{ cm}$ (displayed in UI as $82.25\text{ cm}$)
+  - Status: `modeled`
+  - *(Note: Sample package observations for validation; not universal hard-coded constants).*
+
+### 4.14 Deferred Torso Planes & Circumference Workstreams — DEFERRED / NEXT
+
+The remaining torso anatomical planes and circumferences:
+- **Chest / Bust Level Localization & Bust Circumference**: **DEFERRED**. Blocked by missing anatomical landmark anchors and unvalidated chest apex plane localization.
 - **Underbust Level Localization & Underbust Circumference**: **DEFERRED**. Blocked by missing inframammary fold localization.
 - **Abdomen Level Localization & Abdominal Circumference**: **DEFERRED**. Blocked by missing abdominal apex / maximum anterior protrusion localization.
 - **Clear Measurements Batch B (Bilateral Spans & Breadths)**: **DEFERRED** pending horizontal breadth $\Delta X$ vs chord distance semantic decision.
@@ -1068,17 +1109,17 @@ Current usage:
 
 ## 8. Verification Baseline
 
-- **652 tests passing**
+- **666 tests passing**
 - **0 failures**
-- **10 test suites**
+- **11 test suites**
 - Clean production Vite build (`npm run build`)
 
-## 9. Next Milestone
+## 9. Next Milestone Planning
 
-**Modeled Natural Waist Circumference v0**:
-- Derive ellipse-modeled perimeter estimate at the verified Natural Waist plane ($Y = 107.15\text{ cm}$ on sample package) from qualified Front width + Side AP depth using Ramanujan II approximation.
-- Integrate into Results measurement deck with standard modeled disclaimer (`"Modeled estimate; not tape-measured ground truth"`).
-- Maintain strict separation between modeled cross-sectional perimeters and tape-measured anthropometric ground truth.
+With **Modeled Natural Waist Circumference v0** completed, the next torso-plane work remains available for explicit selection among:
+1. **Chest / Bust Apex Localization & Modeled Bust Circumference v0**
+2. **Underbust / Inframammary Fold Localization & Modeled Underbust Circumference v0**
+3. **Abdominal Apex Localization & Modeled Abdominal Circumference v0**
 
 ## 10. Roadmap Change Policy
 

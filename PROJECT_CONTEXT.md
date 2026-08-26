@@ -902,13 +902,12 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.8: Modeled Ellipse Cross-Section Preview (`modeledEllipseCrossSectionPreview.js` — visual-only companion SVG preview for Modeled Hip / Seat Circumference with disclaimer `"Ellipse model — not measured contour"`**
 - **Milestone 4.9: Batch Landmark Promotion (`promoteAllFrontCoreLandmarks` — one-click idempotent batch promotion for all Core 13 front landmarks in Body Evidence panel)**
 - **Milestone 4.10: Torso Arbitrary-Y Evidence Scan v0 (`torso-arbitrary-y-evidence-scan-v0` — pure deterministic scanning of continuous Front single-run width and Side qualified AP depth across the anatomical shoulder-to-hip column under resolution-independent mapping)**
-- **Milestone 4.11: Natural Waist Plane Localization v0 (`natural-waist-plane-localization-v0` — evidence-driven waist plane localization using metric smoothing window = 2.0 cm, bilateral contour QA, broad trough pooling across nearby extrema, and deterministic representative-plane selection; $Y = 107.15\text{ cm}$ on sample capture)**
-- **Milestone 4.12: Natural Waist 2D Provenance Visualization & Diagnostics UI (`measurementVisualizationProvenance.js`, `measurementHighlightOverlay2d.js`, `bodyTabConsolidatedPanel.js` — interactive card under Diagnostics → Body / Anchor Diagnostics; full-width canonical-Y guide + Front/Side slice lines + concise non-obstructive badge `Natural Waist · 107.15 cm` with safe left inset)**
-- **Code & File Cleanup Pass — COMPLETED (removed temporary Results debug instrumentation and diagnostic window globals; cleaned container vs item CSS cursor rules)**
+- **Milestone 4.11: Natural Waist Plane Localization v0 (`natural-waist-plane-l- **Milestone 4.12: Natural Waist 2D Provenance Visualization & Diagnostics UI (`measurementVisualizationProvenance.js`, `measurementHighlightOverlay2d.js`, `bodyTabConsolidatedPanel.js` — interactive card under Diagnostics → Body / Anchor Diagnostics; full-width canonical-Y guide + Front/Side slice lines + concise non-obstructive badge `Natural Waist · 107.15 cm` with safe left inset)**
+- **Milestone 4.13: Modeled Natural Waist Circumference v0 (`modeled-natural-waist-circumference-v0` — pure deterministic domain contract deriving an ellipse-modeled Natural Waist circumference estimate from already-localized Natural Waist plane ($Y = 107.15\text{ cm}$) and qualified Front width ($29.00\text{ cm}$) + Side AP depth ($23.20\text{ cm}$) using Ramanujan II; $82.2488\text{ cm}$ runtime evaluation, displayed as $82.25\text{ cm}$; strict Front-only rejection gate; embeds `natural-waist-cross-section-evidence-v0`; live Results sidebar renders both Natural Waist and Hip/Seat circumference cards; generalized 2D ellipse preview displays Front width $\times$ Side AP depth with disclaimer `"Ellipse model — not measured contour"`)**
+- **Code & File Cleanup Pass — COMPLETED (removed temporary Results debug instrumentation and diagnostic window globals; verified 666/666 tests passing)**
 
 ### Deferred Milestones & Workstreams
-- **Modeled Natural Waist Circumference v0 (`modeled-natural-waist-circumference-v0`) — NEXT ACTIVE SUB-MILESTONE** (derive ellipse-modeled perimeter from qualified Front width + Side AP depth at localized Natural Waist plane; not implemented yet)
-- **Bust Level Localization & Bust Circumference** (blocked by missing chest apex localization)
+- **Chest / Bust Level Localization & Bust Circumference** (blocked by missing chest apex localization)
 - **Underbust Level Localization & Underbust Circumference** (blocked by missing inframammary fold localization)
 - **Abdomen Level Localization & Abdominal Circumference** (blocked by missing abdominal apex localization)
 - **Clear Measurements Batch B (Bilateral Spans & Breadths)**
@@ -928,14 +927,15 @@ When modifying this project, preserve the following unless explicitly instructed
   - Cross-Section Evidence v0 evaluated: Shoulder paired orthogonal physical observations ($30.80\text{ cm}$ Front, $11.00\text{ cm}$ Side AP Depth) evaluate to `status: 'qualified'`; Hip paired orthogonal physical observations ($42.20\text{ cm}$ Front, $27.70\text{ cm}$ Side AP Depth) evaluate to `status: 'qualified'`.
   - Modeled Cross-Section Perimeter v0 evaluated: Hip Landmark Level modeled perimeter evaluates to `status: 'modeled'`, `valueCm: 110.9830618865289` (UI: `110.98 cm`). Shoulder modeled perimeter remains strictly unsupported (`status: 'invalid'`, `valueCm: null`).
   - Natural Waist Plane Localization v0 evaluated: Natural Waist plane evaluates to `status: 'ready'`, `yCm: 107.15`, Front width: `29.00 cm`, Side qualified AP depth: `23.20 cm`, broad waist trough pooled across Valley 0 ($107.15\text{ cm}$) and Valley 1 ($110.75\text{ cm}$), secondary upper-torso shallow constriction at $124.25\text{ cm}$ non-competing. Interactive highlight and 2D provenance visualization fully active in Diagnostics.
+  - Modeled Natural Waist Circumference v0 evaluated: Modeled Natural Waist Circumference evaluates to `status: 'modeled'`, `valueCm: 82.2488` (UI: `82.25 cm`), evaluated at localized Natural Waist Plane ($Y = 107.15\text{ cm}$) from Front width ($29.00\text{ cm}$) and qualified Side AP depth ($23.20\text{ cm}$).
   - Batch A Direct Measurements evaluated: 19 calibrated measurements evaluated under `direct-body-measurements-v0`.
   - Metrological Principle: `plane localization != measured circumference != 3D reconstruction`.
-- **Strict Guardrails**: Named anthropometric circumferences (Bust, Underbust, Natural Waist, Abdomen) remain **deferred** or **in-progress** pending explicit modeling passes. Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z \to$ RVEacity canonical $Z$, no Front/Side pointmap fusion, no physical depth promotion beyond qualified 4.5H AP depth, no 3D contour reconstruction, no body volume, no 3D reconstruction, no physical authority from `"meters"`, no physical authority from Sapiens `scale`, and no invented Waist skeletal landmarks.
+- **Strict Guardrails**: Named anthropometric circumferences (Bust, Underbust, Abdomen) remain **deferred** pending explicit modeling passes. Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z \to$ RVEacity canonical $Z$, no Front/Side pointmap fusion, no physical depth promotion beyond qualified 4.5H AP depth, no 3D contour reconstruction, no body volume, no 3D reconstruction, no physical authority from `"meters"`, no physical authority from Sapiens `scale`, and no invented Waist skeletal landmarks.
 
 ### Verification Baseline
-- **652 tests passing**
+- **666 tests passing**
 - **0 failures**
-- **10 test suites**
+- **11 test suites**
 - Clean production Vite build (`npm run build`)
 
 ---
@@ -965,7 +965,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, rawSources staging metadata capture (aposeResult, alignResult), and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics / clothing body-surface semantics / authoritative physical evidence semantics / direct body measurements / modeled cross-section perimeter / natural waist plane localization getters, sanitized diagnostic export, batch landmark promotion |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics / clothing body-surface semantics / authoritative physical evidence semantics / direct body measurements / modeled cross-section perimeter / natural waist plane localization / modeled natural waist circumference getters, sanitized diagnostic export, batch landmark promotion |
 | `src/features/directBodyMeasurements.js` | Direct Body Measurements Contract v0 (`direct-body-measurements-v0`) — pure deterministic derivation of 19 direct Batch A body measurements across Vertical Inter-Level, Projected Landmark Segments, and Kinematic Chains |
 | `src/features/directBodyMeasurements.test.js` | Direct Body Measurements Contract v0 unit tests |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
@@ -1022,6 +1022,8 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/torsoArbitraryYEvidenceScan.test.js` | Torso Arbitrary-Y Evidence Scan Contract v0 unit tests |
 | `src/features/naturalWaistPlaneLocalization.js` | Natural Waist Plane Localization Contract v0 (`natural-waist-plane-localization-v0`) — pure deterministic evidence-driven waist plane localization using metric smoothing window = 2.0 cm, bilateral contour QA, broad trough pooling, and hierarchical tie-breaking |
 | `src/features/naturalWaistPlaneLocalization.test.js` | Natural Waist Plane Localization Contract v0 unit tests |
+| `src/features/modeledNaturalWaistCircumference.js` | Modeled Natural Waist Circumference Contract v0 (`modeled-natural-waist-circumference-v0`) — pure deterministic domain derivation of ellipse-modeled Natural Waist circumference estimate at localized Natural Waist Plane using Ramanujan II with strict Front-only gate |
+| `src/features/modeledNaturalWaistCircumference.test.js` | Modeled Natural Waist Circumference Contract v0 unit tests |
 | `src/features/measurementVisualizationProvenance.js` | Measurement Visualization Provenance Contract v0 (`measurement-visualization-provenance-v0`) — pure declarative normalizer converting domain measurement and plane localization records into standardized 2D visualization instructions |
 | `src/features/measurementVisualizationProvenance.test.js` | Measurement Visualization Provenance Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
@@ -1050,9 +1052,9 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/ui/domRefs.js` | Safe cached DOM element references |
 | `src/ui/workspaceLayout.js` | Workspace tab management (3D / 2D / Body Graph), split divider, and right sidebar rail collapse |
 | `src/ui/leftPanel.js` | Anatomical Levels card renderer for the left inspector |
-| `src/ui/derivedMeasurementDeck.js` | Right Sidebar Results cards (Cross-Section Evidence, Modeled Hip / Seat Circumference Estimate, and Direct Measurements) with click-to-highlight integration |
+| `src/ui/derivedMeasurementDeck.js` | Right Sidebar Results deck rendering collapsible Shoulder / Hip Cross-Section Evidence cards, Modeled Hip / Seat and Natural Waist Circumference cards, and collapsible parent Direct Measurements cards with click-to-highlight integration |
 | `src/ui/measurementHighlightOverlay2d.js` | 2D Measurement Highlight Overlay renderer — renders normalized visualization instructions on dedicated Front/Side highlight layers |
-| `src/ui/modeledEllipseCrossSectionPreview.js` | Modeled Ellipse Cross-Section Preview — companion SVG display in 2D workspace with aspect ratio and disclaimer |
+| `src/ui/modeledEllipseCrossSectionPreview.js` | Modeled Ellipse Cross-Section Preview — companion SVG display in 2D workspace for Hip / Seat and Natural Waist with aspect ratio and disclaimer |
 | `src/ui/advancedQaPanel.js` | Diagnostics Why Blocked + Advanced QA (intake / calibration) |
 | `src/ui/collapsibleSections.js` | Shared `[data-collapsible]` accordion wiring for left and right sidebars |
 | `src/ui/grid2dNavigator.js` | Front Surface 2D Grid Navigator (X/Y coordinates) |
