@@ -123,6 +123,10 @@ import {
   evaluateMaximumSeatPlaneLocalization,
 } from './maximumSeatPlaneLocalization.js';
 import {
+  MODELED_HIP_SEAT_CIRCUMFERENCE_CONTRACT_VERSION,
+  evaluateModeledHipSeatCircumference,
+} from './modeledHipSeatCircumference.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -2403,6 +2407,29 @@ export function getMaximumSeatPlaneLocalization({ annotations = null, options = 
  */
 export function getMaximumSeatPlaneLocalizationReport(options = {}) {
   return getMaximumSeatPlaneLocalization(options);
+}
+
+/**
+ * Evaluates pure deterministic Modeled Hip / Seat Circumference Estimate from the
+ * active localized Maximum Seat Plane candidate.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} ModeledHipSeatCircumferenceResultV0
+ */
+export function getModeledHipSeatCircumference({ annotations = null, options = {} } = {}) {
+  const localization = getMaximumSeatPlaneLocalization({ annotations, options });
+  if (!localization) return null;
+  return evaluateModeledHipSeatCircumference(localization, options);
+}
+
+/**
+ * Alias for getModeledHipSeatCircumference for uniform reporting convention.
+ */
+export function getModeledHipSeatCircumferenceReport(options = {}) {
+  return getModeledHipSeatCircumference(options);
 }
 
 export function analyzeLoadedBodyEvidence() {
