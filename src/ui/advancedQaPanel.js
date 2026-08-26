@@ -46,7 +46,7 @@ function toneForStatus(status) {
 function renderIntakeSection(pkg, qa) {
   const sampleId = pkg?.sampleId || pkg?.id || 'Standard Subject';
   const version = pkg?.version || qa?.version || 'v0';
-  const format = pkg?.sourceFormat || qa?.sourceFormat || 'REVacity Package';
+  const format = pkg?.sourceFormat || qa?.sourceFormat || 'RVEacity Package';
   const statusBadge = pkg ? renderBadge('Loaded', 'ok') : renderBadge('Unavailable', 'muted');
 
   return `

@@ -12,7 +12,8 @@ import { applyImportedMode } from '../ui/appModeControls.js';
 import { clearGraphHighlight } from './sceneGraphHighlight.js';
 
 
-const APP_NAME = 'REVacity Metrology Space';
+const APP_NAME = 'RVEacity Metrology Space';
+const LEGACY_APP_NAME = 'REVacity Metrology Space';
 const METADATA_VERSION = 1;
 const VALID_MODES = new Set(['inspect-measure', 'annotate']);
 
@@ -201,8 +202,8 @@ export function validateSceneState(data) {
     return { valid: false, error: 'Missing metadata' };
   }
 
-  if (metadata.appName !== APP_NAME) {
-    return { valid: false, error: 'metadata.appName must be "REVacity Metrology Space"' };
+  if (metadata.appName !== APP_NAME && metadata.appName !== LEGACY_APP_NAME) {
+    return { valid: false, error: `metadata.appName must be "${APP_NAME}"` };
   }
 
   if (metadata.version !== METADATA_VERSION) {
@@ -245,7 +246,7 @@ loadSceneJsonInput.hidden = true;
 document.body.appendChild(loadSceneJsonInput);
 
 function showImportStatus(message, _type = 'error') {
-  console.warn('[REVacity] Scene import status:', message);
+  console.warn('[RVEacity] Scene import status:', message);
 }
 
 function hideImportStatus() {
@@ -255,7 +256,7 @@ function hideImportStatus() {
 export function importSceneState(data, measurement, selectionHighlight) {
   const validation = validateSceneState(data);
   if (!validation.valid) {
-    console.warn('[REVacity] Scene import rejected:', validation.error);
+    console.warn('[RVEacity] Scene import rejected:', validation.error);
     showImportStatus(validation.error);
     return false;
   }
@@ -273,7 +274,7 @@ export function importSceneState(data, measurement, selectionHighlight) {
     applyImportedMode(importedMode, selectionHighlight);
   }
 
-  console.info('[REVacity] Scene State imported successfully.');
+  console.info('[RVEacity] Scene State imported successfully.');
   return true;
 }
 
@@ -298,7 +299,7 @@ export function setupSceneImport(measurement, selectionHighlight) {
       const message = error instanceof SyntaxError
         ? 'Invalid JSON file'
         : 'Failed to read Scene State file';
-      console.warn('[REVacity] Scene import failed:', message, error);
+      console.warn('[RVEacity] Scene import failed:', message, error);
       showImportStatus(message);
     }
   });

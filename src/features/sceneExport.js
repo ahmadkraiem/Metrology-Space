@@ -51,7 +51,7 @@ function getExportTimezone() {
 
 function buildExportMetadata(exportedAt) {
   const metadata = {
-    appName: 'REVacity Metrology Space',
+    appName: 'RVEacity Metrology Space',
     version: 1,
     exportedAtUtc: exportedAt.toISOString(),
     exportedAtLocal: formatExportLocalTimestamp(exportedAt),

@@ -1,4 +1,4 @@
-# REVacity Metrology Space — Development Roadmap
+# RVEacity Metrology Space — Development Roadmap
 
 Status: Active guiding roadmap
 Purpose: Keep the project aligned with the current architecture and evidence strategy. This roadmap is a source-of-truth planning document, not an immutable specification. Future changes should update this file deliberately rather than silently diverging from it.

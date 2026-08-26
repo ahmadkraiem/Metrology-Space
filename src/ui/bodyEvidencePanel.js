@@ -779,7 +779,7 @@ export function setupBodyEvidencePanel() {
         const res = await importBodyEvidenceZip(file);
         if (!res.ok) {
           showStatus(res.error || 'Failed to import Body Evidence package.', 'error');
-          console.warn('[REVacity] Body evidence package import failed:', res.error);
+          console.warn('[RVEacity] Body evidence package import failed:', res.error);
           return;
         }
         setBodyEvidencePackage(res.package);
@@ -795,7 +795,7 @@ export function setupBodyEvidencePanel() {
         renderSelectedLandmark();
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Error importing ZIP package.';
-        console.warn('[REVacity] Body evidence ZIP import failed:', err);
+        console.warn('[RVEacity] Body evidence ZIP import failed:', err);
         showStatus(msg, 'error');
       }
     });

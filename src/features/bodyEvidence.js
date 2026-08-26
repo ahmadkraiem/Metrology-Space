@@ -2500,7 +2500,7 @@ export function analyzeLoadedBodyEvidence() {
         if (sessionId !== currentAnalysisSessionId) {
           return;
         }
-        console.warn('[REVacity] Dense Evidence QA evaluation error:', err);
+        console.warn('[RVEacity] Dense Evidence QA evaluation error:', err);
       });
     }
 
@@ -2569,7 +2569,7 @@ export async function analyzeLoadedBodyEvidenceAsync() {
       }
     } catch (err) {
       if (sessionId === currentAnalysisSessionId) {
-        console.warn('[REVacity] Dense Evidence QA async evaluation error:', err);
+        console.warn('[RVEacity] Dense Evidence QA async evaluation error:', err);
       }
     }
   }

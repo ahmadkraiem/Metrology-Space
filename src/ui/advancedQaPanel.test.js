@@ -136,7 +136,7 @@ test('advancedQaPanel: Stage 2 keeps intake and calibration, drops eligibility a
     pkg: {
       sampleId: 'subject-01',
       version: 'body-evidence-package-v0',
-      sourceFormat: 'REVacity Package',
+      sourceFormat: 'RVEacity Package',
     },
     qa: { version: 'v0' },
     provenance: {
@@ -185,7 +185,7 @@ test('advancedQaPanel: Stage 2 keeps intake and calibration, drops eligibility a
 
 test('advancedQaPanel: 4.5H renders Side T-Pose, Lateral Orientation, and AP Depth Qualification sections', () => {
   const html = buildAdvancedQaContentHtml({
-    pkg: { sampleId: 'subject-01', version: 'body-evidence-package-v0', sourceFormat: 'REVacity Package' },
+    pkg: { sampleId: 'subject-01', version: 'body-evidence-package-v0', sourceFormat: 'RVEacity Package' },
     qa: { version: 'v0' },
     provenance: { status: 'validated', calibration: { isIsotropic: true, pixelsPerCm: 10 } },
     sidePoseQual: {
@@ -228,7 +228,7 @@ test('advancedQaPanel: 4.5H renders Side T-Pose, Lateral Orientation, and AP Dep
 
 test('advancedQaPanel: long diagnostic values render in stacked rows and short values remain inline', () => {
   const html = buildAdvancedQaContentHtml({
-    pkg: { sampleId: 'subject-01', version: 'body-evidence-package-v0', sourceFormat: 'REVacity Package' },
+    pkg: { sampleId: 'subject-01', version: 'body-evidence-package-v0', sourceFormat: 'RVEacity Package' },
     qa: { version: 'v0' },
     provenance: { status: 'validated', calibration: { isIsotropic: true, pixelsPerCm: 10 } },
     sidePoseQual: {
