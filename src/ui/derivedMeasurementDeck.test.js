@@ -6,8 +6,10 @@ import { fileURLToPath } from 'node:url';
 import {
   buildDerivedMeasurementCardHtml,
   buildDirectMeasurementsGroupHtml,
+  buildModeledHipSeatCircumferenceCardHtml,
   buildModeledPerimeterCardHtml,
   deriveMeasurementCardStatus,
+  getMeasurementRecordById,
   renderDerivedMeasurementDeck,
 } from './derivedMeasurementDeck.js';
 
@@ -618,7 +620,7 @@ test('derivedMeasurementDeck: nested child toggle calls stopPropagation and does
       add(cls) { this.classes.add(cls); },
       contains(cls) { return this.classes.has(cls); },
     },
-    setAttribute() {},
+    setAttribute() { },
     getAttribute() { return 'false'; },
     addEventListener(type, fn) {
       childListeners[type] = childListeners[type] || [];
@@ -694,7 +696,7 @@ test('derivedMeasurementDeck: runtime scenario - Results toggle sequence with ne
         let propagationStopped = false;
         const ev = {
           stopPropagation() { propagationStopped = true; },
-          preventDefault() {},
+          preventDefault() { },
         };
         for (const fn of eventListeners.click || []) {
           fn(ev);
@@ -861,8 +863,8 @@ test('derivedMeasurementDeck: hit target test - visible Results header and child
     },
     click() {
       const ev = {
-        stopPropagation() {},
-        preventDefault() {},
+        stopPropagation() { },
+        preventDefault() { },
       };
       for (const fn of headerListeners) fn(ev);
     },
@@ -1132,6 +1134,85 @@ test('derivedMeasurementDeck: Shoulder perimeter card is never rendered', () => 
   assert.equal(shoulderInvalidHtml.includes('Shoulder Landmark Perimeter Estimate'), false);
   assert.equal(shoulderInvalidHtml.includes('Shoulder Circumference'), false);
   assert.equal(shoulderInvalidHtml.includes('—'), true);
+});
+
+test('derivedMeasurementDeck: Hip/Seat card remains the production-facing modeled circumference result', () => {
+  const html = buildModeledHipSeatCircumferenceCardHtml({
+    contract: 'modeled-hip-seat-circumference-v0',
+    id: 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane',
+    name: 'Modeled Hip / Seat Circumference Estimate',
+    status: 'modeled',
+    valueCm: 114.1959,
+    levelYcm: 79.95,
+    model: {
+      family: 'ellipse',
+      implementation: 'ellipse_ramanujan_ii',
+      transverseWidthCm: 44.3,
+      apDepthCm: 27.4,
+    },
+    provenance: {
+      selectedYcm: 79.95,
+      frontTransverseWidthCm: 44.3,
+      sideQualifiedApDepthCm: 27.4,
+    },
+  });
+
+  assert.equal(html.includes('Modeled Hip / Seat Circumference Estimate'), true);
+  assert.equal(html.includes('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"'), true);
+  assert.equal(html.includes('Circumference Estimate'), true);
+  assert.equal(html.includes('114.20 cm'), true);
+  assert.equal(html.includes('Seat Plane Y'), true);
+  assert.equal(html.includes('79.95 cm'), true);
+  assert.equal(html.includes('Front Width'), true);
+  assert.equal(html.includes('44.30 cm'), true);
+  assert.equal(html.includes('Side AP Depth'), true);
+  assert.equal(html.includes('27.40 cm'), true);
+  assert.equal(html.includes('Ellipse (Ramanujan II)'), true);
+  assert.equal(html.includes('Modeled estimate; not tape-measured ground truth.'), true);
+  assert.equal(html.includes('Hip Landmark Perimeter Estimate'), false);
+});
+
+test('derivedMeasurementDeck: Hip/Seat card width and depth are runtime fields, not hardcoded', () => {
+  const html = buildModeledHipSeatCircumferenceCardHtml({
+    id: 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane',
+    status: 'modeled',
+    valueCm: 101.25,
+    levelYcm: 82.4,
+    model: {
+      transverseWidthCm: 40.12,
+      apDepthCm: 22.08,
+    },
+  });
+
+  assert.equal(html.includes('101.25 cm'), true);
+  assert.equal(html.includes('40.12 cm'), true);
+  assert.equal(html.includes('22.08 cm'), true);
+  assert.equal(html.includes('114.20 cm'), false);
+  assert.equal(html.includes('44.30 cm'), false);
+  assert.equal(html.includes('27.40 cm'), false);
+});
+
+test('derivedMeasurementDeck: standard Results renderer keeps Hip/Seat card and omits Hip Landmark Perimeter card', () => {
+  const uiSource = readFileSync(
+    fileURLToPath(new URL('./derivedMeasurementDeck.js', import.meta.url)),
+    'utf8',
+  );
+  const renderStart = uiSource.indexOf('export function renderDerivedMeasurementDeck');
+  const setupStart = uiSource.indexOf('export function setupDerivedMeasurementDeck');
+  assert.ok(renderStart > -1 && setupStart > renderStart);
+  const renderFn = uiSource.slice(renderStart, setupStart);
+
+  assert.equal(renderFn.includes('buildModeledHipSeatCircumferenceCardHtml'), true);
+  assert.equal(renderFn.includes('buildModeledPerimeterCardHtml'), false);
+  assert.equal(renderFn.includes('Hip Landmark Perimeter Estimate'), false);
+  assert.equal(uiSource.includes('export function buildModeledPerimeterCardHtml'), true);
+});
+
+test('derivedMeasurementDeck: Hip Landmark perimeter remains available internally via measurement record lookup', () => {
+  const record = getMeasurementRecordById('torso_modeled_perimeter_at_hip_landmark_level');
+  assert.ok(record);
+  assert.equal(record.id, 'torso_modeled_perimeter_at_hip_landmark_level');
+  assert.equal(record.contract, 'modeled-cross-section-perimeter-v0');
 });
 
 

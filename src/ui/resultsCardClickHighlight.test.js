@@ -527,7 +527,9 @@ test('Focused Interactivity 1 & 2: Rendered Hip/Seat card and direct measurement
 
   const html = container.innerHTML;
   assert.ok(html.includes('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"'));
-  assert.ok(html.includes('data-measurement-id="torso_modeled_perimeter_at_hip_landmark_level"'));
+  assert.ok(html.includes('Modeled Hip / Seat Circumference Estimate'));
+  assert.equal(html.includes('data-measurement-id="torso_modeled_perimeter_at_hip_landmark_level"'), false);
+  assert.equal(html.includes('Hip Landmark Perimeter Estimate'), false);
   assert.ok(html.includes('data-measurement-id="left_upper_arm_segment_length_projected"'));
   assert.ok(html.includes('role="button"'));
   assert.ok(html.includes('tabindex="0"'));

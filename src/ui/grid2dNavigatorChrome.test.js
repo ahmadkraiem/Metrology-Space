@@ -62,3 +62,22 @@ test('grid2dNavigatorChrome: Back / Reset / Split controls and grid state chips 
 
   assert.equal(markup.match(/class="grid2d-refinement-status"[^>]*>Base 10 cm</g)?.length, 2);
 });
+
+test('grid2dNavigatorChrome: modeled ellipse preview sits beside the 2D workspace, not over Front or Side canvases', () => {
+  const previewIndex = markup.indexOf('id="modeled-cross-section-preview"');
+  const areaIndex = markup.indexOf('class="workspace-2d-area"');
+  const toolbarIndex = markup.indexOf('class="workspace-2d-toolbar"');
+  const frontField = markup.slice(
+    markup.indexOf('id="grid2d-field"'),
+    markup.indexOf('id="grid2d-selection-rect"'),
+  );
+  const sideField = markup.slice(
+    markup.indexOf('id="side-evidence-field"'),
+    markup.indexOf('id="side-evidence-selection-rect"'),
+  );
+
+  assert.ok(previewIndex > areaIndex);
+  assert.ok(toolbarIndex > previewIndex);
+  assert.equal(frontField.includes('modeled-cross-section-preview'), false);
+  assert.equal(sideField.includes('modeled-cross-section-preview'), false);
+});

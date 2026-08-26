@@ -438,13 +438,21 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
     statusBadge = renderBadge('Unavailable', 'muted');
   }
 
-  const yCm = seatCircumference.levelYcm;
+  const yCm = seatCircumference.levelYcm
+    ?? seatCircumference.provenance?.selectedYcm;
   const yDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
     ? `Y ${formatDistance(yCm)} cm`
     : 'Y —';
+  const seatPlaneYDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
+    ? `${formatDistance(yCm)} cm`
+    : '—';
 
-  const frontWidth = seatCircumference.provenance?.frontSlice?.widthCm;
-  const sideDepth = seatCircumference.provenance?.sideSlice?.depthCm;
+  const frontWidth = seatCircumference.model?.transverseWidthCm
+    ?? seatCircumference.provenance?.frontTransverseWidthCm
+    ?? seatCircumference.provenance?.frontSlice?.widthCm;
+  const sideDepth = seatCircumference.model?.apDepthCm
+    ?? seatCircumference.provenance?.sideQualifiedApDepthCm
+    ?? seatCircumference.provenance?.sideSlice?.depthCm;
 
   const frontDisplay = typeof frontWidth === 'number' ? `${formatDistance(frontWidth)} cm` : '—';
   const sideDisplay = typeof sideDepth === 'number' ? `${formatDistance(sideDepth)} cm` : '—';
@@ -475,22 +483,22 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
         </div>
 
         <div class="derived-card-row">
-          <span class="derived-row-label">Front Transverse Width (Seat Plane)</span>
+          <span class="derived-row-label">Seat Plane Y</span>
+          <span class="derived-row-value ${typeof yCm === 'number' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(seatPlaneYDisplay)}</span>
+        </div>
+
+        <div class="derived-card-row">
+          <span class="derived-row-label">Front Width</span>
           <span class="derived-row-value ${typeof frontWidth === 'number' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(frontDisplay)}</span>
         </div>
 
         <div class="derived-card-row">
-          <span class="derived-row-label">Side AP Depth (Seat Plane)</span>
+          <span class="derived-row-label">Side AP Depth</span>
           <span class="derived-row-value ${typeof sideDepth === 'number' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(sideDisplay)}</span>
         </div>
 
         <div class="derived-card-row modeled-perimeter-meta-row">
-          <span class="derived-row-label modeled-perimeter-label">Source Plane</span>
-          <span class="derived-row-value modeled-perimeter-value derived-row-value--muted">Maximum Buttock / Seat Plane</span>
-        </div>
-
-        <div class="derived-card-row modeled-perimeter-meta-row">
-          <span class="derived-row-label modeled-perimeter-label">Model Implementation</span>
+          <span class="derived-row-label modeled-perimeter-label">Model</span>
           <span class="derived-row-value modeled-perimeter-value derived-row-value--muted">Ellipse (Ramanujan II)</span>
         </div>
 
@@ -688,21 +696,15 @@ export function renderDerivedMeasurementDeck(containerEl) {
     </div>
   `;
 
-  const modeledPerimeterResult = getModeledCrossSectionPerimeter({
-    id: 'torso_modeled_perimeter_at_hip_landmark_level',
-    annotations,
-  });
-
   const modeledSeatCircumferenceResult = getModeledHipSeatCircumference({
     annotations,
   });
 
   let modeledPerimeterHtml = '';
-  if (modeledPerimeterResult || modeledSeatCircumferenceResult) {
+  if (modeledSeatCircumferenceResult) {
     const isPerimeterCollapsed = groupCollapseStates.get('modeled_perimeter_estimates') ?? false;
     const perimeterCollapsedAttr = isPerimeterCollapsed ? 'data-collapsed' : '';
     const perimeterCollapsedClass = isPerimeterCollapsed ? 'is-collapsed' : '';
-    const hipCardHtml = buildModeledPerimeterCardHtml(modeledPerimeterResult);
     const seatCardHtml = buildModeledHipSeatCircumferenceCardHtml(modeledSeatCircumferenceResult);
 
     modeledPerimeterHtml = `
@@ -717,7 +719,6 @@ export function renderDerivedMeasurementDeck(containerEl) {
       </div>
       <div class="results-subgroup-body">
         ${seatCardHtml}
-        ${hipCardHtml}
       </div>
     </div>
   `;

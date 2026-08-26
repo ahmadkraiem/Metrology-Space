@@ -145,6 +145,7 @@ function createHighlightLine(pA, pB, className = 'grid2d-highlight-line') {
   line.style.left = `${pA.px}px`;
   line.style.top = `${pA.py}px`;
   line.style.width = `${length}px`;
+  line.style.transformOrigin = '0 50%';
   line.style.transform = `rotate(${angleDeg}deg)`;
   line.setAttribute('aria-hidden', 'true');
   return line;
@@ -349,30 +350,36 @@ function renderVerticalLevelInterval(fragment, geometry, worldToPlotPx) {
     return;
   }
 
-  const centerX = 100;
-  const tickHalfWidthCm = 15;
+  const plotCenterXcm = 100;
+  const connectorOffsetXcm = 32;
+  const connectorXcm = plotCenterXcm + connectorOffsetXcm;
+  const tickHalfWidthCm = 12;
+  const badgeOffsetPx = 24;
 
-  const pUpperLeft = worldToPlotPx(centerX - tickHalfWidthCm, upperY);
-  const pUpperRight = worldToPlotPx(centerX + tickHalfWidthCm, upperY);
-  const pLowerLeft = worldToPlotPx(centerX - tickHalfWidthCm, lowerY);
-  const pLowerRight = worldToPlotPx(centerX + tickHalfWidthCm, lowerY);
+  const pUpperLeft = worldToPlotPx(connectorXcm - tickHalfWidthCm, upperY);
+  const pUpperRight = worldToPlotPx(connectorXcm + tickHalfWidthCm, upperY);
+  const pLowerLeft = worldToPlotPx(connectorXcm - tickHalfWidthCm, lowerY);
+  const pLowerRight = worldToPlotPx(connectorXcm + tickHalfWidthCm, lowerY);
 
-  const pCenterUpper = worldToPlotPx(centerX, upperY);
-  const pCenterLower = worldToPlotPx(centerX, lowerY);
+  const pConnectorUpper = worldToPlotPx(connectorXcm, upperY);
+  const pConnectorLower = worldToPlotPx(connectorXcm, lowerY);
 
   const upperTick = createHighlightLine(pUpperLeft, pUpperRight, 'grid2d-highlight-tick');
   const lowerTick = createHighlightLine(pLowerLeft, pLowerRight, 'grid2d-highlight-tick');
-  const verticalLine = createHighlightLine(pCenterUpper, pCenterLower, 'grid2d-highlight-vertical-line');
+  const verticalLine = createHighlightLine(pConnectorUpper, pConnectorLower, 'grid2d-highlight-vertical-line');
 
   if (upperTick) fragment.appendChild(upperTick);
   if (lowerTick) fragment.appendChild(lowerTick);
   if (verticalLine) fragment.appendChild(verticalLine);
 
-  fragment.appendChild(createHighlightDot(pCenterUpper));
-  fragment.appendChild(createHighlightDot(pCenterLower));
+  fragment.appendChild(createHighlightDot(pConnectorUpper));
+  fragment.appendChild(createHighlightDot(pConnectorLower));
 
   const displayDist = dist ?? Math.abs(upperY - lowerY);
-  const midPoint = { px: pCenterUpper.px + 24, py: (pCenterUpper.py + pCenterLower.py) / 2 };
+  const midPoint = {
+    px: pConnectorUpper.px + badgeOffsetPx,
+    py: (pConnectorUpper.py + pConnectorLower.py) / 2,
+  };
   fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displayDist)} cm`));
 }
 

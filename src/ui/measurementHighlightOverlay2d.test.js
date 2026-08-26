@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import {
   VISUALIZATION_TYPES,
@@ -359,6 +361,62 @@ test('9. Vertical interval uses upper/lower Y semantics with horizontal ticks an
 
   const badge = frontLayer.querySelector('.grid2d-highlight-badge');
   assert.equal(badge.textContent, '48.75 cm');
+
+  const plotCenterPx = 100 * 2;
+  const connectorX = parseFloat(verticalLine.style.left);
+  assert.ok(connectorX > plotCenterPx, 'Vertical connector is offset to the side of the body center');
+
+  const upperPy = 400 - 135.0 * 2;
+  const lowerPy = 400 - 86.25 * 2;
+  assert.equal(verticalLine.style.top, `${upperPy}px`);
+  assert.equal(verticalLine.style.width, `${Math.abs(lowerPy - upperPy)}px`);
+
+  const tickYs = ticks.map((tick) => parseFloat(tick.style.top)).sort((a, b) => a - b);
+  assert.equal(tickYs[0], upperPy);
+  assert.equal(tickYs[1], lowerPy);
+
+  const badgeX = parseFloat(badge.style.left);
+  const badgeY = parseFloat(badge.style.top);
+  assert.equal(badgeX, connectorX + 24, 'Value badge sits beside the vertical connector');
+  assert.equal(badgeY, (upperPy + lowerPy) / 2);
+  assert.notEqual(badgeX, connectorX);
+});
+
+test('9b. Vertical interval connector CSS remains a rotatable stroke with visible thickness', () => {
+  const css = readFileSync(
+    fileURLToPath(new URL('../styles/overlays.css', import.meta.url)),
+    'utf8',
+  );
+  assert.match(css, /\.grid2d-highlight-vertical-line\s*\{[^}]*height:\s*2px/);
+  assert.match(css, /\.grid2d-highlight-vertical-line\s*\{[^}]*transform-origin:\s*0\s+50%/);
+});
+
+test('9c. Vertical interval connector preserves exact Y span after resize', () => {
+  const { frontLayer } = setupTestDom();
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'vertical_torso_length_neck_to_hip',
+    visualizationType: VISUALIZATION_TYPES.VERTICAL_LEVEL_INTERVAL,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      upperYcm: 135.0,
+      lowerYcm: 86.25,
+      distanceCm: 48.75,
+    },
+  };
+
+  setMeasurementHighlight(vis);
+  renderFrontMeasurementHighlight({
+    worldToPlotPx: (h, v) => ({ px: h * 4, py: 800 - v * 4 }),
+    layerEl: frontLayer,
+  });
+
+  const verticalLine = frontLayer.querySelector('.grid2d-highlight-vertical-line');
+  const upperPy = 800 - 135.0 * 4;
+  const lowerPy = 800 - 86.25 * 4;
+  assert.equal(verticalLine.style.top, `${upperPy}px`);
+  assert.equal(verticalLine.style.width, `${Math.abs(lowerPy - upperPy)}px`);
 });
 
 test('10. Anatomical horizontal level renders reference guide line and anchor dots', () => {
