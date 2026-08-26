@@ -127,6 +127,10 @@ import {
   evaluateModeledHipSeatCircumference,
 } from './modeledHipSeatCircumference.js';
 import {
+  MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION,
+  resolveMeasurementVisualizationProvenance,
+} from './measurementVisualizationProvenance.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -2430,6 +2434,23 @@ export function getModeledHipSeatCircumference({ annotations = null, options = {
  */
 export function getModeledHipSeatCircumferenceReport(options = {}) {
   return getModeledHipSeatCircumference(options);
+}
+
+/**
+ * Resolves declarative 2D visualization provenance for any measurement result object.
+ *
+ * @param {object} measurement
+ * @param {object} [context]
+ * @returns {object}
+ */
+export function getMeasurementVisualizationProvenance(measurement, context = {}) {
+  const resolvedContext = {
+    crossSectionEvidenceReport: getCrossSectionEvidence('hip'),
+    directMeasurementsReport: getDirectBodyMeasurements(),
+    anatomicalLevelsReport: getAnatomicalLevelsReport(),
+    ...context,
+  };
+  return resolveMeasurementVisualizationProvenance(measurement, resolvedContext);
 }
 
 export function analyzeLoadedBodyEvidence() {

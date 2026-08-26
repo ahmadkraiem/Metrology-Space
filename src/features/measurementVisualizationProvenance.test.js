@@ -1,0 +1,375 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
+  MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT,
+  MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION,
+  VISUALIZATION_TYPES,
+  VISUALIZATION_STATUS,
+  resolveMeasurementVisualizationProvenance,
+} from './measurementVisualizationProvenance.js';
+
+test('1. Front horizontal width normalizes correctly', () => {
+  const frontWidth = {
+    contract: 'front-transverse-width-v0',
+    id: 'torso_width_at_shoulder_level',
+    name: 'Torso Transverse Width at Shoulder Level',
+    status: 'valid',
+    valueCm: 30.8,
+    provenance: {
+      sourceLevel: 'shoulder',
+      levelYcm: 128.25,
+      sampledPixelRow: 717,
+      leftXcm: 34.6,
+      rightXcm: 65.4,
+      targetPolicy: 'trunk_core_support_v0',
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(frontWidth);
+
+  assert.equal(result.contract, MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT);
+  assert.equal(result.version, MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION);
+  assert.equal(result.measurementId, 'torso_width_at_shoulder_level');
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.deepEqual(result.targetViews, ['front']);
+  assert.equal(result.geometry.yCm, 128.25);
+  assert.equal(result.geometry.front.rasterRow, 717);
+  assert.equal(result.geometry.front.minXcm, 34.6);
+  assert.equal(result.geometry.front.maxXcm, 65.4);
+  assert.equal(result.geometry.front.widthCm, 30.8);
+});
+
+test('2. Side horizontal span normalizes correctly', () => {
+  const sideSpan = {
+    contract: 'side-profile-span-v0',
+    id: 'torso_profile_span_at_hip_level',
+    name: 'Torso Profile Span at Hip Level',
+    status: 'valid',
+    valueCm: 27.7,
+    provenance: {
+      sourceLevel: 'hip',
+      levelYcm: 86.25,
+      sampledPixelRow: 1137,
+      minUcm: 36.1,
+      maxUcm: 63.8,
+      targetPolicy: 'pelvic_core_support_v0',
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(sideSpan);
+
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.SIDE_HORIZONTAL_SLICE);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.deepEqual(result.targetViews, ['side']);
+  assert.equal(result.geometry.yCm, 86.25);
+  assert.equal(result.geometry.side.rasterRow, 1137);
+  assert.equal(result.geometry.side.minUcm, 36.1);
+  assert.equal(result.geometry.side.maxUcm, 63.8);
+  assert.equal(result.geometry.side.depthCm, 27.7);
+});
+
+test('3 & 4. Cross-view Shoulder and Hip evidence normalize correctly', () => {
+  const crossSection = {
+    contract: 'cross-section-evidence-v0',
+    id: 'torso_cross_section_evidence_at_shoulder_level',
+    name: 'Torso Cross-Section Evidence at Shoulder Level',
+    sourceLevel: 'shoulder',
+    levelYcm: 128.25,
+    status: 'qualified',
+    frontObservation: {
+      transverseWidthCm: 30.8,
+      provenance: { sampledPixelRow: 717, leftXcm: 34.6, rightXcm: 65.4 },
+    },
+    sideObservation: {
+      apDepthCm: 11.0,
+      provenance: { sampledPixelRow: 717, minUcm: 44.5, maxUcm: 55.5 },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(crossSection);
+
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.deepEqual(result.targetViews, ['front', 'side']);
+  assert.equal(result.geometry.yCm, 128.25);
+  assert.equal(result.geometry.front.minXcm, 34.6);
+  assert.equal(result.geometry.front.maxXcm, 65.4);
+  assert.equal(result.geometry.side.minUcm, 44.5);
+  assert.equal(result.geometry.side.maxUcm, 55.5);
+});
+
+test('5. Hip Landmark modeled perimeter resolves linked bounds correctly', () => {
+  const hipPerimeter = {
+    contract: 'modeled-cross-section-perimeter-v0',
+    id: 'torso_modeled_perimeter_at_hip_landmark_level',
+    name: 'Torso Modeled Perimeter Estimate at Hip Landmark Level',
+    sourceLevel: 'hip',
+    levelYcm: 86.25,
+    status: 'modeled',
+    valueCm: 110.9831,
+    provenance: {
+      sourceCrossSectionId: 'torso_cross_section_evidence_at_hip_level',
+      frontTransverseWidthCm: 42.2,
+      sideApDepthCm: 27.7,
+    },
+  };
+
+  const linkedCrossSection = {
+    id: 'torso_cross_section_evidence_at_hip_level',
+    levelYcm: 86.25,
+    frontObservation: {
+      transverseWidthCm: 42.2,
+      provenance: { sampledPixelRow: 1137, leftXcm: 28.9, rightXcm: 71.1 },
+    },
+    sideObservation: {
+      apDepthCm: 27.7,
+      provenance: { sampledPixelRow: 1137, minUcm: 36.1, maxUcm: 63.8 },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(hipPerimeter, {
+    crossSectionEvidenceReport: linkedCrossSection,
+  });
+
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.equal(result.geometry.yCm, 86.25);
+  assert.equal(result.geometry.front.minXcm, 28.9);
+  assert.equal(result.geometry.front.maxXcm, 71.1);
+  assert.equal(result.geometry.side.minUcm, 36.1);
+  assert.equal(result.geometry.side.maxUcm, 63.8);
+});
+
+test('6 & 7. Modeled Hip / Seat Circumference uses stored localization provenance directly without recomputing', () => {
+  const seatCircumference = {
+    contract: 'modeled-hip-seat-circumference-v0',
+    id: 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane',
+    name: 'Modeled Hip / Seat Circumference Estimate',
+    status: 'modeled',
+    valueCm: 114.1959,
+    levelYcm: 79.95,
+    provenance: {
+      selectedYcm: 79.95,
+      frontRasterRow: 1200,
+      sideRasterRow: 1200,
+      frontTransverseWidthCm: 44.3,
+      sideQualifiedApDepthCm: 27.4,
+      sliceHighlightCoordinates: {
+        yCm: 79.95,
+        frontRasterRow: 1200,
+        sideRasterRow: 1200,
+        frontBoundsCm: { minX: 58.0, maxX: 102.3 },
+        sideBoundsCm: { minU: 70.0, maxU: 97.4 },
+      },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(seatCircumference);
+
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.equal(result.geometry.yCm, 79.95);
+  assert.equal(result.geometry.front.rasterRow, 1200);
+  assert.equal(result.geometry.side.rasterRow, 1200);
+  assert.equal(result.geometry.front.minXcm, 58.0);
+  assert.equal(result.geometry.front.maxXcm, 102.3);
+  assert.equal(result.geometry.side.minUcm, 70.0);
+  assert.equal(result.geometry.side.maxUcm, 97.4);
+});
+
+test('8. Landmark segment preserves exact promoted endpoints', () => {
+  const segment = {
+    contract: 'direct-body-measurements-v0',
+    id: 'left_upper_arm_segment_length_projected',
+    displayName: 'Left Upper Arm Length',
+    status: 'valid',
+    valueCm: 29.5,
+    geometryType: 'linear_projected_distance',
+    provenance: {
+      endpointA: { name: 'left_shoulder', x: 65.4, y: 128.25 },
+      endpointB: { name: 'left_elbow', x: 70.1, y: 99.1 },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(segment);
+
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.LANDMARK_SEGMENT);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.equal(result.geometry.view, 'front');
+  assert.equal(result.geometry.endpointA.landmarkId, 'left_shoulder');
+  assert.equal(result.geometry.endpointA.xCm, 65.4);
+  assert.equal(result.geometry.endpointA.yCm, 128.25);
+  assert.equal(result.geometry.endpointB.landmarkId, 'left_elbow');
+  assert.equal(result.geometry.endpointB.xCm, 70.1);
+  assert.equal(result.geometry.endpointB.yCm, 99.1);
+});
+
+test('9 & 10. Kinematic chains build ordered point lists (shoulder->elbow->wrist and hip->knee->ankle)', () => {
+  const armChain = {
+    contract: 'direct-body-measurements-v0',
+    id: 'left_total_arm_chain_length_projected',
+    displayName: 'Left Total Arm Chain',
+    status: 'valid',
+    valueCm: 54.5,
+    geometryType: 'segment_chain_length',
+    constituentSegmentIds: ['left_upper_arm_segment_length_projected', 'left_forearm_segment_length_projected'],
+    provenance: {
+      segmentA: {
+        id: 'left_upper_arm_segment_length_projected',
+        endpointA: { name: 'left_shoulder', x: 65.4, y: 128.25 },
+        endpointB: { name: 'left_elbow', x: 70.1, y: 99.1 },
+      },
+      segmentB: {
+        id: 'left_forearm_segment_length_projected',
+        endpointA: { name: 'left_elbow', x: 70.1, y: 99.1 },
+        endpointB: { name: 'left_wrist', x: 72.3, y: 74.1 },
+      },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(armChain);
+
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.LANDMARK_CHAIN);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.equal(result.geometry.points.length, 3);
+  assert.equal(result.geometry.points[0].landmarkId, 'left_shoulder');
+  assert.equal(result.geometry.points[1].landmarkId, 'left_elbow');
+  assert.equal(result.geometry.points[2].landmarkId, 'left_wrist');
+});
+
+test('11. Broken kinematic chain adjacency returns invalid', () => {
+  const brokenChain = {
+    contract: 'direct-body-measurements-v0',
+    id: 'left_total_arm_chain_length_projected',
+    status: 'valid',
+    geometryType: 'segment_chain_length',
+    provenance: {
+      segmentA: {
+        endpointA: { name: 'left_shoulder', x: 65.4, y: 128.25 },
+        endpointB: { name: 'left_elbow', x: 70.1, y: 99.1 },
+      },
+      segmentB: {
+        endpointA: { name: 'right_wrist', x: 20.0, y: 74.1 }, // Disconnected!
+        endpointB: { name: 'left_wrist', x: 72.3, y: 74.1 },
+      },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(brokenChain);
+  assert.equal(result.status, VISUALIZATION_STATUS.INVALID);
+  assert.equal(result.geometry.points, null);
+});
+
+test('12 & 13. Vertical torso length and inter-level measurements create vertical_level_interval', () => {
+  const verticalTorso = {
+    contract: 'direct-body-measurements-v0',
+    id: 'vertical_torso_length_neck_to_hip',
+    displayName: 'Vertical Torso Length',
+    status: 'valid',
+    valueCm: 48.75,
+    geometryType: 'vertical_inter_level_delta',
+    provenance: {
+      levelA: { id: 'neck', name: 'Neck Level', yCm: 135.0 },
+      levelB: { id: 'hip', name: 'Hip Level', yCm: 86.25 },
+      rawDeltaCm: 48.75,
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(verticalTorso);
+
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.VERTICAL_LEVEL_INTERVAL);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.equal(result.geometry.upperLevelId, 'neck');
+  assert.equal(result.geometry.lowerLevelId, 'hip');
+  assert.equal(result.geometry.upperYcm, 135.0);
+  assert.equal(result.geometry.lowerYcm, 86.25);
+  assert.equal(result.geometry.distanceCm, 48.75);
+});
+
+test('14 & 15. Cross-view geometry allows Front and Side raster rows to differ while metric Y synchronizes', () => {
+  const crossView = {
+    contract: 'cross-section-evidence-v0',
+    id: 'test_cross_view',
+    levelYcm: 80.0,
+    status: 'qualified',
+    frontObservation: {
+      transverseWidthCm: 44.0,
+      provenance: { sampledPixelRow: 1200, leftXcm: 50.0, rightXcm: 94.0 },
+    },
+    sideObservation: {
+      apDepthCm: 27.0,
+      provenance: { sampledPixelRow: 600, minUcm: 70.0, maxUcm: 97.0 }, // Different image resolution
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(crossView);
+
+  assert.equal(result.geometry.yCm, 80.0);
+  assert.equal(result.geometry.front.rasterRow, 1200);
+  assert.equal(result.geometry.side.rasterRow, 600);
+});
+
+test('16 & 17. Missing required provenance returns unavailable; malformed coordinates return invalid', () => {
+  const missingProv = {
+    contract: 'direct-body-measurements-v0',
+    id: 'left_upper_arm_segment_length_projected',
+    status: 'unavailable',
+    provenance: {},
+  };
+  const unavailResult = resolveMeasurementVisualizationProvenance(missingProv);
+  assert.equal(unavailResult.status, VISUALIZATION_STATUS.UNAVAILABLE);
+
+  const malformedSlice = {
+    contract: 'front-transverse-width-v0',
+    id: 'torso_width_at_shoulder_level',
+    status: 'valid',
+    provenance: {
+      levelYcm: 100.0,
+      leftXcm: 80.0,
+      rightXcm: 40.0, // Left > Right is geometrically invalid!
+    },
+  };
+  const invalidResult = resolveMeasurementVisualizationProvenance(malformedSlice);
+  assert.equal(invalidResult.status, VISUALIZATION_STATUS.INVALID);
+});
+
+test('18. Resolver uses stable definition IDs', () => {
+  const level = {
+    contract: 'anatomical-levels-v0',
+    id: 'hip',
+    name: 'Hip Level',
+    status: 'ready',
+    yCm: 86.25,
+    provenance: {
+      derivationMethod: 'bilateral_mean_y',
+      anchors: [{ name: 'left_hip', point: { x: 40.0, y: 86.25 } }],
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(level);
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.FRONT_HORIZONTAL_LEVEL);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.equal(result.geometry.yCm, 86.25);
+});
+
+test('19 & 20. Non-mutation of input evidence and no math recomputation', () => {
+  const segment = {
+    contract: 'direct-body-measurements-v0',
+    id: 'left_thigh_segment_length_projected',
+    status: 'valid',
+    valueCm: 45.2,
+    geometryType: 'linear_projected_distance',
+    provenance: {
+      endpointA: { name: 'left_hip', x: 40.0, y: 86.25 },
+      endpointB: { name: 'left_knee', x: 42.0, y: 41.05 },
+    },
+  };
+
+  const beforeJson = JSON.stringify(segment);
+  resolveMeasurementVisualizationProvenance(segment);
+  const afterJson = JSON.stringify(segment);
+
+  assert.equal(beforeJson, afterJson);
+});

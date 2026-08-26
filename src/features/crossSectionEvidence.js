@@ -337,6 +337,8 @@ export function evaluateCrossSectionEvidence({
         sourceLevel: sLevel,
         levelYcm: sLevelYcm,
         sampledPixelRow: sideDepthQualification.provenance?.sampledPixelRow ?? null,
+        minUcm: sideDepthQualification.provenance?.minUcm ?? sideDepthQualification.minUcm ?? null,
+        maxUcm: sideDepthQualification.provenance?.maxUcm ?? sideDepthQualification.maxUcm ?? null,
         supportPolicyId: sideDepthQualification.provenance?.supportPolicyId ?? resolvedDef.supportPolicyId,
         actualClassIdsUsed: sideDepthQualification.provenance?.actualClassIdsUsed ?? [],
         clothingClassIdsUsed: sideDepthQualification.provenance?.clothingClassIdsUsed ?? [],

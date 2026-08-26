@@ -480,6 +480,8 @@ export function evaluateSidePhysicalDepthQualification(sourceObservation, {
       sourceLevel,
       levelYcm,
       sampledPixelRow,
+      minUcm: sourceObservation.provenance?.minUcm ?? sourceObservation.minUcm ?? null,
+      maxUcm: sourceObservation.provenance?.maxUcm ?? sourceObservation.maxUcm ?? null,
       supportPolicyId,
       actualClassIdsUsed,
       usedClothingEvidence,
