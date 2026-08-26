@@ -103,6 +103,12 @@ import {
   evaluateCrossSectionEvidence,
 } from './crossSectionEvidence.js';
 import {
+  MODELED_CROSS_SECTION_PERIMETER_CONTRACT_VERSION,
+  MODELED_CROSS_SECTION_PERIMETER_STATUS,
+  SUPPORTED_MODELED_CROSS_SECTION_PERIMETER_DEFINITIONS_V0,
+  evaluateModeledCrossSectionPerimeter,
+} from './modeledCrossSectionPerimeter.js';
+import {
   DIRECT_BODY_MEASUREMENTS_CONTRACT_VERSION,
   SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0,
   evaluateDirectBodyMeasurement,
@@ -2213,6 +2219,108 @@ export function getCrossSectionEvidenceReport({
     version: CROSS_SECTION_EVIDENCE_CONTRACT_VERSION,
     crossSections,
   };
+}
+
+/**
+ * Evaluates pure deterministic Modeled Cross-Section Perimeter for a single anatomical level from active runtime state.
+ * Supported for Hip Landmark Level only ('torso_modeled_perimeter_at_hip_landmark_level').
+ *
+ * @param {{
+ *   id?: string,
+ *   annotations?: Array<object>|null,
+ *   crossSectionEvidence?: object|null,
+ *   frontObservation?: object|null,
+ *   sideDepthQualification?: object|null,
+ *   correspondence?: object|null,
+ *   comparabilityQa?: object|null,
+ *   metricCalibrationFront?: object|null,
+ *   metricCalibrationSide?: object|null,
+ * }} [options]
+ * @returns {object|null} ModeledCrossSectionPerimeterResultV0
+ */
+export function getModeledCrossSectionPerimeter({
+  id = 'torso_modeled_perimeter_at_hip_landmark_level',
+  annotations = null,
+  crossSectionEvidence = null,
+  frontObservation = null,
+  sideDepthQualification = null,
+  correspondence = null,
+  comparabilityQa = null,
+  metricCalibrationFront = null,
+  metricCalibrationSide = null,
+} = {}) {
+  if (!id) return null;
+  const def = SUPPORTED_MODELED_CROSS_SECTION_PERIMETER_DEFINITIONS_V0[id]
+    ?? Object.values(SUPPORTED_MODELED_CROSS_SECTION_PERIMETER_DEFINITIONS_V0).find(
+      (d) => d.id === id || d.sourceLevel === id || d.sourceCrossSectionDefinitionId === id,
+    );
+
+  if (!def) {
+    if (typeof id === 'string' && (id.includes('shoulder') || id === 'shoulder')) {
+      return evaluateModeledCrossSectionPerimeter(null, { definition: id });
+    }
+    return null;
+  }
+
+  const resolvedEvidence = crossSectionEvidence
+    ?? getCrossSectionEvidence({
+      id: def.sourceCrossSectionDefinitionId,
+      annotations,
+      frontObservation,
+      sideDepthQualification,
+      correspondence,
+      comparabilityQa,
+      metricCalibrationFront,
+      metricCalibrationSide,
+    });
+
+  return evaluateModeledCrossSectionPerimeter(resolvedEvidence, {
+    definition: def,
+  });
+}
+
+/**
+ * Evaluates pure deterministic Modeled Cross-Section Perimeter report for all supported definitions from active runtime state.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   metricCalibrationFront?: object|null,
+ *   metricCalibrationSide?: object|null,
+ * }} [options]
+ * @returns {{
+ *   contract: 'modeled-cross-section-perimeters-report-v0',
+ *   version: string,
+ *   perimeters: Array<object>,
+ * }|null}
+ */
+export function getModeledCrossSectionPerimeterReport({
+  annotations = null,
+  metricCalibrationFront = null,
+  metricCalibrationSide = null,
+} = {}) {
+  const frontRaster = getFrontSegmentationRaster();
+  const sideRaster = getSideSegmentationRaster();
+  if (!frontRaster && !sideRaster && !currentPackage) return null;
+
+  const definitions = Object.values(SUPPORTED_MODELED_CROSS_SECTION_PERIMETER_DEFINITIONS_V0);
+  const perimeters = definitions.map((def) =>
+    getModeledCrossSectionPerimeter({
+      id: def.id,
+      annotations,
+      metricCalibrationFront,
+      metricCalibrationSide,
+    })
+  ).filter(Boolean);
+
+  return {
+    contract: 'modeled-cross-section-perimeters-report-v0',
+    version: MODELED_CROSS_SECTION_PERIMETER_CONTRACT_VERSION,
+    perimeters,
+  };
+}
+
+export function getModeledCrossSectionPerimeters(options = {}) {
+  return getModeledCrossSectionPerimeterReport(options);
 }
 
 export function analyzeLoadedBodyEvidence() {
