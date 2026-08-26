@@ -123,6 +123,14 @@ import {
   evaluateMaximumSeatPlaneLocalization,
 } from './maximumSeatPlaneLocalization.js';
 import {
+  TORSO_ARBITRARY_Y_SCAN_CONTRACT_VERSION,
+  evaluateTorsoArbitraryYEvidenceScan,
+} from './torsoArbitraryYEvidenceScan.js';
+import {
+  NATURAL_WAIST_PLANE_CONTRACT_VERSION,
+  evaluateNaturalWaistPlaneLocalization,
+} from './naturalWaistPlaneLocalization.js';
+import {
   MODELED_HIP_SEAT_CIRCUMFERENCE_CONTRACT_VERSION,
   evaluateModeledHipSeatCircumference,
 } from './modeledHipSeatCircumference.js';
@@ -2511,6 +2519,80 @@ export function getMaximumSeatPlaneLocalization({ annotations = null, options = 
  */
 export function getMaximumSeatPlaneLocalizationReport(options = {}) {
   return getMaximumSeatPlaneLocalization(options);
+}
+
+/**
+ * Evaluates the pure deterministic Torso Arbitrary-Y Evidence Scan from active runtime state.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} TorsoArbitraryYEvidenceScanResultV0
+ */
+export function getTorsoArbitraryYEvidenceScan({ annotations = null, options = {} } = {}) {
+  const frontRaster = getFrontSegmentationRaster();
+  const sideRaster = getSideSegmentationRaster();
+  const frontSeg = qaResult?.views?.front?.segmentation ?? currentPackage?.front?.segmentation ?? null;
+  const sideSeg = qaResult?.views?.side?.segmentation ?? currentPackage?.side?.segmentation ?? null;
+
+  if (!frontRaster && !frontSeg && !currentPackage) return null;
+
+  const resolvedAnnotations = annotations ?? (typeof getAnnotations === 'function' ? getAnnotations() : []);
+  const levelsReport = computeAnatomicalLevels(resolvedAnnotations);
+  const metricCalibrationFront = getMetricCalibrationProvenance({ view: 'front' });
+  const metricCalibrationSide = getMetricCalibrationProvenance({ view: 'side' });
+  const sideViewOrientationQualification = getSideViewOrientationQualification({ annotations: resolvedAnnotations });
+  const sidePoseQualification = getSidePoseQualification();
+  const clothingSemanticsSide = getClothingBodySurfaceSemantics({
+    id: 'torso_profile_span_at_shoulder_level',
+    annotations: resolvedAnnotations,
+  });
+
+  return evaluateTorsoArbitraryYEvidenceScan({
+    frontRaster,
+    sideRaster,
+    frontSegmentation: frontSeg,
+    sideSegmentation: sideSeg,
+    annotations: resolvedAnnotations,
+    levelsReport,
+    metricCalibrationFront,
+    metricCalibrationSide,
+    sideViewOrientationQualification,
+    sidePoseQualification,
+    clothingSemanticsSide,
+    options,
+  });
+}
+
+/**
+ * Alias for getTorsoArbitraryYEvidenceScan for uniform reporting convention.
+ */
+export function getTorsoArbitraryYEvidenceScanReport(options = {}) {
+  return getTorsoArbitraryYEvidenceScan(options);
+}
+
+/**
+ * Evaluates pure deterministic Natural Waist Plane localization candidate from the
+ * active torso arbitrary-Y evidence scan.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} NaturalWaistPlaneLocalizationResultV0
+ */
+export function getNaturalWaistPlaneLocalization({ annotations = null, options = {} } = {}) {
+  const scanReport = getTorsoArbitraryYEvidenceScan({ annotations, options });
+  if (!scanReport) return null;
+  return evaluateNaturalWaistPlaneLocalization(scanReport, options);
+}
+
+/**
+ * Alias for getNaturalWaistPlaneLocalization for uniform reporting convention.
+ */
+export function getNaturalWaistPlaneLocalizationReport(options = {}) {
+  return getNaturalWaistPlaneLocalization(options);
 }
 
 /**
