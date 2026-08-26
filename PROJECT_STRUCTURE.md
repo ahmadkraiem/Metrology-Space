@@ -46,9 +46,12 @@ latent-space/
 │   │   ├── annotations.js           # Annotation state, 3D visuals, CSS2D labels, promote path
 │   │   ├── annotationValidation.js  # Validates annotation input before saving
 │   │   ├── appMode.js               # App mode state (Inspect & Measure vs Annotate)
+│   │   ├── arbitraryYSidePhysicalDepthQualification.js # Arbitrary-Y Side Physical Depth Qualification Contract v0 — qualifies Side AP depth across arbitrary pelvic Y levels
+│   │   ├── arbitraryYSidePhysicalDepthQualification.test.js # Arbitrary-Y Side Physical Depth Qualification unit tests
 │   │   ├── authoritativePhysicalEvidenceSemantics.js # Authoritative Physical Evidence Semantics Contract v0 — classifies dense pointmap evidence by authority without creating measurements
 │   │   ├── authoritativePhysicalEvidenceSemantics.test.js # Authoritative Physical Evidence Semantics Contract v0 unit tests
-│   │   ├── bodyEvidence.js          # Body Evidence runtime store: active package, selections, change notifications, anatomical region evidence & transverse width getters, 4.5G authoritative physical evidence getters, direct body measurements getters, sanitized export
+│   │   ├── batchPromoteLandmarks.test.js # Batch landmark promotion unit tests
+│   │   ├── bodyEvidence.js          # Body Evidence runtime store: active package, selections, change notifications, anatomical region evidence & transverse width getters, 4.5G authoritative physical evidence getters, direct body measurements getters, modeled hip/seat circumference getters, sanitized export, batch landmark promotion
 │   │   ├── bodyEvidenceAdapter.js   # Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization
 │   │   ├── bodyEvidenceAdapter.test.js # Body Evidence adapter unit tests
 │   │   ├── bodyEvidencePackage.js   # Full Body Evidence Package Contract v0 & Dense Layout / Pixel Index Contract v0
@@ -60,6 +63,8 @@ latent-space/
 │   │   ├── bodyMeasurementLevels.js # Measurement Reference Levels v0 compute (orphaned / internal helper)
 │   │   ├── bodyMeasurementLines.js  # Anatomical Measurement Lines v0 compute (candidate readiness lines)
 │   │   ├── bodyMeasurementPreview.js # Measurement Line Preview Overlay v0 (3D + Front 2D preview lines)
+│   │   ├── clothingBodySurfaceSemantics.js # Clothing / Body-Surface Semantics Contract v0
+│   │   ├── clothingBodySurfaceSemantics.test.js # Clothing / Body-Surface Semantics unit tests
 │   │   ├── crossSectionEvidence.js  # Cross-Section Evidence Contract v0 — pure deterministic compositional layer pairing qualified Front transverse width and Side AP depth at validated reference levels (shoulder, hip)
 │   │   ├── crossSectionEvidence.test.js # Cross-Section Evidence Contract v0 unit tests
 │   │   ├── crossViewComparabilityQa.js # Cross-view Comparability QA Contract v0 — pure deterministic comparability QA over established 4.5A correspondence evidence across 10 inspectable checks
@@ -78,13 +83,21 @@ latent-space/
 │   │   ├── frontTransverseWidth.js  # Front Transverse Width Interpretation Contract v0 — pure interpretation of raster slice evidence into formal transverse torso widths at shoulder/hip levels under measurement support policies and single_run_required policy
 │   │   ├── frontTransverseWidth.test.js # Front Transverse Width Interpretation Contract v0 unit tests
 │   │   ├── linkedSelection.js       # Linked selection id for Scene Graph ↔ projected marker highlight sync
+│   │   ├── maximumSeatPlaneLocalization.js # Maximum Seat Plane Localization Contract v0 — ranks pelvic scan candidate planes by Ramanujan II perimeter to localize Maximum Seat Plane
+│   │   ├── maximumSeatPlaneLocalization.test.js # Maximum Seat Plane Localization unit tests
 │   │   ├── measurement.js           # Canonical shared Point A/B measurement state, markers, line, history
 │   │   ├── measurementSupportPolicy.js # Measurement Support Policy Contract v0 — pure deterministic definitions of observed supported silhouettes (trunk_core_support_v0, pelvic_core_support_v0)
 │   │   ├── measurementSupportPolicy.test.js # Measurement Support Policy Contract v0 unit tests
+│   │   ├── measurementVisualizationProvenance.js # Measurement Visualization Provenance Contract v0 — pure declarative normalizer converting domain records into 2D visualization instructions
+│   │   ├── measurementVisualizationProvenance.test.js # Measurement Visualization Provenance unit tests
 │   │   ├── metricCalibrationProvenance.js # Metric Calibration Provenance Contract v0 — pure deterministic validator of upstream metric calibration claims across Front and Side views
 │   │   ├── metricCalibrationProvenance.test.js # Metric Calibration Provenance Contract v0 unit tests
-│   │   ├── modeledCrossSectionPerimeter.js # Modeled Cross-Section Perimeter Contract v0 — pure deterministic ellipse-modeled perimeter estimate from qualified upstream cross-section evidence at Hip Landmark Level using Ramanujan II; explicit modeled/not-anthropometric semantics; Shoulder unsupported
+│   │   ├── modeledCrossSectionPerimeter.js # Modeled Cross-Section Perimeter Contract v0 — pure deterministic ellipse-modeled perimeter estimate from qualified upstream cross-section evidence at Hip Landmark Level using Ramanujan II; retained internally for QA
 │   │   ├── modeledCrossSectionPerimeter.test.js # Modeled Cross-Section Perimeter Contract v0 unit tests
+│   │   ├── modeledHipSeatCircumference.js # Modeled Hip / Seat Circumference Contract v0 — pure deterministic domain derivation of primary modeled circumference estimate at localized Maximum Seat Plane
+│   │   ├── modeledHipSeatCircumference.test.js # Modeled Hip / Seat Circumference unit tests
+│   │   ├── pelvicArbitraryYEvidenceScan.js # Pelvic Arbitrary-Y Evidence Scan Contract v0 — pure deterministic scanner extracting continuous Front transverse width evidence across pelvic region
+│   │   ├── pelvicArbitraryYEvidenceScan.test.js # Pelvic Arbitrary-Y Evidence Scan unit tests
 │   │   ├── physicalMeasurementSemantics.js # Physical Measurement Semantics Contract v0 — classifies measurements into workspace, metric projected, and physical tiers; 4.5G accepted only via authoritative-geometry registry guard
 │   │   ├── physicalMeasurementSemantics.test.js # Physical Measurement Semantics Contract v0 unit tests
 │   │   ├── physicalMeasurementEligibility.js # Physical Measurement Eligibility Contract v0 — Dimension E consumes 4.5G only when a registered authoritative physical-geometry evaluator certifies validated/authorized/authoritative
@@ -105,7 +118,9 @@ latent-space/
 │   │   ├── sideRasterSlice.js       # Side Horizontal Raster Slice Contract v0 — pure single-row O(W) streaming scan returning contiguous horizontal runs with encountered class tracking
 │   │   ├── sideRasterSlice.test.js  # Side Horizontal Raster Slice Contract v0 unit tests
 │   │   ├── sideViewOrientationQualification.js # Approximately-Lateral Side View Qualification Contract v0 — evaluates bilateral collapse consensus across stable pairs
-│   │   └── sideViewOrientationQualification.test.js # Approximately-Lateral Side View Qualification Contract v0 unit tests
+│   │   ├── sideViewOrientationQualification.test.js # Approximately-Lateral Side View Qualification Contract v0 unit tests
+│   │   ├── viewPoseSemantics.js     # View / Pose Semantics Contract v0 — validates view identity, structural pose, and orientation
+│   │   └── viewPoseSemantics.test.js # View / Pose Semantics unit tests
 │   ├── interactions/
 │   │   ├── hover.js                 # Hover highlight and tooltip coordination
 │   │   ├── picking.js               # Mode-aware click picking (promoted landmark priority, lattice, selection)
@@ -117,43 +132,52 @@ latent-space/
 │   │   ├── roomShell.js             # Transparent room shell and 10 cm surface grid markers
 │   │   └── volumeGrid.js            # 5 cm internal lattice, LOD layers, visibility controls
 │   └── ui/
+│       ├── advancedQaPanel.js       # Diagnostics Why Blocked + Advanced QA (intake / calibration)
+│       ├── advancedQaPanel.test.js  # Advanced QA / Diagnostics accordion tests
 │       ├── annotationControls.js    # Landmark Preset dropdown wiring
 │       ├── annotationPanel.js       # Annotation list DOM rendering
 │       ├── annotationValidationMessage.js # Annotation validation feedback message helper
 │       ├── appMenuBar.js            # Top application menu bar (File / View / Workflow dropdowns)
 │       ├── appModeControls.js       # App mode switch UI and cleanup coordination
+│       ├── badgeUi.js               # Shared HTML escape + badge helpers
+│       ├── badgeUi.test.js          # Badge helper unit tests
 │       ├── bodyEvidenceCandidateList.js # Candidate list DOM rendering with Core / Secondary filters
 │       ├── bodyEvidenceCandidateList.test.js # Candidate list rendering unit tests
 │       ├── bodyEvidenceOverlay2d.js # Front Surface Body Evidence overlay markers and inspect selection
 │       ├── bodyEvidenceOverlaySide2d.js # Side Evidence overlay markers (shared Core/Secondary colors; diamond/dot shapes)
 │       ├── bodyEvidencePackageQaUi.js # Reusable Package QA HTML helper (not currently mounted)
 │       ├── bodyEvidencePackageQaUi.test.js # Package QA summary UI unit tests
-│       ├── bodyEvidencePanel.js     # Body Evidence left workflow panel (Front / Side / Landmark tabs)
+│       ├── bodyEvidencePanel.js     # Body Evidence left workflow panel (Front / Side / Landmark tabs, promote, Promote All Front Core)
 │       ├── bodyGraphWorkspace.js    # Body Graph Workspace v0 — Core 13 topological diagram
 │       ├── bodyTabConsolidatedPanel.js # Diagnostics: Front–Side Alignment + Body / Anchor readiness
 │       ├── collapsibleSections.js   # Shared [data-collapsible] accordion wiring (left + right)
-│       ├── derivedMeasurementDeck.js # Right Sidebar Results cards (Cross-Section Evidence, Modeled Perimeter Estimates, and Direct Measurements)
+│       ├── derivedMeasurementDeck.js # Right Sidebar Results cards (Cross-Section Evidence, Modeled Hip / Seat Circumference, and Direct Measurements) with click-to-highlight integration
 │       ├── derivedMeasurementDeck.test.js # Results deck tests
 │       ├── domRefs.js               # Safe cached DOM element references
-│       ├── advancedQaPanel.js       # Diagnostics Why Blocked + Advanced QA (intake / calibration)
-│       ├── advancedQaPanel.test.js  # Advanced QA / Diagnostics accordion tests
-│       ├── badgeUi.js               # Shared HTML escape + badge helpers
-│       ├── badgeUi.test.js          # Badge helper unit tests
-│       ├── leftPanel.js             # Anatomical Levels card
-│       ├── leftPanel.test.js        # Anatomical Levels + removed Subject card regression
+│       ├── finalAccessibilityVisualPolish.test.js # Accessibility & visual polish tests
 │       ├── frontSideAlignmentPanel.js # Front–Side Alignment QA presentation panel (summary card, collapsible groups, compact rows)
 │       ├── frontSideAlignmentPanel.test.js # Front–Side Alignment QA presentation panel unit tests
 │       ├── grid2dMarkerSizing.js    # Relative 2D marker sizing helpers
 │       ├── grid2dNavShared.js       # Shared 2D navigator geometry, zoom/pan transform, lattice utils
 │       ├── grid2dNavigator.js       # Front Surface 2D Grid Navigator (X/Y coordinates)
+│       ├── grid2dNavigatorChrome.test.js # Navigator UI chrome tests
 │       ├── grid2dPlotArea.js        # Shared 2D plot frame, axes, and CSS variable styling
+│       ├── grid2dRefinementPolish.test.js # 2D navigator refinement polish tests
 │       ├── hoverTooltip.js          # Screen-space hover coordinate tooltip
 │       ├── inspectorWorkflow.js     # Metrology Inspector workflow panel visibility manager
 │       ├── inspectorWorkflow.test.js # Inspector workflow unit tests
 │       ├── inspectorWorkflowState.js # Metrology Inspector workflow state store and menu sync
+│       ├── leftPanel.js             # Anatomical Levels card
+│       ├── leftPanel.test.js        # Anatomical Levels + removed Subject card regression
 │       ├── measurementContext.test.js # Measurement context unit tests
+│       ├── measurementHighlightOverlay2d.js # 2D Measurement Highlight Overlay renderer
+│       ├── measurementHighlightOverlay2d.test.js # 2D Measurement Highlight Overlay unit tests
 │       ├── measurementPanel.js      # Distance Measurement inspector + Session Records History
 │       ├── measurementSemantics.test.js # Dense QA terminology via Package QA helper
+│       ├── modeledEllipseCrossSectionPreview.js # Modeled Ellipse Cross-Section Preview SVG renderer
+│       ├── modeledEllipseCrossSectionPreview.test.js # Modeled Ellipse Cross-Section Preview unit tests
+│       ├── responsiveLayoutPolish.test.js # Responsive layout polish tests
+│       ├── resultsCardClickHighlight.test.js # Results card click-to-highlight unit tests
 │       ├── rightSidebarStage2.test.js # Results / Session Records / Diagnostics architecture tests
 │       ├── sceneGraphPanel.js       # Diagnostics Origin / Center projection utility
 │       ├── segmentationInspection.test.js # Segmentation inspection and QA UI unit tests
@@ -230,7 +254,12 @@ latent-space/
 | `sideViewOrientationQualification.js` | **Approximately-Lateral Side View Qualification Contract v0 (`side-view-orientation-qualification-v0`).** Pure deterministic domain evaluator determining whether Side acquisition is lateral-compatible using bilateral landmark collapse consensus across stable body pairs (shoulders, hips, knees, ankles). |
 | `sidePhysicalDepthQualification.js` | **Side Physical Depth Qualification Contract v0 (`side-physical-depth-qualification-v0`).** Pure deterministic domain contract qualifying when a valid Side profile span observation may be interpreted as a qualified side-derived physical AP depth estimate across source validity, calibration, T-pose, lateral orientation, and fitted clothing gates. |
 | `crossSectionEvidence.js` | **Cross-Section Evidence Contract v0 (`cross-section-evidence-v0`).** Pure deterministic compositional evidence layer combining qualified Front transverse width and Side AP physical depth observations at matching validated reference levels (`shoulder`, `hip`). Reuses upstream evidence without recalculating raster slices or re-estimating values; preserves Side T-pose advisory ~44.2° projected elbow semantics; emits zero circumference or 3D contour fields. |
-| `modeledCrossSectionPerimeter.js` | **Modeled Cross-Section Perimeter Contract v0 (`modeled-cross-section-perimeter-v0`).** Pure deterministic domain contract deriving an ellipse-modeled cross-sectional perimeter estimate from qualified upstream cross-section evidence at the Hip Landmark Level using Ramanujan II; explicit modeled/not-anthropometric semantics; Shoulder explicitly unsupported. |
+| `modeledCrossSectionPerimeter.js` | **Modeled Cross-Section Perimeter Contract v0 (`modeled-cross-section-perimeter-v0`).** Pure deterministic domain contract deriving an ellipse-modeled cross-sectional perimeter estimate from qualified upstream cross-section evidence at the Hip Landmark Level using Ramanujan II; retained internally for QA. |
+| `pelvicArbitraryYEvidenceScan.js` | **Pelvic Arbitrary-Y Evidence Scan Contract v0 (`pelvic-arbitrary-y-evidence-scan-v0`).** Pure deterministic continuous row scanner across pelvic region segmentation producing valid Front transverse width observations across candidate scan levels. |
+| `arbitraryYSidePhysicalDepthQualification.js` | **Arbitrary-Y Side Physical Depth Qualification Contract v0 (`arbitrary-y-side-physical-depth-qualification-v0`).** Pure deterministic qualification evaluating Side AP depth across arbitrary pelvic Y levels against T-pose, lateral orientation, and calibration requirements. |
+| `maximumSeatPlaneLocalization.js` | **Maximum Seat Plane Localization Contract v0 (`maximum-seat-plane-localization-v0`).** Pure deterministic evidence-driven localization ranking valid same-Y Front width + qualified Side AP depth by Ramanujan II modeled perimeter score to identify the Maximum Seat Plane. |
+| `modeledHipSeatCircumference.js` | **Modeled Hip / Seat Circumference Contract v0 (`modeled-hip-seat-circumference-v0`).** Pure deterministic domain contract deriving the primary user-facing modeled circumference estimate at the localized Maximum Seat Plane using Ramanujan II. |
+| `measurementVisualizationProvenance.js` | **Measurement Visualization Provenance Contract v0 (`measurement-visualization-provenance-v0`).** Pure declarative domain normalizer translating domain measurement records into standardized 2D visualization instructions across 7 supported visualization types without recomputing measurement math. |
 | `physicalMeasurementEligibility.js` | **Physical Measurement Eligibility Contract v0 (`physical-measurement-eligibility-v0`) & Paired Cross-View Eligibility Contract v0 (`paired-cross-view-eligibility-v0`).** Authoritative downstream eligibility gate evaluating whether individual and paired measurements meet all constraints (structural integrity, metric calibration, view/pose semantics, clothing attribution, and authoritative physical evidence) to be consumed as true physical body scalars. Dimension E consumes 4.5G only when `contract`, `status === 'validated'`, `authorized === true`, `physicalAuthority.status === 'authoritative'`, and `evaluatorId` are registered as an implemented authoritative physical-geometry evaluator. |
 | `bodyMeasurementLevels.js` | Measurement Reference Levels v0 compute (orphaned / internal helper). |
 | `bodyMeasurementLines.js` | Anatomical Measurement Lines v0 compute (candidate readiness lines). |
@@ -274,7 +303,7 @@ latent-space/
 | `grid2dPlotArea.js` | Shared 2D plot frame, axis labels, and CSS variable management. |
 | `grid2dMarkerSizing.js` | Computes zoom-dependent relative marker sizes for 2D navigators. |
 | `bodyEvidencePackageQaUi.js` | Reusable Package QA HTML helper for overall status, Front/Side modality pills, raster compatibility, and deferred geometry flags. **Not mounted** in the live Diagnostics accordion; covered by unit tests. |
-| `bodyEvidencePanel.js` | Left Body Evidence workflow panel (Front / Side / Landmark tabs). Manages candidate list filtering, segmentation class list filtering, inspect cards, and Front candidate promotion. Analysis runs automatically upon package upload. |
+| `bodyEvidencePanel.js` | Left Body Evidence workflow panel (Front / Side / Landmark tabs). Manages candidate list filtering, segmentation class list filtering, inspect cards, single landmark promotion, and batch promotion (`Promote All Front Core Landmarks`). Analysis runs automatically upon package upload. |
 | `bodyEvidenceCandidateList.js` | Renders candidate lists with Core / Secondary filters and unified color semantics (Gold for Core, Purple for Secondary). |
 | `bodyEvidenceOverlay2d.js` | Renders Front Surface Body Evidence overlay markers and active selection highlight. |
 | `bodyEvidenceOverlaySide2d.js` | Renders Side Evidence overlay markers (shared Core/Secondary colors; diamond/dot shapes). |
@@ -282,7 +311,9 @@ latent-space/
 | `frontSideAlignmentPanel.js` | Read-only Diagnostics → Front–Side Alignment presentation. Derives the alignment report on demand; renders top summary card and collapsible Core Pairs, Secondary Pairs, and Issues groups. |
 | `bodyGraphWorkspace.js` | Renders the read-only Core 13 Body Graph topology workspace and summary statistics. |
 | `bodyTabConsolidatedPanel.js` | Wires Diagnostics Front–Side Alignment and Body / Anchor readiness (promoted-anchor preview spans). Does not remount the old Package QA card or anchors table. |
-| `derivedMeasurementDeck.js` | Right Sidebar Results deck rendering collapsible Shoulder / Hip Cross-Section Evidence cards and collapsible parent Direct Measurements cards (Vertical Measurements, Arm Segments, Leg Segments). |
+| `derivedMeasurementDeck.js` | Right Sidebar Results deck rendering collapsible Shoulder / Hip Cross-Section Evidence cards, Modeled Hip / Seat Circumference Estimate card, and collapsible parent Direct Measurements cards (Vertical Measurements, Arm Segments, Leg Segments) with click-to-highlight selection wiring. |
+| `measurementHighlightOverlay2d.js` | Pure declarative 2D measurement highlight overlay renderer consuming normalized visualization provenance instructions on dedicated SVG/canvas layers across Front and Side navigators. |
+| `modeledEllipseCrossSectionPreview.js` | Visual-only companion cross-section preview SVG renderer for Modeled Hip / Seat Circumference displaying Front width $\times$ Side AP depth ellipse with aspect ratio preservation and disclaimer. |
 | `advancedQaPanel.js` | Diagnostics Why This Result Is Blocked plus Advanced QA intake/calibration. |
 | `leftPanel.js` | Anatomical Levels card. Package upload is File-menu only. |
 | `measurementPanel.js` | Distance Measurement inspector (Front / Canonical and Side / U-Y) plus Session Records History. |
