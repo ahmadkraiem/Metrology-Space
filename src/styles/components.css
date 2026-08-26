@@ -2362,6 +2362,67 @@ select:focus-visible {
   line-height: 1.35;
 }
 
+/* ── Interactive & Selected State for Results Measurement Cards / Rows ── */
+
+.derived-measurement-deck,
+.derived-measurement-cards,
+.results-subgroup,
+.results-subgroup-body,
+[data-measurement-id],
+.derived-measurement-card[data-measurement-id],
+.direct-measurement-row[data-measurement-id] {
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+[data-measurement-id] * {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+[data-measurement-id]:hover,
+.derived-measurement-card[data-measurement-id]:hover,
+.direct-measurement-row[data-measurement-id]:hover {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.15);
+}
+
+.direct-measurement-row[data-measurement-id]:hover {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+[data-measurement-id]:focus-visible,
+.derived-measurement-card[data-measurement-id]:focus-visible,
+.direct-measurement-row[data-measurement-id]:focus-visible {
+  outline: 2px solid var(--accent, #38bdf8);
+  outline-offset: 1px;
+}
+
+[data-measurement-id].is-selected,
+[data-measurement-id][aria-selected="true"],
+.derived-measurement-card.is-selected,
+.derived-measurement-card[aria-selected="true"],
+.direct-measurement-row.is-selected,
+.direct-measurement-row[aria-selected="true"] {
+  background: rgba(56, 189, 248, 0.14);
+  border-color: var(--accent, #38bdf8);
+  box-shadow:
+    0 0 12px rgba(56, 189, 248, 0.3),
+    inset 0 0 0 1px rgba(56, 189, 248, 0.45);
+}
+
+.direct-measurement-row[data-measurement-id] {
+  padding: 4px 6px;
+  border-radius: var(--radius-xs, 3px);
+  margin: 1px 0;
+  border: 1px solid transparent;
+}
+
+
 /* ── Right Sidebar: Advanced QA ── */
 
 .advanced-qa-content {

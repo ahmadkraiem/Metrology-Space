@@ -471,7 +471,7 @@ export function renderMeasurementHighlight2d({ view = 'front', worldToPlotPx, la
       break;
   }
 
-  layerEl.replaceChildren(fragment);
+  resolvedLayer.replaceChildren(fragment);
 }
 
 /**

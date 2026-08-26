@@ -20,20 +20,27 @@ function syncAnnotationListLinkedActive() {
 }
 
 export function renderAnnotationList(annotations, onDelete) {
+  const targetListEl = annotationListEl ?? (typeof document !== 'undefined' ? document.getElementById('annotation-list') : null);
+  const targetEmptyEl = annotationsEmptyEl ?? (typeof document !== 'undefined' ? document.getElementById('annotations-empty') : null);
+
+  if (!targetListEl) {
+    return;
+  }
+
   if (!linkedSelectionSubscribed) {
     subscribeLinkedSelection(syncAnnotationListLinkedActive);
     linkedSelectionSubscribed = true;
   }
 
-  annotationListEl.replaceChildren();
+  targetListEl.replaceChildren();
 
   if (annotations.length === 0) {
-    annotationsEmptyEl.hidden = false;
+    if (targetEmptyEl) targetEmptyEl.hidden = false;
     updateSceneGraph();
     return;
   }
 
-  annotationsEmptyEl.hidden = true;
+  if (targetEmptyEl) targetEmptyEl.hidden = true;
 
   annotations.forEach((entry) => {
     const linkId = `projection-annotation-${entry.id}`;
@@ -95,7 +102,11 @@ export function renderAnnotationList(annotations, onDelete) {
     });
 
     item.append(title, typeRow, coords, deleteBtn);
-    annotationListEl.append(item);
+    if (typeof targetListEl.append === 'function') {
+      targetListEl.append(item);
+    } else if (typeof targetListEl.appendChild === 'function') {
+      targetListEl.appendChild(item);
+    }
   });
 
   syncAnnotationListLinkedActive();

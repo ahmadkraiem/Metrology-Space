@@ -17,6 +17,7 @@ import {
   getSidePhysicalDepthQualification,
   getCrossSectionEvidence,
   getModeledCrossSectionPerimeter,
+  getModeledHipSeatCircumference,
   getDirectBodyMeasurements,
   hasAnalyzedBodyEvidence,
   subscribeBodyEvidenceChange,
@@ -25,6 +26,16 @@ import {
   getAnnotations,
   subscribeAnnotationsChange,
 } from '../features/annotations.js';
+import { resolveMeasurementVisualizationProvenance } from '../features/measurementVisualizationProvenance.js';
+import {
+  setMeasurementHighlight,
+  clearMeasurementHighlight,
+  getMeasurementHighlight,
+} from './measurementHighlightOverlay2d.js';
+import {
+  setWorkspace,
+  WORKSPACE_SPLIT,
+} from './workspaceLayout.js';
 import { escapeHtml, renderBadge } from './badgeUi.js';
 import { formatDistance } from '../core/formatters.js';
 import { initCollapsibleSections } from './collapsibleSections.js';
@@ -34,11 +45,13 @@ const DERIVED_CORRESPONDENCE_PAIRS = Object.freeze([
     id: 'torso_shoulder_cross_view_correspondence',
     name: 'Shoulder Level',
     levelKey: 'shoulder',
+    crossSectionDefId: 'torso_cross_section_evidence_at_shoulder_level',
   },
   {
     id: 'torso_hip_cross_view_correspondence',
     name: 'Hip Level',
     levelKey: 'hip',
+    crossSectionDefId: 'torso_cross_section_evidence_at_hip_level',
   },
 ]);
 
@@ -50,6 +63,18 @@ const groupCollapseStates = new Map([
   ['arm_segments', true],
   ['leg_segments', true],
 ]);
+
+/** @type {string|null} */
+let selectedMeasurementId = null;
+
+// Automatically clear selection and highlight on package change or clear
+subscribeBodyEvidenceChange(() => {
+  clearSelectedMeasurement();
+});
+
+export function getSelectedMeasurementId() {
+  return selectedMeasurementId;
+}
 
 export function mapBlockerToHumanLabel(code) {
   switch (code) {
@@ -159,7 +184,7 @@ function formatSpanDisplay(observation, fallbackSpanCm) {
   return 'Unavailable';
 }
 
-export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, eligibility, depthQual = null, crossSectionEvidence = null) {
+export function buildDerivedMeasurementCardHtml({ id, name, crossSectionDefId }, correspondence, eligibility, depthQual = null, crossSectionEvidence = null) {
   const frontObs = correspondence?.frontObservation;
   const sideObs = correspondence?.sideObservation;
 
@@ -196,8 +221,18 @@ export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, el
     ? `<span class="derived-row-hint" title="${escapeHtml(depthReason)}">${escapeHtml(depthReason)}</span>`
     : '';
 
+  const measurementId = crossSectionDefId || id;
+  const isSelected = selectedMeasurementId === measurementId || selectedMeasurementId === id;
+
   return `
-    <div class="derived-measurement-card" data-correspondence-id="${escapeHtml(id)}">
+    <div
+      class="derived-measurement-card ${isSelected ? 'is-selected' : ''}"
+      data-measurement-id="${escapeHtml(measurementId)}"
+      data-correspondence-id="${escapeHtml(id)}"
+      role="button"
+      tabindex="0"
+      aria-selected="${isSelected ? 'true' : 'false'}"
+    >
       <div class="derived-card-header">
         <span class="derived-card-title">${escapeHtml(name)}</span>
         <div class="derived-card-meta">
@@ -229,7 +264,7 @@ export function buildDerivedMeasurementCardHtml({ id, name }, correspondence, el
   `;
 }
 
-function renderMeasurementCard({ id, name, levelKey }, annotations) {
+function renderMeasurementCard({ id, name, levelKey, crossSectionDefId }, annotations) {
   const correspondence = getCrossViewMeasurementCorrespondence({ id, annotations });
   const eligibility = getPairedCrossViewEligibility({ id, annotations });
   const depthDefId = levelKey === 'shoulder'
@@ -238,13 +273,13 @@ function renderMeasurementCard({ id, name, levelKey }, annotations) {
   const depthQual = getSidePhysicalDepthQualification
     ? getSidePhysicalDepthQualification({ id: depthDefId, annotations })
     : null;
-  const csDefId = levelKey === 'shoulder'
+  const csDefId = crossSectionDefId || (levelKey === 'shoulder'
     ? 'torso_cross_section_evidence_at_shoulder_level'
-    : 'torso_cross_section_evidence_at_hip_level';
+    : 'torso_cross_section_evidence_at_hip_level');
   const crossSectionEvidence = getCrossSectionEvidence
     ? getCrossSectionEvidence({ id: csDefId, annotations })
     : null;
-  return buildDerivedMeasurementCardHtml({ id, name, levelKey }, correspondence, eligibility, depthQual, crossSectionEvidence);
+  return buildDerivedMeasurementCardHtml({ id, name, levelKey, crossSectionDefId: csDefId }, correspondence, eligibility, depthQual, crossSectionEvidence);
 }
 
 export function buildDirectMeasurementsGroupHtml(groupIdOrTitle, groupTitleOrMeasurements, measurementsOrExpanded = [], isExpanded = false) {
@@ -273,8 +308,16 @@ export function buildDirectMeasurementsGroupHtml(groupIdOrTitle, groupTitleOrMea
     const isVal = m.status === 'valid' && typeof m.valueCm === 'number';
     const valDisplay = isVal ? `${formatDistance(m.valueCm)} cm` : '—';
     const badge = isVal ? renderBadge('Valid', 'ok') : renderBadge('Unavailable', 'muted');
+    const isSelected = selectedMeasurementId === m.id;
     return `
-      <div class="derived-card-row direct-measurement-row" data-direct-measurement-id="${escapeHtml(m.id)}">
+      <div
+        class="derived-card-row direct-measurement-row ${isSelected ? 'is-selected' : ''}"
+        data-measurement-id="${escapeHtml(m.id)}"
+        data-direct-measurement-id="${escapeHtml(m.id)}"
+        role="button"
+        tabindex="0"
+        aria-selected="${isSelected ? 'true' : 'false'}"
+      >
         <span class="derived-row-label">${escapeHtml(m.displayName)}</span>
         <div class="direct-measurement-value-wrap">
           <span class="derived-row-value ${isVal ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(valDisplay)}</span>
@@ -332,8 +375,17 @@ export function buildModeledPerimeterCardHtml(modeledPerimeter) {
     ? `Y ${formatDistance(yCm)} cm`
     : 'Y —';
 
+  const isSelected = selectedMeasurementId === 'torso_modeled_perimeter_at_hip_landmark_level';
+
   return `
-    <div class="derived-measurement-card modeled-perimeter-card" data-modeled-perimeter-id="${escapeHtml(modeledPerimeter.id || '')}">
+    <div
+      class="derived-measurement-card modeled-perimeter-card ${isSelected ? 'is-selected' : ''}"
+      data-measurement-id="torso_modeled_perimeter_at_hip_landmark_level"
+      data-modeled-perimeter-id="${escapeHtml(modeledPerimeter.id || '')}"
+      role="button"
+      tabindex="0"
+      aria-selected="${isSelected ? 'true' : 'false'}"
+    >
       <div class="derived-card-header">
         <span class="derived-card-title">Hip Landmark Perimeter Estimate</span>
         <div class="derived-card-meta">
@@ -365,6 +417,226 @@ export function buildModeledPerimeterCardHtml(modeledPerimeter) {
       </div>
     </div>
   `;
+}
+
+export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
+  if (!seatCircumference) {
+    return '';
+  }
+
+  const isModeled = seatCircumference.status === 'modeled' && typeof seatCircumference.valueCm === 'number';
+  const valDisplay = isModeled ? `${formatDistance(seatCircumference.valueCm)} cm` : '—';
+
+  let statusBadge;
+  if (seatCircumference.status === 'modeled') {
+    statusBadge = renderBadge('Modeled', 'ok');
+  } else if (seatCircumference.status === 'blocked') {
+    statusBadge = renderBadge('Blocked', 'warn');
+  } else if (seatCircumference.status === 'invalid') {
+    statusBadge = renderBadge('Invalid', 'warn');
+  } else {
+    statusBadge = renderBadge('Unavailable', 'muted');
+  }
+
+  const yCm = seatCircumference.levelYcm;
+  const yDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
+    ? `Y ${formatDistance(yCm)} cm`
+    : 'Y —';
+
+  const frontWidth = seatCircumference.provenance?.frontSlice?.widthCm;
+  const sideDepth = seatCircumference.provenance?.sideSlice?.depthCm;
+
+  const frontDisplay = typeof frontWidth === 'number' ? `${formatDistance(frontWidth)} cm` : '—';
+  const sideDisplay = typeof sideDepth === 'number' ? `${formatDistance(sideDepth)} cm` : '—';
+
+  const isSelected = selectedMeasurementId === 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane';
+
+  return `
+    <div
+      class="derived-measurement-card modeled-perimeter-card modeled-circumference-card ${isSelected ? 'is-selected' : ''}"
+      data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"
+      data-modeled-circumference-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"
+      role="button"
+      tabindex="0"
+      aria-selected="${isSelected ? 'true' : 'false'}"
+    >
+      <div class="derived-card-header">
+        <span class="derived-card-title">Modeled Hip / Seat Circumference Estimate</span>
+        <div class="derived-card-meta">
+          <span class="derived-card-level">${escapeHtml(yDisplay)}</span>
+          ${statusBadge}
+        </div>
+      </div>
+
+      <div class="derived-card-body">
+        <div class="derived-card-row modeled-perimeter-primary-row">
+          <span class="derived-row-label modeled-perimeter-label">Circumference Estimate</span>
+          <span class="derived-row-value modeled-perimeter-value ${isModeled ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(valDisplay)}</span>
+        </div>
+
+        <div class="derived-card-row">
+          <span class="derived-row-label">Front Transverse Width (Seat Plane)</span>
+          <span class="derived-row-value ${typeof frontWidth === 'number' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(frontDisplay)}</span>
+        </div>
+
+        <div class="derived-card-row">
+          <span class="derived-row-label">Side AP Depth (Seat Plane)</span>
+          <span class="derived-row-value ${typeof sideDepth === 'number' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(sideDisplay)}</span>
+        </div>
+
+        <div class="derived-card-row modeled-perimeter-meta-row">
+          <span class="derived-row-label modeled-perimeter-label">Source Plane</span>
+          <span class="derived-row-value modeled-perimeter-value derived-row-value--muted">Maximum Buttock / Seat Plane</span>
+        </div>
+
+        <div class="derived-card-row modeled-perimeter-meta-row">
+          <span class="derived-row-label modeled-perimeter-label">Model Implementation</span>
+          <span class="derived-row-value modeled-perimeter-value derived-row-value--muted">Ellipse (Ramanujan II)</span>
+        </div>
+
+        <div class="modeled-perimeter-notes">
+          <p class="modeled-perimeter-note">Evaluated at deterministic Maximum Seat Plane (${escapeHtml(yDisplay)}).</p>
+          <p class="modeled-perimeter-qualification">Modeled estimate; not tape-measured ground truth.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Retrieves the raw domain measurement record for a given measurement ID.
+ * @param {string} measurementId
+ * @param {Array} [annotations]
+ * @returns {object|null}
+ */
+export function getMeasurementRecordById(measurementId, annotations = getAnnotations()) {
+  if (!measurementId) return null;
+
+  if (measurementId === 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane') {
+    return getModeledHipSeatCircumference({ annotations });
+  }
+
+  if (measurementId === 'torso_modeled_perimeter_at_hip_landmark_level') {
+    return getModeledCrossSectionPerimeter({ id: 'torso_modeled_perimeter_at_hip_landmark_level', annotations });
+  }
+
+  if (measurementId === 'torso_shoulder_cross_view_correspondence' || measurementId === 'torso_cross_section_evidence_at_shoulder_level') {
+    return getCrossSectionEvidence({ id: 'torso_cross_section_evidence_at_shoulder_level', annotations });
+  }
+
+  if (measurementId === 'torso_hip_cross_view_correspondence' || measurementId === 'torso_cross_section_evidence_at_hip_level') {
+    return getCrossSectionEvidence({ id: 'torso_cross_section_evidence_at_hip_level', annotations });
+  }
+
+  const directReport = getDirectBodyMeasurements({ annotations });
+  if (directReport && Array.isArray(directReport.measurements)) {
+    const directMatch = directReport.measurements.find((m) => m.id === measurementId);
+    if (directMatch) return directMatch;
+  }
+
+  return null;
+}
+
+/**
+ * Updates DOM cards to reflect current selectedMeasurementId.
+ */
+function updateSelectedCardDom() {
+  if (typeof document === 'undefined') return;
+  const containerEl = document.getElementById('derived-measurement-cards');
+  if (!containerEl || typeof containerEl.querySelectorAll !== 'function') return;
+
+  const selectables = containerEl.querySelectorAll('[data-measurement-id]');
+  for (const el of selectables) {
+    const id = el.getAttribute('data-measurement-id');
+    const isSelected = selectedMeasurementId !== null && id === selectedMeasurementId;
+    el.classList.toggle('is-selected', isSelected);
+    el.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+  }
+}
+
+/**
+ * Selects a measurement by ID, resolving visualization provenance, activating 2D highlight,
+ * and focusing the 2D workspace. If already selected, toggles selection off.
+ *
+ * @param {string|null} measurementId
+ */
+export function selectMeasurement(measurementId) {
+  console.log('[RVEacity Results Debug] selectMeasurement entered', { measurementId });
+
+  if (!measurementId) {
+    clearSelectedMeasurement();
+    return;
+  }
+
+  // Toggle off if currently selected
+  if (selectedMeasurementId === measurementId) {
+    clearSelectedMeasurement();
+    return;
+  }
+
+  const annotations = getAnnotations();
+  const measurementRecord = getMeasurementRecordById(measurementId, annotations);
+
+  console.log('[RVEacity Results Debug] record resolution', {
+    measurementId,
+    recordFound: Boolean(measurementRecord),
+    recordStatus: measurementRecord?.status ?? null,
+    recordDefinitionId: measurementRecord?.id ?? measurementRecord?.definitionId ?? null,
+  });
+
+  if (!measurementRecord) {
+    clearSelectedMeasurement();
+    return;
+  }
+
+  const context = {
+    crossSectionEvidenceReport: getCrossSectionEvidence({ id: 'torso_cross_section_evidence_at_hip_level', annotations }),
+    getCrossSectionEvidence: (level) => getCrossSectionEvidence({
+      id: level === 'shoulder' ? 'torso_cross_section_evidence_at_shoulder_level' : 'torso_cross_section_evidence_at_hip_level',
+      annotations,
+    }),
+    directMeasurementsReport: getDirectBodyMeasurements({ annotations }),
+  };
+  const visualization = resolveMeasurementVisualizationProvenance(measurementRecord, context);
+
+  console.log('[RVEacity Results Debug] visualization resolution', {
+    visualizationStatus: visualization?.status ?? null,
+    visualizationType: visualization?.visualizationType ?? null,
+    targetViews: visualization?.targetViews ?? null,
+    blockers: visualization?.blockers ?? [],
+  });
+
+  if (visualization.status !== 'ready') {
+    clearSelectedMeasurement();
+    return;
+  }
+
+  selectedMeasurementId = measurementId;
+
+  console.log('[RVEacity Results Debug] highlight set start');
+  setMeasurementHighlight(visualization);
+  console.log('[RVEacity Results Debug] highlight set complete');
+
+  console.log('[RVEacity Results Debug] workspace switch requested');
+  setWorkspace(WORKSPACE_SPLIT);
+
+  updateSelectedCardDom();
+  const selectedElements = typeof document !== 'undefined'
+    ? (document.getElementById('derived-measurement-cards')?.querySelectorAll('.is-selected') ?? [])
+    : [];
+  console.log('[RVEacity Results Debug] selected DOM update', {
+    selectedMeasurementId,
+    selectedElementCount: selectedElements.length,
+  });
+}
+
+/**
+ * Clears the active measurement selection and 2D highlight.
+ */
+export function clearSelectedMeasurement() {
+  selectedMeasurementId = null;
+  clearMeasurementHighlight();
+  updateSelectedCardDom();
 }
 
 export function renderDerivedMeasurementDeck(containerEl) {
@@ -421,12 +693,17 @@ export function renderDerivedMeasurementDeck(containerEl) {
     annotations,
   });
 
+  const modeledSeatCircumferenceResult = getModeledHipSeatCircumference({
+    annotations,
+  });
+
   let modeledPerimeterHtml = '';
-  if (modeledPerimeterResult) {
+  if (modeledPerimeterResult || modeledSeatCircumferenceResult) {
     const isPerimeterCollapsed = groupCollapseStates.get('modeled_perimeter_estimates') ?? false;
     const perimeterCollapsedAttr = isPerimeterCollapsed ? 'data-collapsed' : '';
     const perimeterCollapsedClass = isPerimeterCollapsed ? 'is-collapsed' : '';
     const hipCardHtml = buildModeledPerimeterCardHtml(modeledPerimeterResult);
+    const seatCardHtml = buildModeledHipSeatCircumferenceCardHtml(modeledSeatCircumferenceResult);
 
     modeledPerimeterHtml = `
     <div
@@ -439,6 +716,7 @@ export function renderDerivedMeasurementDeck(containerEl) {
         <span class="results-subgroup-label">Modeled Perimeter Estimates</span>
       </div>
       <div class="results-subgroup-body">
+        ${seatCardHtml}
         ${hipCardHtml}
       </div>
     </div>
@@ -498,6 +776,14 @@ export function renderDerivedMeasurementDeck(containerEl) {
 
 export function setupDerivedMeasurementDeck() {
   const containerEl = document.getElementById('derived-measurement-cards');
+  const containerFound = Boolean(containerEl);
+
+  console.log('[RVEacity Results Debug] setupDerivedMeasurementDeck initialized', {
+    containerFound,
+    clickListenerAttached: containerFound,
+    keydownListenerAttached: containerFound,
+  });
+
   if (!containerEl) {
     return;
   }
@@ -510,7 +796,140 @@ export function setupDerivedMeasurementDeck() {
     initCollapsibleSections(containerEl);
   };
 
-  subscribeBodyEvidenceChange(update);
+  containerEl.addEventListener('click', (event) => {
+    const targetTag = event.target ? (event.target.tagName || '').toLowerCase() : null;
+    const targetClass = event.target ? (event.target.className || '') : null;
+    const measurementTarget = event.target ? event.target.closest('[data-measurement-id]') : null;
+    const measurementElementFound = Boolean(measurementTarget);
+    const measurementId = measurementTarget ? measurementTarget.getAttribute('data-measurement-id') : null;
+
+    console.log('[RVEacity Results Debug] click received', {
+      targetTag,
+      targetClass,
+      measurementElementFound,
+      measurementId,
+    });
+
+    // If click was on a collapsible toggle header, let collapsibleSections handle it
+    if (event.target.closest('.derived-card-header--collapsible') || event.target.closest('.results-subgroup-header--collapsible')) {
+      return;
+    }
+
+    if (!measurementTarget) {
+      return;
+    }
+
+    if (measurementId) {
+      selectMeasurement(measurementId);
+    }
+  });
+
+  containerEl.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    if (event.target.closest('.derived-card-header--collapsible') || event.target.closest('.results-subgroup-header--collapsible')) {
+      return;
+    }
+
+    const targetEl = event.target.closest('[data-measurement-id]');
+    if (!targetEl) {
+      return;
+    }
+
+    event.preventDefault();
+    const measurementId = targetEl.getAttribute('data-measurement-id');
+    if (measurementId) {
+      selectMeasurement(measurementId);
+    }
+  });
+
+  subscribeBodyEvidenceChange(() => {
+    clearSelectedMeasurement();
+    update();
+  });
   subscribeAnnotationsChange(update);
   update();
 }
+
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'click',
+    (event) => {
+      const target = event.target;
+      const targetTag = target ? (target.tagName || '').toLowerCase() : null;
+      const targetId = target ? (target.id || '') : null;
+      const targetClass = target ? (target.className || '') : null;
+
+      const rightSidebar = typeof document !== 'undefined' ? document.getElementById('right-sidebar') : null;
+      const resultsContainer = typeof document !== 'undefined' ? document.getElementById('derived-measurement-cards') : null;
+
+      const insideRightSidebar = Boolean(target && rightSidebar && (target === rightSidebar || rightSidebar.contains(target)));
+      const insideResultsContainer = Boolean(target && resultsContainer && (target === resultsContainer || resultsContainer.contains(target)));
+
+      let hitEl = null;
+      if (typeof document !== 'undefined' && typeof document.elementFromPoint === 'function' && typeof event.clientX === 'number') {
+        hitEl = document.elementFromPoint(event.clientX, event.clientY);
+      }
+      const hitElementTag = hitEl ? (hitEl.tagName || '').toLowerCase() : null;
+      const hitElementId = hitEl ? (hitEl.id || '') : null;
+      const hitElementClass = hitEl ? (hitEl.className || '') : null;
+
+      console.log('[RVEacity HitTest Debug] window capture click', {
+        targetTag,
+        targetId,
+        targetClass,
+        insideRightSidebar,
+        insideResultsContainer,
+        elementFromPoint: {
+          tag: hitElementTag,
+          id: hitElementId,
+          className: hitElementClass,
+        },
+      });
+    },
+    true
+  );
+
+  window.__RVEacityResultsDebug = function getRVEacityResultsDebugSnapshot() {
+    const container = document.getElementById('derived-measurement-cards');
+    const els = container && typeof container.querySelectorAll === 'function'
+      ? container.querySelectorAll('[data-measurement-id]')
+      : [];
+    const highlight = typeof getMeasurementHighlight === 'function' ? getMeasurementHighlight() : null;
+
+    return {
+      resultsContainerFound: Boolean(container),
+      measurementElementCount: els.length,
+      measurementIds: Array.from(els).map((el) => el.getAttribute('data-measurement-id')).filter(Boolean),
+      selectedMeasurementId: selectedMeasurementId ?? null,
+      activeHighlightMeasurementId: highlight?.measurementId ?? null,
+    };
+  };
+
+  window.__RVEacityHitTestDebug = function getRVEacityHitTestDebugSnapshot(x, y) {
+    if (typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') {
+      return { error: 'document.elementFromPoint not supported' };
+    }
+    const el = (typeof x === 'number' && typeof y === 'number')
+      ? document.elementFromPoint(x, y)
+      : null;
+    const rightSidebar = document.getElementById('right-sidebar');
+    const resultsContainer = document.getElementById('derived-measurement-cards');
+
+    const insideRightSidebar = Boolean(el && rightSidebar && (el === rightSidebar || rightSidebar.contains(el)));
+    const insideResultsContainer = Boolean(el && resultsContainer && (el === resultsContainer || resultsContainer.contains(el)));
+    const measurementTarget = el ? el.closest('[data-measurement-id]') : null;
+
+    return {
+      elementTag: el ? (el.tagName || '').toLowerCase() : null,
+      elementId: el ? (el.id || '') : null,
+      elementClass: el ? (el.className || '') : null,
+      insideRightSidebar,
+      insideResultsContainer,
+      closestMeasurementId: measurementTarget ? measurementTarget.getAttribute('data-measurement-id') : null,
+    };
+  };
+}
+
