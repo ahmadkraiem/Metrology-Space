@@ -198,7 +198,7 @@ function renderFrontHorizontalSlice(fragment, geometry, worldToPlotPx) {
   fragment.appendChild(createHighlightDot(pB));
 
   const displaySpan = width ?? Math.abs(maxX - minX);
-  const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py };
+  const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py - 14 };
   fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displaySpan)} cm`));
 }
 
@@ -221,7 +221,7 @@ function renderSideHorizontalSlice(fragment, geometry, worldToPlotPx) {
   fragment.appendChild(createHighlightDot(pB));
 
   const displayDepth = depth ?? Math.abs(maxU - minU);
-  const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py };
+  const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py - 14 };
   fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displayDepth)} cm`));
 }
 
@@ -244,7 +244,7 @@ function renderCrossViewHorizontalSlice(fragment, view, geometry, worldToPlotPx)
       fragment.appendChild(createHighlightDot(pB));
 
       const displaySpan = width ?? Math.abs(maxX - minX);
-      const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py };
+      const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py - 14 };
       fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displaySpan)} cm`));
     }
   } else if (view === 'side') {
@@ -262,7 +262,7 @@ function renderCrossViewHorizontalSlice(fragment, view, geometry, worldToPlotPx)
       fragment.appendChild(createHighlightDot(pB));
 
       const displayDepth = depth ?? Math.abs(maxU - minU);
-      const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py };
+      const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py - 14 };
       fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displayDepth)} cm`));
     }
   }
@@ -287,7 +287,21 @@ function renderLandmarkSegment(fragment, geometry, worldToPlotPx) {
   fragment.appendChild(createHighlightDot(pB));
 
   const displayDist = dist ?? Math.hypot(epB.xCm - epA.xCm, epB.yCm - epA.yCm);
-  const midPoint = { px: (pA.px + pB.px) / 2, py: (pA.py + pB.py) / 2 };
+  const midX = (pA.px + pB.px) / 2;
+  const midY = (pA.py + pB.py) / 2;
+  const dx = pB.px - pA.px;
+  const dy = pB.py - pA.py;
+  const len = Math.hypot(dx, dy);
+  let offsetX = 0;
+  let offsetY = -14;
+  if (len > 0) {
+    const perpX = -dy / len;
+    const perpY = dx / len;
+    const sign = (perpY > 0 || (perpY === 0 && perpX < 0)) ? -1 : 1;
+    offsetX = perpX * 14 * sign;
+    offsetY = perpY * 14 * sign;
+  }
+  const midPoint = { px: midX + offsetX, py: midY + offsetY };
   fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displayDist)} cm`));
 }
 
@@ -358,7 +372,7 @@ function renderVerticalLevelInterval(fragment, geometry, worldToPlotPx) {
   fragment.appendChild(createHighlightDot(pCenterLower));
 
   const displayDist = dist ?? Math.abs(upperY - lowerY);
-  const midPoint = { px: pCenterUpper.px, py: (pCenterUpper.py + pCenterLower.py) / 2 };
+  const midPoint = { px: pCenterUpper.px + 24, py: (pCenterUpper.py + pCenterLower.py) / 2 };
   fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displayDist)} cm`));
 }
 

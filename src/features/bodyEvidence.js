@@ -952,6 +952,106 @@ export function promoteSelectedBodyEvidenceLandmark() {
   };
 }
 
+/**
+ * Batch promotes all currently eligible Front Core landmarks in one action.
+ *
+ * Scope:
+ * - Only Front landmarks
+ * - Only Core landmarks (CORE_FRONT_BODY_ANCHORS)
+ * - Only eligible / ready landmarks with valid mapped coordinates
+ * - Skips already promoted landmarks
+ * - Avoids duplicates
+ * - Does not affect Side landmarks or Secondary landmarks
+ *
+ * @returns {{
+ *   ok: boolean,
+ *   promotedCount: number,
+ *   alreadyPromotedCount: number,
+ *   unavailableCount: number,
+ *   totalCoreCount: number,
+ *   message: string,
+ * }}
+ */
+export function promoteAllFrontCoreLandmarks() {
+  const frontCoreLandmarks = getRenderableFrontBodyLandmarks();
+  const totalCoreCount = CORE_FRONT_BODY_ANCHORS.length;
+
+  let promotedCount = 0;
+  let alreadyPromotedCount = 0;
+  let unavailableCount = 0;
+
+  const availableByName = new Map();
+  for (const lm of frontCoreLandmarks) {
+    if (lm?.name && isCoreFrontBodyAnchor(lm.name)) {
+      availableByName.set(lm.name, lm);
+    }
+  }
+
+  for (const coreName of CORE_FRONT_BODY_ANCHORS) {
+    const lm = availableByName.get(coreName);
+    if (!lm) {
+      unavailableCount++;
+      continue;
+    }
+
+    const spaceX = typeof lm.spaceX === 'number'
+      ? lm.spaceX
+      : (Number.isFinite(lm.imageX) ? lm.imageX / BODY_EVIDENCE_V0_SCALE.pixelsPerCm : null);
+    const spaceY = typeof lm.spaceY === 'number'
+      ? lm.spaceY
+      : (Number.isFinite(lm.imageY) ? (BODY_EVIDENCE_V0_SCALE.canvasSize - lm.imageY) / BODY_EVIDENCE_V0_SCALE.pixelsPerCm : null);
+
+    if (spaceX === null || spaceY === null || !Number.isFinite(spaceX) || !Number.isFinite(spaceY)) {
+      unavailableCount++;
+      continue;
+    }
+
+    if (isBodyLandmarkPromoted(coreName)) {
+      alreadyPromotedCount++;
+      continue;
+    }
+
+    const position = frontSurfaceTo3d({
+      x: spaceX,
+      y: spaceY,
+    });
+
+    const result = addAnnotationFromPoint({
+      name: coreName,
+      type: PROMOTED_BODY_LANDMARK_TYPE,
+      position,
+    });
+
+    if (result.ok) {
+      promotedCount++;
+    } else if (result.duplicate) {
+      alreadyPromotedCount++;
+    } else {
+      unavailableCount++;
+    }
+  }
+
+  const ok = promotedCount > 0;
+  const parts = [];
+  parts.push(`Promoted ${promotedCount}`);
+  if (unavailableCount > 0) {
+    parts.push(`Skipped ${unavailableCount} unavailable`);
+  }
+  if (alreadyPromotedCount > 0) {
+    parts.push(`${alreadyPromotedCount} already promoted`);
+  }
+  const message = parts.join(' • ');
+
+  return {
+    ok,
+    promotedCount,
+    alreadyPromotedCount,
+    unavailableCount,
+    totalCoreCount,
+    message,
+  };
+}
+
 function clearBodyEvidenceSelectionSilent() {
   selectedBodyEvidenceLandmark = null;
   selectedSideEvidenceLandmark = null;

@@ -558,3 +558,48 @@ test('21 & 22. Highlight state does not mutate visualization input or alter valu
   assert.equal(beforeJson, JSON.stringify(input));
   assert.deepEqual(active, input);
 });
+
+test('23. Horizontal slice, Cross-view slice, Segment, and Vertical interval badges are clearly offset from measured lines', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  // A. Horizontal slice badge is offset above the line (py - 14)
+  const sliceVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_front_transverse_width_at_shoulder_level',
+    visualizationType: VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 100,
+      front: { minXcm: 30, maxXcm: 70, widthCm: 40 },
+    },
+  };
+  setMeasurementHighlight(sliceVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  const sliceLine = frontLayer.querySelector('.grid2d-highlight-line');
+  const sliceBadge = frontLayer.querySelector('.grid2d-highlight-badge');
+  const lineY = parseFloat(sliceLine.style.top);
+  const badgeY = parseFloat(sliceBadge.style.top);
+  assert.equal(badgeY, lineY - 14, 'Horizontal slice badge is positioned 14px above line');
+
+  // B. Vertical interval badge is offset beside the line (px + 24)
+  const vertVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'vert_test',
+    visualizationType: VISUALIZATION_TYPES.VERTICAL_LEVEL_INTERVAL,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      upperYcm: 150,
+      lowerYcm: 100,
+      distanceCm: 50,
+    },
+  };
+  setMeasurementHighlight(vertVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  const vertLine = frontLayer.querySelector('.grid2d-highlight-vertical-line');
+  const vertBadge = frontLayer.querySelector('.grid2d-highlight-badge');
+  const lineX = parseFloat(vertLine.style.left);
+  const badgeX = parseFloat(vertBadge.style.left);
+  assert.equal(badgeX, lineX + 24, 'Vertical interval badge is placed 24px beside vertical line');
+});

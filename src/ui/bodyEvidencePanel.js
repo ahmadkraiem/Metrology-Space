@@ -26,6 +26,7 @@ import {
   hasAnalyzedBodyEvidence,
   isBodyLandmarkPromoted,
   promoteSelectedBodyEvidenceLandmark,
+  promoteAllFrontCoreLandmarks,
   selectBodyEvidenceLandmark,
   selectFrontSegClass,
   selectSideEvidenceLandmark,
@@ -68,6 +69,7 @@ import {
   clearBodyLandmarkSelectionBtn,
   importBodyEvidencePackageZipInput,
   promoteSelectedBodyLandmarkBtn,
+  promoteAllFrontCoreLandmarksBtn,
 } from './domRefs.js';
 
 import { escapeHtml, renderBadge } from './badgeUi.js';
@@ -730,6 +732,22 @@ export function runPromoteFrontEvidenceAction() {
   renderSelectedLandmark();
 }
 
+export function runPromoteAllFrontCoreLandmarksAction() {
+  const result = promoteAllFrontCoreLandmarks();
+  if (result.promotedCount > 0) {
+    showStatus(result.message, 'ok');
+    showPromoteStatus(result.message, 'ok');
+  } else if (result.alreadyPromotedCount > 0) {
+    showStatus(result.message, 'info');
+    showPromoteStatus(result.message, 'info');
+  } else {
+    showStatus(result.message || 'No front core landmarks to promote.', 'warn');
+    showPromoteStatus(result.message || 'No front core landmarks to promote.', 'warn');
+  }
+  refreshCandidateLists();
+  renderSelectedLandmark();
+}
+
 export function runDownloadBodyEvidenceAction() {
   const { ok, error } = downloadBodyEvidenceJson();
   if (!ok) {
@@ -803,6 +821,7 @@ export function setupBodyEvidencePanel() {
 
   clearBodyLandmarkSelectionBtn?.addEventListener('click', onClearSelection);
   promoteSelectedBodyLandmarkBtn?.addEventListener('click', runPromoteFrontEvidenceAction);
+  promoteAllFrontCoreLandmarksBtn?.addEventListener('click', runPromoteAllFrontCoreLandmarksAction);
 
   if (typeof document !== 'undefined') {
     document.querySelectorAll('[data-body-evidence-tab]').forEach((button) => {
