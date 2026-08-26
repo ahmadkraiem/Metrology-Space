@@ -38,6 +38,10 @@ import {
   setupSegmentationOverlay2d,
 } from './segmentationOverlay2d.js';
 import {
+  renderSideMeasurementHighlight,
+  setupMeasurementHighlightOverlay,
+} from './measurementHighlightOverlay2d.js';
+import {
   FIELD_INSET_PX,
   applyPlotAreaCssVars,
   computePlotMetrics,
@@ -782,6 +786,7 @@ export function refreshSideGrid2dNavigator() {
   renderSideBodyEvidenceOverlay({ projectToPercent });
   renderSideSegmentationOverlay(sideSegmentationCanvasEl);
   renderSideMeasurementOverlay();
+  renderSideMeasurementHighlight({ worldToPlotPx });
   renderSelectedRegionOutline();
   updateChrome();
 
@@ -1093,5 +1098,6 @@ export function setupSideGrid2dNavigator() {
   setupModeKeyboardToggle();
   resetVisualZoom();
   setupSegmentationOverlay2d(null, refreshSideGrid2dNavigator);
+  setupMeasurementHighlightOverlay({ refreshSideNavigator: refreshSideGrid2dNavigator });
   refreshSideGrid2dNavigator();
 }

@@ -1,0 +1,560 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
+  VISUALIZATION_TYPES,
+  VISUALIZATION_STATUS,
+} from '../features/measurementVisualizationProvenance.js';
+import {
+  setMeasurementHighlight,
+  clearMeasurementHighlight,
+  getMeasurementHighlight,
+  isMeasurementHighlightVisible,
+  setMeasurementHighlightVisible,
+  subscribeMeasurementHighlightChange,
+  renderMeasurementHighlight2d,
+  renderFrontMeasurementHighlight,
+  renderSideMeasurementHighlight,
+  setupMeasurementHighlightOverlay,
+} from './measurementHighlightOverlay2d.js';
+
+class MockElement {
+  constructor(tagName = 'div') {
+    this.tagName = tagName.toUpperCase();
+    this.className = '';
+    this.style = {};
+    this.attributes = {};
+    this.dataset = {};
+    this.children = [];
+    this.textContent = '';
+  }
+
+  get classList() {
+    const self = this;
+    return {
+      add(...classes) {
+        const set = new Set((self.className || '').split(' ').filter(Boolean));
+        classes.forEach((c) => set.add(c));
+        self.className = Array.from(set).join(' ');
+      },
+      remove(...classes) {
+        const set = new Set((self.className || '').split(' ').filter(Boolean));
+        classes.forEach((c) => set.delete(c));
+        self.className = Array.from(set).join(' ');
+      },
+      contains(c) {
+        return (self.className || '').split(' ').includes(c);
+      },
+    };
+  }
+
+  setAttribute(name, value) {
+    this.attributes[name] = String(value);
+  }
+
+  getAttribute(name) {
+    return this.attributes[name] ?? null;
+  }
+
+  appendChild(child) {
+    if (child instanceof MockDocumentFragment) {
+      for (const c of child.children) {
+        this.children.push(c);
+      }
+      child.children = [];
+      return child;
+    }
+    this.children.push(child);
+    return child;
+  }
+
+  replaceChildren(...newChildren) {
+    this.children = [];
+    for (const child of newChildren) {
+      this.appendChild(child);
+    }
+  }
+
+  querySelectorAll(selector) {
+    const results = [];
+    const matchClass = selector.startsWith('.') ? selector.slice(1) : null;
+    const matchId = selector.startsWith('#') ? selector.slice(1) : null;
+
+    function traverse(el) {
+      for (const child of el.children) {
+        let isMatch = false;
+        if (matchClass && child.classList.contains(matchClass)) isMatch = true;
+        if (matchId && child.id === matchId) isMatch = true;
+        if (isMatch) results.push(child);
+        traverse(child);
+      }
+    }
+    traverse(this);
+    return results;
+  }
+
+  querySelector(selector) {
+    const all = this.querySelectorAll(selector);
+    return all.length > 0 ? all[0] : null;
+  }
+}
+
+class MockDocumentFragment {
+  constructor() {
+    this.children = [];
+  }
+  appendChild(child) {
+    this.children.push(child);
+    return child;
+  }
+}
+
+function setupTestDom() {
+  const frontLayer = new MockElement('div');
+  frontLayer.id = 'grid2d-measurement-highlight-layer';
+  const sideLayer = new MockElement('div');
+  sideLayer.id = 'side-evidence-measurement-highlight-layer';
+
+  global.document = {
+    createElement: (tag) => new MockElement(tag),
+    createDocumentFragment: () => new MockDocumentFragment(),
+    getElementById: (id) => {
+      if (id === 'grid2d-measurement-highlight-layer') return frontLayer;
+      if (id === 'side-evidence-measurement-highlight-layer') return sideLayer;
+      return null;
+    },
+  };
+
+  return { frontLayer, sideLayer };
+}
+
+// Linear metric-to-plot mapper mock: scale = 2px/cm, origin (0, 0) -> (0, 400)
+function mockWorldToPlotPx(h, v) {
+  return {
+    px: h * 2,
+    py: 400 - v * 2,
+  };
+}
+
+test('1. Front horizontal slice renders exact stored endpoints', () => {
+  const { frontLayer } = setupTestDom();
+
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_width_at_shoulder_level',
+    displayName: 'Torso Transverse Width at Shoulder Level',
+    visualizationType: VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 128.25,
+      front: {
+        rasterRow: 717,
+        minXcm: 34.6,
+        maxXcm: 65.4,
+        widthCm: 30.8,
+      },
+    },
+  };
+
+  setMeasurementHighlight(vis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+
+  const line = frontLayer.querySelector('.grid2d-highlight-line');
+  assert.ok(line, 'Highlight line rendered');
+  assert.equal(line.style.left, `${34.6 * 2}px`);
+  assert.equal(line.style.top, `${400 - 128.25 * 2}px`);
+  assert.equal(line.style.width, `${(65.4 - 34.6) * 2}px`);
+
+  const dots = frontLayer.querySelectorAll('.grid2d-highlight-dot');
+  assert.equal(dots.length, 2, 'Two endpoint dots rendered');
+  assert.equal(dots[0].style.left, `${34.6 * 2}px`);
+  assert.equal(dots[1].style.left, `${65.4 * 2}px`);
+
+  const badge = frontLayer.querySelector('.grid2d-highlight-badge');
+  assert.ok(badge, 'Dimension badge rendered');
+  assert.equal(badge.textContent, '30.80 cm');
+});
+
+test('2. Side horizontal slice renders exact stored endpoints', () => {
+  const { sideLayer } = setupTestDom();
+
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_profile_span_at_hip_level',
+    displayName: 'Torso Profile Span at Hip Level',
+    visualizationType: VISUALIZATION_TYPES.SIDE_HORIZONTAL_SLICE,
+    targetViews: ['side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 86.25,
+      side: {
+        rasterRow: 1137,
+        minUcm: 36.1,
+        maxUcm: 63.8,
+        depthCm: 27.7,
+      },
+    },
+  };
+
+  setMeasurementHighlight(vis);
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  const line = sideLayer.querySelector('.grid2d-highlight-line');
+  assert.ok(line, 'Side highlight line rendered');
+  assert.equal(line.style.left, `${36.1 * 2}px`);
+  assert.equal(line.style.top, `${400 - 86.25 * 2}px`);
+  assert.equal(line.style.width, `${(63.8 - 36.1) * 2}px`);
+
+  const dots = sideLayer.querySelectorAll('.grid2d-highlight-dot');
+  assert.equal(dots.length, 2, 'Two endpoint dots rendered');
+
+  const badge = sideLayer.querySelector('.grid2d-highlight-badge');
+  assert.ok(badge, 'Dimension badge rendered');
+  assert.equal(badge.textContent, '27.70 cm');
+});
+
+test('3, 4 & 5. Cross-view slice renders on Front and Side at common metric Y with differing raster rows', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_cross_section_evidence_at_hip_level',
+    displayName: 'Torso Cross-Section Evidence at Hip Level',
+    visualizationType: VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 86.25,
+      front: {
+        rasterRow: 1137,
+        minXcm: 28.9,
+        maxXcm: 71.1,
+        widthCm: 42.2,
+      },
+      side: {
+        rasterRow: 600, // Different raster row!
+        minUcm: 36.1,
+        maxUcm: 63.8,
+        depthCm: 27.7,
+      },
+    },
+  };
+
+  setMeasurementHighlight(vis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  const frontLine = frontLayer.querySelector('.grid2d-highlight-line');
+  const sideLine = sideLayer.querySelector('.grid2d-highlight-line');
+
+  assert.ok(frontLine, 'Front cross-view line rendered');
+  assert.ok(sideLine, 'Side cross-view line rendered');
+
+  // Both must be rendered at the exact same py corresponding to metric Y = 86.25 cm
+  assert.equal(frontLine.style.top, `${400 - 86.25 * 2}px`);
+  assert.equal(sideLine.style.top, `${400 - 86.25 * 2}px`);
+
+  assert.equal(frontLine.style.width, `${(71.1 - 28.9) * 2}px`);
+  assert.equal(sideLine.style.width, `${(63.8 - 36.1) * 2}px`);
+});
+
+test('6. Landmark segment renders exact endpoints', () => {
+  const { frontLayer } = setupTestDom();
+
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'left_upper_arm_segment_length_projected',
+    displayName: 'Left Upper Arm Length',
+    visualizationType: VISUALIZATION_TYPES.LANDMARK_SEGMENT,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      view: 'front',
+      endpointA: { landmarkId: 'left_shoulder', xCm: 65.4, yCm: 128.25 },
+      endpointB: { landmarkId: 'left_elbow', xCm: 70.1, yCm: 99.1 },
+      distanceCm: 29.53,
+    },
+  };
+
+  setMeasurementHighlight(vis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+
+  const line = frontLayer.querySelector('.grid2d-highlight-line');
+  assert.ok(line, 'Segment line rendered');
+  assert.equal(line.style.left, `${65.4 * 2}px`);
+  assert.equal(line.style.top, `${400 - 128.25 * 2}px`);
+
+  const dots = frontLayer.querySelectorAll('.grid2d-highlight-dot');
+  assert.equal(dots.length, 2);
+  assert.equal(dots[0].style.left, `${65.4 * 2}px`);
+  assert.equal(dots[1].style.left, `${70.1 * 2}px`);
+
+  const badge = frontLayer.querySelector('.grid2d-highlight-badge');
+  assert.equal(badge.textContent, '29.53 cm');
+});
+
+test('7 & 8. Landmark chain renders all ordered points without collapsing into a single chord', () => {
+  const { frontLayer } = setupTestDom();
+
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'left_total_arm_chain_length_projected',
+    displayName: 'Left Total Arm Chain',
+    visualizationType: VISUALIZATION_TYPES.LANDMARK_CHAIN,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      view: 'front',
+      points: [
+        { landmarkId: 'left_shoulder', xCm: 65.4, yCm: 128.25 },
+        { landmarkId: 'left_elbow', xCm: 70.1, yCm: 99.1 },
+        { landmarkId: 'left_wrist', xCm: 72.3, yCm: 74.1 },
+      ],
+      totalLengthCm: 54.55,
+    },
+  };
+
+  setMeasurementHighlight(vis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+
+  const lines = frontLayer.querySelectorAll('.grid2d-highlight-line');
+  assert.equal(lines.length, 2, 'Two distinct lines for shoulder->elbow and elbow->wrist rendered');
+
+  const dots = frontLayer.querySelectorAll('.grid2d-highlight-dot');
+  assert.equal(dots.length, 3, 'Three vertex dots rendered');
+
+  const badge = frontLayer.querySelector('.grid2d-highlight-badge');
+  assert.equal(badge.textContent, '54.55 cm');
+});
+
+test('9. Vertical interval uses upper/lower Y semantics with horizontal ticks and vertical line', () => {
+  const { frontLayer } = setupTestDom();
+
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'vertical_torso_length_neck_to_hip',
+    displayName: 'Vertical Torso Length',
+    visualizationType: VISUALIZATION_TYPES.VERTICAL_LEVEL_INTERVAL,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      view: 'front',
+      upperLevelId: 'neck',
+      lowerLevelId: 'hip',
+      upperYcm: 135.0,
+      lowerYcm: 86.25,
+      distanceCm: 48.75,
+    },
+  };
+
+  setMeasurementHighlight(vis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+
+  const ticks = frontLayer.querySelectorAll('.grid2d-highlight-tick');
+  assert.equal(ticks.length, 2, 'Upper and lower horizontal reference ticks rendered');
+
+  const verticalLine = frontLayer.querySelector('.grid2d-highlight-vertical-line');
+  assert.ok(verticalLine, 'Vertical connecting line rendered');
+
+  const badge = frontLayer.querySelector('.grid2d-highlight-badge');
+  assert.equal(badge.textContent, '48.75 cm');
+});
+
+test('10. Anatomical horizontal level renders reference guide line and anchor dots', () => {
+  const { frontLayer } = setupTestDom();
+
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'hip',
+    displayName: 'Hip Level',
+    visualizationType: VISUALIZATION_TYPES.FRONT_HORIZONTAL_LEVEL,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      view: 'front',
+      levelId: 'hip',
+      yCm: 86.25,
+      anchors: [
+        { name: 'left_hip', xCm: 40.0, yCm: 86.25 },
+        { name: 'right_hip', xCm: 60.0, yCm: 86.25 },
+      ],
+    },
+  };
+
+  setMeasurementHighlight(vis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+
+  const guide = frontLayer.querySelector('.grid2d-highlight-level-guide');
+  assert.ok(guide, 'Horizontal guide rendered');
+  assert.equal(guide.style.top, `${400 - 86.25 * 2}px`);
+
+  const dots = frontLayer.querySelectorAll('.grid2d-highlight-dot');
+  assert.equal(dots.length, 2, 'Anchor dots rendered');
+});
+
+test('11 & 12. Setting new highlight replaces previous; clearing removes only measurement highlight', () => {
+  const { frontLayer } = setupTestDom();
+
+  const vis1 = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'vis1',
+    visualizationType: VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: { yCm: 100, front: { minXcm: 30, maxXcm: 70, widthCm: 40 } },
+  };
+
+  const vis2 = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'vis2',
+    visualizationType: VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: { yCm: 50, front: { minXcm: 20, maxXcm: 80, widthCm: 60 } },
+  };
+
+  setMeasurementHighlight(vis1);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge').textContent, '40.00 cm');
+
+  setMeasurementHighlight(vis2);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge').textContent, '60.00 cm');
+
+  clearMeasurementHighlight();
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  assert.equal(frontLayer.children.length, 0, 'Measurement highlight layer cleanly emptied');
+});
+
+test('13 & 14. Existing markers and segmentation containers remain completely intact after highlight clear', () => {
+  const { frontLayer } = setupTestDom();
+  const mockMarkersEl = new MockElement('div');
+  mockMarkersEl.id = 'grid2d-markers';
+  const dummyMarker = new MockElement('div');
+  dummyMarker.id = 'persisted-annotation-marker';
+  mockMarkersEl.appendChild(dummyMarker);
+
+  setMeasurementHighlight({
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'test',
+    visualizationType: VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: { yCm: 100, front: { minXcm: 30, maxXcm: 70, widthCm: 40 } },
+  });
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+
+  clearMeasurementHighlight();
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+
+  assert.equal(mockMarkersEl.children.length, 1, 'Existing markers are preserved untouched');
+  assert.equal(mockMarkersEl.children[0].id, 'persisted-annotation-marker');
+});
+
+test('15. Invalid or unavailable visualization does not render geometry', () => {
+  const { frontLayer } = setupTestDom();
+
+  const unavailVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'unavail',
+    visualizationType: VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.UNAVAILABLE,
+    geometry: null,
+  };
+
+  setMeasurementHighlight(unavailVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  assert.equal(frontLayer.children.length, 0);
+});
+
+test('16 & 17. Resize / dynamic plot area scale preserves exact metric alignment', () => {
+  const { frontLayer } = setupTestDom();
+
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'test_scale',
+    visualizationType: VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: { yCm: 50, front: { minXcm: 10, maxXcm: 40, widthCm: 30 } },
+  };
+
+  setMeasurementHighlight(vis);
+
+  // Scale 1: 2px/cm
+  renderFrontMeasurementHighlight({ worldToPlotPx: (h, v) => ({ px: h * 2, py: 400 - v * 2 }), layerEl: frontLayer });
+  let line = frontLayer.querySelector('.grid2d-highlight-line');
+  assert.equal(line.style.width, '60px');
+
+  // Scale 2: 4px/cm after resize
+  renderFrontMeasurementHighlight({ worldToPlotPx: (h, v) => ({ px: h * 4, py: 800 - v * 4 }), layerEl: frontLayer });
+  line = frontLayer.querySelector('.grid2d-highlight-line');
+  assert.equal(line.style.width, '120px');
+});
+
+test('18, 19 & 20. Hip / Seat cross-view highlight uses stored provenance only without recomputing localization or math', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const seatCircumferenceVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane',
+    displayName: 'Modeled Hip / Seat Circumference Estimate',
+    visualizationType: VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 79.95,
+      front: {
+        rasterRow: 1200,
+        minXcm: 77.8,
+        maxXcm: 122.1,
+        widthCm: 44.3,
+      },
+      side: {
+        rasterRow: 1200,
+        minUcm: 84.3,
+        maxUcm: 111.7,
+        depthCm: 27.4,
+      },
+    },
+    provenance: {
+      sourceContract: 'modeled-hip-seat-circumference-v0',
+      sourceLocalizationContract: 'maximum-seat-plane-localization-v0',
+      plateauRowCount: 3,
+    },
+  };
+
+  setMeasurementHighlight(seatCircumferenceVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  const frontBadge = frontLayer.querySelector('.grid2d-highlight-badge');
+  const sideBadge = sideLayer.querySelector('.grid2d-highlight-badge');
+
+  assert.equal(frontBadge.textContent, '44.30 cm');
+  assert.equal(sideBadge.textContent, '27.40 cm');
+});
+
+test('21 & 22. Highlight state does not mutate visualization input or alter values', () => {
+  const input = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'test_mut',
+    visualizationType: VISUALIZATION_TYPES.LANDMARK_SEGMENT,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      endpointA: { landmarkId: 'a', xCm: 10, yCm: 20 },
+      endpointB: { landmarkId: 'b', xCm: 30, yCm: 40 },
+      distanceCm: 28.28,
+    },
+  };
+
+  const beforeJson = JSON.stringify(input);
+  setMeasurementHighlight(input);
+  const active = getMeasurementHighlight();
+
+  assert.equal(beforeJson, JSON.stringify(input));
+  assert.deepEqual(active, input);
+});

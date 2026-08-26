@@ -38,6 +38,10 @@ import {
 } from './segmentationOverlay2d.js';
 import { renderBodyMeasurementPreview2d } from '../features/bodyMeasurementPreview.js';
 import {
+  renderFrontMeasurementHighlight,
+  setupMeasurementHighlightOverlay,
+} from './measurementHighlightOverlay2d.js';
+import {
   FIELD_INSET_PX,
   applyPlotAreaCssVars,
   computePlotMetrics,
@@ -558,6 +562,7 @@ function updateChrome() {
   renderBodyEvidenceOverlay2d({ projectToPercent });
   renderFrontSegmentationOverlay(grid2dSegmentationCanvasEl);
   renderBodyMeasurementPreview2d({ worldToPlotPx });
+  renderFrontMeasurementHighlight({ worldToPlotPx });
   const selectionBounds = getSelectionBounds(selectedRegionPoints);
   const split = classifySplitSelection();
   const selectionBlock = grid2dSelectedReadout.closest('.grid2d-selection-block');
@@ -1103,5 +1108,6 @@ export function setupGrid2dNavigator(selectionHighlight = null) {
   });
   resetVisualZoom();
   setupSegmentationOverlay2d(refreshGrid2dNavigator, null);
+  setupMeasurementHighlightOverlay({ refreshFrontNavigator: refreshGrid2dNavigator });
   refreshGrid2dNavigator();
 }
