@@ -172,6 +172,7 @@ No Hist / Annos / Body / Graph tab strip. Composition:
 
 1. **Results** (`#derived-measurement-deck`, collapsible, expanded by default at the top) — `derivedMeasurementDeck.js`:
    - **Cross-Section Evidence**: Collapsible subgroup containing Shoulder and Hip paired orthogonal measurement cards.
+   - **Modeled Perimeter Estimates**: Collapsible subgroup containing the `Hip Landmark Perimeter Estimate` card (`110.98 cm`, `Modeled` badge, `Ellipse (Ramanujan II)` model, `Hip Landmark Level` reference, descriptive note, and qualification notice `Not anthropometric Hip Circumference.`).
    - **Direct Measurements**: Collapsible parent subgroup containing three category groups:
      - *Vertical Measurements* (5 inter-level metrics)
      - *Arm Segments* (6 segment/chord metrics + 2 kinematic chains)
@@ -871,18 +872,17 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.5K: Measurement Source-Verification & Correction Pass — COMPLETED (`bodyMeasurementLines.js` verified display-only; declared stature verified calibration input, not measured output; ground reference floor heights deferred under `NEEDS_GROUND_REFERENCE`; relative vertical distances $|Y_A - Y_B|$ validated; 7 reference levels validated; sub-levels deferred; Shoulder/Hip authoritative width/depth/cross-section evidence verified)**
 - **Milestone 4.5L: Clear Measurements v0 — Batch A (`direct-body-measurements-v0` — pure deterministic evaluation of 19 direct Front measurements across 5 vertical inter-level, 10 projected landmark segment, and 4 kinematic chain measurements; `valid` / `unavailable` / `invalid` qualification statuses; all constituent segments required for chain validity; Front A-pose calibrated 2D projected distances, not 3D lengths/bones/surfaces; zero bilateral averaging)**
 - **Milestone 4.5M: Results Right-Sidebar Usability & Accordion Cleanup — COMPLETED (collapsible Results deck with Cross-Section Evidence and Direct Measurements parent subgroup; Session Records ordered Annotations then History with embedded Clear History; Diagnostics separated)**
+- **Milestone 4.6A: Modeled Cross-Section Perimeter v0 (`modeled-cross-section-perimeter-v0` — pure deterministic ellipse-modeled perimeter evaluation at Hip Landmark Level only using Ramanujan II; downstream from qualified `cross-section-evidence-v0`; verified sample $W = 42.20\text{ cm}, D = 27.70\text{ cm} \implies 110.98306\dots\text{ cm}$; explicit modeled/not-anthropometric semantics; Shoulder explicitly unsupported)**
+- **Milestone 4.6B: Modeled Perimeter UI Integration (`derivedMeasurementDeck.js` — dedicated Modeled Perimeter Estimates subgroup in Right Sidebar Results directly after Cross-Section Evidence; primary label `Hip Landmark Perimeter Estimate`, `Y 86.25 cm` badge, `Modeled` badge, formatted `110.98 cm`, stable stacked metadata rows, qualification notice `Not anthropometric Hip Circumference.`; Shoulder not rendered; zero formula duplication)**
 
-### Deferred Milestones
+### Deferred Milestones & Workstreams
 - **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)**
 - **Measured optical stature**
 - **Clear Measurements Batch B (Bilateral Spans & Breadths)**
-- **Bust / Waist / Abdomen / Crotch localization**
+- **Maximum Buttock / Seat Plane localization & Anthropometric Hip Circumference**
+- **Bust / Underbust / Waist / Abdomen / Crotch localization & Circumferences**
 - **Surface arcs / geodesic measurements**
-- **Maximum Buttock / Seat Plane localization**
 - **VTON Relevance Mapping (Future Application Layer)**
-
-### Next Milestone
-- **Circumference Estimation v0 Design & Audit Stage** (Milestone 4.6 — read-only geometry and model audit stage before implementation).
 
 ### Active State & Physical Blockers
 - **Current Real Evaluation State (`output.zip`)**:
@@ -893,12 +893,13 @@ When modifying this project, preserve the following unless explicitly instructed
   - 4.5D Physical Blockers remain active on all 4 canonical measurements: `clothing_authorization_missing`, `view_pose_semantics_missing`, `authoritative_physical_evidence_missing`. Current Sapiens 4.5G results cannot satisfy Dimension E (`physicalEligibility: false`, `physicalMeasurementCm: null`).
   - Metric Projected measurements remain positive and valid, and remain **Metric Projected Measurements** (not authoritative physical body measurements): Front Shoulder ($30.80\text{ cm}$), Side Shoulder ($11.00\text{ cm}$), Front Hip ($42.20\text{ cm}$), Side Hip ($27.70\text{ cm}$). Landmark-to-landmark projected spans, Front Transverse Width, and Side Profile Span remain separate.
   - Cross-Section Evidence v0 evaluated: Shoulder paired orthogonal physical observations ($30.80\text{ cm}$ Front, $11.00\text{ cm}$ Side AP Depth) evaluate to `status: 'qualified'`; Hip paired orthogonal physical observations ($42.20\text{ cm}$ Front, $27.70\text{ cm}$ Side AP Depth) evaluate to `status: 'qualified'`.
+  - Modeled Cross-Section Perimeter v0 evaluated: Hip Landmark Level modeled perimeter evaluates to `status: 'modeled'`, `valueCm: 110.9830618865289` (UI: `110.98 cm`). Shoulder modeled perimeter remains strictly unsupported (`status: 'invalid'`, `valueCm: null`).
   - Batch A Direct Measurements evaluated: 19 calibrated measurements evaluated under `direct-body-measurements-v0`.
-  - Metrological Principle: `metric projected measurement != authoritative physical body measurement`.
-- **Strict Guardrails**: Circumference Estimation v0 remains **not yet implemented**. Reason: Cross-Section Evidence v0 establishes paired orthogonal observations at matching levels, but circumference geometry requires a dedicated design and audit milestone. Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z \to$ REVacity canonical $Z$, no Front/Side pointmap fusion, no physical depth promotion beyond qualified 4.5H AP depth, no circumference, no ellipse inference, no 3D contour reconstruction, no body volume, no 3D reconstruction, no physical authority from `"meters"`, and no physical authority from Sapiens `scale`.
+  - Metrological Principle: `modeled perimeter estimate != anthropometric hip circumference`.
+- **Strict Guardrails**: Named anthropometric circumferences (Bust, Underbust, Natural Waist, Abdomen, Anthropometric Hip / Maximum Seat) remain **deferred** pending anatomical plane localization. Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z \to$ REVacity canonical $Z$, no Front/Side pointmap fusion, no physical depth promotion beyond qualified 4.5H AP depth, no 3D contour reconstruction, no body volume, no 3D reconstruction, no physical authority from `"meters"`, and no physical authority from Sapiens `scale`.
 
 ### Verification Baseline
-- **483 tests passing**
+- **506 tests passing**
 - **0 failures**
 - **10 test suites**
 - Clean production Vite build (`npm run build`)
@@ -930,7 +931,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, rawSources staging metadata capture (aposeResult, alignResult), and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics / clothing body-surface semantics / authoritative physical evidence semantics / direct body measurements getters, sanitized diagnostic export |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics / clothing body-surface semantics / authoritative physical evidence semantics / direct body measurements / modeled cross-section perimeter getters, sanitized diagnostic export |
 | `src/features/directBodyMeasurements.js` | Direct Body Measurements Contract v0 (`direct-body-measurements-v0`) — pure deterministic derivation of 19 direct Batch A body measurements across Vertical Inter-Level, Projected Landmark Segments, and Kinematic Chains |
 | `src/features/directBodyMeasurements.test.js` | Direct Body Measurements Contract v0 unit tests |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
@@ -973,6 +974,8 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/sidePhysicalDepthQualification.test.js` | Side Physical Depth Qualification Contract v0 unit tests |
 | `src/features/crossSectionEvidence.js` | Cross-Section Evidence Contract v0 (`cross-section-evidence-v0`) — pure deterministic compositional layer pairing qualified Front transverse width and Side AP depth observations at validated reference levels (`shoulder`, `hip`) |
 | `src/features/crossSectionEvidence.test.js` | Cross-Section Evidence Contract v0 unit tests |
+| `src/features/modeledCrossSectionPerimeter.js` | Modeled Cross-Section Perimeter Contract v0 (`modeled-cross-section-perimeter-v0`) — pure deterministic ellipse-modeled cross-sectional perimeter estimate from qualified upstream cross-section evidence at Hip Landmark Level using Ramanujan II; explicit modeled/not-anthropometric semantics; Shoulder unsupported |
+| `src/features/modeledCrossSectionPerimeter.test.js` | Modeled Cross-Section Perimeter Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
 | `src/features/selection.js` | Selected point state and highlight (Annotate mode) |
 | `src/features/measurement.js` | Canonical shared Point A/B measurement state, markers, line, label, history |
@@ -999,7 +1002,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/ui/domRefs.js` | Safe cached DOM element references |
 | `src/ui/workspaceLayout.js` | Workspace tab management (3D / 2D / Body Graph), split divider, and right sidebar rail collapse |
 | `src/ui/leftPanel.js` | Anatomical Levels card renderer for the left inspector |
-| `src/ui/derivedMeasurementDeck.js` | Right Sidebar Results cards (Cross-Section Evidence and Direct Measurements) |
+| `src/ui/derivedMeasurementDeck.js` | Right Sidebar Results cards (Cross-Section Evidence, Modeled Perimeter Estimates, and Direct Measurements) |
 | `src/ui/advancedQaPanel.js` | Diagnostics Why Blocked + Advanced QA (intake / calibration) |
 | `src/ui/collapsibleSections.js` | Shared `[data-collapsible]` accordion wiring for left and right sidebars |
 | `src/ui/grid2dNavigator.js` | Front Surface 2D Grid Navigator (X/Y coordinates) |

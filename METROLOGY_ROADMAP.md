@@ -795,18 +795,75 @@ Streamlined the right-sidebar user interface into a clean, collapsible hierarchy
 - **Diagnostics (`#diagnostics-panel`)**:
   - Maintained as an independent collapsible drawer separated from primary measurement results.
 
-### 4.6 Circumference Estimation v0 Design & Audit Stage — NEXT
+### 4.6 Circumference / Cross-Section Inference — ACTIVE / PARTIALLY COMPLETED
 
-Next major workstream in the RVEacity Metrology Space roadmap. Circumference estimation remains **NOT YET IMPLEMENTED**.
+#### 4.6A Modeled Cross-Section Perimeter v0 (`modeled-cross-section-perimeter-v0`) — COMPLETED
 
-- **Prerequisites Met**: Cross-Section Evidence v0 completed and verified for Shoulder and Hip levels; Measurement Taxonomy and Batch A Direct Measurements completed.
-- **Stage Objective**: Execute a formal, read-only geometry and model audit prior to any code implementation.
-- **Model Agnosticism**: No premature prescription of ellipse, Ramanujan, superellipse, spline, or polygonal approximations.
-- **Semantic Limitations & Guardrails**:
-  - Paired cross-section evidence at Shoulder and Hip does **NOT** automatically define named anthropometric circumferences.
-  - Anthropometric Hip/Seat Circumference requires authoritative localization of the maximum buttock/seat plane (current bilateral hip landmark level is related evidence, not automatically that plane).
-  - Bust, underbust, waist, and abdomen circumferences remain blocked primarily by anatomical-level localization.
-  - Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z$ promotion, and no premature circumference emission until formal design and audit approval.
+Pure deterministic domain contract (`src/features/modeledCrossSectionPerimeter.js`) deriving an ellipse-modeled cross-sectional perimeter estimate from qualified upstream `cross-section-evidence-v0` evidence at the Hip Landmark Level.
+
+Key achievements:
+- **Contract & Registry**:
+  - Contract: `modeled-cross-section-perimeter-v0`
+  - Version: `modeled-cross-section-perimeter-v0`
+  - Supported definition: `torso_modeled_perimeter_at_hip_landmark_level`
+  - Display name: `Torso Modeled Perimeter Estimate at Hip Landmark Level`
+  - Source Level: `hip`
+  - Source Cross-Section Evidence: `torso_cross_section_evidence_at_hip_level`
+- **Model Specification**:
+  - Model family: `ellipse`
+  - Model implementation: `ellipse_ramanujan_ii`
+  - Formula:
+    $$a = \frac{W}{2},\quad b = \frac{D}{2},\quad h = \frac{(a - b)^2}{(a + b)^2}$$
+    $$P = \pi (a + b) \left(1 + \frac{3h}{10 + \sqrt{4 - 3h}}\right)$$
+  - Purely computed from runtime inputs at full JS precision ($W = 42.20\text{ cm}, D = 27.70\text{ cm} \implies P \approx 110.9830618865289\text{ cm}$, formatted in UI as $110.98\text{ cm}$).
+  - Circle case validation: $W = D = 20\text{ cm} \implies P = 20\pi\text{ cm}$.
+  - Zero hardcoding; zero empirical correction factors, anthropometric priors, BMI priors, or clothing offsets.
+- **Strict 4-State Status Taxonomy**:
+  - `modeled`: Valid qualified source evidence produces finite perimeter scalar (`isModeled: true`, `isQualified: true`).
+  - `blocked`: Source cross-section evidence is blocked/unqualified (`valueCm: null`, forwards upstream blockers/issues).
+  - `unavailable`: Source evidence missing (`valueCm: null`, `blockers: ['cross_section_evidence_unavailable']`).
+  - `invalid`: Structural contract violation, non-finite values, or unsupported definition (`valueCm: null`).
+- **Shoulder Guardrail**:
+  - Shoulder modeled perimeter is explicitly **unsupported**.
+  - Any request targeting shoulder level or definition ID containing `'shoulder'` immediately returns `status: 'invalid'`, `valueCm: null`, and `blockers: ['shoulder_perimeter_unsupported']`.
+  - Shoulder cross-section geometry cannot be assumed as an ellipse model and does not silently evaluate.
+- **Runtime Integration**:
+  - Exported getters in `src/features/bodyEvidence.js`: `getModeledCrossSectionPerimeter`, `getModeledCrossSectionPerimeterReport`, `getModeledCrossSectionPerimeters`.
+  - Reuses active `getCrossSectionEvidence`, avoids duplicate raster scans or recalculations, and preserves object immutability.
+- **Semantic Guardrails**:
+  - Explicit semantic statement: pure deterministic modeled perimeter estimate at the bilateral hip landmark level.
+  - It is **NOT** measured contour length, **NOT** a reconstructed 3D slice, **NOT** canonical Z, **NOT** anthropometric Hip Circumference, **NOT** maximum Hip/Seat Circumference, and **NOT** the maximum buttock / seat plane.
+
+#### 4.6B Modeled Perimeter Results UI Integration — COMPLETED
+
+Integrated the verified Hip Landmark modeled perimeter estimate into the Right Sidebar → Results measurement deck:
+- **UI Structure in Results**:
+  1. `Cross-Section Evidence` (Shoulder & Hip paired cards)
+  2. `Modeled Perimeter Estimates` (`.results-subgroup--modeled-perimeter`, collapsible, expanded by default)
+  3. `Direct Measurements` (Vertical, Arm, Leg collapsible groups)
+- **Hip Landmark Perimeter Card**:
+  - Primary title: `Hip Landmark Perimeter Estimate`
+  - Level badge: `Y 86.25 cm`
+  - Status badge: `Modeled` (green ok tone for `modeled`, amber warn for `blocked`/`invalid`, muted for `unavailable`)
+  - Primary row: `Perimeter Estimate` $\to$ `110.98 cm` (two decimal places via `formatDistance`)
+  - Stacked metadata rows: `Model Implementation` $\to$ `Ellipse (Ramanujan II)` and `Reference Level` $\to$ `Hip Landmark Level` (stable stacked layout preventing character wrapping in narrow sidebar)
+  - Notes footer:
+    - Descriptive note: `Ellipse-modeled perimeter from qualified Front width + Side AP depth.`
+    - Qualification notice: `Not anthropometric Hip Circumference.`
+- **Shoulder Invariant**:
+  - No Shoulder perimeter card or row is rendered in the UI.
+- **Formula Non-Duplication**:
+  - UI acts as a pure presentation renderer for `getModeledCrossSectionPerimeter` without duplicating formulas.
+
+#### Deferred Circumference Workstream — DEFERRED
+
+The following named anthropometric circumferences and anatomical localizations remain explicitly **deferred**:
+- **Maximum Buttock / Seat Plane Localization**: Current bilateral hip landmark level represents the hip joint level, not the maximum posterior buttock / seat prominence.
+- **Anthropometric Hip / Seat Circumference**: Requires verified maximum buttock plane localization and non-ellipse or qualified contour modeling.
+- **Bust Level Localization & Bust Circumference**: Blocked by missing anatomical landmark anchors and unvalidated chest apex plane localization.
+- **Underbust Level Localization & Underbust Circumference**: Blocked by missing inframammary fold localization.
+- **Natural Waist Localization & Waist Circumference**: Blocked by missing natural waist indentation localization.
+- **Abdomen Level Localization & Abdominal Circumference**: Blocked by missing abdominal apex / maximum anterior protrusion localization.
 
 ### 4.7 Clear Measurements Batch B (Bilateral Spans & Breadths) — DEFERRED
 
@@ -903,7 +960,7 @@ Current usage:
 
 ## 8. Verification Baseline
 
-- **483 tests passing**
+- **506 tests passing**
 - **0 failures**
 - **10 test suites**
 - Clean production Vite build (`npm run build`)
