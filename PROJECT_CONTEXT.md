@@ -898,17 +898,22 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.6C: Arbitrary-Y Side Physical AP Depth Qualification v0 (`arbitrary-y-side-physical-depth-qualification-v0` — pure deterministic qualification of Side AP depth across scanned arbitrary pelvic Y levels)**
 - **Milestone 4.6D: Maximum Seat Plane Localization v0 (`maximum-seat-plane-localization-v0` — evidence-driven localization ranking valid same-Y Front width + qualified Side AP depth by Ramanujan II modeled perimeter score; localizes seat plane at $Y \approx 79.95\text{ cm}$ on sample capture)**
 - **Milestone 4.6E: Modeled Hip / Seat Circumference Estimate v0 (`modeled-hip-seat-circumference-v0` — primary user-facing modeled circumference at Maximum Seat Plane; $114.20\text{ cm}$ on sample capture)**
-- **Milestone 4.7: Measurement Visualization Provenance v0 (`measurement-visualization-provenance-v0`) & 2D Measurement Highlight Overlay (`measurementHighlightOverlay2d.js` — pure declarative normalizer converting domain records into 2D highlights across 7 visualization types; interactive click-to-highlight flow with `.is-selected` state and automatic clearing)**
+- **Milestone 4.7: Measurement Visualization Provenance v0 (`measurement-visualization-provenance-v0`) & 2D Measurement Highlight Overlay (`measurementHighlightOverlay2d.js` — pure declarative normalizer converting domain records into 2D highlights across 8 visualization types; interactive click-to-highlight flow with `.is-selected` state and automatic clearing)**
 - **Milestone 4.8: Modeled Ellipse Cross-Section Preview (`modeledEllipseCrossSectionPreview.js` — visual-only companion SVG preview for Modeled Hip / Seat Circumference with disclaimer `"Ellipse model — not measured contour"`**
 - **Milestone 4.9: Batch Landmark Promotion (`promoteAllFrontCoreLandmarks` — one-click idempotent batch promotion for all Core 13 front landmarks in Body Evidence panel)**
+- **Milestone 4.10: Torso Arbitrary-Y Evidence Scan v0 (`torso-arbitrary-y-evidence-scan-v0` — pure deterministic scanning of continuous Front single-run width and Side qualified AP depth across the anatomical shoulder-to-hip column under resolution-independent mapping)**
+- **Milestone 4.11: Natural Waist Plane Localization v0 (`natural-waist-plane-localization-v0` — evidence-driven waist plane localization using metric smoothing window = 2.0 cm, bilateral contour QA, broad trough pooling across nearby extrema, and deterministic representative-plane selection; $Y = 107.15\text{ cm}$ on sample capture)**
+- **Milestone 4.12: Natural Waist 2D Provenance Visualization & Diagnostics UI (`measurementVisualizationProvenance.js`, `measurementHighlightOverlay2d.js`, `bodyTabConsolidatedPanel.js` — interactive card under Diagnostics → Body / Anchor Diagnostics; full-width canonical-Y guide + Front/Side slice lines + concise non-obstructive badge `Natural Waist · 107.15 cm` with safe left inset)**
 - **Code & File Cleanup Pass — COMPLETED (removed temporary Results debug instrumentation and diagnostic window globals; cleaned container vs item CSS cursor rules)**
 
 ### Deferred Milestones & Workstreams
+- **Modeled Natural Waist Circumference v0 (`modeled-natural-waist-circumference-v0`) — NEXT ACTIVE SUB-MILESTONE** (derive ellipse-modeled perimeter from qualified Front width + Side AP depth at localized Natural Waist plane; not implemented yet)
+- **Bust Level Localization & Bust Circumference** (blocked by missing chest apex localization)
+- **Underbust Level Localization & Underbust Circumference** (blocked by missing inframammary fold localization)
+- **Abdomen Level Localization & Abdominal Circumference** (blocked by missing abdominal apex localization)
+- **Clear Measurements Batch B (Bilateral Spans & Breadths)**
 - **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)**
 - **Measured optical stature**
-- **Clear Measurements Batch B (Bilateral Spans & Breadths)**
-- **Maximum Buttock / Seat Plane localization & Anthropometric Hip Circumference**
-- **Bust / Underbust / Waist / Abdomen / Crotch localization & Circumferences**
 - **Surface arcs / geodesic measurements**
 - **VTON Relevance Mapping (Future Application Layer)**
 
@@ -922,12 +927,13 @@ When modifying this project, preserve the following unless explicitly instructed
   - Metric Projected measurements remain positive and valid, and remain **Metric Projected Measurements** (not authoritative physical body measurements): Front Shoulder ($30.80\text{ cm}$), Side Shoulder ($11.00\text{ cm}$), Front Hip ($42.20\text{ cm}$), Side Hip ($27.70\text{ cm}$). Landmark-to-landmark projected spans, Front Transverse Width, and Side Profile Span remain separate.
   - Cross-Section Evidence v0 evaluated: Shoulder paired orthogonal physical observations ($30.80\text{ cm}$ Front, $11.00\text{ cm}$ Side AP Depth) evaluate to `status: 'qualified'`; Hip paired orthogonal physical observations ($42.20\text{ cm}$ Front, $27.70\text{ cm}$ Side AP Depth) evaluate to `status: 'qualified'`.
   - Modeled Cross-Section Perimeter v0 evaluated: Hip Landmark Level modeled perimeter evaluates to `status: 'modeled'`, `valueCm: 110.9830618865289` (UI: `110.98 cm`). Shoulder modeled perimeter remains strictly unsupported (`status: 'invalid'`, `valueCm: null`).
+  - Natural Waist Plane Localization v0 evaluated: Natural Waist plane evaluates to `status: 'ready'`, `yCm: 107.15`, Front width: `29.00 cm`, Side qualified AP depth: `23.20 cm`, broad waist trough pooled across Valley 0 ($107.15\text{ cm}$) and Valley 1 ($110.75\text{ cm}$), secondary upper-torso shallow constriction at $124.25\text{ cm}$ non-competing. Interactive highlight and 2D provenance visualization fully active in Diagnostics.
   - Batch A Direct Measurements evaluated: 19 calibrated measurements evaluated under `direct-body-measurements-v0`.
-  - Metrological Principle: `modeled perimeter estimate != anthropometric hip circumference`.
-- **Strict Guardrails**: Named anthropometric circumferences (Bust, Underbust, Natural Waist, Abdomen, Anthropometric Hip / Maximum Seat) remain **deferred** pending anatomical plane localization. Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z \to$ RVEacity canonical $Z$, no Front/Side pointmap fusion, no physical depth promotion beyond qualified 4.5H AP depth, no 3D contour reconstruction, no body volume, no 3D reconstruction, no physical authority from `"meters"`, and no physical authority from Sapiens `scale`.
+  - Metrological Principle: `plane localization != measured circumference != 3D reconstruction`.
+- **Strict Guardrails**: Named anthropometric circumferences (Bust, Underbust, Natural Waist, Abdomen) remain **deferred** or **in-progress** pending explicit modeling passes. Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z \to$ RVEacity canonical $Z$, no Front/Side pointmap fusion, no physical depth promotion beyond qualified 4.5H AP depth, no 3D contour reconstruction, no body volume, no 3D reconstruction, no physical authority from `"meters"`, no physical authority from Sapiens `scale`, and no invented Waist skeletal landmarks.
 
 ### Verification Baseline
-- **617 tests passing**
+- **652 tests passing**
 - **0 failures**
 - **10 test suites**
 - Clean production Vite build (`npm run build`)
@@ -959,7 +965,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/bodyEvidenceZipAdapter.js` | Body Evidence ZIP Import Adapter v0 — archive discovery, single-sample resolution, rawSources staging metadata capture (aposeResult, alignResult), and package construction |
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics / clothing body-surface semantics / authoritative physical evidence semantics / direct body measurements / modeled cross-section perimeter getters, sanitized diagnostic export, batch landmark promotion |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics / clothing body-surface semantics / authoritative physical evidence semantics / direct body measurements / modeled cross-section perimeter / natural waist plane localization getters, sanitized diagnostic export, batch landmark promotion |
 | `src/features/directBodyMeasurements.js` | Direct Body Measurements Contract v0 (`direct-body-measurements-v0`) — pure deterministic derivation of 19 direct Batch A body measurements across Vertical Inter-Level, Projected Landmark Segments, and Kinematic Chains |
 | `src/features/directBodyMeasurements.test.js` | Direct Body Measurements Contract v0 unit tests |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
@@ -1012,7 +1018,11 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/maximumSeatPlaneLocalization.test.js` | Maximum Seat Plane Localization Contract v0 unit tests |
 | `src/features/modeledHipSeatCircumference.js` | Modeled Hip / Seat Circumference Contract v0 (`modeled-hip-seat-circumference-v0`) — pure deterministic domain derivation of primary modeled circumference estimate at localized Maximum Seat Plane |
 | `src/features/modeledHipSeatCircumference.test.js` | Modeled Hip / Seat Circumference Contract v0 unit tests |
-| `src/features/measurementVisualizationProvenance.js` | Measurement Visualization Provenance Contract v0 (`measurement-visualization-provenance-v0`) — pure declarative normalizer converting domain measurement records into standardized 2D visualization instructions |
+| `src/features/torsoArbitraryYEvidenceScan.js` | Torso Arbitrary-Y Evidence Scan Contract v0 (`torso-arbitrary-y-evidence-scan-v0`) — pure deterministic continuous row scanner across torso region segmentation under resolution-independent mapping |
+| `src/features/torsoArbitraryYEvidenceScan.test.js` | Torso Arbitrary-Y Evidence Scan Contract v0 unit tests |
+| `src/features/naturalWaistPlaneLocalization.js` | Natural Waist Plane Localization Contract v0 (`natural-waist-plane-localization-v0`) — pure deterministic evidence-driven waist plane localization using metric smoothing window = 2.0 cm, bilateral contour QA, broad trough pooling, and hierarchical tie-breaking |
+| `src/features/naturalWaistPlaneLocalization.test.js` | Natural Waist Plane Localization Contract v0 unit tests |
+| `src/features/measurementVisualizationProvenance.js` | Measurement Visualization Provenance Contract v0 (`measurement-visualization-provenance-v0`) — pure declarative normalizer converting domain measurement and plane localization records into standardized 2D visualization instructions |
 | `src/features/measurementVisualizationProvenance.test.js` | Measurement Visualization Provenance Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
 | `src/features/selection.js` | Selected point state and highlight (Annotate mode) |

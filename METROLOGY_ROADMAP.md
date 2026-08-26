@@ -904,16 +904,89 @@ Implemented one-click batch promotion for Front Core landmarks (`src/features/bo
 - Promotes all eligible front landmarks, skips unavailable or already-promoted landmarks.
 - Fully idempotent; leaves Side and Secondary landmarks untouched.
 
-### 4.10 Deferred Measurement Families & Workstreams — DEFERRED
+### 4.10 Torso Arbitrary-Y Evidence Scan v0 (`torso-arbitrary-y-evidence-scan-v0`) — COMPLETED
 
-The following named anthropometric circumferences and anatomical localizations remain explicitly **deferred**:
-- **Bust Level Localization & Bust Circumference**: Blocked by missing anatomical landmark anchors and unvalidated chest apex plane localization.
-- **Underbust Level Localization & Underbust Circumference**: Blocked by missing inframammary fold localization.
-- **Natural Waist Localization & Waist Circumference**: Blocked by missing natural waist indentation localization.
-- **Abdomen Level Localization & Abdominal Circumference**: Blocked by missing abdominal apex / maximum anterior protrusion localization.
-- **Clear Measurements Batch B (Bilateral Spans & Breadths)**: Deferred pending horizontal breadth $\Delta X$ vs chord distance semantic decision.
-- **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)**.
-- **Measured optical stature**.
+Pure deterministic domain scanner (`src/features/torsoArbitraryYEvidenceScan.js`) extracting continuous horizontal evidence across the torso anatomical column bounded by validated anatomical reference levels (`shoulder` and `hip`):
+- **Search Domain**: Bounded strictly by anatomical anchors (`shoulderAnchorYcm` and `hipAnchorYcm`), scanning candidate planes from shoulder down to hip.
+- **Resolution-Independent Mapping**:
+  - Front and Side scans share the exact same continuous canonical metric $Y$ (`yCm`).
+  - Raster-row sampling is computed independently for Front and Side using their respective canvas heights and pixel-to-metrology formulas.
+  - Side physical-depth qualification evaluates the actual sampled Side row rather than assuming equal row indices.
+  - **Core Invariant**: *Same canonical physical Y does not imply equal Front and Side pixel-row indices.*
+- **Slice Evidence**:
+  - Front: Single-run supported transverse width under `trunk_core_support_v0` policy (`[22, 23]`).
+  - Side: Single-run profile span and qualified AP depth via `sampleSideHorizontalRasterSlice()` and `evaluateSidePhysicalDepthQualification()`.
+  - Preserves encountered class IDs, run counts, and metric bounds without gap-filling or heuristic run-merging.
+
+### 4.11 Natural Waist Plane Localization v0 (`natural-waist-plane-localization-v0`) — COMPLETED
+
+Pure deterministic domain localization layer (`src/features/naturalWaistPlaneLocalization.js`) identifying the anatomical Natural Waist Plane from continuous torso evidence:
+- **Evidence-Driven Localization**:
+  - Localizes the Natural Waist plane strictly from body evidence (Front transverse narrowing + Side profile/AP narrowing corroboration), **NOT** from an invented body landmark or fixed anthropometric body-height proportion.
+  - Natural Waist is modeled as a stable local torso constriction / broad waist trough, not simply the globally narrowest raster row.
+- **Metric-Domain Symmetric Smoothing**:
+  - Resolution-independent smoothing window: `smoothingWindowCm = 2.0 cm` (interpreted as a total symmetric window of approximately $\pm 1.0\text{ cm}$).
+  - Radius in sample steps is derived dynamically from actual canonical-$Y$ sample spacing (`smoothingRadiusSamples = Math.max(1, Math.round((smoothingWindowCm / 2) / sampleSpacingCm))`).
+  - Raw evidence is fully preserved in candidate records; smoothing only suppresses discrete raster-row quantization jitter and does NOT infer anatomy.
+- **Bilateral Contour QA**:
+  - Evaluates left and right contour indentations relative to outer trunk boundary envelope (`leftIndentationCm`, `rightIndentationCm`, `asymmetryDeltaCm`).
+  - Classifies symmetry status (`symmetric`, `unilateral_left`, `unilateral_right`, `indeterminate`) with `asymmetryToleranceCm = 1.0 cm`.
+- **Side Corroboration Semantics**:
+  - Evaluates Side narrowing and qualification status at candidate constriction levels.
+  - Front-only valid waist with unavailable Side evidence produces `status: 'ready'` with an advisory warning (`SIDE_CORROBORATION_UNAVAILABLE`), avoiding artificial blockers while preserving cross-view integrity.
+- **Broad Trough Pooling Refinement**:
+  - Solves raster quantization / local-extrema splitting where broad anatomical waist depressions produce multiple nearby minima.
+  - Groups adjacent local minima into a single pooled trough region when:
+    1. Vertically proximal: $\Delta Y \le \text{maxTroughMergeDistanceCm}$ (`6.0 cm`).
+    2. Inter-valley saddle is shallow: $\text{SaddleRise} \le \text{maxInterValleySaddleRiseCm}$ (`0.6 cm`) **OR** $\frac{\text{SaddleRise}}{\text{Prominence}} \le \text{maxInterValleySaddleRiseRatio}$ (`0.35`).
+    3. Profile remains within macro basin without reopening into surrounding wider anatomical sectors.
+  - Preserves all member valleys, member Y values, candidate indices, and constriction metrics.
+- **Deterministic Representative-Plane Selection**:
+  - Within a pooled trough, the representative plane is selected via strict hierarchical tie-breaking:
+    1. Deepest Front transverse narrowing (`smoothedWidthCm`).
+    2. Lower qualified Side AP depth (`qualifiedApDepthCm` / `profileSpanCm`) if Front depths are tied within `tieBreakDepthToleranceCm` (`0.05 cm`).
+    3. Higher bilateral contour symmetry (`asymmetryDeltaCm`) if Side evidence is also tied within `0.05 cm`.
+    4. Flag `isTroughAmbiguous: true` without Y averaging if all evidence remains indistinguishable. **No Y averaging or centroid heuristic is performed.**
+- **Real-Package Validation Sample (`output.zip`)**:
+  - Status: `ready`
+  - Localized Elevation: $Y = 107.15\text{ cm}$ (raster row `928`)
+  - Front Transverse Width: $29.00\text{ cm}$
+  - Qualified Side AP Depth: $23.20\text{ cm}$
+  - Broad waist trough pooled across Valley 0 ($Y = 107.15\text{ cm}$) and Valley 1 ($Y = 110.75\text{ cm}$); Valley 0 selected deterministically.
+  - Upper-torso shallow constriction at $Y = 124.25\text{ cm}$ remained isolated and non-competing.
+  - *(Note: Sample package observations for validation; not universal hard-coded constants).*
+
+### 4.12 Natural Waist 2D Provenance Visualization & UI Presentation — COMPLETED
+
+Visual inspection and highlight integration for the localized Natural Waist plane:
+- **Contract & Architecture**:
+  - Extended `src/features/measurementVisualizationProvenance.js` with `VISUALIZATION_TYPES.NATURAL_WAIST_PLANE`.
+  - Extended `src/ui/measurementHighlightOverlay2d.js` with `renderNaturalWaistPlane()`.
+  - Reuses existing declarative overlay pipeline without raster re-scanning or domain recalculation in the renderer.
+- **2D Overlay Elements**:
+  - Full-width dashed horizontal reference guide at canonical $Y$ across both Front and Side 2D navigators.
+  - Front transverse slice line with endpoint markers at $[minX_{cm}, maxX_{cm}]$.
+  - Side AP depth slice line with endpoint markers at $[minU_{cm}, maxU_{cm}]$ when Side evidence is available and qualified.
+  - Concise non-obstructive label badge `Natural Waist · <yCm> cm` anchored at safe $10\text{px}$ left inset from plot boundary, $14\text{px}$ above canonical $Y$ (`.grid2d-highlight-badge--left`). Silhouette narrowing and endpoint dots remain 100% unobstructed.
+- **Diagnostics Inspection Surface**:
+  - Mounted under **Diagnostics → Body / Anchor Diagnostics** as an interactive diagnostic card (`[data-localization-id="natural_waist_plane_localization"]`).
+  - Displays localized elevation, Front span, Side span, status badge (`Localized`), and click-to-highlight / keyboard focus integration.
+- **Strict Metrological Semantics**:
+  - Natural Waist Plane is a **plane localization** candidate.
+  - **NOT** Waist Circumference.
+  - **NOT** a measured 3D contour.
+  - **NOT** a 3D slice reconstruction.
+
+### 4.13 Deferred Torso Planes & Circumference Workstreams — DEFERRED / NEXT
+
+The current state of remaining torso anatomical planes and circumferences:
+- **Modeled Natural Waist Circumference v0**: **NOT IMPLEMENTED / NEXT ACTIVE SUB-MILESTONE**. Will derive ellipse-modeled perimeter from qualified Front width + Side AP depth at localized Natural Waist plane.
+- **Bust Level Localization & Bust Circumference**: **DEFERRED**. Blocked by missing anatomical landmark anchors and unvalidated chest apex plane localization.
+- **Underbust Level Localization & Underbust Circumference**: **DEFERRED**. Blocked by missing inframammary fold localization.
+- **Abdomen Level Localization & Abdominal Circumference**: **DEFERRED**. Blocked by missing abdominal apex / maximum anterior protrusion localization.
+- **Clear Measurements Batch B (Bilateral Spans & Breadths)**: **DEFERRED** pending horizontal breadth $\Delta X$ vs chord distance semantic decision.
+- **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)**: **DEFERRED**.
+- **Measured optical stature**: **DEFERRED**.
 
 ## 5. Canonical / Latent Layer — LATER
 
@@ -953,7 +1026,7 @@ Do not silently introduce:
 - Pointmap Z → canonical metrology Z
 - unvalidated depth inference / physical depth promotion
 - Front/Side geometry fusion / Front/Side pointmap fusion
-- circumference, ellipse inference, or cross-section before authoritative physical geometry is established
+- circumference, ellipse inference, or cross-section before authoritative physical geometry is established (or explicitly modeled at localized planes)
 - body volume before geometry is validated
 - 3D reconstruction from camera-frame or otherwise non-authoritative pointmaps
 - physical authority from Sapiens API `"meters"`
@@ -961,12 +1034,13 @@ Do not silently introduce:
 - face data into the body-metrology pipeline
 - invented anatomical regions unsupported by current evidence
 - hard-coded pixel-to-cm assumptions that bypass the mapping contract
-- synthetic chest/bust/waist reference levels without landmark anchors
+- synthetic chest/bust/waist reference levels without landmark anchors or evidence-driven localization
 - absolute height-from-floor measurements without verified ground contact reference (`NEEDS_GROUND_REFERENCE`)
 - declaring subject height calibration input as measured optical stature
 - bilateral averaging of asymmetric limb measurements
 - equating bilateral hip landmark level with maximum buttock/seat plane
 - describing modeled ellipse as measured contour or tape-measured ground truth
+- inventing Waist skeletal landmarks or hardcoded body-height percentage offsets
 
 ## 7. Current Input Strategy
 
@@ -994,15 +1068,16 @@ Current usage:
 
 ## 8. Verification Baseline
 
-- **617 tests passing**
+- **652 tests passing**
 - **0 failures**
 - **10 test suites**
 - Clean production Vite build (`npm run build`)
 
 ## 9. Next Milestone
 
-**Circumference Expansion & Torso Plane Localization v0**:
-- Research and design evidence-driven localization contracts for torso reference levels without dedicated skeletal landmarks (Natural Waist indentation, Chest / Bust apex plane, Underbust inframammary fold, and Abdominal apex).
+**Modeled Natural Waist Circumference v0**:
+- Derive ellipse-modeled perimeter estimate at the verified Natural Waist plane ($Y = 107.15\text{ cm}$ on sample package) from qualified Front width + Side AP depth using Ramanujan II approximation.
+- Integrate into Results measurement deck with standard modeled disclaimer (`"Modeled estimate; not tape-measured ground truth"`).
 - Maintain strict separation between modeled cross-sectional perimeters and tape-measured anthropometric ground truth.
 
 ## 10. Roadmap Change Policy
@@ -1015,5 +1090,6 @@ When changing direction:
 3. update `PROJECT_CONTEXT.md` and `PROJECT_STRUCTURE.md` where relevant;
 4. keep deferred geometry assumptions explicit;
 5. avoid silently replacing the current source-of-truth architecture.
+
 
 
