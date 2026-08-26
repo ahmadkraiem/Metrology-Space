@@ -119,6 +119,10 @@ import {
   evaluatePelvicArbitraryYEvidenceScan,
 } from './pelvicArbitraryYEvidenceScan.js';
 import {
+  MAXIMUM_SEAT_PLANE_CONTRACT_VERSION,
+  evaluateMaximumSeatPlaneLocalization,
+} from './maximumSeatPlaneLocalization.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -2376,6 +2380,29 @@ export function getPelvicArbitraryYEvidenceScan({ annotations = null, options = 
  */
 export function getPelvicArbitraryYEvidenceScanReport(options = {}) {
   return getPelvicArbitraryYEvidenceScan(options);
+}
+
+/**
+ * Evaluates pure deterministic Maximum Seat Plane localization candidate from the
+ * active pelvic arbitrary-Y evidence scan.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} MaximumSeatPlaneLocalizationResultV0
+ */
+export function getMaximumSeatPlaneLocalization({ annotations = null, options = {} } = {}) {
+  const scanReport = getPelvicArbitraryYEvidenceScan({ annotations, options });
+  if (!scanReport) return null;
+  return evaluateMaximumSeatPlaneLocalization(scanReport, options);
+}
+
+/**
+ * Alias for getMaximumSeatPlaneLocalization for uniform reporting convention.
+ */
+export function getMaximumSeatPlaneLocalizationReport(options = {}) {
+  return getMaximumSeatPlaneLocalization(options);
 }
 
 export function analyzeLoadedBodyEvidence() {
