@@ -661,3 +661,169 @@ test('23. Horizontal slice, Cross-view slice, Segment, and Vertical interval bad
   const badgeX = parseFloat(vertBadge.style.left);
   assert.equal(badgeX, lineX + 24, 'Vertical interval badge is placed 24px beside vertical line');
 });
+
+test('24. Natural Waist Plane renders horizontal reference guide, Front slice span, and Side slice span at identical canonical Y', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const waistVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'natural_waist_plane_localization',
+    displayName: 'Natural Waist Plane Localization',
+    visualizationType: VISUALIZATION_TYPES.NATURAL_WAIST_PLANE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 115.25,
+      front: {
+        rasterRow: 850,
+        minXcm: 35.8,
+        maxXcm: 64.2,
+        widthCm: 28.4,
+      },
+      side: {
+        rasterRow: 637,
+        minUcm: 39.95,
+        maxUcm: 60.05,
+        depthCm: 20.1,
+      },
+    },
+  };
+
+  setMeasurementHighlight(waistVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  // Front Layer verification
+  const frontGuide = frontLayer.querySelector('.grid2d-highlight-level-guide');
+  const frontLine = frontLayer.querySelector('.grid2d-highlight-line');
+  const frontDots = frontLayer.querySelectorAll('.grid2d-highlight-dot');
+  const frontBadge = frontLayer.querySelector('.grid2d-highlight-badge');
+
+  assert.ok(frontGuide, 'Front horizontal reference guide is rendered');
+  assert.equal(frontGuide.style.top, `${mockWorldToPlotPx(100, 115.25).py}px`);
+  assert.ok(frontLine, 'Front slice line is rendered');
+  assert.equal(frontDots.length, 2, 'Two Front endpoint dots rendered');
+  assert.ok(frontBadge.textContent.includes('Natural Waist'));
+  assert.ok(frontBadge.textContent.includes('115.25 cm'));
+
+  // Side Layer verification
+  const sideGuide = sideLayer.querySelector('.grid2d-highlight-level-guide');
+  const sideLine = sideLayer.querySelector('.grid2d-highlight-line');
+  const sideDots = sideLayer.querySelectorAll('.grid2d-highlight-dot');
+  const sideBadge = sideLayer.querySelector('.grid2d-highlight-badge');
+
+  assert.ok(sideGuide, 'Side horizontal reference guide is rendered');
+  assert.equal(sideGuide.style.top, `${mockWorldToPlotPx(100, 115.25).py}px`);
+  assert.equal(frontGuide.style.top, sideGuide.style.top, 'Front and Side guides share exact same Py');
+  assert.ok(sideLine, 'Side slice line is rendered');
+  assert.equal(sideDots.length, 2, 'Two Side endpoint dots rendered');
+  assert.ok(sideBadge.textContent.includes('Natural Waist (Side)'));
+  assert.ok(sideBadge.textContent.includes('115.25 cm'));
+});
+
+test('25. Natural Waist Plane with unequal Front and Side raster rows preserves identical canonical Y', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const waistVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'natural_waist_plane_localization',
+    visualizationType: VISUALIZATION_TYPES.NATURAL_WAIST_PLANE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 110.0,
+      front: { rasterRow: 900, minXcm: 36.0, maxXcm: 64.0, widthCm: 28.0 },
+      side: { rasterRow: 675, minUcm: 40.0, maxUcm: 60.0, depthCm: 20.0 }, // Different row index
+    },
+  };
+
+  setMeasurementHighlight(waistVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  const frontGuide = frontLayer.querySelector('.grid2d-highlight-level-guide');
+  const sideGuide = sideLayer.querySelector('.grid2d-highlight-level-guide');
+
+  assert.equal(frontGuide.style.top, sideGuide.style.top);
+  assert.notEqual(waistVis.geometry.front.rasterRow, waistVis.geometry.side.rasterRow);
+});
+
+test('26. Natural Waist Plane Front-only ready (Side unavailable) renders Front slice and Side reference line without fabricating Side span', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const frontOnlyWaist = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'natural_waist_plane_localization',
+    visualizationType: VISUALIZATION_TYPES.NATURAL_WAIST_PLANE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 115.0,
+      front: { rasterRow: 850, minXcm: 36.0, maxXcm: 64.0, widthCm: 28.0 },
+      side: null, // Side evidence unavailable
+    },
+  };
+
+  setMeasurementHighlight(frontOnlyWaist);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  // Front has line and dots
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(frontLayer.querySelectorAll('.grid2d-highlight-dot').length, 2);
+
+  // Side has guide and badge but NO slice line or dots
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-level-guide'));
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-line'), null);
+  assert.equal(sideLayer.querySelectorAll('.grid2d-highlight-dot').length, 0);
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-badge').textContent.includes('115.00 cm'));
+});
+
+test('27. Ambiguous, unavailable, or invalid Natural Waist localization clears both Front and Side overlays', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const unavailVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'natural_waist_plane_localization',
+    visualizationType: VISUALIZATION_TYPES.NATURAL_WAIST_PLANE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.UNAVAILABLE,
+    geometry: null,
+  };
+
+  setMeasurementHighlight(unavailVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  assert.equal(frontLayer.children.length, 0);
+  assert.equal(sideLayer.children.length, 0);
+});
+
+test('28. Deselecting Natural Waist clears highlight layers without side effects', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const waistVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'natural_waist_plane_localization',
+    visualizationType: VISUALIZATION_TYPES.NATURAL_WAIST_PLANE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 115.0,
+      front: { rasterRow: 850, minXcm: 36.0, maxXcm: 64.0 },
+      side: { rasterRow: 637, minUcm: 40.0, maxUcm: 60.0 },
+    },
+  };
+
+  setMeasurementHighlight(waistVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+  assert.ok(frontLayer.children.length > 0);
+  assert.ok(sideLayer.children.length > 0);
+
+  clearMeasurementHighlight();
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+  assert.equal(frontLayer.children.length, 0);
+  assert.equal(sideLayer.children.length, 0);
+});

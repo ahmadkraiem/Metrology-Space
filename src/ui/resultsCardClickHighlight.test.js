@@ -23,6 +23,7 @@ import {
   renderDerivedMeasurementDeck,
 } from './derivedMeasurementDeck.js';
 import {
+  setMeasurementHighlight,
   getMeasurementHighlight,
   clearMeasurementHighlight,
   renderFrontMeasurementHighlight,
@@ -39,6 +40,7 @@ import {
 import {
   VISUALIZATION_TYPES,
   VISUALIZATION_STATUS,
+  resolveMeasurementVisualizationProvenance,
 } from '../features/measurementVisualizationProvenance.js';
 
 class MockElement {
@@ -612,5 +614,70 @@ test('Focused Interactivity 11 & 12: Direct and Vertical measurement click activ
   assert.equal(verticalHighlight.status, 'ready');
   assert.equal(verticalHighlight.visualizationType, VISUALIZATION_TYPES.VERTICAL_LEVEL_INTERVAL);
   assert.equal(getWorkspace(), WORKSPACE_SPLIT);
+});
+
+test('Natural Waist Interactivity: selecting Natural Waist activates 2D plane highlight, switches workspace, and toggles off cleanly', async () => {
+  setupMockEnvironment();
+
+  // 1. Resolve and set ready Natural Waist Plane Localization
+  const waistVis = resolveMeasurementVisualizationProvenance({
+    contract: 'natural-waist-plane-localization-v0',
+    id: 'natural_waist_plane_localization',
+    status: 'ready',
+    yCm: 115.25,
+    selectedCandidate: {
+      yCm: 115.25,
+      rasterRow: 850,
+      sideRasterRow: 637,
+      frontMinXcm: 35.8,
+      frontMaxXcm: 64.2,
+      frontWidthCm: 28.4,
+      sideMinUcm: 40.0,
+      sideMaxUcm: 60.0,
+      sideQualifiedApDepthCm: 20.0,
+    },
+    frontEvidence: { status: 'valid', minXcm: 35.8, maxXcm: 64.2, widthCm: 28.4 },
+    sideEvidence: { status: 'valid', minUcm: 40.0, maxUcm: 60.0 },
+    provenance: {
+      smoothingWindowCm: 2.0,
+      sliceHighlightCoordinates: {
+        yCm: 115.25,
+        frontRasterRow: 850,
+        sideRasterRow: 637,
+        frontBoundsCm: { minX: 35.8, maxX: 64.2 },
+        sideBoundsCm: { minU: 40.0, maxU: 60.0 },
+      },
+    },
+  });
+
+  assert.equal(waistVis.status, 'ready');
+  assert.equal(waistVis.visualizationType, VISUALIZATION_TYPES.NATURAL_WAIST_PLANE);
+
+  setMeasurementHighlight(waistVis);
+  setWorkspace(WORKSPACE_SPLIT);
+
+  const activeHighlight = getMeasurementHighlight();
+  assert.ok(activeHighlight);
+  assert.equal(activeHighlight.visualizationType, VISUALIZATION_TYPES.NATURAL_WAIST_PLANE);
+  assert.equal(activeHighlight.measurementId, 'natural_waist_plane_localization');
+  assert.equal(getWorkspace(), WORKSPACE_SPLIT);
+
+  // 2. Select Hip / Seat Circumference switches cleanly
+  const seatVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane',
+    visualizationType: VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE,
+    status: 'ready',
+  };
+  setMeasurementHighlight(seatVis);
+  assert.equal(getMeasurementHighlight().visualizationType, VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE);
+
+  // 3. Switch back to Natural Waist
+  setMeasurementHighlight(waistVis);
+  assert.equal(getMeasurementHighlight().visualizationType, VISUALIZATION_TYPES.NATURAL_WAIST_PLANE);
+
+  // 4. Clear highlight
+  clearMeasurementHighlight();
+  assert.equal(getMeasurementHighlight(), null);
 });
 

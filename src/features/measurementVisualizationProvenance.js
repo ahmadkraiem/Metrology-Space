@@ -40,6 +40,7 @@ export const VISUALIZATION_TYPES = Object.freeze({
   FRONT_HORIZONTAL_SLICE: 'front_horizontal_slice',
   SIDE_HORIZONTAL_SLICE: 'side_horizontal_slice',
   CROSS_VIEW_HORIZONTAL_SLICE: 'cross_view_horizontal_slice',
+  NATURAL_WAIST_PLANE: 'natural_waist_plane',
   LANDMARK_SEGMENT: 'landmark_segment',
   LANDMARK_CHAIN: 'landmark_chain',
   VERTICAL_LEVEL_INTERVAL: 'vertical_level_interval',
@@ -640,6 +641,82 @@ function resolveFrontHorizontalLevel(level) {
 }
 
 /**
+ * Resolves Natural Waist Plane localization visualization for Front and Side 2D workspaces.
+ */
+export function resolveNaturalWaistPlane(measurement) {
+  const yCm = measurement.yCm ?? measurement.provenance?.sliceHighlightCoordinates?.yCm ?? null;
+  const coords = measurement.provenance?.sliceHighlightCoordinates;
+  const candidate = measurement.selectedCandidate;
+
+  const frontRow = coords?.frontRasterRow ?? candidate?.rasterRow ?? measurement.rasterRow ?? null;
+  const sideRow = coords?.sideRasterRow ?? candidate?.sideRasterRow ?? null;
+
+  const minXcm = coords?.frontBoundsCm?.minX ?? candidate?.frontMinXcm ?? measurement.frontEvidence?.minXcm ?? null;
+  const maxXcm = coords?.frontBoundsCm?.maxX ?? candidate?.frontMaxXcm ?? measurement.frontEvidence?.maxXcm ?? null;
+  const widthCm = candidate?.frontWidthCm ?? measurement.frontEvidence?.widthCm ?? (minXcm !== null && maxXcm !== null ? Number((maxXcm - minXcm).toFixed(4)) : null);
+
+  const minUcm = coords?.sideBoundsCm?.minU ?? candidate?.sideMinUcm ?? measurement.sideEvidence?.minUcm ?? null;
+  const maxUcm = coords?.sideBoundsCm?.maxU ?? candidate?.sideMaxUcm ?? measurement.sideEvidence?.maxUcm ?? null;
+  const depthCm = candidate?.sideQualifiedApDepthCm ?? candidate?.sideRawProfileSpanCm ?? measurement.sideEvidence?.profileSpanCm ?? (minUcm !== null && maxUcm !== null ? Number((maxUcm - minUcm).toFixed(4)) : null);
+
+  const isFrontGeometryValid = typeof yCm === 'number' && Number.isFinite(yCm)
+    && typeof minXcm === 'number' && Number.isFinite(minXcm)
+    && typeof maxXcm === 'number' && Number.isFinite(maxXcm)
+    && maxXcm >= minXcm;
+
+  const isSideGeometryValid = typeof minUcm === 'number' && Number.isFinite(minUcm)
+    && typeof maxUcm === 'number' && Number.isFinite(maxUcm)
+    && maxUcm >= minUcm;
+
+  const isReady = isFrontGeometryValid && measurement.status === 'ready';
+  const isInvalid = measurement.status === 'invalid';
+
+  const blockers = Array.isArray(measurement.blockers) ? [...measurement.blockers] : [];
+  if (!isReady && blockers.length === 0) {
+    blockers.push(isInvalid ? 'waist_plane_localization_invalid' : 'waist_plane_localization_unavailable');
+  }
+
+  return {
+    contract: MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT,
+    version: MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION,
+    measurementId: measurement.id ?? 'natural_waist_plane_localization',
+    displayName: measurement.name ?? measurement.displayName ?? 'Natural Waist Plane Localization',
+    visualizationType: VISUALIZATION_TYPES.NATURAL_WAIST_PLANE,
+    targetViews: ['front', 'side'],
+    recommendedWorkspaceMode: 'WORKSPACE_SPLIT',
+    status: isReady ? VISUALIZATION_STATUS.READY : (isInvalid ? VISUALIZATION_STATUS.INVALID : VISUALIZATION_STATUS.UNAVAILABLE),
+    geometry: {
+      yCm,
+      front: {
+        rasterRow: frontRow,
+        minXcm,
+        maxXcm,
+        widthCm,
+      },
+      side: isSideGeometryValid ? {
+        rasterRow: sideRow,
+        minUcm,
+        maxUcm,
+        depthCm,
+      } : null,
+    },
+    provenance: {
+      sourceContract: measurement.contract ?? 'natural-waist-plane-localization-v0',
+      selectionMethod: measurement.selectionMethod ?? null,
+      smoothingWindowCm: measurement.provenance?.smoothingWindowCm ?? null,
+      smoothingRadiusSamples: measurement.provenance?.smoothingRadiusSamples ?? null,
+      sampleSpacingCm: measurement.provenance?.sampleSpacingCm ?? null,
+      constrictionProminenceCm: candidate?.constrictionProminenceCm ?? null,
+      bilateralContourQa: candidate?.bilateralContourQa ?? null,
+      sliceHighlightCoordinates: coords ?? null,
+    },
+    blockers,
+    warnings: measurement.warnings ?? [],
+    issues: measurement.issues ?? [],
+  };
+}
+
+/**
  * Resolves declarative 2D visualization provenance for any measurement result object.
  *
  * @param {object|null|undefined} measurement - Measurement result object from any contract
@@ -659,12 +736,21 @@ export function resolveMeasurementVisualizationProvenance(measurement, context =
   const geometryType = measurement.geometryType;
   const id = measurement.id;
 
-  // 1. Front Transverse Width
+  // 1. Natural Waist Plane Localization
+  if (
+    contract === 'natural-waist-plane-localization-v0'
+    || id === 'natural_waist_plane_localization'
+    || id === 'torso_natural_waist_plane_localization'
+  ) {
+    return resolveNaturalWaistPlane(measurement);
+  }
+
+  // 2. Front Transverse Width
   if (contract === 'front-transverse-width-v0' || measurement.type === 'transverse_width') {
     return resolveFrontHorizontalSlice(measurement);
   }
 
-  // 2. Side Profile Span / AP Depth
+  // 3. Side Profile Span / AP Depth
   if (
     contract === 'side-profile-span-v0'
     || contract === 'side-physical-depth-qualification-v0'
@@ -676,7 +762,7 @@ export function resolveMeasurementVisualizationProvenance(measurement, context =
     return resolveSideHorizontalSlice(measurement);
   }
 
-  // 3. Cross-View Slice (CrossSectionEvidence, ModeledCrossSectionPerimeter, ModeledHipSeatCircumference)
+  // 4. Cross-View Slice (CrossSectionEvidence, ModeledCrossSectionPerimeter, ModeledHipSeatCircumference)
   if (
     contract === 'cross-section-evidence-v0'
     || contract === 'modeled-cross-section-perimeter-v0'
@@ -688,7 +774,7 @@ export function resolveMeasurementVisualizationProvenance(measurement, context =
     return resolveCrossViewHorizontalSlice(measurement, context);
   }
 
-  // 4. Batch A Direct Body Measurements
+  // 5. Batch A Direct Body Measurements
   if (geometryType === 'vertical_inter_level_delta' || measurement.group === 'vertical_inter_level') {
     return resolveVerticalLevelInterval(measurement);
   }
@@ -701,7 +787,7 @@ export function resolveMeasurementVisualizationProvenance(measurement, context =
     return resolveLandmarkSegment(measurement);
   }
 
-  // 5. Anatomical Reference Levels
+  // 6. Anatomical Reference Levels
   if (contract === 'anatomical-levels-v0' || measurement.derivationMethod || KNOWN_ANATOMICAL_LEVEL_IDS.has(id)) {
     return resolveFrontHorizontalLevel(measurement);
   }

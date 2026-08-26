@@ -18,6 +18,7 @@ import {
   getCrossSectionEvidence,
   getModeledCrossSectionPerimeter,
   getModeledHipSeatCircumference,
+  getNaturalWaistPlaneLocalization,
   getDirectBodyMeasurements,
   hasAnalyzedBodyEvidence,
   subscribeBodyEvidenceChange,
@@ -518,6 +519,10 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
  */
 export function getMeasurementRecordById(measurementId, annotations = getAnnotations()) {
   if (!measurementId) return null;
+
+  if (measurementId === 'natural_waist_plane_localization' || measurementId === 'torso_natural_waist_plane_localization') {
+    return getNaturalWaistPlaneLocalization({ annotations });
+  }
 
   if (measurementId === 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane') {
     return getModeledHipSeatCircumference({ annotations });

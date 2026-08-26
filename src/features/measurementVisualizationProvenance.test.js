@@ -373,3 +373,115 @@ test('19 & 20. Non-mutation of input evidence and no math recomputation', () => 
 
   assert.equal(beforeJson, afterJson);
 });
+
+test('21. Natural Waist Plane localization normalizes correctly with Front and Side evidence', () => {
+  const waistReport = {
+    contract: 'natural-waist-plane-localization-v0',
+    version: 'natural-waist-plane-localization-v0',
+    id: 'natural_waist_plane_localization',
+    status: 'ready',
+    yCm: 115.25,
+    rasterRow: 850,
+    selectedCandidate: {
+      yCm: 115.25,
+      rasterRow: 850,
+      sideRasterRow: 637,
+      frontWidthCm: 28.4,
+      frontMinXcm: 35.8,
+      frontMaxXcm: 64.2,
+      sideRawProfileSpanCm: 20.1,
+      sideQualifiedApDepthCm: 20.1,
+      sideMinUcm: 39.95,
+      sideMaxUcm: 60.05,
+      constrictionProminenceCm: 0.85,
+    },
+    frontEvidence: { status: 'valid', minXcm: 35.8, maxXcm: 64.2, widthCm: 28.4 },
+    sideEvidence: { status: 'valid', minUcm: 39.95, maxUcm: 60.05, qualifiedApDepthCm: 20.1 },
+    provenance: {
+      smoothingWindowCm: 2.0,
+      smoothingRadiusSamples: 10,
+      sampleSpacingCm: 0.1,
+      sliceHighlightCoordinates: {
+        yCm: 115.25,
+        frontRasterRow: 850,
+        sideRasterRow: 637,
+        frontBoundsCm: { minX: 35.8, maxX: 64.2 },
+        sideBoundsCm: { minU: 39.95, maxU: 60.05 },
+      },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(waistReport);
+
+  assert.equal(result.contract, MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT);
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.NATURAL_WAIST_PLANE);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.deepEqual(result.targetViews, ['front', 'side']);
+  assert.equal(result.geometry.yCm, 115.25);
+  assert.equal(result.geometry.front.rasterRow, 850);
+  assert.equal(result.geometry.front.minXcm, 35.8);
+  assert.equal(result.geometry.front.maxXcm, 64.2);
+  assert.equal(result.geometry.front.widthCm, 28.4);
+  assert.equal(result.geometry.side.rasterRow, 637);
+  assert.equal(result.geometry.side.minUcm, 39.95);
+  assert.equal(result.geometry.side.maxUcm, 60.05);
+  assert.equal(result.geometry.side.depthCm, 20.1);
+  assert.notEqual(result.geometry.front.rasterRow, result.geometry.side.rasterRow);
+});
+
+test('22. Natural Waist Plane localization with Front-only ready (Side unavailable) normalizes without fabricated Side span', () => {
+  const frontOnlyWaist = {
+    contract: 'natural-waist-plane-localization-v0',
+    id: 'natural_waist_plane_localization',
+    status: 'ready',
+    yCm: 112.5,
+    rasterRow: 875,
+    selectedCandidate: {
+      yCm: 112.5,
+      rasterRow: 875,
+      sideRasterRow: null,
+      frontWidthCm: 29.0,
+      frontMinXcm: 35.5,
+      frontMaxXcm: 64.5,
+      sideRawProfileSpanCm: null,
+      sideQualifiedApDepthCm: null,
+      sideMinUcm: null,
+      sideMaxUcm: null,
+    },
+    frontEvidence: { status: 'valid', minXcm: 35.5, maxXcm: 64.5, widthCm: 29.0 },
+    sideEvidence: { status: 'unavailable', minUcm: null, maxUcm: null },
+    warnings: ['side_raster_evidence_unavailable_front_only_evaluation'],
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(frontOnlyWaist);
+
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.NATURAL_WAIST_PLANE);
+  assert.equal(result.geometry.yCm, 112.5);
+  assert.equal(result.geometry.front.minXcm, 35.5);
+  assert.equal(result.geometry.front.maxXcm, 64.5);
+  assert.equal(result.geometry.side, null); // No fabricated side span!
+});
+
+test('23. Ambiguous, unavailable, or invalid Natural Waist localization returns non-ready status', () => {
+  const ambiguousWaist = {
+    contract: 'natural-waist-plane-localization-v0',
+    id: 'natural_waist_plane_localization',
+    status: 'ambiguous',
+    yCm: null,
+    blockers: ['ambiguous_multiple_constrictions'],
+  };
+  const unavailResult = resolveMeasurementVisualizationProvenance(ambiguousWaist);
+  assert.equal(unavailResult.status, VISUALIZATION_STATUS.UNAVAILABLE);
+  assert.ok(unavailResult.blockers.includes('ambiguous_multiple_constrictions'));
+
+  const invalidWaist = {
+    contract: 'natural-waist-plane-localization-v0',
+    id: 'natural_waist_plane_localization',
+    status: 'invalid',
+    yCm: null,
+    blockers: ['invalid_anatomical_level_ordering'],
+  };
+  const invalidResult = resolveMeasurementVisualizationProvenance(invalidWaist);
+  assert.equal(invalidResult.status, VISUALIZATION_STATUS.INVALID);
+});

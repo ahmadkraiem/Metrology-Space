@@ -269,6 +269,66 @@ function renderCrossViewHorizontalSlice(fragment, view, geometry, worldToPlotPx)
   }
 }
 
+function renderNaturalWaistPlane(fragment, view, geometry, worldToPlotPx) {
+  const yCm = geometry.yCm;
+  if (typeof yCm !== 'number' || !Number.isFinite(yCm)) return;
+
+  if (view === 'front') {
+    const minX = geometry.front?.minXcm;
+    const maxX = geometry.front?.maxXcm;
+    const width = geometry.front?.widthCm;
+
+    // Full-width horizontal plane line guide at canonical Y
+    const pCenter = worldToPlotPx(100, yCm);
+    fragment.appendChild(createHorizontalGuide(pCenter.py));
+
+    // Localized Front slice span
+    if (typeof minX === 'number' && typeof maxX === 'number') {
+      const pA = worldToPlotPx(minX, yCm);
+      const pB = worldToPlotPx(maxX, yCm);
+
+      const line = createHighlightLine(pA, pB);
+      if (line) fragment.appendChild(line);
+      fragment.appendChild(createHighlightDot(pA));
+      fragment.appendChild(createHighlightDot(pB));
+
+      const displaySpan = width ?? Math.abs(maxX - minX);
+      const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py - 14 };
+      fragment.appendChild(createHighlightBadge(midPoint, `Natural Waist · Y ${formatDistance(yCm)} cm (${formatDistance(displaySpan)} cm)`));
+    } else {
+      const midPoint = { px: pCenter.px, py: pCenter.py - 14 };
+      fragment.appendChild(createHighlightBadge(midPoint, `Natural Waist · Y ${formatDistance(yCm)} cm`));
+    }
+  } else if (view === 'side') {
+    const minU = geometry.side?.minUcm;
+    const maxU = geometry.side?.maxUcm;
+    const depth = geometry.side?.depthCm;
+
+    // Full-width horizontal plane line guide at the exact same canonical Y
+    const pCenter = worldToPlotPx(100, yCm);
+    fragment.appendChild(createHorizontalGuide(pCenter.py));
+
+    // Localized Side slice span if available
+    if (typeof minU === 'number' && typeof maxU === 'number') {
+      const pA = worldToPlotPx(minU, yCm);
+      const pB = worldToPlotPx(maxU, yCm);
+
+      const line = createHighlightLine(pA, pB);
+      if (line) fragment.appendChild(line);
+      fragment.appendChild(createHighlightDot(pA));
+      fragment.appendChild(createHighlightDot(pB));
+
+      const displayDepth = depth ?? Math.abs(maxU - minU);
+      const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py - 14 };
+      fragment.appendChild(createHighlightBadge(midPoint, `Natural Waist (Side) · Y ${formatDistance(yCm)} cm (${formatDistance(displayDepth)} cm)`));
+    } else {
+      // Side evidence unavailable: show horizontal reference at canonical Y without fabricating a slice span
+      const midPoint = { px: pCenter.px, py: pCenter.py - 14 };
+      fragment.appendChild(createHighlightBadge(midPoint, `Natural Waist · Y ${formatDistance(yCm)} cm`));
+    }
+  }
+}
+
 function renderLandmarkSegment(fragment, geometry, worldToPlotPx) {
   const epA = geometry.endpointA;
   const epB = geometry.endpointB;
@@ -462,6 +522,10 @@ export function renderMeasurementHighlight2d({ view = 'front', worldToPlotPx, la
 
     case VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE:
       renderCrossViewHorizontalSlice(fragment, view, geometry, worldToPlotPx, displayName);
+      break;
+
+    case VISUALIZATION_TYPES.NATURAL_WAIST_PLANE:
+      renderNaturalWaistPlane(fragment, view, geometry, worldToPlotPx);
       break;
 
     case VISUALIZATION_TYPES.LANDMARK_SEGMENT:

@@ -62,6 +62,14 @@ export const DEFAULT_WAIST_LOCALIZATION_OPTIONS = Object.freeze({
   smoothingRadiusRows: null,
   /** Numeric precision tolerance for plateau grouping (0.001 cm = 1e-3 cm). */
   plateauToleranceCm: 1e-3,
+  /** Maximum vertical distance (cm) between adjacent valleys to be considered part of the same broad trough basin. */
+  maxTroughMergeDistanceCm: 6.0,
+  /** Maximum intervening crest / saddle rise (cm) above valley width to permit broad trough pooling. */
+  maxInterValleySaddleRiseCm: 0.6,
+  /** Maximum ratio of intervening saddle rise to valley prominence permitted for broad trough pooling. */
+  maxInterValleySaddleRiseRatio: 0.35,
+  /** Numeric tolerance (cm) within which two valley depths are considered tied. */
+  tieBreakDepthToleranceCm: 0.05,
   /** Absolute prominence difference (cm) below which competing valleys are considered ambiguous. */
   ambiguityProminenceThresholdCm: 0.4,
   /** Relative prominence ratio above which competing valleys are considered ambiguous. */
@@ -145,6 +153,163 @@ export function evaluateBilateralContourQa(candidate, baselineMinX, baselineMaxX
     rightIndentationCm,
     asymmetryDeltaCm,
   };
+}
+
+/**
+ * Groups nearby distinct local minima that share a common surrounding constriction basin
+ * and are separated only by shallow saddles (e.g. segmentation raster noise or flat waist depression)
+ * into unified broad trough regions.
+ *
+ * @param {Array<object>} distinctValleys
+ * @param {Array<object>} enrichedCandidates
+ * @param {object} options
+ * @returns {Array<object>} pooledTroughs
+ */
+export function poolValleysIntoTroughs(distinctValleys, enrichedCandidates, options = {}) {
+  if (!Array.isArray(distinctValleys) || distinctValleys.length === 0) {
+    return [];
+  }
+
+  const maxTroughMergeDistanceCm = options.maxTroughMergeDistanceCm ?? DEFAULT_WAIST_LOCALIZATION_OPTIONS.maxTroughMergeDistanceCm;
+  const maxInterValleySaddleRiseCm = options.maxInterValleySaddleRiseCm ?? DEFAULT_WAIST_LOCALIZATION_OPTIONS.maxInterValleySaddleRiseCm;
+  const maxInterValleySaddleRiseRatio = options.maxInterValleySaddleRiseRatio ?? DEFAULT_WAIST_LOCALIZATION_OPTIONS.maxInterValleySaddleRiseRatio;
+  const tieBreakDepthToleranceCm = options.tieBreakDepthToleranceCm ?? DEFAULT_WAIST_LOCALIZATION_OPTIONS.tieBreakDepthToleranceCm;
+
+  // Sort valleys spatially by candidateIndex (superior to inferior)
+  const sortedValleys = [...distinctValleys].sort((a, b) => a.candidateIndex - b.candidateIndex);
+
+  const groups = [];
+  let currentGroup = [sortedValleys[0]];
+
+  for (let i = 1; i < sortedValleys.length; i += 1) {
+    const prev = currentGroup[currentGroup.length - 1];
+    const curr = sortedValleys[i];
+
+    const verticalDistCm = Math.abs(curr.yCm - prev.yCm);
+
+    // Compute maximum intervening smoothed width between prev and curr
+    const startIdx = Math.min(prev.candidateIndex, curr.candidateIndex);
+    const endIdx = Math.max(prev.candidateIndex, curr.candidateIndex);
+    let maxInterveningWidth = -Infinity;
+    for (let k = startIdx; k <= endIdx; k += 1) {
+      if (enrichedCandidates[k] && enrichedCandidates[k].smoothedWidthCm > maxInterveningWidth) {
+        maxInterveningWidth = enrichedCandidates[k].smoothedWidthCm;
+      }
+    }
+
+    const saddleRisePrev = maxInterveningWidth - prev.smoothedWidthCm;
+    const saddleRiseCurr = maxInterveningWidth - curr.smoothedWidthCm;
+    const maxSaddleRiseCm = Math.max(saddleRisePrev, saddleRiseCurr);
+    const minProminence = Math.min(prev.prominenceCm, curr.prominenceCm);
+    const saddleRiseRatio = minProminence > 0 ? maxSaddleRiseCm / minProminence : 1.0;
+
+    const isNearDistance = verticalDistCm <= maxTroughMergeDistanceCm;
+    const isShallowSaddle = maxSaddleRiseCm <= maxInterValleySaddleRiseCm || saddleRiseRatio <= maxInterValleySaddleRiseRatio;
+
+    // Check that intervening profile remains constricted relative to surrounding crests
+    const surroundingCrestMin = Math.min(prev.superiorCrestWidthCm, curr.inferiorCrestWidthCm);
+    const remainsInBasin = maxInterveningWidth < surroundingCrestMin;
+
+    if (isNearDistance && isShallowSaddle && remainsInBasin) {
+      currentGroup.push(curr);
+    } else {
+      groups.push(currentGroup);
+      currentGroup = [curr];
+    }
+  }
+  if (currentGroup.length > 0) {
+    groups.push(currentGroup);
+  }
+
+  // Convert each group into a Pooled Trough Region
+  return groups.map((members, groupIdx) => {
+    // Determine deepest member (lowest smoothedWidthCm)
+    const sortedByDepth = [...members].sort((a, b) => a.smoothedWidthCm - b.smoothedWidthCm);
+    const deepestMember = sortedByDepth[0];
+
+    // Compute maximum saddle rise within this trough
+    let maxGroupSaddleRise = 0;
+    if (members.length > 1) {
+      const minCandIdx = Math.min(...members.map((m) => m.candidateIndex));
+      const maxCandIdx = Math.max(...members.map((m) => m.candidateIndex));
+      let peakWidth = -Infinity;
+      for (let k = minCandIdx; k <= maxCandIdx; k += 1) {
+        if (enrichedCandidates[k] && enrichedCandidates[k].smoothedWidthCm > peakWidth) {
+          peakWidth = enrichedCandidates[k].smoothedWidthCm;
+        }
+      }
+      maxGroupSaddleRise = Number((peakWidth - deepestMember.smoothedWidthCm).toFixed(4));
+    }
+
+    // Select representative member following strict deterministic tie-break hierarchy
+    let representativeValley = deepestMember;
+    let isTroughAmbiguous = false;
+
+    if (members.length > 1) {
+      const top1 = sortedByDepth[0];
+      const top2 = sortedByDepth[1];
+      const depthDiff = Math.abs(top1.smoothedWidthCm - top2.smoothedWidthCm);
+
+      if (depthDiff > tieBreakDepthToleranceCm) {
+        // Clear Front depth winner
+        representativeValley = top1;
+      } else {
+        // Step 2: Tie-break using Side qualified AP depth
+        const side1 = (top1.candidate?.side?.isQualified === true && typeof top1.candidate?.side?.qualifiedApDepthCm === 'number')
+          ? top1.candidate.side.qualifiedApDepthCm
+          : (typeof top1.candidate?.side?.profileSpanCm === 'number' ? top1.candidate.side.profileSpanCm : Infinity);
+        const side2 = (top2.candidate?.side?.isQualified === true && typeof top2.candidate?.side?.qualifiedApDepthCm === 'number')
+          ? top2.candidate.side.qualifiedApDepthCm
+          : (typeof top2.candidate?.side?.profileSpanCm === 'number' ? top2.candidate.side.profileSpanCm : Infinity);
+
+        const sideDiff = side2 - side1;
+        if (Math.abs(sideDiff) > tieBreakDepthToleranceCm) {
+          representativeValley = sideDiff > 0 ? top1 : top2;
+        } else {
+          // Step 3: Tie-break using Bilateral contour symmetry
+          const asym1 = top1.bilateralContourQa?.asymmetryDeltaCm ?? (top1.candidate?.bilateralContourQa?.asymmetryDeltaCm ?? Infinity);
+          const asym2 = top2.bilateralContourQa?.asymmetryDeltaCm ?? (top2.candidate?.bilateralContourQa?.asymmetryDeltaCm ?? Infinity);
+          const asymDiff = asym2 - asym1;
+
+          if (Math.abs(asymDiff) > tieBreakDepthToleranceCm) {
+            representativeValley = asymDiff > 0 ? top1 : top2;
+          } else {
+            // Step 4: Fully unresolved within trough -> preserve ambiguity without averaging Y
+            isTroughAmbiguous = true;
+            representativeValley = top1;
+          }
+        }
+      }
+    }
+
+    const minMemberY = Math.min(...members.map((m) => m.yCm));
+    const maxMemberY = Math.max(...members.map((m) => m.yCm));
+
+    return {
+      troughId: `trough_${groupIdx + 1}`,
+      memberCount: members.length,
+      memberValleys: members,
+      memberYValues: members.map((m) => m.yCm),
+      memberCandidateIndices: members.map((m) => m.candidateIndex),
+      troughMinYcm: minMemberY,
+      troughMaxYcm: maxMemberY,
+      deepestMember,
+      minSmoothedWidthCm: deepestMember.smoothedWidthCm,
+      maxSaddleRiseCm: maxGroupSaddleRise,
+      representativeValley,
+      isTroughAmbiguous,
+      prominenceCm: deepestMember.prominenceCm,
+      superiorConstrictionDepthCm: deepestMember.superiorConstrictionDepthCm,
+      inferiorConstrictionDepthCm: deepestMember.inferiorConstrictionDepthCm,
+      superiorCrestWidthCm: deepestMember.superiorCrestWidthCm,
+      superiorCrestYcm: deepestMember.superiorCrestYcm,
+      inferiorCrestWidthCm: deepestMember.inferiorCrestWidthCm,
+      inferiorCrestYcm: deepestMember.inferiorCrestYcm,
+      bilateralContourQa: representativeValley.bilateralContourQa,
+      sideCorroboration: representativeValley.sideCorroboration,
+      isNeighborhoodStable: representativeValley.isNeighborhoodStable,
+    };
+  });
 }
 
 /**
@@ -236,6 +401,22 @@ export function evaluateNaturalWaistPlaneLocalization(torsoScanReport, options =
   const ambiguityProminenceRatio = typeof options?.ambiguityProminenceRatio === 'number'
     ? options.ambiguityProminenceRatio
     : DEFAULT_WAIST_LOCALIZATION_OPTIONS.ambiguityProminenceRatio;
+
+  const maxTroughMergeDistanceCm = typeof options?.maxTroughMergeDistanceCm === 'number' && options.maxTroughMergeDistanceCm > 0
+    ? options.maxTroughMergeDistanceCm
+    : DEFAULT_WAIST_LOCALIZATION_OPTIONS.maxTroughMergeDistanceCm;
+
+  const maxInterValleySaddleRiseCm = typeof options?.maxInterValleySaddleRiseCm === 'number' && options.maxInterValleySaddleRiseCm >= 0
+    ? options.maxInterValleySaddleRiseCm
+    : DEFAULT_WAIST_LOCALIZATION_OPTIONS.maxInterValleySaddleRiseCm;
+
+  const maxInterValleySaddleRiseRatio = typeof options?.maxInterValleySaddleRiseRatio === 'number' && options.maxInterValleySaddleRiseRatio >= 0
+    ? options.maxInterValleySaddleRiseRatio
+    : DEFAULT_WAIST_LOCALIZATION_OPTIONS.maxInterValleySaddleRiseRatio;
+
+  const tieBreakDepthToleranceCm = typeof options?.tieBreakDepthToleranceCm === 'number' && options.tieBreakDepthToleranceCm >= 0
+    ? options.tieBreakDepthToleranceCm
+    : DEFAULT_WAIST_LOCALIZATION_OPTIONS.tieBreakDepthToleranceCm;
 
   // 1. Validate Input Torso Scan Report
   if (!torsoScanReport || typeof torsoScanReport !== 'object') {
@@ -465,11 +646,19 @@ export function evaluateNaturalWaistPlaneLocalization(torsoScanReport, options =
     };
   });
 
-  // Sort distinct valleys by prominence descending
-  distinctValleys.sort((a, b) => b.prominenceCm - a.prominenceCm);
+  // 7. Pool Distinct Valleys into Broad Trough Regions
+  const pooledTroughs = poolValleysIntoTroughs(distinctValleys, enrichedCandidates, {
+    maxTroughMergeDistanceCm,
+    maxInterValleySaddleRiseCm,
+    maxInterValleySaddleRiseRatio,
+    tieBreakDepthToleranceCm,
+  });
 
-  // 7. Evaluate Ambiguity and Selection
-  if (distinctValleys.length === 0) {
+  // Sort pooled troughs by prominence descending
+  pooledTroughs.sort((a, b) => b.prominenceCm - a.prominenceCm);
+
+  // 8. Evaluate Ambiguity and Selection
+  if (pooledTroughs.length === 0) {
     blockers.push(NATURAL_WAIST_PLANE_BLOCKER_CODES.NO_LOCAL_CONSTRICTION_DETECTED);
     issues.push(`No valid local torso constriction detected (threshold: ${minConstrictionDepthCm} cm). Profile is flat or monotonic between Shoulder (Y=${shoulderAnchorYcm?.toFixed(1) ?? '?'} cm) and Hip (Y=${hipAnchorYcm?.toFixed(1) ?? '?'} cm).`);
     return {
@@ -486,31 +675,49 @@ export function evaluateNaturalWaistPlaneLocalization(torsoScanReport, options =
       }),
       candidates: enrichedCandidates,
       valleys: rawValleys,
+      troughs: [],
     };
   }
 
   let selectedValley = null;
   let status = NATURAL_WAIST_PLANE_STATUS.READY;
 
-  if (distinctValleys.length === 1) {
-    selectedValley = distinctValleys[0];
+  if (pooledTroughs.length === 1) {
+    const trough = pooledTroughs[0];
+    if (trough.isTroughAmbiguous) {
+      status = NATURAL_WAIST_PLANE_STATUS.AMBIGUOUS;
+      blockers.push(NATURAL_WAIST_PLANE_BLOCKER_CODES.AMBIGUOUS_MULTIPLE_CONSTRICTIONS);
+      issues.push(`Broad waist trough contains multiple equally qualified candidate planes that cannot be resolved by Side evidence or bilateral symmetry.`);
+    } else {
+      selectedValley = trough.representativeValley;
+      if (trough.memberCount > 1) {
+        warnings.push(`Broad Natural Waist trough pooled across ${trough.memberCount} minima (Y: [${trough.troughMinYcm.toFixed(2)}, ${trough.troughMaxYcm.toFixed(2)}] cm); representative plane selected at Y=${selectedValley.yCm.toFixed(2)} cm.`);
+      }
+    }
   } else {
-    // Multiple distinct valleys: evaluate if primary valley clearly dominates
-    const primary = distinctValleys[0];
-    const secondary = distinctValleys[1];
+    // Multiple distinct troughs: evaluate if primary trough clearly dominates
+    const primary = pooledTroughs[0];
+    const secondary = pooledTroughs[1];
 
     const promDiff = primary.prominenceCm - secondary.prominenceCm;
     const promRatio = secondary.prominenceCm / primary.prominenceCm;
 
     if (promDiff < ambiguityProminenceThresholdCm || promRatio >= ambiguityProminenceRatio) {
-      // Competing valleys cannot be deterministically separated
+      // Competing troughs cannot be deterministically separated
       status = NATURAL_WAIST_PLANE_STATUS.AMBIGUOUS;
       blockers.push(NATURAL_WAIST_PLANE_BLOCKER_CODES.AMBIGUOUS_MULTIPLE_CONSTRICTIONS);
-      issues.push(`Detected multiple competing torso constrictions at Y=${primary.yCm.toFixed(2)} cm (depth: ${primary.prominenceCm.toFixed(2)} cm) and Y=${secondary.yCm.toFixed(2)} cm (depth: ${secondary.prominenceCm.toFixed(2)} cm). Cannot deterministically isolate a unique Natural Waist plane.`);
+      issues.push(`Detected multiple competing torso constrictions at Y=${primary.representativeValley.yCm.toFixed(2)} cm (depth: ${primary.prominenceCm.toFixed(2)} cm) and Y=${secondary.representativeValley.yCm.toFixed(2)} cm (depth: ${secondary.prominenceCm.toFixed(2)} cm). Cannot deterministically isolate a unique Natural Waist plane.`);
+    } else if (primary.isTroughAmbiguous) {
+      status = NATURAL_WAIST_PLANE_STATUS.AMBIGUOUS;
+      blockers.push(NATURAL_WAIST_PLANE_BLOCKER_CODES.AMBIGUOUS_MULTIPLE_CONSTRICTIONS);
+      issues.push(`Primary broad waist trough contains multiple equally qualified candidate planes that cannot be resolved by Side evidence or bilateral symmetry.`);
     } else {
-      // Primary valley clearly dominates
-      selectedValley = primary;
-      warnings.push(`Primary Natural Waist constriction at Y=${primary.yCm.toFixed(2)} cm (depth: ${primary.prominenceCm.toFixed(2)} cm) selected; secondary minor constriction at Y=${secondary.yCm.toFixed(2)} cm (depth: ${secondary.prominenceCm.toFixed(2)} cm) noted.`);
+      // Primary trough clearly dominates
+      selectedValley = primary.representativeValley;
+      if (primary.memberCount > 1) {
+        warnings.push(`Broad Natural Waist trough pooled across ${primary.memberCount} minima (Y: [${primary.troughMinYcm.toFixed(2)}, ${primary.troughMaxYcm.toFixed(2)}] cm); representative plane selected at Y=${selectedValley.yCm.toFixed(2)} cm.`);
+      }
+      warnings.push(`Primary Natural Waist constriction at Y=${primary.representativeValley.yCm.toFixed(2)} cm (depth: ${primary.prominenceCm.toFixed(2)} cm) selected; secondary minor constriction at Y=${secondary.representativeValley.yCm.toFixed(2)} cm (depth: ${secondary.prominenceCm.toFixed(2)} cm) noted.`);
     }
   }
 
@@ -529,6 +736,7 @@ export function evaluateNaturalWaistPlaneLocalization(torsoScanReport, options =
       }),
       candidates: enrichedCandidates,
       valleys: distinctValleys,
+      troughs: pooledTroughs,
     };
   }
 
@@ -626,6 +834,7 @@ export function evaluateNaturalWaistPlaneLocalization(torsoScanReport, options =
     },
     candidates: enrichedCandidates,
     valleys: distinctValleys,
+    troughs: pooledTroughs,
     frontEvidence,
     sideEvidence,
     provenance: {
@@ -639,6 +848,11 @@ export function evaluateNaturalWaistPlaneLocalization(torsoScanReport, options =
       smoothingRadiusSamples,
       sampleSpacingCm: Number(sampleSpacingCm.toFixed(4)),
       minConstrictionDepthCm,
+      maxTroughMergeDistanceCm,
+      maxInterValleySaddleRiseCm,
+      maxInterValleySaddleRiseRatio,
+      tieBreakDepthToleranceCm,
+      troughCount: pooledTroughs.length,
       sourceScanContract: torsoScanReport.contract ?? 'torso-arbitrary-y-evidence-scan-v0',
       sourceScanStatus: scanStatus,
       sliceHighlightCoordinates: {

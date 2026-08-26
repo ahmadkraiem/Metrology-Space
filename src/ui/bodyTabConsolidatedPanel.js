@@ -14,12 +14,18 @@ import {
 } from '../features/annotations.js';
 import {
   buildBodyAnchorAudit,
+  getNaturalWaistPlaneLocalization,
   subscribeBodyEvidenceChange,
 } from '../features/bodyEvidence.js';
 import { buildAnatomicalMeasurementLines } from '../features/bodyMeasurementLines.js';
 import { renderFrontSideAlignmentQa } from './frontSideAlignmentPanel.js';
 import { escapeHtml, renderBadge } from './badgeUi.js';
 import { bodyMeasurementReadinessEl } from './domRefs.js';
+import {
+  selectMeasurement,
+  getSelectedMeasurementId,
+} from './derivedMeasurementDeck.js';
+import { subscribeMeasurementHighlightChange } from './measurementHighlightOverlay2d.js';
 
 const DASH = '—';
 
@@ -83,6 +89,43 @@ function renderMeasurementCandidate(line) {
   );
 }
 
+function renderNaturalWaistPlaneSection(annotations) {
+  const waistReport = getNaturalWaistPlaneLocalization({ annotations });
+  if (!waistReport) return '';
+
+  const status = waistReport.status ?? 'unavailable';
+  const isReady = status === 'ready';
+  const tone = isReady ? 'ok' : (status === 'ambiguous' || status === 'partial' || status === 'warning' ? 'warn' : 'muted');
+  const isSelected = getSelectedMeasurementId() === 'natural_waist_plane_localization';
+  const yCm = waistReport.yCm;
+  const frontWidth = waistReport.selectedCandidate?.frontWidthCm;
+  const sideDepth = waistReport.selectedCandidate?.sideQualifiedApDepthCm ?? waistReport.selectedCandidate?.sideRawProfileSpanCm;
+
+  const yDisplay = typeof yCm === 'number' ? `Y ${formatDistance(yCm)} cm` : '—';
+  const frontSpanDisplay = typeof frontWidth === 'number' ? `${formatDistance(frontWidth)} cm` : '—';
+  const sideSpanDisplay = typeof sideDepth === 'number' ? `${formatDistance(sideDepth)} cm` : (waistReport.sideEvidence?.status === 'unavailable' ? 'Unavailable' : '—');
+
+  return (
+    `<div class="body-readiness-line natural-waist-plane-diagnostic ${isSelected ? 'is-selected' : ''}"`
+    + ` data-localization-id="natural_waist_plane_localization"`
+    + ` data-measurement-id="natural_waist_plane_localization"`
+    + ` role="button"`
+    + ` tabindex="0"`
+    + ` aria-selected="${isSelected ? 'true' : 'false'}"`
+    + ` aria-label="Natural Waist Plane Localization: ${escapeHtml(yDisplay)}">`
+    + `<div class="body-readiness-line-header">`
+    + `<span class="body-readiness-line-name">Natural Waist Plane</span>`
+    + renderBadge(isReady ? 'Localized' : status.toUpperCase(), tone)
+    + `</div>`
+    + `<div class="body-readiness-line-detail">`
+    + `<span>Elevation: <strong>${escapeHtml(yDisplay)}</strong></span>`
+    + `<span>Front Span: ${escapeHtml(frontSpanDisplay)}</span>`
+    + `<span>Side Span: ${escapeHtml(sideSpanDisplay)}</span>`
+    + `</div>`
+    + `</div>`
+  );
+}
+
 function renderBodyMeasurementReadiness() {
   if (!bodyMeasurementReadinessEl) {
     return;
@@ -104,6 +147,7 @@ function renderBodyMeasurementReadiness() {
     renderReadinessMetric('Front-surface Z warnings', audit.frontSurfaceZWarnings.length),
     '</div>',
     '</div>',
+    renderNaturalWaistPlaneSection(annotations),
     '<div class="body-readiness-lines">',
     lines.map(renderMeasurementCandidate).join(''),
     '</div>',
@@ -112,7 +156,29 @@ function renderBodyMeasurementReadiness() {
 
 export function setupBodyTabConsolidatedPanel() {
   subscribeBodyEvidenceChange(renderFrontSideAlignmentQa);
+  subscribeBodyEvidenceChange(renderBodyMeasurementReadiness);
   subscribeAnnotationsChange(renderBodyMeasurementReadiness);
+  subscribeMeasurementHighlightChange(renderBodyMeasurementReadiness);
+
+  if (bodyMeasurementReadinessEl && !bodyMeasurementReadinessEl.dataset.waistListenerBound) {
+    bodyMeasurementReadinessEl.dataset.waistListenerBound = 'true';
+    bodyMeasurementReadinessEl.addEventListener('click', (e) => {
+      const card = e.target.closest('[data-localization-id="natural_waist_plane_localization"]');
+      if (card) {
+        selectMeasurement('natural_waist_plane_localization');
+      }
+    });
+    bodyMeasurementReadinessEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const card = e.target.closest('[data-localization-id="natural_waist_plane_localization"]');
+        if (card) {
+          e.preventDefault();
+          selectMeasurement('natural_waist_plane_localization');
+        }
+      }
+    });
+  }
+
   renderFrontSideAlignmentQa();
   renderBodyMeasurementReadiness();
 }

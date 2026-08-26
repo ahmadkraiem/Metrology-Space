@@ -8,6 +8,7 @@ import {
   NATURAL_WAIST_PLANE_BLOCKER_CODES,
   applySymmetricSmoothing,
   evaluateBilateralContourQa,
+  poolValleysIntoTroughs,
   evaluateNaturalWaistPlaneLocalization,
 } from './naturalWaistPlaneLocalization.js';
 
@@ -513,4 +514,232 @@ test('Natural Waist: metric smoothing window produces consistent localization ac
   assert.equal(highResResult.provenance.smoothingWindowCm, 2.0);
   assert.equal(lowResResult.provenance.smoothingRadiusSamples, 1); // 1.0 cm spacing -> radius 1 sample
   assert.equal(highResResult.provenance.smoothingRadiusSamples, 10); // 0.1 cm spacing -> radius 10 samples
+});
+
+test('Broad Trough Merge: two minima 3.6 cm apart with shallow 0.25 cm saddle rise merge into one dominant trough', () => {
+  // Simulate two minima inside a single deep waist basin:
+  // Valley A at Y = 107.15 (width = 29.0 cm)
+  // Valley B at Y = 110.75 (width = 29.1 cm)
+  // Crest between at Y = 109.35 (width = 29.35 cm -> saddle rise ~0.25-0.35 cm)
+  // Surrounding crests at Y = 125 (width = 35.0 cm) and Y = 95 (width = 34.0 cm)
+  const candidates = [];
+  for (let row = 600; row <= 1100; row += 1) {
+    const yCm = Number((((2000 - (row + 0.5)) / 2000) * 200).toFixed(4));
+    let baseWidth = 34.0;
+    if (yCm >= 105 && yCm <= 115) {
+      // Basin with two tiny ripples
+      const d1 = Math.abs(yCm - 107.15);
+      const d2 = Math.abs(yCm - 110.75);
+      const ripple = 0.25 * Math.sin((yCm - 107.15) * Math.PI / 3.6);
+      baseWidth = 29.0 + 0.05 * Math.min(d1, d2) + Math.max(0, ripple);
+    } else if (yCm > 115) {
+      baseWidth = 29.0 + 0.6 * (yCm - 115);
+    } else if (yCm < 105) {
+      baseWidth = 29.0 + 0.5 * (105 - yCm);
+    }
+    const frontWidthCm = Number(baseWidth.toFixed(2));
+    const minXcm = Number((50.0 - frontWidthCm / 2).toFixed(2));
+    const maxXcm = Number((50.0 + frontWidthCm / 2).toFixed(2));
+
+    candidates.push(createMockScanCandidate({
+      yCm,
+      rasterRow: row,
+      frontWidthCm,
+      minXcm,
+      maxXcm,
+      sideProfileSpanCm: 23.0 + 0.1 * Math.abs(yCm - 107.15),
+      sideQualifiedApDepthCm: 23.0 + 0.1 * Math.abs(yCm - 107.15),
+    }));
+  }
+
+  const report = createMockTorsoScanReport({ shoulderYcm: 135, shoulderRasterRow: 650, hipYcm: 90, hipRasterRow: 1100, candidates });
+  const result = evaluateNaturalWaistPlaneLocalization(report);
+
+  assert.equal(result.status, NATURAL_WAIST_PLANE_STATUS.READY);
+  assert.ok(result.yCm !== null, 'yCm is populated');
+  assert.ok(Math.abs(result.yCm - 107.15) <= 1.0, `Selected Y (${result.yCm}) is near deepest minimum 107.15 cm`);
+  assert.ok(result.troughs.length >= 1, 'Troughs array is populated');
+  assert.ok(result.provenance.troughCount >= 1);
+});
+
+test('Distinct Valleys Remain Distinct: two minima separated by clearly wider intervening crest remain separate', () => {
+  // Two deep minima separated by a substantial intervening crest of width 33.0 cm (saddle rise = 5.0 cm)
+  const candidates = [];
+  for (let row = 600; row <= 1100; row += 1) {
+    const yCm = Number((((2000 - (row + 0.5)) / 2000) * 200).toFixed(4));
+    let frontWidthCm = 35.0;
+    if (Math.abs(yCm - 120.0) <= 4.0) {
+      frontWidthCm = 28.0 + 0.4 * Math.pow(Math.abs(yCm - 120.0), 2);
+    } else if (Math.abs(yCm - 100.0) <= 4.0) {
+      frontWidthCm = 28.0 + 0.4 * Math.pow(Math.abs(yCm - 100.0), 2);
+    } else if (yCm > 104.0 && yCm < 116.0) {
+      frontWidthCm = 33.0; // Intervening crest (reopening)
+    }
+    frontWidthCm = Number(frontWidthCm.toFixed(2));
+    const minXcm = Number((50.0 - frontWidthCm / 2).toFixed(2));
+    const maxXcm = Number((50.0 + frontWidthCm / 2).toFixed(2));
+
+    candidates.push(createMockScanCandidate({
+      yCm,
+      rasterRow: row,
+      frontWidthCm,
+      minXcm,
+      maxXcm,
+    }));
+  }
+
+  const report = createMockTorsoScanReport({ shoulderYcm: 135, shoulderRasterRow: 650, hipYcm: 90, hipRasterRow: 1100, candidates });
+  const result = evaluateNaturalWaistPlaneLocalization(report);
+
+  // Two distinct, competing troughs of identical depth -> should be AMBIGUOUS
+  assert.equal(result.status, NATURAL_WAIST_PLANE_STATUS.AMBIGUOUS);
+  assert.ok(result.blockers.includes(NATURAL_WAIST_PLANE_BLOCKER_CODES.AMBIGUOUS_MULTIPLE_CONSTRICTIONS));
+  assert.ok(result.troughs.length >= 2, 'Distinct troughs are not merged');
+});
+
+test('Same-Trough Tie-Break: effectively tied Front minima use Side qualified AP depth as tie-breaker', () => {
+  // Two minima in same trough with identical Front width (29.00 cm), but Candidate B has narrower Side AP depth
+  const valleys = [
+    {
+      candidateIndex: 20,
+      yCm: 112.0,
+      rasterRow: 880,
+      rawWidthCm: 29.0,
+      smoothedWidthCm: 29.000,
+      prominenceCm: 4.0,
+      superiorConstrictionDepthCm: 5.0,
+      inferiorConstrictionDepthCm: 4.0,
+      superiorCrestWidthCm: 34.0,
+      superiorCrestYcm: 125.0,
+      inferiorCrestWidthCm: 33.0,
+      inferiorCrestYcm: 95.0,
+      candidate: {
+        yCm: 112.0,
+        rasterRow: 880,
+        side: { isQualified: true, qualifiedApDepthCm: 24.0 }, // Wider Side depth
+        bilateralContourQa: { asymmetryDeltaCm: 0.2 },
+      },
+    },
+    {
+      candidateIndex: 40,
+      yCm: 108.0,
+      rasterRow: 920,
+      rawWidthCm: 29.0,
+      smoothedWidthCm: 29.000,
+      prominenceCm: 4.0,
+      superiorConstrictionDepthCm: 5.0,
+      inferiorConstrictionDepthCm: 4.0,
+      superiorCrestWidthCm: 34.0,
+      superiorCrestYcm: 125.0,
+      inferiorCrestWidthCm: 33.0,
+      inferiorCrestYcm: 95.0,
+      candidate: {
+        yCm: 108.0,
+        rasterRow: 920,
+        side: { isQualified: true, qualifiedApDepthCm: 21.0 }, // Narrower Side depth!
+        bilateralContourQa: { asymmetryDeltaCm: 0.2 },
+      },
+    },
+  ];
+
+  const enrichedCandidates = new Array(60).fill(null).map((_, idx) => ({
+    yCm: 114.0 - idx * 0.1,
+    smoothedWidthCm: 29.1, // Intervening saddle = 0.1 cm
+  }));
+
+  const troughs = poolValleysIntoTroughs(valleys, enrichedCandidates, { maxTroughMergeDistanceCm: 6.0, maxInterValleySaddleRiseCm: 0.5 });
+  assert.equal(troughs.length, 1);
+  assert.equal(troughs[0].representativeValley.yCm, 108.0, 'Prefers candidate with lower qualified Side AP depth');
+});
+
+test('Side Tie-Break: tied Front and Side evidence uses bilateral symmetry as tie-breaker', () => {
+  const valleys = [
+    {
+      candidateIndex: 20,
+      yCm: 112.0,
+      rasterRow: 880,
+      smoothedWidthCm: 29.000,
+      prominenceCm: 4.0,
+      superiorConstrictionDepthCm: 5.0,
+      inferiorConstrictionDepthCm: 4.0,
+      superiorCrestWidthCm: 34.0,
+      inferiorCrestWidthCm: 33.0,
+      candidate: {
+        yCm: 112.0,
+        side: { isQualified: true, qualifiedApDepthCm: 22.0 },
+        bilateralContourQa: { asymmetryDeltaCm: 1.2 }, // Higher asymmetry
+      },
+    },
+    {
+      candidateIndex: 40,
+      yCm: 108.0,
+      rasterRow: 920,
+      smoothedWidthCm: 29.000,
+      prominenceCm: 4.0,
+      superiorConstrictionDepthCm: 5.0,
+      inferiorConstrictionDepthCm: 4.0,
+      superiorCrestWidthCm: 34.0,
+      inferiorCrestWidthCm: 33.0,
+      candidate: {
+        yCm: 108.0,
+        side: { isQualified: true, qualifiedApDepthCm: 22.0 }, // Equal Side depth
+        bilateralContourQa: { asymmetryDeltaCm: 0.1 }, // Highly symmetric!
+      },
+    },
+  ];
+
+  const enrichedCandidates = new Array(60).fill(null).map((_, idx) => ({
+    yCm: 114.0 - idx * 0.1,
+    smoothedWidthCm: 29.1,
+  }));
+
+  const troughs = poolValleysIntoTroughs(valleys, enrichedCandidates, { maxTroughMergeDistanceCm: 6.0, maxInterValleySaddleRiseCm: 0.5 });
+  assert.equal(troughs.length, 1);
+  assert.equal(troughs[0].representativeValley.yCm, 108.0, 'Prefers candidate with better bilateral symmetry');
+});
+
+test('Fully Unresolved: tied Front, Side, and symmetry evidence preserves ambiguity without averaging Y', () => {
+  const valleys = [
+    {
+      candidateIndex: 20,
+      yCm: 112.0,
+      rasterRow: 880,
+      smoothedWidthCm: 29.000,
+      prominenceCm: 4.0,
+      superiorConstrictionDepthCm: 5.0,
+      inferiorConstrictionDepthCm: 4.0,
+      superiorCrestWidthCm: 34.0,
+      inferiorCrestWidthCm: 33.0,
+      candidate: {
+        yCm: 112.0,
+        side: { isQualified: true, qualifiedApDepthCm: 22.0 },
+        bilateralContourQa: { asymmetryDeltaCm: 0.2 },
+      },
+    },
+    {
+      candidateIndex: 40,
+      yCm: 108.0,
+      rasterRow: 920,
+      smoothedWidthCm: 29.000,
+      prominenceCm: 4.0,
+      superiorConstrictionDepthCm: 5.0,
+      inferiorConstrictionDepthCm: 4.0,
+      superiorCrestWidthCm: 34.0,
+      inferiorCrestWidthCm: 33.0,
+      candidate: {
+        yCm: 108.0,
+        side: { isQualified: true, qualifiedApDepthCm: 22.0 },
+        bilateralContourQa: { asymmetryDeltaCm: 0.2 },
+      },
+    },
+  ];
+
+  const enrichedCandidates = new Array(60).fill(null).map((_, idx) => ({
+    yCm: 114.0 - idx * 0.1,
+    smoothedWidthCm: 29.1,
+  }));
+
+  const troughs = poolValleysIntoTroughs(valleys, enrichedCandidates, { maxTroughMergeDistanceCm: 6.0, maxInterValleySaddleRiseCm: 0.5 });
+  assert.equal(troughs.length, 1);
+  assert.equal(troughs[0].isTroughAmbiguous, true, 'Flags trough as ambiguous');
 });
