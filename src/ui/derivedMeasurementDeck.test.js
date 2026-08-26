@@ -7,11 +7,22 @@ import {
   buildDerivedMeasurementCardHtml,
   buildDirectMeasurementsGroupHtml,
   buildModeledHipSeatCircumferenceCardHtml,
+  buildModeledNaturalWaistCircumferenceCardHtml,
   buildModeledPerimeterCardHtml,
+  clearSelectedMeasurement,
   deriveMeasurementCardStatus,
   getMeasurementRecordById,
+  getSelectedMeasurementId,
   renderDerivedMeasurementDeck,
+  selectMeasurement,
 } from './derivedMeasurementDeck.js';
+import {
+  analyzeLoadedBodyEvidence,
+  clearBodyEvidence,
+  setBodyEvidencePackage,
+} from '../features/bodyEvidence.js';
+import { restoreAnnotations } from '../features/annotations.js';
+import { buildBodyEvidencePackage } from '../features/bodyEvidencePackage.js';
 
 const markup = readFileSync(
   fileURLToPath(new URL('../../index.html', import.meta.url)),
@@ -1208,11 +1219,193 @@ test('derivedMeasurementDeck: standard Results renderer keeps Hip/Seat card and 
   assert.equal(uiSource.includes('export function buildModeledPerimeterCardHtml'), true);
 });
 
-test('derivedMeasurementDeck: Hip Landmark perimeter remains available internally via measurement record lookup', () => {
-  const record = getMeasurementRecordById('torso_modeled_perimeter_at_hip_landmark_level');
-  assert.ok(record);
-  assert.equal(record.id, 'torso_modeled_perimeter_at_hip_landmark_level');
-  assert.equal(record.contract, 'modeled-cross-section-perimeter-v0');
+test('derivedMeasurementDeck: Modeled Natural Waist Circumference card renders exact title, badges, Front width, Side AP depth, and disclaimers', () => {
+  const html = buildModeledNaturalWaistCircumferenceCardHtml({
+    id: 'torso_modeled_natural_waist_circumference_at_natural_waist_plane',
+    status: 'modeled',
+    valueCm: 82.35,
+    levelYcm: 107.15,
+    model: {
+      transverseWidthCm: 29.0,
+      apDepthCm: 23.2,
+    },
+    provenance: {
+      selectedYcm: 107.15,
+      frontTransverseWidthCm: 29.0,
+      sideQualifiedApDepthCm: 23.2,
+    },
+  });
+
+  assert.equal(html.includes('Modeled Natural Waist Circumference'), true);
+  assert.equal(html.includes('data-measurement-id="torso_modeled_natural_waist_circumference_at_natural_waist_plane"'), true);
+  assert.equal(html.includes('Circumference Estimate'), true);
+  assert.equal(html.includes('82.35 cm'), true);
+  assert.equal(html.includes('Waist Plane Y'), true);
+  assert.equal(html.includes('107.15 cm'), true);
+  assert.equal(html.includes('Front Width'), true);
+  assert.equal(html.includes('29.00 cm'), true);
+  assert.equal(html.includes('Side AP Depth'), true);
+  assert.equal(html.includes('23.20 cm'), true);
+  assert.equal(html.includes('Ellipse (Ramanujan II)'), true);
+  assert.equal(html.includes('Evaluated at localized Natural Waist Plane.'), true);
+  assert.equal(html.includes('Modeled estimate; not tape-measured ground truth.'), true);
 });
+
+test('derivedMeasurementDeck: Natural Waist modeled circumference card builder produces dynamic runtime values', () => {
+  const html = buildModeledNaturalWaistCircumferenceCardHtml({
+    id: 'torso_modeled_natural_waist_circumference_at_natural_waist_plane',
+    status: 'modeled',
+    valueCm: 75.50,
+    levelYcm: 104.2,
+    model: {
+      transverseWidthCm: 26.5,
+      apDepthCm: 21.0,
+    },
+    provenance: {
+      selectedYcm: 104.2,
+      frontTransverseWidthCm: 26.5,
+      sideQualifiedApDepthCm: 21.0,
+    },
+  });
+
+  assert.equal(html.includes('75.50 cm'), true);
+  assert.equal(html.includes('104.20 cm') || html.includes('104.2 cm'), true);
+  assert.equal(html.includes('26.50 cm'), true);
+  assert.equal(html.includes('21.00 cm'), true);
+  assert.equal(html.includes('82.35 cm'), false);
+});
+
+test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and Natural Waist cards in Modeled Perimeter Estimates section', () => {
+  const width = 100;
+  const height = 100;
+  const frontSeg = new Uint8Array(width * height);
+  const sideSeg = new Uint8Array(width * height);
+
+  // Fill bounding body regions
+  for (let y = 20; y <= 80; y++) {
+    for (let x = 30; x <= 70; x++) {
+      frontSeg[y * width + x] = 22; // torso
+      sideSeg[y * width + x] = 22;
+    }
+  }
+
+  const pkg = buildBodyEvidencePackage({
+    calibration: {
+      pixelsPerCm: 1,
+      canvasSizePx: 100,
+      coordinateSpace: 'pixel',
+      origin: 'bottom_left',
+      workspaceExtentCm: 100,
+    },
+    front: {
+      image: { widthPx: 100, heightPx: 100, dataUrl: 'data:image/png;base64,' },
+      segmentation: { widthPx: 100, heightPx: 100, classIndices: frontSeg },
+      calibration: {
+        view: 'front',
+        originalWidthPx: 100,
+        originalHeightPx: 100,
+        scaledWidthPx: 100,
+        scaledHeightPx: 100,
+        scaleFactor: 1.0,
+        padLeftPx: 0,
+        padTopPx: 0,
+        croppedWidthPx: 100,
+        croppedHeightPx: 100,
+      },
+      pose: {
+        score: 0.95,
+        keypoints: [
+          { name: 'neck', x: 50, y: 20 },
+          { name: 'left_shoulder', x: 65, y: 30 },
+          { name: 'right_shoulder', x: 35, y: 30 },
+          { name: 'left_hip', x: 60, y: 70 },
+          { name: 'right_hip', x: 40, y: 70 },
+        ],
+      },
+    },
+    side: {
+      image: { widthPx: 100, heightPx: 100, dataUrl: 'data:image/png;base64,' },
+      segmentation: { widthPx: 100, heightPx: 100, classIndices: sideSeg },
+      calibration: {
+        view: 'side',
+        originalWidthPx: 100,
+        originalHeightPx: 100,
+        scaledWidthPx: 100,
+        scaledHeightPx: 100,
+        scaleFactor: 1.0,
+        padLeftPx: 0,
+        padTopPx: 0,
+        croppedWidthPx: 100,
+        croppedHeightPx: 100,
+      },
+      pose: {
+        score: 0.90,
+        keypoints: [
+          { name: 'left_shoulder', x: 50, y: 30 },
+          { name: 'left_hip', x: 50, y: 70 },
+        ],
+      },
+    },
+  });
+
+  const origDoc = global.document;
+  global.document = {
+    getElementById: () => null,
+    createElement: () => ({ setAttribute: () => {}, style: {}, appendChild: () => {} }),
+  };
+
+  setBodyEvidencePackage(pkg);
+  analyzeLoadedBodyEvidence();
+
+  restoreAnnotations([
+    { id: 1, name: 'neck', type: 'body_landmark', position: { x: 50, y: 80, z: 200 } },
+    { id: 2, name: 'left_shoulder', type: 'body_landmark', position: { x: 65, y: 70, z: 200 } },
+    { id: 3, name: 'right_shoulder', type: 'body_landmark', position: { x: 35, y: 70, z: 200 } },
+    { id: 4, name: 'left_hip', type: 'body_landmark', position: { x: 60, y: 30, z: 200 } },
+    { id: 5, name: 'right_hip', type: 'body_landmark', position: { x: 40, y: 30, z: 200 } },
+  ]);
+
+  const container = { innerHTML: '' };
+  renderDerivedMeasurementDeck(container);
+
+  // 1. Both cards must be present in the live render output
+  assert.equal(
+    container.innerHTML.includes('Modeled Natural Waist Circumference'),
+    true,
+    'Live render must include Modeled Natural Waist Circumference card',
+  );
+  assert.equal(
+    container.innerHTML.includes('data-measurement-id="torso_modeled_natural_waist_circumference_at_natural_waist_plane"'),
+    true,
+    'Natural Waist card must include measurement ID',
+  );
+  assert.equal(
+    container.innerHTML.includes('Modeled Hip / Seat Circumference Estimate'),
+    true,
+    'Live render must include Modeled Hip / Seat Circumference card',
+  );
+  assert.equal(
+    container.innerHTML.includes('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"'),
+    true,
+    'Hip/Seat card must include measurement ID',
+  );
+
+  // 2. Both cards are inside the Modeled Perimeter Estimates subgroup
+  const subgroupStart = container.innerHTML.indexOf('data-group-id="modeled_perimeter_estimates"');
+  assert.ok(subgroupStart > -1, 'Modeled Perimeter Estimates subgroup must exist');
+
+  const waistCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_natural_waist_circumference_at_natural_waist_plane"');
+  const seatCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"');
+
+  assert.ok(waistCardIdx > subgroupStart, 'Natural Waist card must be inside perimeter subgroup');
+  assert.ok(seatCardIdx > subgroupStart, 'Hip/Seat card must be inside perimeter subgroup');
+
+  // Clean up
+  clearSelectedMeasurement();
+  clearBodyEvidence();
+  restoreAnnotations([]);
+  global.document = origDoc;
+});
+
 
 

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   MODELED_ELLIPSE_PREVIEW_DISCLAIMER,
   MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID,
+  MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID,
   buildModeledEllipsePreviewHtml,
   computeEllipsePreviewLayout,
   renderModeledEllipsePreview,
@@ -20,6 +21,39 @@ import {
   VISUALIZATION_TYPES,
   VISUALIZATION_STATUS,
 } from '../features/measurementVisualizationProvenance.js';
+
+function mockWaistRecord(overrides = {}) {
+  return {
+    contract: 'modeled-natural-waist-circumference-v0',
+    id: MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID,
+    name: 'Modeled Natural Waist Circumference',
+    status: 'modeled',
+    valueCm: 82.35,
+    levelYcm: 107.15,
+    yCm: 107.15,
+    model: {
+      family: 'ellipse',
+      implementation: 'ellipse_ramanujan_ii',
+      transverseWidthCm: 29.0,
+      apDepthCm: 23.2,
+      semiMajorAxisCm: 14.5,
+      semiMinorAxisCm: 11.6,
+      frontDiameterCm: 29.0,
+      sideDiameterCm: 23.2,
+    },
+    provenance: {
+      selectedYcm: 107.15,
+      frontTransverseWidthCm: 29.0,
+      sideQualifiedApDepthCm: 23.2,
+    },
+    semantics: {
+      isModeled: true,
+      isMeasuredContour: false,
+      is3dReconstruction: false,
+    },
+    ...overrides,
+  };
+}
 
 function mockSeatRecord(overrides = {}) {
   return {
@@ -205,6 +239,61 @@ test('ellipse preview: render shows preview for Hip/Seat highlight and hides on 
 
   setMeasurementHighlight(vis);
   clearMeasurementHighlight();
+});
+
+test('ellipse preview: Natural Waist record creates modeled ellipse visualization from runtime width/depth and Waist Plane Y label', () => {
+  const model = resolveModeledEllipsePreviewModel(mockWaistRecord());
+
+  assert.ok(model);
+  assert.equal(model.measurementId, MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID);
+  assert.equal(model.planeLabel, 'Waist Plane Y');
+  assert.equal(model.widthCm, 29.0);
+  assert.equal(model.depthCm, 23.2);
+  assert.equal(model.perimeterCm, 82.35);
+  assert.equal(model.levelYcm, 107.15);
+  assert.equal(model.semiAxisACm, 14.5);
+  assert.equal(model.semiAxisBCm, 11.6);
+  assert.equal(model.isModeled, true);
+  assert.equal(model.isMeasuredContour, false);
+  assert.equal(model.is3dReconstruction, false);
+  assert.equal(model.disclaimer, 'Ellipse model — not measured contour');
+
+  const html = buildModeledEllipsePreviewHtml(model);
+  assert.equal(html.includes('Modeled Cross-Section'), true);
+  assert.equal(html.includes('Front Width: 29.00 cm'), true);
+  assert.equal(html.includes('AP Depth: 23.20 cm'), true);
+  assert.equal(html.includes('Modeled Perimeter: 82.35 cm'), true);
+  assert.equal(html.includes('Waist Plane Y: 107.15 cm'), true);
+  assert.equal(html.includes('rx="14.5"'), true);
+  assert.equal(html.includes('ry="11.6"'), true);
+  assert.equal(html.includes('Ellipse model — not measured contour'), true);
+});
+
+test('ellipse preview: render shows preview for Natural Waist highlight', () => {
+  const container = {
+    innerHTML: '',
+    hidden: true,
+    attributes: {},
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    removeAttribute(name) { delete this.attributes[name]; },
+  };
+
+  global.document = {
+    getElementById: (id) => (id === 'modeled-cross-section-preview' ? container : null),
+  };
+
+  const vis = {
+    measurementId: MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID,
+    visualizationType: VISUALIZATION_TYPES.NATURAL_WAIST_PLANE,
+    status: VISUALIZATION_STATUS.READY,
+  };
+
+  syncModeledEllipsePreviewFromHighlight(vis, mockWaistRecord());
+  assert.equal(container.hidden, false);
+  assert.equal(container.attributes['aria-hidden'], 'false');
+  assert.equal(container.innerHTML.includes('Modeled Cross-Section'), true);
+  assert.equal(container.innerHTML.includes('Waist Plane Y: 107.15 cm'), true);
+  assert.equal(container.innerHTML.includes('rx="14.5"'), true);
 });
 
 test('ellipse preview: source contains no Ramanujan math, U→Z, or 3D reconstruction semantics', () => {

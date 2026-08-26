@@ -8,13 +8,17 @@
 
 import { formatDistance } from '../core/formatters.js';
 import { escapeHtml } from './badgeUi.js';
-import { getModeledHipSeatCircumference } from '../features/bodyEvidence.js';
+import {
+  getModeledHipSeatCircumference,
+  getModeledNaturalWaistCircumference,
+} from '../features/bodyEvidence.js';
 import {
   getMeasurementHighlight,
   subscribeMeasurementHighlightChange,
 } from './measurementHighlightOverlay2d.js';
 
 export const MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane';
+export const MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_natural_waist_circumference_at_natural_waist_plane';
 export const MODELED_ELLIPSE_PREVIEW_DISCLAIMER = 'Ellipse model — not measured contour';
 
 const PREVIEW_CONTAINER_ID = 'modeled-cross-section-preview';
@@ -37,8 +41,8 @@ function getPreviewContainer() {
 }
 
 /**
- * Extracts the modeled ellipse preview from the existing Hip / Seat contract.
- * Does not recompute perimeter or seat-plane localization.
+ * Extracts the modeled ellipse preview from the existing Hip/Seat or Natural Waist contract.
+ * Does not recompute perimeter or plane localization.
  *
  * @param {object|null|undefined} record
  * @returns {object|null}
@@ -50,25 +54,33 @@ export function resolveModeledEllipsePreviewModel(record) {
 
   const isHipSeat = record.id === MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID
     || record.contract === 'modeled-hip-seat-circumference-v0';
-  if (!isHipSeat || record.status !== 'modeled') {
+  const isNaturalWaist = record.id === MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID
+    || record.contract === 'modeled-natural-waist-circumference-v0';
+
+  if ((!isHipSeat && !isNaturalWaist) || record.status !== 'modeled') {
     return null;
   }
 
   const widthCm = record.model?.transverseWidthCm
+    ?? record.model?.frontDiameterCm
     ?? record.provenance?.frontTransverseWidthCm
     ?? null;
   const depthCm = record.model?.apDepthCm
+    ?? record.model?.sideDiameterCm
     ?? record.provenance?.sideQualifiedApDepthCm
     ?? null;
   const perimeterCm = record.valueCm ?? null;
-  const levelYcm = record.levelYcm ?? record.provenance?.selectedYcm ?? null;
+  const levelYcm = record.levelYcm ?? record.yCm ?? record.provenance?.selectedYcm ?? null;
 
   if (!isFinitePositive(widthCm) || !isFinitePositive(depthCm)) {
     return null;
   }
 
+  const defaultId = isNaturalWaist ? MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID : MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID;
+
   return {
-    measurementId: record.id ?? MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID,
+    measurementId: record.id ?? defaultId,
+    planeLabel: isNaturalWaist ? 'Waist Plane Y' : 'Seat Plane Y',
     widthCm,
     depthCm,
     perimeterCm,
@@ -179,7 +191,7 @@ export function buildModeledEllipsePreviewHtml(model) {
       <p class="modeled-cross-section-preview-row">Front Width: ${escapeHtml(widthLabel)}</p>
       <p class="modeled-cross-section-preview-row">AP Depth: ${escapeHtml(depthLabel)}</p>
       <p class="modeled-cross-section-preview-row">Modeled Perimeter: ${escapeHtml(perimeterLabel)}</p>
-      <p class="modeled-cross-section-preview-row">Seat Plane Y: ${escapeHtml(yLabel)}</p>
+      <p class="modeled-cross-section-preview-row">${escapeHtml(model.planeLabel ?? 'Plane Y')}: ${escapeHtml(yLabel)}</p>
       <p class="modeled-cross-section-preview-disclaimer">${escapeHtml(model.disclaimer)}</p>
     </div>
   `;
@@ -227,12 +239,24 @@ export function syncModeledEllipsePreviewFromHighlight(visualization, record = n
     && visualization.measurementId === MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID
     && visualization.status === 'ready';
 
-  if (!isSelectedHipSeat) {
+  const isSelectedNaturalWaist = visualization
+    && visualization.measurementId === MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID
+    && visualization.status === 'ready';
+
+  if (!isSelectedHipSeat && !isSelectedNaturalWaist) {
     renderModeledEllipsePreview(container, null);
     return;
   }
 
-  const sourceRecord = record ?? getModeledHipSeatCircumference();
+  let sourceRecord = record;
+  if (!sourceRecord) {
+    if (isSelectedNaturalWaist) {
+      sourceRecord = getModeledNaturalWaistCircumference();
+    } else {
+      sourceRecord = getModeledHipSeatCircumference();
+    }
+  }
+
   renderModeledEllipsePreview(container, resolveModeledEllipsePreviewModel(sourceRecord));
 }
 

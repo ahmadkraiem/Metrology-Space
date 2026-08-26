@@ -135,6 +135,10 @@ import {
   evaluateModeledHipSeatCircumference,
 } from './modeledHipSeatCircumference.js';
 import {
+  MODELED_NATURAL_WAIST_CIRCUMFERENCE_CONTRACT_VERSION,
+  evaluateModeledNaturalWaistCircumference,
+} from './modeledNaturalWaistCircumference.js';
+import {
   MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION,
   resolveMeasurementVisualizationProvenance,
 } from './measurementVisualizationProvenance.js';
@@ -2616,6 +2620,29 @@ export function getModeledHipSeatCircumference({ annotations = null, options = {
  */
 export function getModeledHipSeatCircumferenceReport(options = {}) {
   return getModeledHipSeatCircumference(options);
+}
+
+/**
+ * Evaluates pure deterministic Modeled Natural Waist Circumference Estimate from the
+ * active localized Natural Waist Plane candidate.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} ModeledNaturalWaistCircumferenceResultV0
+ */
+export function getModeledNaturalWaistCircumference({ annotations = null, options = {} } = {}) {
+  const localization = getNaturalWaistPlaneLocalization({ annotations, options });
+  if (!localization) return null;
+  return evaluateModeledNaturalWaistCircumference(localization, options);
+}
+
+/**
+ * Alias for getModeledNaturalWaistCircumference for uniform reporting convention.
+ */
+export function getModeledNaturalWaistCircumferenceReport(options = {}) {
+  return getModeledNaturalWaistCircumference(options);
 }
 
 /**

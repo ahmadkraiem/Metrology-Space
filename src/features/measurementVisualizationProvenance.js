@@ -644,20 +644,20 @@ function resolveFrontHorizontalLevel(level) {
  * Resolves Natural Waist Plane localization visualization for Front and Side 2D workspaces.
  */
 export function resolveNaturalWaistPlane(measurement) {
-  const yCm = measurement.yCm ?? measurement.provenance?.sliceHighlightCoordinates?.yCm ?? null;
+  const yCm = measurement.yCm ?? measurement.levelYcm ?? measurement.provenance?.sliceHighlightCoordinates?.yCm ?? measurement.provenance?.selectedYcm ?? null;
   const coords = measurement.provenance?.sliceHighlightCoordinates;
   const candidate = measurement.selectedCandidate;
 
-  const frontRow = coords?.frontRasterRow ?? candidate?.rasterRow ?? measurement.rasterRow ?? null;
-  const sideRow = coords?.sideRasterRow ?? candidate?.sideRasterRow ?? null;
+  const frontRow = coords?.frontRasterRow ?? candidate?.rasterRow ?? measurement.rasterRow ?? measurement.provenance?.frontRasterRow ?? null;
+  const sideRow = coords?.sideRasterRow ?? candidate?.sideRasterRow ?? measurement.provenance?.sideRasterRow ?? null;
 
-  const minXcm = coords?.frontBoundsCm?.minX ?? candidate?.frontMinXcm ?? measurement.frontEvidence?.minXcm ?? null;
-  const maxXcm = coords?.frontBoundsCm?.maxX ?? candidate?.frontMaxXcm ?? measurement.frontEvidence?.maxXcm ?? null;
-  const widthCm = candidate?.frontWidthCm ?? measurement.frontEvidence?.widthCm ?? (minXcm !== null && maxXcm !== null ? Number((maxXcm - minXcm).toFixed(4)) : null);
+  const minXcm = coords?.frontBoundsCm?.minX ?? candidate?.frontMinXcm ?? measurement.frontEvidence?.minXcm ?? measurement.provenance?.frontMinXcm ?? null;
+  const maxXcm = coords?.frontBoundsCm?.maxX ?? candidate?.frontMaxXcm ?? measurement.frontEvidence?.maxXcm ?? measurement.provenance?.frontMaxXcm ?? null;
+  const widthCm = candidate?.frontWidthCm ?? measurement.frontEvidence?.widthCm ?? measurement.provenance?.frontTransverseWidthCm ?? (minXcm !== null && maxXcm !== null ? Number((maxXcm - minXcm).toFixed(4)) : null);
 
-  const minUcm = coords?.sideBoundsCm?.minU ?? candidate?.sideMinUcm ?? measurement.sideEvidence?.minUcm ?? null;
-  const maxUcm = coords?.sideBoundsCm?.maxU ?? candidate?.sideMaxUcm ?? measurement.sideEvidence?.maxUcm ?? null;
-  const depthCm = candidate?.sideQualifiedApDepthCm ?? candidate?.sideRawProfileSpanCm ?? measurement.sideEvidence?.profileSpanCm ?? (minUcm !== null && maxUcm !== null ? Number((maxUcm - minUcm).toFixed(4)) : null);
+  const minUcm = coords?.sideBoundsCm?.minU ?? candidate?.sideMinUcm ?? measurement.sideEvidence?.minUcm ?? measurement.provenance?.sideMinUcm ?? null;
+  const maxUcm = coords?.sideBoundsCm?.maxU ?? candidate?.sideMaxUcm ?? measurement.sideEvidence?.maxUcm ?? measurement.provenance?.sideMaxUcm ?? null;
+  const depthCm = candidate?.sideQualifiedApDepthCm ?? candidate?.sideRawProfileSpanCm ?? measurement.sideEvidence?.qualifiedApDepthCm ?? measurement.sideEvidence?.profileSpanCm ?? measurement.provenance?.sideQualifiedApDepthCm ?? (minUcm !== null && maxUcm !== null ? Number((maxUcm - minUcm).toFixed(4)) : null);
 
   const isFrontGeometryValid = typeof yCm === 'number' && Number.isFinite(yCm)
     && typeof minXcm === 'number' && Number.isFinite(minXcm)
@@ -668,7 +668,7 @@ export function resolveNaturalWaistPlane(measurement) {
     && typeof maxUcm === 'number' && Number.isFinite(maxUcm)
     && maxUcm >= minUcm;
 
-  const isReady = isFrontGeometryValid && measurement.status === 'ready';
+  const isReady = isFrontGeometryValid && (measurement.status === 'ready' || measurement.status === 'modeled');
   const isInvalid = measurement.status === 'invalid';
 
   const blockers = Array.isArray(measurement.blockers) ? [...measurement.blockers] : [];
@@ -706,8 +706,8 @@ export function resolveNaturalWaistPlane(measurement) {
       smoothingWindowCm: measurement.provenance?.smoothingWindowCm ?? null,
       smoothingRadiusSamples: measurement.provenance?.smoothingRadiusSamples ?? null,
       sampleSpacingCm: measurement.provenance?.sampleSpacingCm ?? null,
-      constrictionProminenceCm: candidate?.constrictionProminenceCm ?? null,
-      bilateralContourQa: candidate?.bilateralContourQa ?? null,
+      constrictionProminenceCm: candidate?.constrictionProminenceCm ?? measurement.provenance?.constrictionProminenceCm ?? null,
+      bilateralContourQa: candidate?.bilateralContourQa ?? measurement.provenance?.bilateralContourQa ?? null,
       sliceHighlightCoordinates: coords ?? null,
     },
     blockers,
@@ -736,11 +736,13 @@ export function resolveMeasurementVisualizationProvenance(measurement, context =
   const geometryType = measurement.geometryType;
   const id = measurement.id;
 
-  // 1. Natural Waist Plane Localization
+  // 1. Natural Waist Plane Localization & Modeled Natural Waist Circumference
   if (
     contract === 'natural-waist-plane-localization-v0'
+    || contract === 'modeled-natural-waist-circumference-v0'
     || id === 'natural_waist_plane_localization'
     || id === 'torso_natural_waist_plane_localization'
+    || id === 'torso_modeled_natural_waist_circumference_at_natural_waist_plane'
   ) {
     return resolveNaturalWaistPlane(measurement);
   }

@@ -681,3 +681,56 @@ test('Natural Waist Interactivity: selecting Natural Waist activates 2D plane hi
   assert.equal(getMeasurementHighlight(), null);
 });
 
+test('Modeled Natural Waist Circumference: selecting circumference card resolves to Natural Waist plane visualization provenance', () => {
+  const waistCircumferenceResult = {
+    contract: 'modeled-natural-waist-circumference-v0',
+    id: 'torso_modeled_natural_waist_circumference_at_natural_waist_plane',
+    name: 'Modeled Natural Waist Circumference',
+    status: 'modeled',
+    valueCm: 82.35,
+    yCm: 107.15,
+    levelYcm: 107.15,
+    model: {
+      transverseWidthCm: 29.0,
+      apDepthCm: 23.2,
+    },
+    provenance: {
+      selectedYcm: 107.15,
+      frontRasterRow: 357,
+      sideRasterRow: 357,
+      frontTransverseWidthCm: 29.0,
+      frontMinXcm: 85.5,
+      frontMaxXcm: 114.5,
+      sideQualifiedApDepthCm: 23.2,
+      sideMinUcm: 88.4,
+      sideMaxUcm: 111.6,
+      sliceHighlightCoordinates: {
+        yCm: 107.15,
+        frontRasterRow: 357,
+        sideRasterRow: 357,
+        frontBoundsCm: { minX: 85.5, maxX: 114.5 },
+        sideBoundsCm: { minU: 88.4, maxU: 111.6 },
+      },
+    },
+  };
+
+  const vis = resolveMeasurementVisualizationProvenance(waistCircumferenceResult);
+  assert.equal(vis.status, 'ready');
+  assert.equal(vis.visualizationType, VISUALIZATION_TYPES.NATURAL_WAIST_PLANE);
+  assert.equal(vis.geometry.yCm, 107.15);
+  assert.equal(vis.geometry.front.widthCm, 29.0);
+  assert.equal(vis.geometry.side.depthCm, 23.2);
+
+  setMeasurementHighlight(vis);
+  setWorkspace(WORKSPACE_SPLIT);
+
+  const active = getMeasurementHighlight();
+  assert.ok(active);
+  assert.equal(active.visualizationType, VISUALIZATION_TYPES.NATURAL_WAIST_PLANE);
+  assert.equal(active.geometry.yCm, 107.15);
+  assert.equal(getWorkspace(), WORKSPACE_SPLIT);
+
+  clearMeasurementHighlight();
+  assert.equal(getMeasurementHighlight(), null);
+});
+
