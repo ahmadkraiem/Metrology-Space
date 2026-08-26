@@ -115,6 +115,10 @@ import {
   evaluateDirectBodyMeasurements,
 } from './directBodyMeasurements.js';
 import {
+  PELVIC_ARBITRARY_Y_SCAN_CONTRACT_VERSION,
+  evaluatePelvicArbitraryYEvidenceScan,
+} from './pelvicArbitraryYEvidenceScan.js';
+import {
   computeAnatomicalLevels,
 } from './anatomicalLevels.js';
 import { ROOM_SIZE } from '../core/constants.js';
@@ -2321,6 +2325,57 @@ export function getModeledCrossSectionPerimeterReport({
 
 export function getModeledCrossSectionPerimeters(options = {}) {
   return getModeledCrossSectionPerimeterReport(options);
+}
+
+/**
+ * Evaluates the pure deterministic Pelvic Arbitrary-Y Evidence Scan from active runtime state.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} PelvicArbitraryYEvidenceScanResultV0
+ */
+export function getPelvicArbitraryYEvidenceScan({ annotations = null, options = {} } = {}) {
+  const frontRaster = getFrontSegmentationRaster();
+  const sideRaster = getSideSegmentationRaster();
+  const frontSeg = qaResult?.views?.front?.segmentation ?? currentPackage?.front?.segmentation ?? null;
+  const sideSeg = qaResult?.views?.side?.segmentation ?? currentPackage?.side?.segmentation ?? null;
+
+  if (!frontRaster && !frontSeg && !currentPackage) return null;
+
+  const resolvedAnnotations = annotations ?? (typeof getAnnotations === 'function' ? getAnnotations() : []);
+  const levelsReport = computeAnatomicalLevels(resolvedAnnotations);
+  const metricCalibrationFront = getMetricCalibrationProvenance({ view: 'front' });
+  const metricCalibrationSide = getMetricCalibrationProvenance({ view: 'side' });
+  const sideViewOrientationQualification = getSideViewOrientationQualification({ annotations: resolvedAnnotations });
+  const sidePoseQualification = getSidePoseQualification();
+  const clothingSemanticsSide = getClothingBodySurfaceSemantics({
+    id: 'torso_profile_span_at_hip_level',
+    annotations: resolvedAnnotations,
+  });
+
+  return evaluatePelvicArbitraryYEvidenceScan({
+    frontRaster,
+    sideRaster,
+    frontSegmentation: frontSeg,
+    sideSegmentation: sideSeg,
+    annotations: resolvedAnnotations,
+    levelsReport,
+    metricCalibrationFront,
+    metricCalibrationSide,
+    sideViewOrientationQualification,
+    sidePoseQualification,
+    clothingSemanticsSide,
+    options,
+  });
+}
+
+/**
+ * Alias for getPelvicArbitraryYEvidenceScan for uniform reporting convention.
+ */
+export function getPelvicArbitraryYEvidenceScanReport(options = {}) {
+  return getPelvicArbitraryYEvidenceScan(options);
 }
 
 export function analyzeLoadedBodyEvidence() {
