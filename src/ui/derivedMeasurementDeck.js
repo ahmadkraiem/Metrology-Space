@@ -30,7 +30,6 @@ import { resolveMeasurementVisualizationProvenance } from '../features/measureme
 import {
   setMeasurementHighlight,
   clearMeasurementHighlight,
-  getMeasurementHighlight,
 } from './measurementHighlightOverlay2d.js';
 import {
   setWorkspace,
@@ -569,8 +568,6 @@ function updateSelectedCardDom() {
  * @param {string|null} measurementId
  */
 export function selectMeasurement(measurementId) {
-  console.log('[RVEacity Results Debug] selectMeasurement entered', { measurementId });
-
   if (!measurementId) {
     clearSelectedMeasurement();
     return;
@@ -584,13 +581,6 @@ export function selectMeasurement(measurementId) {
 
   const annotations = getAnnotations();
   const measurementRecord = getMeasurementRecordById(measurementId, annotations);
-
-  console.log('[RVEacity Results Debug] record resolution', {
-    measurementId,
-    recordFound: Boolean(measurementRecord),
-    recordStatus: measurementRecord?.status ?? null,
-    recordDefinitionId: measurementRecord?.id ?? measurementRecord?.definitionId ?? null,
-  });
 
   if (!measurementRecord) {
     clearSelectedMeasurement();
@@ -607,35 +597,15 @@ export function selectMeasurement(measurementId) {
   };
   const visualization = resolveMeasurementVisualizationProvenance(measurementRecord, context);
 
-  console.log('[RVEacity Results Debug] visualization resolution', {
-    visualizationStatus: visualization?.status ?? null,
-    visualizationType: visualization?.visualizationType ?? null,
-    targetViews: visualization?.targetViews ?? null,
-    blockers: visualization?.blockers ?? [],
-  });
-
   if (visualization.status !== 'ready') {
     clearSelectedMeasurement();
     return;
   }
 
   selectedMeasurementId = measurementId;
-
-  console.log('[RVEacity Results Debug] highlight set start');
   setMeasurementHighlight(visualization);
-  console.log('[RVEacity Results Debug] highlight set complete');
-
-  console.log('[RVEacity Results Debug] workspace switch requested');
   setWorkspace(WORKSPACE_SPLIT);
-
   updateSelectedCardDom();
-  const selectedElements = typeof document !== 'undefined'
-    ? (document.getElementById('derived-measurement-cards')?.querySelectorAll('.is-selected') ?? [])
-    : [];
-  console.log('[RVEacity Results Debug] selected DOM update', {
-    selectedMeasurementId,
-    selectedElementCount: selectedElements.length,
-  });
 }
 
 /**
@@ -777,14 +747,6 @@ export function renderDerivedMeasurementDeck(containerEl) {
 
 export function setupDerivedMeasurementDeck() {
   const containerEl = document.getElementById('derived-measurement-cards');
-  const containerFound = Boolean(containerEl);
-
-  console.log('[RVEacity Results Debug] setupDerivedMeasurementDeck initialized', {
-    containerFound,
-    clickListenerAttached: containerFound,
-    keydownListenerAttached: containerFound,
-  });
-
   if (!containerEl) {
     return;
   }
@@ -798,28 +760,17 @@ export function setupDerivedMeasurementDeck() {
   };
 
   containerEl.addEventListener('click', (event) => {
-    const targetTag = event.target ? (event.target.tagName || '').toLowerCase() : null;
-    const targetClass = event.target ? (event.target.className || '') : null;
-    const measurementTarget = event.target ? event.target.closest('[data-measurement-id]') : null;
-    const measurementElementFound = Boolean(measurementTarget);
-    const measurementId = measurementTarget ? measurementTarget.getAttribute('data-measurement-id') : null;
-
-    console.log('[RVEacity Results Debug] click received', {
-      targetTag,
-      targetClass,
-      measurementElementFound,
-      measurementId,
-    });
-
     // If click was on a collapsible toggle header, let collapsibleSections handle it
     if (event.target.closest('.derived-card-header--collapsible') || event.target.closest('.results-subgroup-header--collapsible')) {
       return;
     }
 
+    const measurementTarget = event.target.closest('[data-measurement-id]');
     if (!measurementTarget) {
       return;
     }
 
+    const measurementId = measurementTarget.getAttribute('data-measurement-id');
     if (measurementId) {
       selectMeasurement(measurementId);
     }
@@ -852,85 +803,5 @@ export function setupDerivedMeasurementDeck() {
   });
   subscribeAnnotationsChange(update);
   update();
-}
-
-if (typeof window !== 'undefined') {
-  window.addEventListener(
-    'click',
-    (event) => {
-      const target = event.target;
-      const targetTag = target ? (target.tagName || '').toLowerCase() : null;
-      const targetId = target ? (target.id || '') : null;
-      const targetClass = target ? (target.className || '') : null;
-
-      const rightSidebar = typeof document !== 'undefined' ? document.getElementById('right-sidebar') : null;
-      const resultsContainer = typeof document !== 'undefined' ? document.getElementById('derived-measurement-cards') : null;
-
-      const insideRightSidebar = Boolean(target && rightSidebar && (target === rightSidebar || rightSidebar.contains(target)));
-      const insideResultsContainer = Boolean(target && resultsContainer && (target === resultsContainer || resultsContainer.contains(target)));
-
-      let hitEl = null;
-      if (typeof document !== 'undefined' && typeof document.elementFromPoint === 'function' && typeof event.clientX === 'number') {
-        hitEl = document.elementFromPoint(event.clientX, event.clientY);
-      }
-      const hitElementTag = hitEl ? (hitEl.tagName || '').toLowerCase() : null;
-      const hitElementId = hitEl ? (hitEl.id || '') : null;
-      const hitElementClass = hitEl ? (hitEl.className || '') : null;
-
-      console.log('[RVEacity HitTest Debug] window capture click', {
-        targetTag,
-        targetId,
-        targetClass,
-        insideRightSidebar,
-        insideResultsContainer,
-        elementFromPoint: {
-          tag: hitElementTag,
-          id: hitElementId,
-          className: hitElementClass,
-        },
-      });
-    },
-    true
-  );
-
-  window.__RVEacityResultsDebug = function getRVEacityResultsDebugSnapshot() {
-    const container = document.getElementById('derived-measurement-cards');
-    const els = container && typeof container.querySelectorAll === 'function'
-      ? container.querySelectorAll('[data-measurement-id]')
-      : [];
-    const highlight = typeof getMeasurementHighlight === 'function' ? getMeasurementHighlight() : null;
-
-    return {
-      resultsContainerFound: Boolean(container),
-      measurementElementCount: els.length,
-      measurementIds: Array.from(els).map((el) => el.getAttribute('data-measurement-id')).filter(Boolean),
-      selectedMeasurementId: selectedMeasurementId ?? null,
-      activeHighlightMeasurementId: highlight?.measurementId ?? null,
-    };
-  };
-
-  window.__RVEacityHitTestDebug = function getRVEacityHitTestDebugSnapshot(x, y) {
-    if (typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') {
-      return { error: 'document.elementFromPoint not supported' };
-    }
-    const el = (typeof x === 'number' && typeof y === 'number')
-      ? document.elementFromPoint(x, y)
-      : null;
-    const rightSidebar = document.getElementById('right-sidebar');
-    const resultsContainer = document.getElementById('derived-measurement-cards');
-
-    const insideRightSidebar = Boolean(el && rightSidebar && (el === rightSidebar || rightSidebar.contains(el)));
-    const insideResultsContainer = Boolean(el && resultsContainer && (el === resultsContainer || resultsContainer.contains(el)));
-    const measurementTarget = el ? el.closest('[data-measurement-id]') : null;
-
-    return {
-      elementTag: el ? (el.tagName || '').toLowerCase() : null,
-      elementId: el ? (el.id || '') : null,
-      elementClass: el ? (el.className || '') : null,
-      insideRightSidebar,
-      insideResultsContainer,
-      closestMeasurementId: measurementTarget ? measurementTarget.getAttribute('data-measurement-id') : null,
-    };
-  };
 }
 

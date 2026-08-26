@@ -2367,7 +2367,10 @@ select:focus-visible {
 .derived-measurement-deck,
 .derived-measurement-cards,
 .results-subgroup,
-.results-subgroup-body,
+.results-subgroup-body {
+  pointer-events: auto;
+}
+
 [data-measurement-id],
 .derived-measurement-card[data-measurement-id],
 .direct-measurement-row[data-measurement-id] {

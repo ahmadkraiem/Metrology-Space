@@ -614,32 +614,3 @@ test('Focused Interactivity 11 & 12: Direct and Vertical measurement click activ
   assert.equal(getWorkspace(), WORKSPACE_SPLIT);
 });
 
-test('Focused Interactivity 13: Temporary global debug helper window.__RVEacityResultsDebug returns accurate DOM and selection snapshot', async () => {
-  setupMockEnvironment();
-  await loadRealOrSyntheticEvidence();
-
-  const container = document.getElementById('derived-measurement-cards');
-  renderDerivedMeasurementDeck(container);
-
-  // Provide mock window with helper
-  global.window = global.window || {};
-  if (typeof global.window.__RVEacityResultsDebug === 'function') {
-    selectMeasurement('torso_modeled_hip_seat_circumference_at_maximum_seat_plane');
-    const snapshot = global.window.__RVEacityResultsDebug();
-    assert.equal(typeof snapshot, 'object');
-    assert.equal(snapshot.resultsContainerFound, true);
-    assert.equal(snapshot.selectedMeasurementId, 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane');
-    assert.equal(snapshot.activeHighlightMeasurementId, 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane');
-  }
-});
-
-test('Focused Interactivity 14: Temporary hit-test debug helper window.__RVEacityHitTestDebug returns hittest diagnostics', async () => {
-  setupMockEnvironment();
-  await loadRealOrSyntheticEvidence();
-
-  global.window = global.window || {};
-  if (typeof global.window.__RVEacityHitTestDebug === 'function') {
-    const hit = global.window.__RVEacityHitTestDebug(100, 100);
-    assert.equal(typeof hit, 'object');
-  }
-});
