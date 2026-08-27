@@ -91,6 +91,11 @@ import {
   evaluateSideViewOrientationQualification,
 } from './sideViewOrientationQualification.js';
 import {
+  SIDE_ANTERIOR_POSTERIOR_ORIENTATION_CONTRACT_VERSION,
+  SIDE_ORIENTATION_STATUS,
+  evaluateSideAnteriorPosteriorOrientation,
+} from './sideAnteriorPosteriorOrientation.js';
+import {
   SIDE_PHYSICAL_DEPTH_CONTRACT_VERSION,
   SIDE_PHYSICAL_DEPTH_STATUS,
   SUPPORTED_SIDE_PHYSICAL_DEPTH_DEFINITIONS_V0,
@@ -2147,6 +2152,54 @@ export function getSideViewOrientationQualification({
     frontPoseSource: resolvedFrontPose,
     sidePoseSource: resolvedSidePose,
     sideSegmentation: resolvedSideSeg,
+  });
+}
+
+/**
+ * Accesses pure deterministic Side Anterior / Posterior Orientation semantics from runtime package.
+ *
+ * @param {{
+ *   sidePoseSource?: object|null,
+ *   frontPoseSource?: object|null,
+ *   sideViewOrientationQualification?: object|null,
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [options]
+ * @returns {object|null} SideAnteriorPosteriorOrientationResult
+ */
+export function getSideAnteriorPosteriorOrientation({
+  sidePoseSource = null,
+  frontPoseSource = null,
+  sideViewOrientationQualification = null,
+  annotations = null,
+  options = {},
+} = {}) {
+  const resolvedFrontPose = frontPoseSource
+    ?? currentPackage?.front?.pose
+    ?? (Array.isArray(annotations) && annotations.length > 0 ? annotations : null)
+    ?? qaResult?.views?.front?.pose
+    ?? null;
+
+  const resolvedSidePose = sidePoseSource
+    ?? currentPackage?.side?.pose
+    ?? qaResult?.views?.side?.pose
+    ?? null;
+
+  if (!resolvedSidePose) return null;
+
+  const resolvedLateralQual = sideViewOrientationQualification
+    ?? (resolvedFrontPose ? getSideViewOrientationQualification({ frontPoseSource: resolvedFrontPose, sidePoseSource: resolvedSidePose }) : null);
+
+  const metricCalibrationSide = currentPackage?.side?.calibration
+    ?? qaResult?.views?.side?.calibration
+    ?? null;
+
+  return evaluateSideAnteriorPosteriorOrientation({
+    sidePoseSource: resolvedSidePose,
+    frontPoseSource: resolvedFrontPose,
+    sideViewOrientationQualification: resolvedLateralQual,
+    metricCalibrationSide,
+    options,
   });
 }
 
