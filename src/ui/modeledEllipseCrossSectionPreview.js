@@ -11,6 +11,7 @@ import { escapeHtml } from './badgeUi.js';
 import {
   getModeledHipSeatCircumference,
   getModeledNaturalWaistCircumference,
+  getModeledAbdominalCircumference,
 } from '../features/bodyEvidence.js';
 import {
   getMeasurementHighlight,
@@ -19,6 +20,7 @@ import {
 
 export const MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane';
 export const MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_natural_waist_circumference_at_natural_waist_plane';
+export const MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane';
 export const MODELED_ELLIPSE_PREVIEW_DISCLAIMER = 'Ellipse model — not measured contour';
 
 const PREVIEW_CONTAINER_ID = 'modeled-cross-section-preview';
@@ -41,7 +43,7 @@ function getPreviewContainer() {
 }
 
 /**
- * Extracts the modeled ellipse preview from the existing Hip/Seat or Natural Waist contract.
+ * Extracts the modeled ellipse preview from the existing Hip/Seat, Natural Waist, or Abdominal contract.
  * Does not recompute perimeter or plane localization.
  *
  * @param {object|null|undefined} record
@@ -56,8 +58,10 @@ export function resolveModeledEllipsePreviewModel(record) {
     || record.contract === 'modeled-hip-seat-circumference-v0';
   const isNaturalWaist = record.id === MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID
     || record.contract === 'modeled-natural-waist-circumference-v0';
+  const isAbdominal = record.id === MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID
+    || record.contract === 'modeled-abdominal-circumference-v0';
 
-  if ((!isHipSeat && !isNaturalWaist) || record.status !== 'modeled') {
+  if ((!isHipSeat && !isNaturalWaist && !isAbdominal) || record.status !== 'modeled') {
     return null;
   }
 
@@ -76,11 +80,19 @@ export function resolveModeledEllipsePreviewModel(record) {
     return null;
   }
 
-  const defaultId = isNaturalWaist ? MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID : MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID;
+  let defaultId = MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID;
+  let planeLabel = 'Seat Plane Y';
+  if (isNaturalWaist) {
+    defaultId = MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID;
+    planeLabel = 'Waist Plane Y';
+  } else if (isAbdominal) {
+    defaultId = MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID;
+    planeLabel = 'Apex Plane Y';
+  }
 
   return {
     measurementId: record.id ?? defaultId,
-    planeLabel: isNaturalWaist ? 'Waist Plane Y' : 'Seat Plane Y',
+    planeLabel,
     widthCm,
     depthCm,
     perimeterCm,
@@ -243,7 +255,11 @@ export function syncModeledEllipsePreviewFromHighlight(visualization, record = n
     && visualization.measurementId === MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID
     && visualization.status === 'ready';
 
-  if (!isSelectedHipSeat && !isSelectedNaturalWaist) {
+  const isSelectedAbdominal = visualization
+    && visualization.measurementId === MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID
+    && visualization.status === 'ready';
+
+  if (!isSelectedHipSeat && !isSelectedNaturalWaist && !isSelectedAbdominal) {
     renderModeledEllipsePreview(container, null);
     return;
   }
@@ -252,6 +268,8 @@ export function syncModeledEllipsePreviewFromHighlight(visualization, record = n
   if (!sourceRecord) {
     if (isSelectedNaturalWaist) {
       sourceRecord = getModeledNaturalWaistCircumference();
+    } else if (isSelectedAbdominal) {
+      sourceRecord = getModeledAbdominalCircumference();
     } else {
       sourceRecord = getModeledHipSeatCircumference();
     }

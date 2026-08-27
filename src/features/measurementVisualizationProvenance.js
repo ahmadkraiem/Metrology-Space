@@ -721,20 +721,20 @@ export function resolveNaturalWaistPlane(measurement) {
  * Resolves Abdominal Apex Plane localization visualization for Front and Side 2D workspaces.
  */
 export function resolveAbdominalApexPlane(measurement) {
-  const yCm = measurement.yCm ?? measurement.levelYcm ?? measurement.provenance?.sliceHighlightCoordinates?.yCm ?? null;
+  const yCm = measurement.yCm ?? measurement.levelYcm ?? measurement.provenance?.sliceHighlightCoordinates?.yCm ?? measurement.provenance?.selectedYcm ?? null;
   const coords = measurement.provenance?.sliceHighlightCoordinates;
   const peak = measurement.selectedPeak;
 
-  const frontRow = coords?.frontRasterRow ?? peak?.rasterRow ?? measurement.rasterRow ?? null;
-  const sideRow = coords?.sideRasterRow ?? peak?.sideRasterRow ?? measurement.sideRasterRow ?? null;
+  const frontRow = coords?.frontRasterRow ?? peak?.rasterRow ?? measurement.rasterRow ?? measurement.provenance?.frontRasterRow ?? null;
+  const sideRow = coords?.sideRasterRow ?? peak?.sideRasterRow ?? measurement.sideRasterRow ?? measurement.provenance?.sideRasterRow ?? null;
 
-  const minXcm = coords?.frontBoundsCm?.minX ?? peak?.frontMinXcm ?? measurement.frontEvidence?.minXcm ?? null;
-  const maxXcm = coords?.frontBoundsCm?.maxX ?? peak?.frontMaxXcm ?? measurement.frontEvidence?.maxXcm ?? null;
-  const widthCm = peak?.frontWidthCm ?? measurement.frontEvidence?.widthCm ?? (minXcm !== null && maxXcm !== null ? Number((maxXcm - minXcm).toFixed(4)) : null);
+  const minXcm = coords?.frontBoundsCm?.minX ?? peak?.frontMinXcm ?? measurement.frontEvidence?.minXcm ?? measurement.provenance?.frontMinXcm ?? null;
+  const maxXcm = coords?.frontBoundsCm?.maxX ?? peak?.frontMaxXcm ?? measurement.frontEvidence?.maxXcm ?? measurement.provenance?.frontMaxXcm ?? null;
+  const widthCm = peak?.frontWidthCm ?? measurement.frontEvidence?.widthCm ?? measurement.provenance?.frontTransverseWidthCm ?? (minXcm !== null && maxXcm !== null ? Number((maxXcm - minXcm).toFixed(4)) : null);
 
-  const minUcm = coords?.sideBoundsCm?.minU ?? peak?.sideMinUcm ?? measurement.sideEvidence?.minUcm ?? null;
-  const maxUcm = coords?.sideBoundsCm?.maxU ?? peak?.sideMaxUcm ?? measurement.sideEvidence?.maxUcm ?? null;
-  const depthCm = peak?.qualifiedApDepthCm ?? peak?.sideProfileSpanCm ?? measurement.sideEvidence?.qualifiedApDepthCm ?? measurement.sideEvidence?.profileSpanCm ?? (minUcm !== null && maxUcm !== null ? Number((maxUcm - minUcm).toFixed(4)) : null);
+  const minUcm = coords?.sideBoundsCm?.minU ?? peak?.sideMinUcm ?? measurement.sideEvidence?.minUcm ?? measurement.provenance?.sideMinUcm ?? null;
+  const maxUcm = coords?.sideBoundsCm?.maxU ?? peak?.sideMaxUcm ?? measurement.sideEvidence?.maxUcm ?? measurement.provenance?.sideMaxUcm ?? null;
+  const depthCm = peak?.qualifiedApDepthCm ?? peak?.sideProfileSpanCm ?? measurement.sideEvidence?.qualifiedApDepthCm ?? measurement.sideEvidence?.profileSpanCm ?? measurement.provenance?.sideQualifiedApDepthCm ?? (minUcm !== null && maxUcm !== null ? Number((maxUcm - minUcm).toFixed(4)) : null);
 
   const isFrontGeometryValid = typeof yCm === 'number' && Number.isFinite(yCm)
     && typeof minXcm === 'number' && Number.isFinite(minXcm)
@@ -745,7 +745,7 @@ export function resolveAbdominalApexPlane(measurement) {
     && typeof maxUcm === 'number' && Number.isFinite(maxUcm)
     && maxUcm >= minUcm;
 
-  const isReady = isFrontGeometryValid && isSideGeometryValid && measurement.status === 'ready';
+  const isReady = isFrontGeometryValid && isSideGeometryValid && (measurement.status === 'ready' || measurement.status === 'modeled');
   const isInvalid = measurement.status === 'invalid';
 
   const blockers = Array.isArray(measurement.blockers) ? [...measurement.blockers] : [];
@@ -775,16 +775,16 @@ export function resolveAbdominalApexPlane(measurement) {
         minUcm,
         maxUcm,
         depthCm,
-        rawAnteriorUcm: peak?.rawAnteriorUcm ?? measurement.sideEvidence?.rawAnteriorUcm ?? null,
-        prominenceCm: peak?.prominenceCm ?? measurement.sideEvidence?.prominenceCm ?? null,
+        rawAnteriorUcm: peak?.rawAnteriorUcm ?? measurement.sideEvidence?.rawAnteriorUcm ?? measurement.provenance?.rawAnteriorUcm ?? null,
+        prominenceCm: peak?.prominenceCm ?? measurement.sideEvidence?.prominenceCm ?? measurement.provenance?.prominenceCm ?? null,
       } : null,
     },
     provenance: {
       sourceContract: measurement.contract ?? 'abdominal-apex-plane-localization-v0',
-      selectionMethod: measurement.selectionMethod ?? null,
+      selectionMethod: measurement.selectionMethod ?? measurement.sourcePlane?.selectionMethod ?? null,
       searchWindow: measurement.searchWindow ?? null,
       orientation: measurement.orientation ?? null,
-      prominenceCm: peak?.prominenceCm ?? null,
+      prominenceCm: peak?.prominenceCm ?? measurement.provenance?.prominenceCm ?? null,
       smoothingWindowCm: measurement.provenance?.smoothingWindowCm ?? null,
       smoothingRadiusSamples: measurement.provenance?.smoothingRadiusSamples ?? null,
       sampleSpacingCm: measurement.provenance?.sampleSpacingCm ?? null,
@@ -827,11 +827,13 @@ export function resolveMeasurementVisualizationProvenance(measurement, context =
     return resolveNaturalWaistPlane(measurement);
   }
 
-  // 1b. Abdominal Apex Plane Localization
+  // 1b. Abdominal Apex Plane Localization & Modeled Abdominal Circumference
   if (
     contract === 'abdominal-apex-plane-localization-v0'
+    || contract === 'modeled-abdominal-circumference-v0'
     || id === 'abdominal_apex_plane_localization'
     || id === 'torso_abdominal_apex_plane_localization'
+    || id === 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane'
   ) {
     return resolveAbdominalApexPlane(measurement);
   }

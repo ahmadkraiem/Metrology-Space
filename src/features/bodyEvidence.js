@@ -148,6 +148,10 @@ import {
   evaluateModeledNaturalWaistCircumference,
 } from './modeledNaturalWaistCircumference.js';
 import {
+  MODELED_ABDOMINAL_CIRCUMFERENCE_CONTRACT_VERSION,
+  evaluateModeledAbdominalCircumference,
+} from './modeledAbdominalCircumference.js';
+import {
   MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION,
   resolveMeasurementVisualizationProvenance,
 } from './measurementVisualizationProvenance.js';
@@ -2737,6 +2741,29 @@ export function getModeledNaturalWaistCircumference({ annotations = null, option
  */
 export function getModeledNaturalWaistCircumferenceReport(options = {}) {
   return getModeledNaturalWaistCircumference(options);
+}
+
+/**
+ * Evaluates pure deterministic Modeled Abdominal Circumference from the
+ * active localized Abdominal Apex Plane candidate.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} ModeledAbdominalCircumferenceResultV0
+ */
+export function getModeledAbdominalCircumference({ annotations = null, options = {} } = {}) {
+  const localization = getAbdominalApexPlaneLocalization({ annotations, options });
+  if (!localization) return null;
+  return evaluateModeledAbdominalCircumference(localization, options);
+}
+
+/**
+ * Alias for getModeledAbdominalCircumference for uniform reporting convention.
+ */
+export function getModeledAbdominalCircumferenceReport(options = {}) {
+  return getModeledAbdominalCircumference(options);
 }
 
 /**
