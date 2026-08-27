@@ -22,7 +22,10 @@
 import { DEFAULT_WORKSPACE_EXTENT_CM, canonicalYToPixelRow } from '../core/pixelMetrologyMapping.js';
 import { sampleFrontHorizontalRasterSlice } from './frontRasterSlice.js';
 import { sampleSideHorizontalRasterSlice } from './sideRasterSlice.js';
-import { MEASUREMENT_SUPPORT_POLICIES_V0 } from './measurementSupportPolicy.js';
+import {
+  MEASUREMENT_SUPPORT_POLICIES_V0,
+  getMeasurementSupportPolicy,
+} from './measurementSupportPolicy.js';
 import { computeAnatomicalLevels } from './anatomicalLevels.js';
 import { evaluateArbitraryYSidePhysicalDepthQualification } from './arbitraryYSidePhysicalDepthQualification.js';
 import { computeRamanujanEllipsePerimeter } from './modeledCrossSectionPerimeter.js';
@@ -58,6 +61,7 @@ export const TORSO_SCAN_BLOCKER_CODES = Object.freeze({
   SIDE_SEGMENTATION_UNAVAILABLE: 'side_segmentation_unavailable',
   METRIC_CALIBRATION_UNAVAILABLE: 'metric_calibration_unavailable',
   OUT_OF_BOUNDS_SCAN_INTERVAL: 'out_of_bounds_scan_interval',
+  INVALID_SUPPORT_POLICY: 'invalid_support_policy',
 });
 
 /**
@@ -155,7 +159,23 @@ export function evaluateTorsoArbitraryYEvidenceScan({
   const workspaceExtentCm = options?.workspaceExtentCm ?? DEFAULT_WORKSPACE_EXTENT_CM;
   const maxScanRows = options?.maxScanRows ?? null;
 
-  const supportPolicy = MEASUREMENT_SUPPORT_POLICIES_V0.trunk_core_support_v0;
+  const requestedPolicyId = options?.supportPolicyId ?? 'trunk_core_support_v0';
+  const supportPolicy = getMeasurementSupportPolicy(requestedPolicyId);
+
+  if (!supportPolicy) {
+    blockers.push(TORSO_SCAN_BLOCKER_CODES.INVALID_SUPPORT_POLICY);
+    issues.push(`Unknown or invalid support policy ID '${requestedPolicyId}'.`);
+    return buildEmptyTorsoScanResult({
+      status: TORSO_ARBITRARY_Y_SCAN_STATUS.INVALID,
+      supportPolicyId: String(requestedPolicyId || 'invalid'),
+      targetClassIds: [],
+      blockers,
+      warnings,
+      issues,
+    });
+  }
+
+  const supportPolicyId = supportPolicy.id;
   const targetClassIds = Array.from(supportPolicy.acceptedClassIds);
 
   const resolvedClothingSemantics = clothingSemanticsSide ?? clothingSemantics;
@@ -193,6 +213,8 @@ export function evaluateTorsoArbitraryYEvidenceScan({
       issues.push('Front segmentation metadata is unavailable.');
       return buildEmptyTorsoScanResult({
         status: TORSO_ARBITRARY_Y_SCAN_STATUS.UNAVAILABLE,
+        supportPolicyId,
+        targetClassIds,
         blockers,
         warnings,
         issues,
@@ -202,6 +224,8 @@ export function evaluateTorsoArbitraryYEvidenceScan({
     issues.push(`Invalid Front segmentation raster dimensions: widthPx (${frontWidthPx}), heightPx (${frontHeightPx}).`);
     return buildEmptyTorsoScanResult({
       status: TORSO_ARBITRARY_Y_SCAN_STATUS.INVALID,
+      supportPolicyId,
+      targetClassIds,
       blockers,
       warnings,
       issues,
@@ -215,6 +239,8 @@ export function evaluateTorsoArbitraryYEvidenceScan({
     issues.push(`Front segmentation raster buffer is missing or incomplete (expected ${expectedFrontLength} bytes).`);
     return buildEmptyTorsoScanResult({
       status: TORSO_ARBITRARY_Y_SCAN_STATUS.UNAVAILABLE,
+      supportPolicyId,
+      targetClassIds,
       blockers,
       warnings,
       issues,
@@ -232,6 +258,8 @@ export function evaluateTorsoArbitraryYEvidenceScan({
     issues.push("Shoulder anatomical reference level is not ready. Torso arbitrary-Y scan requires a ready 'shoulder' reference anchor.");
     return buildEmptyTorsoScanResult({
       status: TORSO_ARBITRARY_Y_SCAN_STATUS.UNAVAILABLE,
+      supportPolicyId,
+      targetClassIds,
       blockers,
       warnings,
       issues,
@@ -245,6 +273,8 @@ export function evaluateTorsoArbitraryYEvidenceScan({
     return buildEmptyTorsoScanResult({
       status: TORSO_ARBITRARY_Y_SCAN_STATUS.UNAVAILABLE,
       shoulderAnchorYcm: shoulderLevel.yCm,
+      supportPolicyId,
+      targetClassIds,
       blockers,
       warnings,
       issues,
@@ -262,6 +292,8 @@ export function evaluateTorsoArbitraryYEvidenceScan({
       status: TORSO_ARBITRARY_Y_SCAN_STATUS.INVALID,
       shoulderAnchorYcm,
       hipAnchorYcm,
+      supportPolicyId,
+      targetClassIds,
       blockers,
       warnings,
       issues,
@@ -280,6 +312,8 @@ export function evaluateTorsoArbitraryYEvidenceScan({
       status: TORSO_ARBITRARY_Y_SCAN_STATUS.INVALID,
       shoulderAnchorYcm,
       hipAnchorYcm,
+      supportPolicyId,
+      targetClassIds,
       blockers,
       warnings,
       issues,
@@ -299,6 +333,8 @@ export function evaluateTorsoArbitraryYEvidenceScan({
       shoulderStartRow,
       hipAnchorYcm,
       hipEndRow,
+      supportPolicyId,
+      targetClassIds,
       blockers,
       warnings,
       issues,

@@ -136,6 +136,10 @@ import {
   evaluateNaturalWaistPlaneLocalization,
 } from './naturalWaistPlaneLocalization.js';
 import {
+  ABDOMINAL_APEX_PLANE_CONTRACT_VERSION,
+  evaluateAbdominalApexPlaneLocalization,
+} from './abdominalApexPlaneLocalization.js';
+import {
   MODELED_HIP_SEAT_CIRCUMFERENCE_CONTRACT_VERSION,
   evaluateModeledHipSeatCircumference,
 } from './modeledHipSeatCircumference.js';
@@ -2650,6 +2654,43 @@ export function getNaturalWaistPlaneLocalization({ annotations = null, options =
  */
 export function getNaturalWaistPlaneLocalizationReport(options = {}) {
   return getNaturalWaistPlaneLocalization(options);
+}
+
+/**
+ * Evaluates pure deterministic Abdominal Apex Plane Localization from active runtime evidence.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} AbdominalApexPlaneLocalizationResultV0
+ */
+export function getAbdominalApexPlaneLocalization({ annotations = null, options = {} } = {}) {
+  const scanOptions = {
+    supportPolicyId: 'trunk_pelvic_transition_support_v0',
+    ...options,
+  };
+  const scanReport = getTorsoArbitraryYEvidenceScan({ annotations, options: scanOptions });
+  if (!scanReport) return null;
+
+  const naturalWaistReport = getNaturalWaistPlaneLocalization({ annotations, options });
+  const sideOrientationReport = getSideAnteriorPosteriorOrientation({ annotations, options });
+  const levelsReport = computeAnatomicalLevels(Array.isArray(annotations) ? annotations : getAnnotations());
+
+  return evaluateAbdominalApexPlaneLocalization({
+    torsoScanReport: scanReport,
+    naturalWaistReport,
+    sideOrientationReport,
+    levelsReport,
+    options,
+  });
+}
+
+/**
+ * Alias for getAbdominalApexPlaneLocalization for uniform reporting convention.
+ */
+export function getAbdominalApexPlaneLocalizationReport(options = {}) {
+  return getAbdominalApexPlaneLocalization(options);
 }
 
 /**

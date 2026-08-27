@@ -326,6 +326,60 @@ function renderNaturalWaistPlane(fragment, view, geometry, worldToPlotPx) {
   }
 }
 
+function renderAbdominalApexPlane(fragment, view, geometry, worldToPlotPx) {
+  const yCm = geometry.yCm;
+  if (typeof yCm !== 'number' || !Number.isFinite(yCm)) return;
+
+  // Safe low-obstruction left badge position aligned 14px above canonical Y
+  const pCenter = worldToPlotPx(100, yCm);
+  const badgePos = {
+    px: 10,
+    py: pCenter.py - 14,
+    transform: 'translateY(-50%)',
+  };
+  const labelText = `Abdominal Apex · ${formatDistance(yCm)} cm`;
+
+  if (view === 'front') {
+    const minX = geometry.front?.minXcm;
+    const maxX = geometry.front?.maxXcm;
+
+    // Full-width horizontal plane line guide at canonical Y
+    fragment.appendChild(createHorizontalGuide(pCenter.py));
+
+    // Localized Front slice span
+    if (typeof minX === 'number' && typeof maxX === 'number') {
+      const pA = worldToPlotPx(minX, yCm);
+      const pB = worldToPlotPx(maxX, yCm);
+
+      const line = createHighlightLine(pA, pB);
+      if (line) fragment.appendChild(line);
+      fragment.appendChild(createHighlightDot(pA));
+      fragment.appendChild(createHighlightDot(pB));
+    }
+
+    fragment.appendChild(createHighlightBadge(badgePos, labelText, 'grid2d-highlight-badge grid2d-highlight-badge--left'));
+  } else if (view === 'side') {
+    const minU = geometry.side?.minUcm;
+    const maxU = geometry.side?.maxUcm;
+
+    // Full-width horizontal plane line guide at the exact same canonical Y
+    fragment.appendChild(createHorizontalGuide(pCenter.py));
+
+    // Localized Side slice span if available
+    if (typeof minU === 'number' && typeof maxU === 'number') {
+      const pA = worldToPlotPx(minU, yCm);
+      const pB = worldToPlotPx(maxU, yCm);
+
+      const line = createHighlightLine(pA, pB);
+      if (line) fragment.appendChild(line);
+      fragment.appendChild(createHighlightDot(pA));
+      fragment.appendChild(createHighlightDot(pB));
+    }
+
+    fragment.appendChild(createHighlightBadge(badgePos, labelText, 'grid2d-highlight-badge grid2d-highlight-badge--left'));
+  }
+}
+
 function renderLandmarkSegment(fragment, geometry, worldToPlotPx) {
   const epA = geometry.endpointA;
   const epB = geometry.endpointB;
@@ -523,6 +577,10 @@ export function renderMeasurementHighlight2d({ view = 'front', worldToPlotPx, la
 
     case VISUALIZATION_TYPES.NATURAL_WAIST_PLANE:
       renderNaturalWaistPlane(fragment, view, geometry, worldToPlotPx);
+      break;
+
+    case VISUALIZATION_TYPES.ABDOMINAL_APEX_PLANE:
+      renderAbdominalApexPlane(fragment, view, geometry, worldToPlotPx);
       break;
 
     case VISUALIZATION_TYPES.LANDMARK_SEGMENT:

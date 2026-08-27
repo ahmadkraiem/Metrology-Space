@@ -47,6 +47,14 @@ export const MEASUREMENT_SUPPORT_POLICIES_V0 = Object.freeze({
     clothingBridgeClassIds: Object.freeze([13]),
     acceptedClassIds: Object.freeze([12, 13, 21, 22]),
   }),
+  trunk_pelvic_transition_support_v0: Object.freeze({
+    id: 'trunk_pelvic_transition_support_v0',
+    name: 'Trunk-Pelvic Transition Measurement Support Policy',
+    description: 'Observed outer silhouette support across the lower-torso / abdominal-pelvic transition where anatomical torso and upper-leg surfaces may be bridged by upper or lower fitted clothing.',
+    anatomicalClassIds: Object.freeze([12, 21, 22]),
+    clothingBridgeClassIds: Object.freeze([13, 23]),
+    acceptedClassIds: Object.freeze([12, 13, 21, 22, 23]),
+  }),
 });
 
 /**

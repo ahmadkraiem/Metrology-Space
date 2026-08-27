@@ -41,6 +41,7 @@ export const VISUALIZATION_TYPES = Object.freeze({
   SIDE_HORIZONTAL_SLICE: 'side_horizontal_slice',
   CROSS_VIEW_HORIZONTAL_SLICE: 'cross_view_horizontal_slice',
   NATURAL_WAIST_PLANE: 'natural_waist_plane',
+  ABDOMINAL_APEX_PLANE: 'abdominal_apex_plane',
   LANDMARK_SEGMENT: 'landmark_segment',
   LANDMARK_CHAIN: 'landmark_chain',
   VERTICAL_LEVEL_INTERVAL: 'vertical_level_interval',
@@ -717,6 +718,85 @@ export function resolveNaturalWaistPlane(measurement) {
 }
 
 /**
+ * Resolves Abdominal Apex Plane localization visualization for Front and Side 2D workspaces.
+ */
+export function resolveAbdominalApexPlane(measurement) {
+  const yCm = measurement.yCm ?? measurement.levelYcm ?? measurement.provenance?.sliceHighlightCoordinates?.yCm ?? null;
+  const coords = measurement.provenance?.sliceHighlightCoordinates;
+  const peak = measurement.selectedPeak;
+
+  const frontRow = coords?.frontRasterRow ?? peak?.rasterRow ?? measurement.rasterRow ?? null;
+  const sideRow = coords?.sideRasterRow ?? peak?.sideRasterRow ?? measurement.sideRasterRow ?? null;
+
+  const minXcm = coords?.frontBoundsCm?.minX ?? peak?.frontMinXcm ?? measurement.frontEvidence?.minXcm ?? null;
+  const maxXcm = coords?.frontBoundsCm?.maxX ?? peak?.frontMaxXcm ?? measurement.frontEvidence?.maxXcm ?? null;
+  const widthCm = peak?.frontWidthCm ?? measurement.frontEvidence?.widthCm ?? (minXcm !== null && maxXcm !== null ? Number((maxXcm - minXcm).toFixed(4)) : null);
+
+  const minUcm = coords?.sideBoundsCm?.minU ?? peak?.sideMinUcm ?? measurement.sideEvidence?.minUcm ?? null;
+  const maxUcm = coords?.sideBoundsCm?.maxU ?? peak?.sideMaxUcm ?? measurement.sideEvidence?.maxUcm ?? null;
+  const depthCm = peak?.qualifiedApDepthCm ?? peak?.sideProfileSpanCm ?? measurement.sideEvidence?.qualifiedApDepthCm ?? measurement.sideEvidence?.profileSpanCm ?? (minUcm !== null && maxUcm !== null ? Number((maxUcm - minUcm).toFixed(4)) : null);
+
+  const isFrontGeometryValid = typeof yCm === 'number' && Number.isFinite(yCm)
+    && typeof minXcm === 'number' && Number.isFinite(minXcm)
+    && typeof maxXcm === 'number' && Number.isFinite(maxXcm)
+    && maxXcm >= minXcm;
+
+  const isSideGeometryValid = typeof minUcm === 'number' && Number.isFinite(minUcm)
+    && typeof maxUcm === 'number' && Number.isFinite(maxUcm)
+    && maxUcm >= minUcm;
+
+  const isReady = isFrontGeometryValid && isSideGeometryValid && measurement.status === 'ready';
+  const isInvalid = measurement.status === 'invalid';
+
+  const blockers = Array.isArray(measurement.blockers) ? [...measurement.blockers] : [];
+  if (!isReady && blockers.length === 0) {
+    blockers.push(isInvalid ? 'abdominal_apex_localization_invalid' : 'abdominal_apex_localization_unavailable');
+  }
+
+  return {
+    contract: MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT,
+    version: MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION,
+    measurementId: measurement.id ?? 'abdominal_apex_plane_localization',
+    displayName: measurement.name ?? measurement.displayName ?? 'Abdominal Apex Plane Localization',
+    visualizationType: VISUALIZATION_TYPES.ABDOMINAL_APEX_PLANE,
+    targetViews: ['front', 'side'],
+    recommendedWorkspaceMode: 'WORKSPACE_SPLIT',
+    status: isReady ? VISUALIZATION_STATUS.READY : (isInvalid ? VISUALIZATION_STATUS.INVALID : VISUALIZATION_STATUS.UNAVAILABLE),
+    geometry: {
+      yCm,
+      front: {
+        rasterRow: frontRow,
+        minXcm,
+        maxXcm,
+        widthCm,
+      },
+      side: isSideGeometryValid ? {
+        rasterRow: sideRow,
+        minUcm,
+        maxUcm,
+        depthCm,
+        rawAnteriorUcm: peak?.rawAnteriorUcm ?? measurement.sideEvidence?.rawAnteriorUcm ?? null,
+        prominenceCm: peak?.prominenceCm ?? measurement.sideEvidence?.prominenceCm ?? null,
+      } : null,
+    },
+    provenance: {
+      sourceContract: measurement.contract ?? 'abdominal-apex-plane-localization-v0',
+      selectionMethod: measurement.selectionMethod ?? null,
+      searchWindow: measurement.searchWindow ?? null,
+      orientation: measurement.orientation ?? null,
+      prominenceCm: peak?.prominenceCm ?? null,
+      smoothingWindowCm: measurement.provenance?.smoothingWindowCm ?? null,
+      smoothingRadiusSamples: measurement.provenance?.smoothingRadiusSamples ?? null,
+      sampleSpacingCm: measurement.provenance?.sampleSpacingCm ?? null,
+      sliceHighlightCoordinates: coords ?? null,
+    },
+    blockers,
+    warnings: measurement.warnings ?? [],
+    issues: measurement.issues ?? [],
+  };
+}
+
+/**
  * Resolves declarative 2D visualization provenance for any measurement result object.
  *
  * @param {object|null|undefined} measurement - Measurement result object from any contract
@@ -745,6 +825,15 @@ export function resolveMeasurementVisualizationProvenance(measurement, context =
     || id === 'torso_modeled_natural_waist_circumference_at_natural_waist_plane'
   ) {
     return resolveNaturalWaistPlane(measurement);
+  }
+
+  // 1b. Abdominal Apex Plane Localization
+  if (
+    contract === 'abdominal-apex-plane-localization-v0'
+    || id === 'abdominal_apex_plane_localization'
+    || id === 'torso_abdominal_apex_plane_localization'
+  ) {
+    return resolveAbdominalApexPlane(measurement);
   }
 
   // 2. Front Transverse Width

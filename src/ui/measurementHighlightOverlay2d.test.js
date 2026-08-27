@@ -833,3 +833,74 @@ test('28. Deselecting Natural Waist clears highlight layers without side effects
   assert.equal(frontLayer.children.length, 0);
   assert.equal(sideLayer.children.length, 0);
 });
+
+test('29. Abdominal Apex Plane renders horizontal reference guide, Front slice span, and Side slice span at identical canonical Y', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const apexVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'abdominal_apex_plane_localization',
+    displayName: 'Abdominal Apex Plane Localization',
+    visualizationType: VISUALIZATION_TYPES.ABDOMINAL_APEX_PLANE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 96.85,
+      front: {
+        rasterRow: 1031,
+        minXcm: 87.1,
+        maxXcm: 113.3,
+        widthCm: 26.2,
+      },
+      side: {
+        rasterRow: 1031,
+        minUcm: 81.5,
+        maxUcm: 88.7,
+        depthCm: 7.2,
+      },
+    },
+  };
+
+  setMeasurementHighlight(apexVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  // Front Layer verification
+  const frontGuide = frontLayer.querySelector('.grid2d-highlight-level-guide');
+  assert.ok(frontGuide != null, 'Front layer contains full-width horizontal reference guide');
+  assert.equal(frontGuide.style.top, `${400 - 96.85 * 2}px`);
+
+  const frontBadge = frontLayer.querySelector('.grid2d-highlight-badge');
+  assert.ok(frontBadge != null, 'Front layer contains highlight badge');
+  assert.equal(frontBadge.textContent, 'Abdominal Apex · 96.85 cm');
+
+  // Side Layer verification
+  const sideGuide = sideLayer.querySelector('.grid2d-highlight-level-guide');
+  assert.ok(sideGuide != null, 'Side layer contains horizontal reference guide at identical canonical Y');
+  assert.equal(sideGuide.style.top, `${400 - 96.85 * 2}px`);
+
+  const sideBadge = sideLayer.querySelector('.grid2d-highlight-badge');
+  assert.ok(sideBadge != null, 'Side layer contains highlight badge');
+  assert.equal(sideBadge.textContent, 'Abdominal Apex · 96.85 cm');
+});
+
+test('30. Ambiguous or unavailable Abdominal Apex localization clears both Front and Side overlays', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const unavailVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'abdominal_apex_plane_localization',
+    visualizationType: VISUALIZATION_TYPES.ABDOMINAL_APEX_PLANE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.UNAVAILABLE,
+    geometry: null,
+  };
+
+  setMeasurementHighlight(unavailVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  assert.equal(frontLayer.children.length, 0);
+  assert.equal(sideLayer.children.length, 0);
+});
+

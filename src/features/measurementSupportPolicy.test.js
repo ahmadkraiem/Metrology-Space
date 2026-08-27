@@ -35,6 +35,22 @@ test('pelvic_core_support_v0 defines exact minimal upper legs, lower clothing, a
   assert.deepEqual(pelvicPolicy.acceptedClassIds, [12, 13, 21, 22]);
 });
 
+test('trunk_pelvic_transition_support_v0 defines exact transition upper legs, lower clothing, upper clothing, and torso classes', () => {
+  const transitionPolicy = MEASUREMENT_SUPPORT_POLICIES_V0.trunk_pelvic_transition_support_v0;
+  assert.ok(transitionPolicy);
+  assert.equal(transitionPolicy.id, 'trunk_pelvic_transition_support_v0');
+  assert.deepEqual(transitionPolicy.anatomicalClassIds, [12, 21, 22]);
+  assert.deepEqual(transitionPolicy.clothingBridgeClassIds, [13, 23]);
+  assert.deepEqual(transitionPolicy.acceptedClassIds, [12, 13, 21, 22, 23]);
+
+  // Explicitly excludes upper arms (11, 20), lower arms (7, 16), and background (0)
+  assert.ok(!transitionPolicy.acceptedClassIds.includes(0));
+  assert.ok(!transitionPolicy.acceptedClassIds.includes(7));
+  assert.ok(!transitionPolicy.acceptedClassIds.includes(11));
+  assert.ok(!transitionPolicy.acceptedClassIds.includes(16));
+  assert.ok(!transitionPolicy.acceptedClassIds.includes(20));
+});
+
 test('resolveMeasurementSupportPolicy maps supported measurement definitions to expected policies', () => {
   const shoulderWidthPolicy = resolveMeasurementSupportPolicy('torso_width_at_shoulder_level');
   assert.ok(shoulderWidthPolicy);

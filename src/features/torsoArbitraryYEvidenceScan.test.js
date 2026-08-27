@@ -285,3 +285,88 @@ test('Torso Scan: Front and Side rasters with unequal resolutions map to same ca
   const sideMappedY = ((sideHeightPx - (firstCandidate.sideRasterRow + 0.5)) / sideHeightPx) * workspaceExtentCm;
   assert.ok(Math.abs(frontMappedY - sideMappedY) < 0.2); // within sub-pixel mapping resolution
 });
+
+test('Torso Scan: default call uses trunk_core_support_v0 and excludes lower clothing', () => {
+  const widthPx = 100;
+  const heightPx = 200;
+  const annotations = createMockAnnotations({ shoulderY: 140.0, hipY: 90.0 });
+  // Create synthetic raster with lower clothing class 13
+  const frontRaster = createSyntheticTorsoRaster({ widthPx, heightPx, torsoClassId: 13 });
+  const sideRaster = createSyntheticTorsoRaster({ widthPx, heightPx, torsoClassId: 13 });
+
+  const result = evaluateTorsoArbitraryYEvidenceScan({
+    frontRaster,
+    sideRaster,
+    frontSegmentation: { widthPx, heightPx },
+    sideSegmentation: { widthPx, heightPx },
+    annotations,
+    metricCalibrationFront: createMockValidCalibration(),
+    metricCalibrationSide: createMockValidCalibration(),
+    sideViewOrientationQualification: createMockValidOrientation(),
+    sidePoseQualification: createMockValidPose(),
+    clothingSemanticsSide: createMockValidClothing(),
+  });
+
+  assert.equal(result.status, TORSO_ARBITRARY_Y_SCAN_STATUS.COMPLETED);
+  assert.equal(result.supportPolicyId, 'trunk_core_support_v0');
+  assert.deepEqual(result.targetClassIds, [22, 23]);
+  // Since raster contains class 13 and default policy accepts only [22, 23], candidates have status 'empty'
+  assert.equal(result.candidates[0].front.status, 'empty');
+  assert.equal(result.candidates[0].side.status, 'empty');
+});
+
+test('Torso Scan: explicit trunk_pelvic_transition_support_v0 accepts lower clothing and upper legs', () => {
+  const widthPx = 100;
+  const heightPx = 200;
+  const annotations = createMockAnnotations({ shoulderY: 140.0, hipY: 90.0 });
+  // Create synthetic raster with lower clothing class 13
+  const frontRaster = createSyntheticTorsoRaster({ widthPx, heightPx, torsoClassId: 13 });
+  const sideRaster = createSyntheticTorsoRaster({ widthPx, heightPx, torsoClassId: 13 });
+
+  const result = evaluateTorsoArbitraryYEvidenceScan({
+    frontRaster,
+    sideRaster,
+    frontSegmentation: { widthPx, heightPx },
+    sideSegmentation: { widthPx, heightPx },
+    annotations,
+    metricCalibrationFront: createMockValidCalibration(),
+    metricCalibrationSide: createMockValidCalibration(),
+    sideViewOrientationQualification: createMockValidOrientation(),
+    sidePoseQualification: createMockValidPose(),
+    clothingSemanticsSide: createMockValidClothing(),
+    options: { supportPolicyId: 'trunk_pelvic_transition_support_v0' },
+  });
+
+  assert.equal(result.status, TORSO_ARBITRARY_Y_SCAN_STATUS.COMPLETED);
+  assert.equal(result.supportPolicyId, 'trunk_pelvic_transition_support_v0');
+  assert.deepEqual(result.targetClassIds, [12, 13, 21, 22, 23]);
+  // With transition policy, class 13 is accepted
+  assert.equal(result.candidates[0].front.status, 'valid');
+  assert.equal(result.candidates[0].side.status, 'valid');
+  assert.deepEqual(result.candidates[0].front.encounteredClassIds, [13]);
+  assert.deepEqual(result.candidates[0].side.encounteredClassIds, [13]);
+});
+
+test('Torso Scan: invalid supportPolicyId returns deterministic invalid status with blocker', () => {
+  const widthPx = 100;
+  const heightPx = 200;
+  const annotations = createMockAnnotations({ shoulderY: 140.0, hipY: 90.0 });
+  const frontRaster = createSyntheticTorsoRaster({ widthPx, heightPx });
+  const sideRaster = createSyntheticTorsoRaster({ widthPx, heightPx });
+
+  const result = evaluateTorsoArbitraryYEvidenceScan({
+    frontRaster,
+    sideRaster,
+    frontSegmentation: { widthPx, heightPx },
+    sideSegmentation: { widthPx, heightPx },
+    annotations,
+    metricCalibrationFront: createMockValidCalibration(),
+    metricCalibrationSide: createMockValidCalibration(),
+    options: { supportPolicyId: 'invalid_non_existent_policy' },
+  });
+
+  assert.equal(result.status, TORSO_ARBITRARY_Y_SCAN_STATUS.INVALID);
+  assert.equal(result.supportPolicyId, 'invalid_non_existent_policy');
+  assert.ok(result.blockers.includes('invalid_support_policy'));
+});
+

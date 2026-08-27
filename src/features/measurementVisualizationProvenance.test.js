@@ -485,3 +485,78 @@ test('23. Ambiguous, unavailable, or invalid Natural Waist localization returns 
   const invalidResult = resolveMeasurementVisualizationProvenance(invalidWaist);
   assert.equal(invalidResult.status, VISUALIZATION_STATUS.INVALID);
 });
+
+test('24. Abdominal Apex Plane localization normalizes correctly with Front and Side evidence', () => {
+  const apexLocalization = {
+    contract: 'abdominal-apex-plane-localization-v0',
+    version: 'abdominal-apex-plane-localization-v0',
+    id: 'abdominal_apex_plane_localization',
+    name: 'Abdominal Apex Plane Localization',
+    status: 'ready',
+    yCm: 96.85,
+    rasterRow: 1031,
+    sideRasterRow: 1031,
+    selectedPeak: {
+      yCm: 96.85,
+      rasterRow: 1031,
+      sideRasterRow: 1031,
+      frontWidthCm: 26.2,
+      frontMinXcm: 87.1,
+      frontMaxXcm: 113.3,
+      sideProfileSpanCm: 7.2,
+      sideMinUcm: 81.5,
+      sideMaxUcm: 88.7,
+      qualifiedApDepthCm: 7.2,
+      rawAnteriorUcm: 81.5,
+      prominenceCm: 0.5559,
+    },
+    provenance: {
+      upperYcm: 100.75,
+      lowerYcm: 86.25,
+      sliceHighlightCoordinates: {
+        yCm: 96.85,
+        frontRasterRow: 1031,
+        sideRasterRow: 1031,
+        frontBoundsCm: { minX: 87.1, maxX: 113.3 },
+        sideBoundsCm: { minU: 81.5, maxU: 88.7 },
+      },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(apexLocalization);
+
+  assert.equal(result.contract, MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT);
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.ABDOMINAL_APEX_PLANE);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.deepEqual(result.targetViews, ['front', 'side']);
+  assert.equal(result.geometry.yCm, 96.85);
+  assert.equal(result.geometry.front.minXcm, 87.1);
+  assert.equal(result.geometry.front.maxXcm, 113.3);
+  assert.equal(result.geometry.front.widthCm, 26.2);
+  assert.equal(result.geometry.side.minUcm, 81.5);
+  assert.equal(result.geometry.side.maxUcm, 88.7);
+  assert.equal(result.geometry.side.depthCm, 7.2);
+});
+
+test('25. Ambiguous, unavailable, or invalid Abdominal Apex localization returns non-ready status', () => {
+  const ambiguousApex = {
+    contract: 'abdominal-apex-plane-localization-v0',
+    id: 'abdominal_apex_plane_localization',
+    status: 'ambiguous',
+    yCm: null,
+    blockers: ['ambiguous_multiple_apex_prominences'],
+  };
+  const unavailResult = resolveMeasurementVisualizationProvenance(ambiguousApex);
+  assert.equal(unavailResult.status, VISUALIZATION_STATUS.UNAVAILABLE);
+  assert.ok(unavailResult.blockers.includes('ambiguous_multiple_apex_prominences'));
+
+  const invalidApex = {
+    contract: 'abdominal-apex-plane-localization-v0',
+    id: 'abdominal_apex_plane_localization',
+    status: 'invalid',
+    yCm: null,
+    blockers: ['invalid_search_window'],
+  };
+  const invalidResult = resolveMeasurementVisualizationProvenance(invalidApex);
+  assert.equal(invalidResult.status, VISUALIZATION_STATUS.INVALID);
+});
