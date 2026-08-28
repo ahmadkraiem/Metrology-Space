@@ -842,12 +842,12 @@ Pure deterministic evidence-driven localization layer (`src/features/maximumSeat
   - Runtime values: Front width $\approx 44.30\text{ cm}$, Side AP depth $\approx 27.40\text{ cm}$, Modeled Circumference $\approx 114.20\text{ cm}$.
   - These values are runtime evidence outputs, NOT hardcoded algorithm constants.
 
-#### 4.6E Modeled Hip / Seat Circumference Estimate v0 (`modeled-hip-seat-circumference-v0`) — COMPLETED
+#### 4.6E Modeled Hip Circumference Estimate v0 (`modeled-hip-seat-circumference-v0`) — COMPLETED
 
 Primary user-facing circumference domain contract (`src/features/modeledHipSeatCircumference.js`):
-- **Definition ID**: `torso_modeled_hip_seat_circumference_at_maximum_seat_plane`
-- **Display Name**: `Modeled Hip / Seat Circumference Estimate`
-- **Location**: Localized Maximum Seat Plane ($Y \approx 79.95\text{ cm}$ on sample capture)
+- **Definition ID**: `torso_modeled_hip_seat_circumference_at_maximum_seat_plane` (preserved compatibility ID)
+- **User-Facing Display Name**: `Modeled Hip Circumference` (clean user-facing naming, avoiding `Hip / Seat`)
+- **Location**: Localized Maximum Seat Plane ($Y = 79.95\text{ cm}$ on sample capture; distinct from Hip anatomical level at $\approx 86.25\text{ cm}$)
 - **Algorithm**: Ellipse model using Ramanujan II approximation from qualified Front width + Side AP depth.
 - **Strict Metrological Semantics**:
   - Modeled estimate based on orthogonal Front and Side silhouette extents.
@@ -857,9 +857,9 @@ Primary user-facing circumference domain contract (`src/features/modeledHipSeatC
 
 #### 4.6F Modeled Perimeter Results UI Integration — COMPLETED
 
-Integrated the Modeled Hip / Seat Circumference card into the Right Sidebar → Results measurement deck:
-- Primary title: `Modeled Hip / Seat Circumference Estimate`
-- Meta badges: Seat Plane `Y` level + `Modeled` status badge
+Integrated the Modeled Hip Circumference card into the Right Sidebar → Results measurement deck:
+- Primary title: `Modeled Hip Circumference`
+- Meta badges: `Modeled` status badge (redundant header Y chip removed in UI cleanup)
 - Detail rows: Circumference Estimate, Seat Plane Y, Front Width, Side AP Depth, Model (`Ellipse (Ramanujan II)`)
 - Qualification notes: `Evaluated at deterministic Maximum Seat Plane.` / `Modeled estimate; not tape-measured ground truth.`
 - Old Hip Landmark perimeter card is hidden from normal Results.
@@ -869,9 +869,11 @@ Integrated the Modeled Hip / Seat Circumference card into the Right Sidebar → 
 Formalized the declarative visualization provenance layer and interactive 2D highlight overlay pipeline:
 - **Contract**: `measurement-visualization-provenance-v0` (`src/features/measurementVisualizationProvenance.js`)
 - **Supported Visualization Types**:
-  - `front_horizontal_slice`: Front-view transverse line + anchor dots + span badge.
-  - `side_horizontal_slice`: Side-view profile line + anchor dots + span badge.
-  - `cross_view_horizontal_slice`: Synchronized same-Y horizontal line across Front and Side navigators.
+  - `front_horizontal_slice`: Front-view transverse line + 2 anchor dots (numeric text badges removed in UI cleanup).
+  - `side_horizontal_slice`: Side-view profile line + 2 anchor dots (numeric text badges removed in UI cleanup).
+  - `cross_view_horizontal_slice`: Synchronized same-Y horizontal line across Front and Side navigators + endpoint dots.
+  - `natural_waist_plane`: Full-width horizontal reference guide at Waist Y + Front and Side slice spans + endpoint dots.
+  - `abdominal_apex_plane`: Full-width horizontal reference guide at Apex Y + Front and Side slice spans + endpoint dots.
   - `landmark_segment`: Projected 2D chord line between two landmark endpoints.
   - `landmark_chain`: Connected polyline chain through sequential anatomical landmark waypoints.
   - `vertical_level_interval`: Exact upper and lower horizontal anatomical Y level lines + vertical connector line + offset badge.
@@ -879,6 +881,7 @@ Formalized the declarative visualization provenance layer and interactive 2D hig
 - **Renderer (`src/ui/measurementHighlightOverlay2d.js`)**:
   - Pure declarative UI layer consuming normalized visualization instructions without recomputing domain math.
   - Non-destructive: renders on dedicated highlight layers (`#grid2d-measurement-highlight-layer`, `#side-evidence-measurement-highlight-layer`).
+  - Displays clean geometry only (lines, guides, dots, selection state) with no always-visible measurement numbers on canvas. Authoritative values are presented in the Results sidebar.
 - **Interactive Results Click-to-Highlight Flow**:
   - Click on any Results card/row (`[data-measurement-id]`) $\to$ `selectMeasurement(id)` $\to$ `resolveMeasurementVisualizationProvenance` $\to$ `setMeasurementHighlight` $\to$ focuses 2D workspace (`WORKSPACE_SPLIT`) $\to$ updates DOM selection classes (`.is-selected`, `aria-selected="true"`).
   - Clicking an already-selected card toggles selection and highlight off.
@@ -1021,23 +1024,48 @@ Pure deterministic domain contract (`src/features/modeledNaturalWaistCircumferen
 
 ### 4.14 Abdominal Apex Plane Localization v0 & Modeled Abdominal Circumference v0 — COMPLETED / ACCEPTED
 
-Pure deterministic domain contract (`src/features/abdominalApexPlaneLocalization.js`, `src/features/modeledAbdominalCircumference.js`) and UI presentation deriving an evidence-driven Abdominal Apex localization and Ramanujan II ellipse-modeled Abdominal circumference estimate:
-- **Abdominal Apex Plane Localization v0 (`abdominal-apex-plane-localization-v0`) — ACCEPTED**:
-  - Deterministic localization of maximum anterior abdominal protrusion on Side profile within torso bounds.
-  - Implements and verifies `trunk_pelvic_transition_support_v0` support policy for smooth anatomical transition across pelvic crest.
-  - Front transverse width and qualified Side AP depth localized at identical canonical physical $Y = 95.75\text{ cm}$.
+Pure deterministic domain contracts (`src/features/abdominalApexPlaneLocalization.js`, `src/features/modeledAbdominalCircumference.js`) and UI presentation deriving an evidence-driven Abdominal Apex localization and Ramanujan II ellipse-modeled Abdominal circumference estimate:
+
+- **Abdominal Apex Plane Localization v0 (`abdominal-apex-plane-localization-v0`) — ACCEPTED AND VERIFIED**:
+  - Pure deterministic evidence-driven localization of maximum anterior abdominal prominence on Side profile within torso bounds.
+  - Search domain: bounded between Natural Waist inferior crest ($100.75\text{ cm}$) and Hip anatomical lower boundary ($\approx 86.25\text{ cm}$).
+  - Primary locator: stable anterior Side contour prominence ($\approx 1.2570\text{ cm}$), evaluated relative to baseline torso profile.
+  - Strict invariants: NOT maximum total AP depth, NOT maximum circumference, NOT body-height percentage, NOT fixed offset, and NOT 3D reconstruction.
+  - Broad-peak handling: deterministic plateau midpoint / central row selection when anterior prominence ties across contiguous rows.
+  - Real-package localized result: Abdominal Apex localized at $Y = 95.75\text{ cm}$ with Front width $37.20\text{ cm}$ and qualified Side AP depth $26.30\text{ cm}$.
+
+- **Abdominal-Pelvic Transition Support Policy (`trunk_pelvic_transition_support_v0`) — IMPLEMENTED AND VERIFIED**:
+  - Exact accepted classes: `[12, 13, 21, 22, 23]`
+    - Anatomical: `12` Left Upper Leg, `21` Right Upper Leg, `22` Torso
+    - Clothing bridge: `13` Lower Clothing, `23` Upper Clothing
+  - Rationale: The previous upper-trunk policy `[22, 23]` did not provide continuous lower-abdominal Side evidence as the silhouette transitioned into fitted lower clothing / upper-leg segmentation. The transition policy restores continuous Waist $\to$ Hip evidence without mutating `trunk_core_support_v0` or `pelvic_core_support_v0`.
+  - Real-package verification: search interval $\approx 86.25 \to 100.75\text{ cm}$, 146/146 valid Front rows, 146/146 valid Side rows, 146/146 retained candidates.
+  - Strict guardrail: Not a generic whole-body support policy; strictly scoped to abdominal-pelvic transitional plane scans.
+
 - **Modeled Abdominal Circumference v0 (`modeled-abdominal-circumference-v0`) — ACCEPTED AND VERIFIED**:
-  - Evaluates ellipse-based circumference estimate via Ramanujan II formula from qualified Front width ($37.20\text{ cm}$) and Side AP depth ($26.30\text{ cm}$).
-  - Full non-browser domain and UI runtime integration verified: status `modeled`, value $100.4817\text{ cm}$ (UI: $100.48\text{ cm}$).
-- **Authoritative Plane Localization & Modeled Circumference Reference Values**:
-  - Maximum Seat authoritative $Y = 79.95\text{ cm}$
-  - Natural Waist authoritative $Y = 107.15\text{ cm}$
-  - Abdominal Apex authoritative $Y = 95.75\text{ cm}$
+  - Definition ID: `torso_modeled_abdominal_circumference_at_abdominal_apex_plane`
+  - User-Facing Display Name: `Modeled Abdominal Circumference`
+  - Consumes localized Abdominal Apex plane ($Y = 95.75\text{ cm}$) directly without relocalizing the abdomen.
+  - Model: `ellipse_ramanujan_ii` from qualified Front transverse width ($37.20\text{ cm}$, semi-major $a = 18.60\text{ cm}$) and qualified Side AP depth ($26.30\text{ cm}$, semi-minor $b = 13.15\text{ cm}$).
+  - Model evaluation output: raw/internal $100.4817\text{ cm}$, UI display $100.48\text{ cm}$. Status: `modeled`.
+  - Strict invariants: Requires physically qualified Side AP depth; zero Front-only fallback; raw Side span cannot replace qualified AP depth; no empirical abdominal correction factors; zero 3D reconstruction.
+
+- **Abdominal Provenance Propagation Fix — VERIFIED**:
+  - Preserves `supportPolicyId: 'trunk_pelvic_transition_support_v0'`, `targetClassIds: [12, 13, 21, 22, 23]`, encountered Front classes `[13, 22]`, encountered Side classes `[13, 22]`, and `same-Y: true`.
+  - Pure provenance propagation fix: did NOT modify Abdominal Apex Y, Front width, Side AP depth, circumference, thresholds, or model math.
+
+- **Maximum Seat Plane vs Hip Anatomical Level Truth**:
+  - Authoritative Maximum Seat plane localized at $Y = 79.95\text{ cm}$ (scanning qualified pelvic planes and selecting global maximum modeled perimeter with deterministic plateau-center tie-breaking).
+  - Accepted evidence: Front width $44.30\text{ cm}$, Side qualified AP depth $27.40\text{ cm}$, Modeled Hip Circumference $114.1959\text{ cm}$ (UI: $114.20\text{ cm}$).
+  - Hip anatomical reference level: $\approx 86.25\text{ cm}$ (landmark level, NOT modeled Hip circumference plane).
+  - Clarification: Hip anatomical level $\neq$ Maximum Seat plane. The prior $85.45\text{ cm}$ value was a diagnostic reporting artifact and must NOT appear as authoritative.
+
 - **Accepted Real-Package Modeled Example Outputs**:
-  - Modeled Natural Waist Circumference: $82.25\text{ cm}$ ($82.2488\text{ cm}$)
-  - Modeled Abdominal Circumference: $100.48\text{ cm}$ ($100.4817\text{ cm}$)
-  - Modeled Hip Circumference: $114.20\text{ cm}$ ($114.1959\text{ cm}$)
-  *(Important: These values are verification example outputs from the accepted real Body Evidence package, NOT immutable anatomical constants).*
+  - Natural Waist: $Y = 107.15\text{ cm}$, Modeled Natural Waist Circumference = $82.25\text{ cm}$ ($82.2488\text{ cm}$)
+  - Abdominal Apex: $Y = 95.75\text{ cm}$, Modeled Abdominal Circumference = $100.48\text{ cm}$ ($100.4817\text{ cm}$)
+  - Maximum Seat: $Y = 79.95\text{ cm}$, Modeled Hip Circumference = $114.20\text{ cm}$ ($114.1959\text{ cm}$)
+  *(Important: These values are verification example outputs from the accepted real Body Evidence package, NOT immutable anatomical constants; `Waist < Abdomen < Hip` is NOT a validity rule).*
+
 - **Consistent User-Facing Terminology**:
   - Natural Waist
   - Abdominal Apex
@@ -1048,11 +1076,18 @@ Pure deterministic domain contract (`src/features/abdominalApexPlaneLocalization
   - Modeled Hip Circumference
   - Strictly avoid user-facing `Hip / Seat`.
 
-### 4.15 Deferred Torso Planes & Circumference Workstreams — DEFERRED / NEXT
+### 4.15 Final UI Cleanup & Official Branding — COMPLETED
+
+- **Official Product Branding**: Consolidated all user-facing branding to **TWENTY EIGHT**. Legacy compatibility identifiers (`revacityXYZ`, `revacityZ`, `isRevacityMetricScale`, legacy scene import app names) remain preserved solely for backward compatibility.
+- **Results Card Header Cleanup**: Redundant header Y chips removed from all measurement and reference level cards (e.g. `SHOULDER LEVEL [Qualified]`, `HIP LEVEL [Qualified]`). Detailed Y coordinates remain cleanly formatted inside modeled measurement provenance/results rows.
+- **2D Cross-Section Overlay Number Cleanup**: Removed always-visible numeric text badges (e.g. `30.80 cm`, `11.00 cm`, `42.20 cm`, `27.70 cm`, floating plane name badges) rendered over Front/Side cross-section slice lines. Overlays render clean geometric primitives only (horizontal reference guides, slice span lines, endpoint dots, selection highlights). Authoritative numeric values are displayed exclusively in the Results sidebar.
+- **Verified Test & Build Baseline**: 730/730 tests passing across 43 test suites; clean production build.
+
+### 4.16 Deferred Torso Planes & Circumference Workstreams — DEFERRED / NEXT
 
 The remaining torso anatomical planes and circumferences:
-- **Chest / Bust Level Localization & Bust Circumference**: **DEFERRED**. Blocked by missing anatomical landmark anchors and unvalidated chest apex plane localization.
-- **Underbust Level Localization & Underbust Circumference**: **DEFERRED**. Blocked by missing inframammary fold localization.
+- **Chest / Bust Level Localization & Modeled Bust Circumference v0**: **NEXT**. Blocked by missing anatomical landmark anchors and unvalidated chest apex plane localization.
+- **Underbust Level Localization & Modeled Underbust Circumference v0**: **DEFERRED**. Blocked by missing inframammary fold localization.
 - **Clear Measurements Batch B (Bilateral Spans & Breadths)**: **DEFERRED** pending horizontal breadth $\Delta X$ vs chord distance semantic decision.
 - **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)**: **DEFERRED**.
 - **Measured optical stature**: **DEFERRED**.

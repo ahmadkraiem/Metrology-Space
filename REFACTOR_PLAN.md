@@ -47,7 +47,7 @@ This file remains useful as a phase-by-phase audit trail and regression checklis
 | 6 | Extract measurement module | **Complete** | Extracted to `src/features/measurement.js`, `src/ui/measurementPanel.js`; `npm run build` passed; manual browser checks passed (Point A/B flow, third click starts new measurement, Clear Point A, Clear Point B, Clear Measurement, Clear History, floating distance label, measurement history) |
 | 7 | Extract annotation module | **Complete** | Extracted to `src/features/annotations.js`, `src/ui/annotationPanel.js`; `npm run build` passed; manual browser checks passed (Add Annotation, 3D-anchored annotation labels, orbit/zoom/pan stability, multiple annotations, Delete annotation, hover/selection/measurement still working) |
 | 8 | Split CSS into layout / components / overlays | **Complete** | Split into `src/styles/`; `src/style.css` is `@import` chain only; `npm run build` passed; manual browser checks passed (header, sidebars, viewport/canvas size, inspector panels, buttons, hover tooltip, CSS2D labels, history/annotation scroll lists, bottom status bar) |
-| 9 | Final cleanup and documentation update | **Complete** | Extracted final interaction/picking modules into `src/interactions/raycast.js`, `picking.js`, `pointerEvents.js`; `main.js` thinned to ~64-line orchestrator; `npm run build` passed; manual full browser regression passed (hover highlight, hover coordinate tooltip, point selection, Clear Selection, Point A/B measurement flow, Clear Point A, Clear Point B, Clear Measurement, floating distance label, measurement history, Clear History, Add Annotation, Delete Annotation, 3D-anchored annotation labels, Origin/Center hover labels, REVacity UI layout) |
+| 9 | Final cleanup and documentation update | **Complete** | Extracted final interaction/picking modules into `src/interactions/raycast.js`, `picking.js`, `pointerEvents.js`; `main.js` thinned to ~64-line orchestrator; `npm run build` passed; manual full browser regression passed (hover highlight, hover coordinate tooltip, point selection, Clear Selection, Point A/B measurement flow, Clear Point A, Clear Point B, Clear Measurement, floating distance label, measurement history, Clear History, Add Annotation, Delete Annotation, 3D-anchored annotation labels, Origin/Center hover labels, TWENTY EIGHT UI layout) |
 
 ---
 
@@ -710,7 +710,7 @@ Pure CSS cut/paste by comment-delimited sections per [PROJECT_STRUCTURE.md](PROJ
 
 #### What must not change
 
-- REVacity CSS grid layout (`#app-layout` five regions)
+- TWENTY EIGHT CSS grid layout (`#app-layout` five regions)
 - Glassmorphism palette and typography (Syne, JetBrains Mono)
 - Scroll caps: `max-height: min(320px, 38vh)` on history and annotation lists
 - `pointer-events: none` on chrome; interactive exceptions on buttons and scrollable lists
@@ -741,7 +741,7 @@ Extracted final interaction/picking modules into:
 - `src/interactions/picking.js`
 - `src/interactions/pointerEvents.js`
 
-`main.js` thinned to a ~64-line orchestrator. `npm run build` passed. Manual full browser regression passed for: hover highlight, hover coordinate tooltip, point selection, Clear Selection, Point A/B measurement flow, Clear Point A, Clear Point B, Clear Measurement, floating distance label, measurement history, Clear History, Add Annotation, Delete Annotation, 3D-anchored annotation labels, Origin/Center hover labels, REVacity UI layout.
+`main.js` thinned to a ~64-line orchestrator. `npm run build` passed. Manual full browser regression passed for: hover highlight, hover coordinate tooltip, point selection, Clear Selection, Point A/B measurement flow, Clear Point A, Clear Point B, Clear Measurement, floating distance label, measurement history, Clear History, Add Annotation, Delete Annotation, 3D-anchored annotation labels, Origin/Center hover labels, TWENTY EIGHT UI layout.
 
 #### Goal
 
@@ -872,7 +872,7 @@ Run after **every** phase (or the relevant subset for early phases). All items m
 
 ### UI and build
 
-- [ ] **REVacity UI layout** — top header, left Metrology Inspector, center viewport, right Agent Tools, bottom status bar
+- [ ] **TWENTY EIGHT UI layout** — top header, left Metrology Inspector, center viewport, right Agent Tools, bottom status bar
 - [ ] **`npm run build`** succeeds without errors
 
 ---
