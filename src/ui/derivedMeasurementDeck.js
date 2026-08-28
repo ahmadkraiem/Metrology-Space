@@ -239,7 +239,6 @@ export function buildDerivedMeasurementCardHtml({ id, name, crossSectionDefId },
       <div class="derived-card-header">
         <span class="derived-card-title">${escapeHtml(name)}</span>
         <div class="derived-card-meta">
-          <span class="derived-card-level">${escapeHtml(yDisplay)}</span>
           ${renderBadge(status.label, status.tone)}
         </div>
       </div>
@@ -392,7 +391,6 @@ export function buildModeledPerimeterCardHtml(modeledPerimeter) {
       <div class="derived-card-header">
         <span class="derived-card-title">Hip Landmark Perimeter Estimate</span>
         <div class="derived-card-meta">
-          <span class="derived-card-level">${escapeHtml(yDisplay)}</span>
           ${statusBadge}
         </div>
       </div>
@@ -475,7 +473,6 @@ export function buildModeledNaturalWaistCircumferenceCardHtml(waistCircumference
       <div class="derived-card-header">
         <span class="derived-card-title">Modeled Natural Waist Circumference</span>
         <div class="derived-card-meta">
-          <span class="derived-card-level">${escapeHtml(yDisplay)}</span>
           ${statusBadge}
         </div>
       </div>
@@ -537,9 +534,6 @@ export function buildModeledAbdominalCircumferenceCardHtml(abdominalCircumferenc
   const yCm = abdominalCircumference.levelYcm
     ?? abdominalCircumference.yCm
     ?? abdominalCircumference.provenance?.selectedYcm;
-  const yDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
-    ? `Y ${formatDistance(yCm)} cm`
-    : 'Y —';
   const apexPlaneYDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
     ? `${formatDistance(yCm)} cm`
     : '—';
@@ -568,7 +562,6 @@ export function buildModeledAbdominalCircumferenceCardHtml(abdominalCircumferenc
       <div class="derived-card-header">
         <span class="derived-card-title">Modeled Abdominal Circumference</span>
         <div class="derived-card-meta">
-          <span class="derived-card-level">${escapeHtml(yDisplay)}</span>
           ${statusBadge}
         </div>
       </div>
@@ -629,9 +622,6 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
 
   const yCm = seatCircumference.levelYcm
     ?? seatCircumference.provenance?.selectedYcm;
-  const yDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
-    ? `Y ${formatDistance(yCm)} cm`
-    : 'Y —';
   const seatPlaneYDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
     ? `${formatDistance(yCm)} cm`
     : '—';
@@ -658,9 +648,8 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
       aria-selected="${isSelected ? 'true' : 'false'}"
     >
       <div class="derived-card-header">
-        <span class="derived-card-title">Modeled Hip / Seat Circumference Estimate</span>
+        <span class="derived-card-title">Modeled Hip Circumference</span>
         <div class="derived-card-meta">
-          <span class="derived-card-level">${escapeHtml(yDisplay)}</span>
           ${statusBadge}
         </div>
       </div>
@@ -692,7 +681,7 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
         </div>
 
         <div class="modeled-perimeter-notes">
-          <p class="modeled-perimeter-note">Evaluated at deterministic Maximum Seat Plane (${escapeHtml(yDisplay)}).</p>
+          <p class="modeled-perimeter-note">Evaluated at deterministic Maximum Seat Plane (${escapeHtml(seatPlaneYDisplay)}).</p>
           <p class="modeled-perimeter-qualification">Modeled estimate; not tape-measured ground truth.</p>
         </div>
       </div>

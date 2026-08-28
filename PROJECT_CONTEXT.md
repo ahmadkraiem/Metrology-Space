@@ -1,4 +1,4 @@
-# Latent Space — Project Context
+# TWENTY EIGHT — Project Context
 
 This document describes the **current implementation state** of the project. It is intended for future AI coding sessions to preserve existing behavior and avoid regressions.
 
@@ -446,7 +446,7 @@ The ZIP loader (`src/features/bodyEvidenceZipAdapter.js`) is a **temporary trans
 
 Pointmaps and surface normals are accepted and normalized in Package Contract v0. Package-level declarations remain unvalidated by the package schema itself:
 - **`declaredUnits`**: Units declared in metadata (e.g. `'cm'`, `'mm'`, `'m'`) — unvalidated at package/QA level. For recognized Sapiens pointmaps, 4.5G records `unitAuthority: service_reported` and `physicalUnitsVerified: false`. The Sapiens API report `units: "meters"` is **service-reported / physically unverified** and is not authoritative physical meter geometry.
-- **`declaredScale`**: Scale factor declared in metadata — unvalidated at package/QA level. For recognized Sapiens pointmaps, 4.5G preserves `scale` as `predicted_focal_normalization` provenance only. It is **not** RVEacity pixels-per-cm, body-height calibration, physical body scale, Front/Side shared calibration, or cross-view registration scale.
+- **`declaredScale`**: Scale factor declared in metadata — unvalidated at package/QA level. For recognized Sapiens pointmaps, 4.5G preserves `scale` as `predicted_focal_normalization` provenance only. It is **not** TWENTY EIGHT pixels-per-cm, body-height calibration, physical body scale, Front/Side shared calibration, or cross-view registration scale.
 - **`declaredRange`**: Value range declared in metadata (e.g. `[-1, 1]`, `[0, 255]`) — unvalidated.
 - **Coordinate frames**: Package/Dense QA do not certify pointmap XYZ as canonical metrology axes. 4.5G classifies recognized Sapiens Front and Side pointmaps independently as `camera_local` (`X = image_right`, `Y = image_down`, `Z = model_depth_channel`, `sharedAcrossViews: false`). There is no shared camera frame, no Front$\leftrightarrow$Side transform, no runtime camera extrinsics, and no validated canonical compatibility (`revacityXYZ`, `revacityZ`, `sideUToCanonicalZ`, `frontSideFusion` are all `false`).
 - **Normal orientations**: Normal vector directions and coordinate conventions are unvalidated.
@@ -928,14 +928,16 @@ When modifying this project, preserve the following unless explicitly instructed
   - Modeled Cross-Section Perimeter v0 evaluated: Hip Landmark Level modeled perimeter evaluates to `status: 'modeled'`, `valueCm: 110.9830618865289` (UI: `110.98 cm`). Shoulder modeled perimeter remains strictly unsupported (`status: 'invalid'`, `valueCm: null`).
   - Natural Waist Plane Localization v0 evaluated: Natural Waist plane evaluates to `status: 'ready'`, `yCm: 107.15`, Front width: `29.00 cm`, Side qualified AP depth: `23.20 cm`, broad waist trough pooled across Valley 0 ($107.15\text{ cm}$) and Valley 1 ($110.75\text{ cm}$), secondary upper-torso shallow constriction at $124.25\text{ cm}$ non-competing. Interactive highlight and 2D provenance visualization fully active in Diagnostics.
   - Modeled Natural Waist Circumference v0 evaluated: Modeled Natural Waist Circumference evaluates to `status: 'modeled'`, `valueCm: 82.2488` (UI: `82.25 cm`), evaluated at localized Natural Waist Plane ($Y = 107.15\text{ cm}$) from Front width ($29.00\text{ cm}$) and qualified Side AP depth ($23.20\text{ cm}$).
+  - Maximum Seat Plane Localization v0 & Modeled Hip Circumference v0 evaluated: Maximum Seat plane localized at authoritative $Y = 79.95\text{ cm}$ from continuous pelvic arbitrary-Y evidence scan. Modeled Hip Circumference evaluates to `status: 'modeled'`, `valueCm: 114.1959` (UI: `114.20 cm`) from Front width ($44.30\text{ cm}$) and qualified Side AP depth ($27.40\text{ cm}$).
+  - Abdominal Apex Plane Localization v0 & Modeled Abdominal Circumference v0 evaluated: Abdominal Apex plane evaluates to `status: 'ready'`, `yCm: 95.75`, Front width: `37.20 cm`, Side qualified AP depth: `26.30 cm` under `trunk_pelvic_transition_support_v0`. Modeled Abdominal Circumference evaluates to `status: 'modeled'`, `valueCm: 100.4817` (UI: `100.48 cm`).
   - Batch A Direct Measurements evaluated: 19 calibrated measurements evaluated under `direct-body-measurements-v0`.
-  - Metrological Principle: `plane localization != measured circumference != 3D reconstruction`.
-- **Strict Guardrails**: Named anthropometric circumferences (Bust, Underbust, Abdomen) remain **deferred** pending explicit modeling passes. Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z \to$ RVEacity canonical $Z$, no Front/Side pointmap fusion, no physical depth promotion beyond qualified 4.5H AP depth, no 3D contour reconstruction, no body volume, no 3D reconstruction, no physical authority from `"meters"`, no physical authority from Sapiens `scale`, and no invented Waist skeletal landmarks.
+  - Metrological Principle: `plane localization != measured circumference != 3D reconstruction`. Real-package numeric outputs are accepted verification example outputs, NOT immutable anatomical constants.
+- **Strict Guardrails**: Named anthropometric circumferences (Bust, Underbust) remain **deferred** pending explicit modeling passes. Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z \to$ TWENTY EIGHT canonical $Z$, no Front/Side pointmap fusion, no physical depth promotion beyond qualified 4.5H AP depth, no 3D contour reconstruction, no body volume, no 3D reconstruction, no physical authority from `"meters"`, no physical authority from Sapiens `scale`, and no invented skeletal landmarks.
 
 ### Verification Baseline
-- **666 tests passing**
+- **727 tests passing**
 - **0 failures**
-- **11 test suites**
+- **43 test suites**
 - Clean production Vite build (`npm run build`)
 
 ---

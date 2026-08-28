@@ -302,13 +302,15 @@ export function evaluateModeledAbdominalCircumference(abdominalApexPlaneLocaliza
     yCm: levelYcm,
     status: (hasValidFrontWidth && isSideQualified && blockers.length === 0) ? 'qualified' : 'unqualified',
     isQualified: hasValidFrontWidth && isSideQualified && blockers.length === 0,
+    supportPolicyId: abdominalApexPlaneLocalization.provenance?.supportPolicyId ?? 'trunk_pelvic_transition_support_v0',
+    targetClassIds: [...(abdominalApexPlaneLocalization.provenance?.targetClassIds ?? [12, 13, 21, 22, 23])],
     front: {
       transverseWidthCm: frontWidthCm,
       minXcm: frontMinXcm,
       maxXcm: frontMaxXcm,
       rasterRow: selectedPeak.rasterRow ?? abdominalApexPlaneLocalization.rasterRow ?? null,
       status: abdominalApexPlaneLocalization.frontEvidence?.status ?? 'valid',
-      encounteredClassIds: [...(abdominalApexPlaneLocalization.frontEvidence?.encounteredClassIds ?? [])],
+      encounteredClassIds: [...(selectedPeak.encounteredFrontClassIds ?? abdominalApexPlaneLocalization.frontEvidence?.encounteredClassIds ?? [])],
     },
     side: {
       qualifiedApDepthCm: typeof sideQualifiedApDepthCm === 'number' && Number.isFinite(sideQualifiedApDepthCm) ? sideQualifiedApDepthCm : null,
@@ -318,7 +320,7 @@ export function evaluateModeledAbdominalCircumference(abdominalApexPlaneLocaliza
       rasterRow: selectedPeak.sideRasterRow ?? abdominalApexPlaneLocalization.sideRasterRow ?? null,
       depthQualificationStatus: sideEvidence?.depthQualificationStatus ?? (isSideQualified ? 'qualified' : 'unqualified'),
       isQualified: Boolean(isSideQualified),
-      encounteredClassIds: [...(sideEvidence?.encounteredClassIds ?? [])],
+      encounteredClassIds: [...(selectedPeak.encounteredSideClassIds ?? sideEvidence?.encounteredClassIds ?? [])],
     },
     sameYConsistency: {
       yCm: levelYcm,
@@ -350,6 +352,8 @@ export function evaluateModeledAbdominalCircumference(abdominalApexPlaneLocaliza
       crossSectionEvidence: crossSectionEvidenceRecord,
       provenance: {
         selectedYcm: levelYcm,
+        supportPolicyId: abdominalApexPlaneLocalization.provenance?.supportPolicyId ?? 'trunk_pelvic_transition_support_v0',
+        targetClassIds: [...(abdominalApexPlaneLocalization.provenance?.targetClassIds ?? [12, 13, 21, 22, 23])],
         sourceLocalizationContract: abdominalApexPlaneLocalization.contract ?? 'abdominal-apex-plane-localization-v0',
         sourceLocalizationStatus: localizationStatus,
       },
@@ -401,11 +405,13 @@ export function evaluateModeledAbdominalCircumference(abdominalApexPlaneLocaliza
     offsetBelowWaistCm: abdominalApexPlaneLocalization.provenance?.offsetBelowWaistCm ?? null,
     lowerHipBoundaryYcm: abdominalApexPlaneLocalization.provenance?.lowerYcm ?? null,
     elevationAboveHipCm: abdominalApexPlaneLocalization.provenance?.elevationAboveHipCm ?? null,
+    supportPolicyId: abdominalApexPlaneLocalization.provenance?.supportPolicyId ?? 'trunk_pelvic_transition_support_v0',
+    targetClassIds: [...(abdominalApexPlaneLocalization.provenance?.targetClassIds ?? [12, 13, 21, 22, 23])],
     sourceScanContract: abdominalApexPlaneLocalization.provenance?.sourceScanContract ?? 'torso-arbitrary-y-evidence-scan-v0',
     sourceLocalizationContract: abdominalApexPlaneLocalization.contract ?? 'abdominal-apex-plane-localization-v0',
     sourceLocalizationStatus: localizationStatus,
-    encounteredFrontClassIds: [...(abdominalApexPlaneLocalization.frontEvidence?.encounteredClassIds ?? [])],
-    encounteredSideClassIds: [...(sideEvidence?.encounteredClassIds ?? [])],
+    encounteredFrontClassIds: [...(selectedPeak.encounteredFrontClassIds ?? abdominalApexPlaneLocalization.frontEvidence?.encounteredClassIds ?? [])],
+    encounteredSideClassIds: [...(selectedPeak.encounteredSideClassIds ?? sideEvidence?.encounteredClassIds ?? [])],
     sliceHighlightCoordinates: abdominalApexPlaneLocalization.provenance?.sliceHighlightCoordinates
       ? { ...abdominalApexPlaneLocalization.provenance.sliceHighlightCoordinates }
       : null,

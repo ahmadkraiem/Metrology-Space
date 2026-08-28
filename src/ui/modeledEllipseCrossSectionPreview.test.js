@@ -59,7 +59,7 @@ function mockSeatRecord(overrides = {}) {
   return {
     contract: 'modeled-hip-seat-circumference-v0',
     id: MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID,
-    name: 'Modeled Hip / Seat Circumference Estimate',
+    name: 'Modeled Hip Circumference',
     status: 'modeled',
     valueCm: 114.1959,
     levelYcm: 79.95,

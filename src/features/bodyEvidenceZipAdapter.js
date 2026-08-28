@@ -118,7 +118,7 @@ export function isAposeResultPayload(payload) {
 }
 
 /**
- * Maps a real Body Pipeline Align result.json into the canonical RVEacity calibration schema.
+ * Maps a real Body Pipeline Align result.json into the canonical TWENTY EIGHT calibration schema.
  *
  * Package-level mapping:
  *   height_cm          → subjectHeightCm (alias: subject_height_cm)
@@ -126,7 +126,7 @@ export function isAposeResultPayload(payload) {
  *   canvas_size         → standardizedCanvasWidthPx, standardizedCanvasHeightPx
  *
  * The Align stage applies one scalar scale_factor to both axes (uniform scalar scaling).
- * We set isIsotropic: true to indicate this upstream contract — RVEacity independently
+ * We set isIsotropic: true to indicate this upstream contract — TWENTY EIGHT independently
  * validates the numerical pixel-domain consistency via its isotropic check.
  *
  * Per-view mapping (views.front, views.side):
@@ -155,7 +155,7 @@ export function mapAlignResultToCalibration(alignResult) {
     standardized_canvas_width: canvasSize,
     standardized_canvas_height: canvasSize,
     // The Align stage applies one scalar scale_factor to both width and height (uniform scalar scaling).
-    // The adapter does NOT inject validated isotropy as authoritative truth; RVEacity independently
+    // The adapter does NOT inject validated isotropy as authoritative truth; TWENTY EIGHT independently
     // validates isotropic numerical consistency in the pixel domain.
     declaredScaleModel: 'uniform_scalar',
     // Provenance
@@ -392,7 +392,7 @@ export function resolvePackageArtifacts(filesMap, sampleId = null) {
       try {
         jsonPayload = parseJsonBytes(bytes);
       } catch (err) {
-        console.warn(`[RVEacity] Skipping invalid JSON file: ${path}`, err);
+        console.warn(`[TWENTY EIGHT] Skipping invalid JSON file: ${path}`, err);
         continue;
       }
 

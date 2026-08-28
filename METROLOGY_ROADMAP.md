@@ -1,4 +1,4 @@
-# RVEacity Metrology Space — Development Roadmap
+# TWENTY EIGHT — Development Roadmap
 
 Status: Active guiding roadmap
 Purpose: Keep the project aligned with the current architecture and evidence strategy. This roadmap is a source-of-truth planning document, not an immutable specification. Future changes should update this file deliberately rather than silently diverging from it.
@@ -159,7 +159,7 @@ Formalized shared Front/Side metric calibration provenance validation and explic
 
 - **4.5C-1 Metric Calibration Provenance Contract v0 (`metric-calibration-provenance-v0`)** (`src/features/metricCalibrationProvenance.js`):
   - Pure deterministic domain validator qualifying whether upstream Body Pipeline metric scaling claims are complete and mathematically sound across standardized Front and Side views.
-  - Inspects and validates: `pixelsPerCm`, isotropic scaling consistency (`scaleFactorX === scaleFactorY`), standardized canvas extent agreement (`canvasWidthPx === canvasHeightPx === 2000`), active raster dimension matching, preprocessing crop/scale provenance, and REVacity workspace scale agreement ($2000\text{ px} \leftrightarrow 200\text{ cm}$, $10\text{ px/cm}$).
+  - Inspects and validates: `pixelsPerCm`, isotropic scaling consistency (`scaleFactorX === scaleFactorY`), standardized canvas extent agreement (`canvasWidthPx === canvasHeightPx === 2000`), active raster dimension matching, preprocessing crop/scale provenance, and TWENTY EIGHT workspace scale agreement ($2000\text{ px} \leftrightarrow 200\text{ cm}$, $10\text{ px/cm}$).
   - Independent Isotropic Validation: Verified via rounding-aware pixel-domain checks (`ISOTROPIC_ROUNDING_TOLERANCE_PX = 1.0`) rather than blindly trusting declared flags.
   - 4-state taxonomy: `validated` (`metricProjectedEligibility: true`), `unvalidated` (`metricProjectedEligibility: false`), `invalid` (`metricProjectedEligibility: false`), `unavailable`.
   - Important Semantics: Metric calibration establishes **2D metric projected image-plane measurements only**. It does **NOT** establish physical 3D calibration, true unclothed physical body dimensions, canonical $Z$, 3D geometry, or Front/Side coordinate fusion.
@@ -200,7 +200,7 @@ Centralized deterministic policy defining the **measurement-support silhouette /
 
 ### Real Package Positive Metric Integration (`C:\Users\VIP\Downloads\output.zip`)
 
-The unified Body Pipeline archive is successfully consumed and validated by REVacity:
+The unified Body Pipeline archive is successfully consumed and validated by TWENTY EIGHT:
 
 - **Real Upstream Align Calibration Provenance**: Recognized from `body/Align/result.json` and mapped through `bodyEvidenceZipAdapter.js` into canonical calibration contracts.
 - **Validated Metric Calibration**:
@@ -475,7 +475,7 @@ predicted_focal_normalization
 ```
 
 It is **not**:
-- REVacity pixels-per-cm
+- TWENTY EIGHT pixels-per-cm
 - body-height calibration
 - physical body scale
 - Front/Side shared calibration
@@ -581,7 +581,7 @@ Resolving clothing authorization does not resolve physical evidence or pose sema
 #### Hard Guardrails
 
 - no Side $U \to Z$
-- no pointmap $Z \to$ REVacity canonical $Z$
+- no pointmap $Z \to$ TWENTY EIGHT canonical $Z$
 - no Front/Side pointmap fusion
 - no physical depth promotion
 - no circumference
@@ -1019,12 +1019,40 @@ Pure deterministic domain contract (`src/features/modeledNaturalWaistCircumferen
   - Status: `modeled`
   - *(Note: Sample package observations for validation; not universal hard-coded constants).*
 
-### 4.14 Deferred Torso Planes & Circumference Workstreams — DEFERRED / NEXT
+### 4.14 Abdominal Apex Plane Localization v0 & Modeled Abdominal Circumference v0 — COMPLETED / ACCEPTED
+
+Pure deterministic domain contract (`src/features/abdominalApexPlaneLocalization.js`, `src/features/modeledAbdominalCircumference.js`) and UI presentation deriving an evidence-driven Abdominal Apex localization and Ramanujan II ellipse-modeled Abdominal circumference estimate:
+- **Abdominal Apex Plane Localization v0 (`abdominal-apex-plane-localization-v0`) — ACCEPTED**:
+  - Deterministic localization of maximum anterior abdominal protrusion on Side profile within torso bounds.
+  - Implements and verifies `trunk_pelvic_transition_support_v0` support policy for smooth anatomical transition across pelvic crest.
+  - Front transverse width and qualified Side AP depth localized at identical canonical physical $Y = 95.75\text{ cm}$.
+- **Modeled Abdominal Circumference v0 (`modeled-abdominal-circumference-v0`) — ACCEPTED AND VERIFIED**:
+  - Evaluates ellipse-based circumference estimate via Ramanujan II formula from qualified Front width ($37.20\text{ cm}$) and Side AP depth ($26.30\text{ cm}$).
+  - Full non-browser domain and UI runtime integration verified: status `modeled`, value $100.4817\text{ cm}$ (UI: $100.48\text{ cm}$).
+- **Authoritative Plane Localization & Modeled Circumference Reference Values**:
+  - Maximum Seat authoritative $Y = 79.95\text{ cm}$
+  - Natural Waist authoritative $Y = 107.15\text{ cm}$
+  - Abdominal Apex authoritative $Y = 95.75\text{ cm}$
+- **Accepted Real-Package Modeled Example Outputs**:
+  - Modeled Natural Waist Circumference: $82.25\text{ cm}$ ($82.2488\text{ cm}$)
+  - Modeled Abdominal Circumference: $100.48\text{ cm}$ ($100.4817\text{ cm}$)
+  - Modeled Hip Circumference: $114.20\text{ cm}$ ($114.1959\text{ cm}$)
+  *(Important: These values are verification example outputs from the accepted real Body Evidence package, NOT immutable anatomical constants).*
+- **Consistent User-Facing Terminology**:
+  - Natural Waist
+  - Abdominal Apex
+  - Hip
+  - Maximum Seat (technical localization strategy/plane name)
+  - Modeled Natural Waist Circumference
+  - Modeled Abdominal Circumference
+  - Modeled Hip Circumference
+  - Strictly avoid user-facing `Hip / Seat`.
+
+### 4.15 Deferred Torso Planes & Circumference Workstreams — DEFERRED / NEXT
 
 The remaining torso anatomical planes and circumferences:
 - **Chest / Bust Level Localization & Bust Circumference**: **DEFERRED**. Blocked by missing anatomical landmark anchors and unvalidated chest apex plane localization.
 - **Underbust Level Localization & Underbust Circumference**: **DEFERRED**. Blocked by missing inframammary fold localization.
-- **Abdomen Level Localization & Abdominal Circumference**: **DEFERRED**. Blocked by missing abdominal apex / maximum anterior protrusion localization.
 - **Clear Measurements Batch B (Bilateral Spans & Breadths)**: **DEFERRED** pending horizontal breadth $\Delta X$ vs chord distance semantic decision.
 - **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)**: **DEFERRED**.
 - **Measured optical stature**: **DEFERRED**.
@@ -1109,17 +1137,16 @@ Current usage:
 
 ## 8. Verification Baseline
 
-- **666 tests passing**
+- **727 tests passing**
 - **0 failures**
-- **11 test suites**
+- **43 test suites**
 - Clean production Vite build (`npm run build`)
 
 ## 9. Next Milestone Planning
 
-With **Modeled Natural Waist Circumference v0** completed, the next torso-plane work remains available for explicit selection among:
+With **Modeled Natural Waist Circumference v0**, **Modeled Hip Circumference v0**, and **Modeled Abdominal Circumference v0** completed and accepted, the next torso-plane work remains available for explicit selection among:
 1. **Chest / Bust Apex Localization & Modeled Bust Circumference v0**
 2. **Underbust / Inframammary Fold Localization & Modeled Underbust Circumference v0**
-3. **Abdominal Apex Localization & Modeled Abdominal Circumference v0**
 
 ## 10. Roadmap Change Policy
 

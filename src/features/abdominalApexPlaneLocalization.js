@@ -245,6 +245,8 @@ function buildEmptyLocalizationResult({
   searchCandidateCount = 0,
   facingDirection = null,
   anteriorSide = null,
+  supportPolicyId = 'trunk_pelvic_transition_support_v0',
+  targetClassIds = [12, 13, 21, 22, 23],
   sourceScanContract = 'torso-arbitrary-y-evidence-scan-v0',
 } = {}) {
   return {
@@ -282,6 +284,8 @@ function buildEmptyLocalizationResult({
       lowerYcm,
       totalCandidates,
       searchCandidateCount,
+      supportPolicyId,
+      targetClassIds: [...targetClassIds],
       sourceScanContract,
       sliceHighlightCoordinates: null,
     },
@@ -824,6 +828,7 @@ export function evaluateAbdominalApexPlaneLocalization({
     prominenceCm: selectedPeak.prominenceCm,
     isQualified: selectedCandidateRecord.side?.isQualified === true,
     depthQualificationStatus: selectedCandidateRecord.side?.depthQualificationStatus ?? 'unavailable',
+    encounteredClassIds: [...(selectedCandidateRecord.side?.encounteredClassIds ?? [])],
   };
 
   return {
@@ -863,6 +868,8 @@ export function evaluateAbdominalApexPlaneLocalization({
       qualifiedApDepthCm: selectedCandidateRecord.side?.qualifiedApDepthCm ?? null,
       isSideDepthQualified: selectedCandidateRecord.side?.isQualified === true,
       broadnessScore: selectedPeak.broadnessScore,
+      encounteredFrontClassIds: [...(selectedCandidateRecord.front?.encounteredClassIds ?? [])],
+      encounteredSideClassIds: [...(selectedCandidateRecord.side?.encounteredClassIds ?? [])],
     },
     candidates: enrichedCandidates,
     peaks: rawPeaks,
@@ -882,6 +889,8 @@ export function evaluateAbdominalApexPlaneLocalization({
       minApexProminenceCm,
       maxPeakMergeDistanceCm,
       maxInterPeakSaddleDropCm,
+      supportPolicyId: torsoScanReport.supportPolicyId ?? 'trunk_pelvic_transition_support_v0',
+      targetClassIds: Array.isArray(torsoScanReport.targetClassIds) ? [...torsoScanReport.targetClassIds] : [12, 13, 21, 22, 23],
       sourceScanContract: torsoScanReport.contract ?? 'torso-arbitrary-y-evidence-scan-v0',
       sourceScanStatus: scanStatus,
       sliceHighlightCoordinates: {

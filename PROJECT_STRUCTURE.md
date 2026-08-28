@@ -1,6 +1,6 @@
-# Project Structure — Latent Space / RVEacity Metrology Space
+# Project Structure — TWENTY EIGHT
 
-This document describes the **current** file organization, module boundaries, and architectural responsibilities of the RVEacity Metrology Space codebase. It serves as the authoritative source of truth for architecture and file ownership.
+This document describes the **current** file organization, module boundaries, and architectural responsibilities of the TWENTY EIGHT codebase. It serves as the authoritative source of truth for architecture and file ownership.
 
 Behavioral details, interaction contracts, and current-state specifications are defined in `PROJECT_CONTEXT.md` as the authoritative behavioral and current-state source of truth. `REFACTOR_PLAN.md` is historical refactor documentation only.
 
@@ -10,7 +10,7 @@ Behavioral details, interaction contracts, and current-state specifications are 
 
 ```
 latent-space/
-├── index.html                       # App shell, RVEacity UI markup, script entry
+├── index.html                       # App shell, TWENTY EIGHT UI markup, script entry
 ├── package.json                     # Vite + Three.js dependencies and scripts
 ├── package-lock.json                # Locked dependency versions
 ├── PROJECT_CONTEXT.md               # Behavioral and current-state source of truth for AI/dev sessions
@@ -47,11 +47,22 @@ latent-space/
 │   │   ├── annotationValidation.js  # Validates annotation input before saving
 │   │   ├── appMode.js               # App mode state (Inspect & Measure vs Annotate)
 │   │   ├── arbitraryYSidePhysicalDepthQualification.js # Arbitrary-Y Side Physical Depth Qualification Contract v0 — qualifies Side AP depth across arbitrary pelvic Y levels
+│   │   ├── abdominalApexPlaneLocalization.js # Abdominal Apex Plane Localization Contract v0 — pure deterministic evidence-driven abdominal apex plane localization
+│   │   ├── abdominalApexPlaneLocalization.test.js # Abdominal Apex Plane Localization unit tests
+│   │   ├── anatomicalLevels.js      # Anatomical Level Contract v0 — pure derivation of 7 reference Y levels from promoted landmarks
+│   │   ├── anatomicalLevels.test.js # Anatomical Level Contract v0 unit tests
+│   │   ├── anatomicalRegionEvidence.js # Anatomical Region Evidence Association Contract v0
+│   │   ├── anatomicalRegionEvidence.test.js # Anatomical Region Evidence Association Contract v0 unit tests
+│   │   ├── anatomicalRegions.js     # Anatomical Region Contract v0 — deterministic 29-class region mapping
+│   │   ├── anatomicalRegions.test.js # Anatomical Region Contract v0 unit tests
+│   │   ├── annotations.js           # Annotation CRUD, 3D visual markers, CSS2D labels, promote path
+│   │   ├── appMode.js               # App mode state (Inspect & Measure vs Annotate)
+│   │   ├── arbitraryYSidePhysicalDepthQualification.js # Arbitrary-Y Side Physical Depth Qualification Contract v0 — qualifies Side AP depth across arbitrary pelvic Y levels
 │   │   ├── arbitraryYSidePhysicalDepthQualification.test.js # Arbitrary-Y Side Physical Depth Qualification unit tests
 │   │   ├── authoritativePhysicalEvidenceSemantics.js # Authoritative Physical Evidence Semantics Contract v0 — classifies dense pointmap evidence by authority without creating measurements
 │   │   ├── authoritativePhysicalEvidenceSemantics.test.js # Authoritative Physical Evidence Semantics Contract v0 unit tests
 │   │   ├── batchPromoteLandmarks.test.js # Batch landmark promotion unit tests
-│   │   ├── bodyEvidence.js          # Body Evidence runtime store: active package, selections, change notifications, anatomical region evidence & transverse width getters, 4.5G authoritative physical evidence getters, direct body measurements getters, modeled hip/seat circumference getters, sanitized export, batch landmark promotion
+│   │   ├── bodyEvidence.js          # Body Evidence runtime store: active package, selections, change notifications, anatomical region evidence & transverse width getters, 4.5G authoritative physical evidence getters, direct body measurements getters, modeled circumference getters, sanitized export, batch landmark promotion
 │   │   ├── bodyEvidenceAdapter.js   # Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization
 │   │   ├── bodyEvidenceAdapter.test.js # Body Evidence adapter unit tests
 │   │   ├── bodyEvidencePackage.js   # Full Body Evidence Package Contract v0 & Dense Layout / Pixel Index Contract v0
@@ -86,16 +97,18 @@ latent-space/
 │   │   ├── maximumSeatPlaneLocalization.js # Maximum Seat Plane Localization Contract v0 — ranks pelvic scan candidate planes by Ramanujan II perimeter to localize Maximum Seat Plane
 │   │   ├── maximumSeatPlaneLocalization.test.js # Maximum Seat Plane Localization unit tests
 │   │   ├── measurement.js           # Canonical shared Point A/B measurement state, markers, line, history
-│   │   ├── measurementSupportPolicy.js # Measurement Support Policy Contract v0 — pure deterministic definitions of observed supported silhouettes (trunk_core_support_v0, pelvic_core_support_v0)
+│   │   ├── measurementSupportPolicy.js # Measurement Support Policy Contract v0 — pure deterministic definitions of observed supported silhouettes (trunk_core_support_v0, pelvic_core_support_v0, trunk_pelvic_transition_support_v0)
 │   │   ├── measurementSupportPolicy.test.js # Measurement Support Policy Contract v0 unit tests
 │   │   ├── measurementVisualizationProvenance.js # Measurement Visualization Provenance Contract v0 — pure declarative normalizer converting domain records into 2D visualization instructions
 │   │   ├── measurementVisualizationProvenance.test.js # Measurement Visualization Provenance unit tests
 │   │   ├── metricCalibrationProvenance.js # Metric Calibration Provenance Contract v0 — pure deterministic validator of upstream metric calibration claims across Front and Side views
 │   │   ├── metricCalibrationProvenance.test.js # Metric Calibration Provenance Contract v0 unit tests
+│   │   ├── modeledAbdominalCircumference.js # Modeled Abdominal Circumference Contract v0 — pure deterministic ellipse-modeled Abdominal circumference estimate at localized Abdominal Apex Plane using Ramanujan II with transition support
+│   │   ├── modeledAbdominalCircumference.test.js # Modeled Abdominal Circumference unit tests
 │   │   ├── modeledCrossSectionPerimeter.js # Modeled Cross-Section Perimeter Contract v0 — pure deterministic ellipse-modeled perimeter estimate from qualified upstream cross-section evidence at Hip Landmark Level using Ramanujan II; retained internally for QA
 │   │   ├── modeledCrossSectionPerimeter.test.js # Modeled Cross-Section Perimeter Contract v0 unit tests
-│   │   ├── modeledHipSeatCircumference.js # Modeled Hip / Seat Circumference Contract v0 — pure deterministic domain derivation of primary modeled circumference estimate at localized Maximum Seat Plane
-│   │   ├── modeledHipSeatCircumference.test.js # Modeled Hip / Seat Circumference unit tests
+│   │   ├── modeledHipSeatCircumference.js # Modeled Hip Circumference Contract v0 — pure deterministic domain derivation of primary modeled circumference estimate at localized Maximum Seat Plane
+│   │   ├── modeledHipSeatCircumference.test.js # Modeled Hip Circumference unit tests
 │   │   ├── modeledNaturalWaistCircumference.js # Modeled Natural Waist Circumference Contract v0 — pure deterministic domain derivation of ellipse-modeled Natural Waist circumference estimate at localized Natural Waist Plane using Ramanujan II with strict Front-only gate
 │   │   ├── modeledNaturalWaistCircumference.test.js # Modeled Natural Waist Circumference unit tests
 │   │   ├── naturalWaistPlaneLocalization.js # Natural Waist Plane Localization Contract v0 — pure deterministic evidence-driven waist plane localization using metric smoothing window = 2.0 cm, bilateral contour QA, broad trough pooling, and hierarchical tie-breaking

@@ -174,8 +174,7 @@ test('1. Front horizontal slice renders exact stored endpoints', () => {
   assert.equal(dots[1].style.left, `${65.4 * 2}px`);
 
   const badge = frontLayer.querySelector('.grid2d-highlight-badge');
-  assert.ok(badge, 'Dimension badge rendered');
-  assert.equal(badge.textContent, '30.80 cm');
+  assert.equal(badge, null, 'No numeric badge rendered on Front horizontal slice');
 });
 
 test('2. Side horizontal slice renders exact stored endpoints', () => {
@@ -212,8 +211,7 @@ test('2. Side horizontal slice renders exact stored endpoints', () => {
   assert.equal(dots.length, 2, 'Two endpoint dots rendered');
 
   const badge = sideLayer.querySelector('.grid2d-highlight-badge');
-  assert.ok(badge, 'Dimension badge rendered');
-  assert.equal(badge.textContent, '27.70 cm');
+  assert.equal(badge, null, 'No numeric badge rendered on Side horizontal slice');
 });
 
 test('3, 4 & 5. Cross-view slice renders on Front and Side at common metric Y with differing raster rows', () => {
@@ -259,6 +257,9 @@ test('3, 4 & 5. Cross-view slice renders on Front and Side at common metric Y wi
 
   assert.equal(frontLine.style.width, `${(71.1 - 28.9) * 2}px`);
   assert.equal(sideLine.style.width, `${(63.8 - 36.1) * 2}px`);
+
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'No numeric badge on Front cross-view slice');
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null, 'No numeric badge on Side cross-view slice');
 });
 
 test('6. Landmark segment renders exact endpoints', () => {
@@ -474,11 +475,13 @@ test('11 & 12. Setting new highlight replaces previous; clearing removes only me
 
   setMeasurementHighlight(vis1);
   renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
-  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge').textContent, '40.00 cm');
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'No badge on slice vis1');
 
   setMeasurementHighlight(vis2);
   renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
-  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge').textContent, '60.00 cm');
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'No badge on slice vis2');
 
   clearMeasurementHighlight();
   renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
@@ -558,7 +561,7 @@ test('18, 19 & 20. Hip / Seat cross-view highlight uses stored provenance only w
   const seatCircumferenceVis = {
     contract: 'measurement-visualization-provenance-v0',
     measurementId: 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane',
-    displayName: 'Modeled Hip / Seat Circumference Estimate',
+    displayName: 'Modeled Hip Circumference',
     visualizationType: VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE,
     targetViews: ['front', 'side'],
     status: VISUALIZATION_STATUS.READY,
@@ -588,11 +591,17 @@ test('18, 19 & 20. Hip / Seat cross-view highlight uses stored provenance only w
   renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
   renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
 
+  const frontLine = frontLayer.querySelector('.grid2d-highlight-line');
+  const sideLine = sideLayer.querySelector('.grid2d-highlight-line');
   const frontBadge = frontLayer.querySelector('.grid2d-highlight-badge');
   const sideBadge = sideLayer.querySelector('.grid2d-highlight-badge');
 
-  assert.equal(frontBadge.textContent, '44.30 cm');
-  assert.equal(sideBadge.textContent, '27.40 cm');
+  assert.ok(frontLine, 'Front slice line rendered from stored provenance');
+  assert.ok(sideLine, 'Side slice line rendered from stored provenance');
+  assert.equal(frontLayer.querySelectorAll('.grid2d-highlight-dot').length, 2);
+  assert.equal(sideLayer.querySelectorAll('.grid2d-highlight-dot').length, 2);
+  assert.equal(frontBadge, null, 'No floating badge rendered above Front Hip/Seat line');
+  assert.equal(sideBadge, null, 'No floating badge rendered above Side Hip/Seat line');
 });
 
 test('21 & 22. Highlight state does not mutate visualization input or alter values', () => {
@@ -617,10 +626,10 @@ test('21 & 22. Highlight state does not mutate visualization input or alter valu
   assert.deepEqual(active, input);
 });
 
-test('23. Horizontal slice, Cross-view slice, Segment, and Vertical interval badges are clearly offset from measured lines', () => {
+test('23. Horizontal slice has no numeric badge, while Vertical interval badge is clearly offset beside the line', () => {
   const { frontLayer, sideLayer } = setupTestDom();
 
-  // A. Horizontal slice badge is offset above the line (py - 14)
+  // A. Horizontal slice renders line with no numeric text badge
   const sliceVis = {
     contract: 'measurement-visualization-provenance-v0',
     measurementId: 'torso_front_transverse_width_at_shoulder_level',
@@ -636,9 +645,8 @@ test('23. Horizontal slice, Cross-view slice, Segment, and Vertical interval bad
   renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
   const sliceLine = frontLayer.querySelector('.grid2d-highlight-line');
   const sliceBadge = frontLayer.querySelector('.grid2d-highlight-badge');
-  const lineY = parseFloat(sliceLine.style.top);
-  const badgeY = parseFloat(sliceBadge.style.top);
-  assert.equal(badgeY, lineY - 14, 'Horizontal slice badge is positioned 14px above line');
+  assert.ok(sliceLine, 'Horizontal slice line is rendered');
+  assert.equal(sliceBadge, null, 'Horizontal slice has no numeric text badge');
 
   // B. Vertical interval badge is offset beside the line (px + 24)
   const vertVis = {
@@ -703,11 +711,7 @@ test('24. Natural Waist Plane renders horizontal reference guide, Front slice sp
   assert.equal(frontGuide.style.top, `${mockWorldToPlotPx(100, 115.25).py}px`);
   assert.ok(frontLine, 'Front slice line is rendered');
   assert.equal(frontDots.length, 2, 'Two Front endpoint dots rendered');
-  assert.equal(frontBadge.textContent, 'Natural Waist · 115.25 cm', 'Front badge uses concise format without slice width or parentheses');
-  assert.equal(frontBadge.style.left, '10px', 'Front badge placed at safe 10px left inset from plot boundary');
-  assert.equal(frontBadge.style.transform, 'translateY(-50%)', 'Front badge uses left-anchored vertical transform to avoid clipping');
-  assert.equal(frontBadge.style.top, `${mockWorldToPlotPx(100, 115.25).py - 14}px`, 'Front badge aligned 14px above canonical Y');
-  assert.ok(frontBadge.classList.contains('grid2d-highlight-badge--left'));
+  assert.equal(frontBadge, null, 'No floating badge rendered above Front Natural Waist line');
 
   // Side Layer verification
   const sideGuide = sideLayer.querySelector('.grid2d-highlight-level-guide');
@@ -720,11 +724,7 @@ test('24. Natural Waist Plane renders horizontal reference guide, Front slice sp
   assert.equal(frontGuide.style.top, sideGuide.style.top, 'Front and Side guides share exact same Py');
   assert.ok(sideLine, 'Side slice line is rendered');
   assert.equal(sideDots.length, 2, 'Two Side endpoint dots rendered');
-  assert.equal(sideBadge.textContent, 'Natural Waist · 115.25 cm', 'Side badge uses concise format without depth span or parentheses');
-  assert.equal(sideBadge.style.left, '10px', 'Side badge placed at safe 10px left inset from plot boundary');
-  assert.equal(sideBadge.style.transform, 'translateY(-50%)', 'Side badge uses left-anchored vertical transform to avoid clipping');
-  assert.equal(sideBadge.style.top, `${mockWorldToPlotPx(100, 115.25).py - 14}px`, 'Side badge aligned 14px above canonical Y');
-  assert.ok(sideBadge.classList.contains('grid2d-highlight-badge--left'));
+  assert.equal(sideBadge, null, 'No floating badge rendered above Side Natural Waist line');
 });
 
 test('25. Natural Waist Plane with unequal Front and Side raster rows preserves identical canonical Y', () => {
@@ -778,11 +778,11 @@ test('26. Natural Waist Plane Front-only ready (Side unavailable) renders Front 
   assert.ok(frontLayer.querySelector('.grid2d-highlight-line'));
   assert.equal(frontLayer.querySelectorAll('.grid2d-highlight-dot').length, 2);
 
-  // Side has guide and badge but NO slice line or dots
+  // Side has guide but NO slice line, dots, or badge
   assert.ok(sideLayer.querySelector('.grid2d-highlight-level-guide'));
   assert.equal(sideLayer.querySelector('.grid2d-highlight-line'), null);
   assert.equal(sideLayer.querySelectorAll('.grid2d-highlight-dot').length, 0);
-  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge').textContent, 'Natural Waist · 115.00 cm');
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null);
 });
 
 test('27. Ambiguous, unavailable, or invalid Natural Waist localization clears both Front and Side overlays', () => {
@@ -834,7 +834,7 @@ test('28. Deselecting Natural Waist clears highlight layers without side effects
   assert.equal(sideLayer.children.length, 0);
 });
 
-test('29. Abdominal Apex Plane renders horizontal reference guide, Front slice span, and Side slice span at identical canonical Y', () => {
+test('29. Abdominal Apex Plane renders horizontal reference guide, Front slice span, and Side slice span with no floating badge', () => {
   const { frontLayer, sideLayer } = setupTestDom();
 
   const apexVis = {
@@ -869,19 +869,13 @@ test('29. Abdominal Apex Plane renders horizontal reference guide, Front slice s
   const frontGuide = frontLayer.querySelector('.grid2d-highlight-level-guide');
   assert.ok(frontGuide != null, 'Front layer contains full-width horizontal reference guide');
   assert.equal(frontGuide.style.top, `${400 - 96.85 * 2}px`);
-
-  const frontBadge = frontLayer.querySelector('.grid2d-highlight-badge');
-  assert.ok(frontBadge != null, 'Front layer contains highlight badge');
-  assert.equal(frontBadge.textContent, 'Abdominal Apex · 96.85 cm');
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'No badge rendered above Front Abdominal Apex line');
 
   // Side Layer verification
   const sideGuide = sideLayer.querySelector('.grid2d-highlight-level-guide');
   assert.ok(sideGuide != null, 'Side layer contains horizontal reference guide at identical canonical Y');
   assert.equal(sideGuide.style.top, `${400 - 96.85 * 2}px`);
-
-  const sideBadge = sideLayer.querySelector('.grid2d-highlight-badge');
-  assert.ok(sideBadge != null, 'Side layer contains highlight badge');
-  assert.equal(sideBadge.textContent, 'Abdominal Apex · 96.85 cm');
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null, 'No badge rendered above Side Abdominal Apex line');
 });
 
 test('30. Ambiguous or unavailable Abdominal Apex localization clears both Front and Side overlays', () => {
@@ -902,5 +896,183 @@ test('30. Ambiguous or unavailable Abdominal Apex localization clears both Front
 
   assert.equal(frontLayer.children.length, 0);
   assert.equal(sideLayer.children.length, 0);
+});
+
+test('31. Modeled Hip / Seat Circumference at Maximum Seat Plane renders Front and Side slice spans without floating badges above the lines', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const seatVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane',
+    displayName: 'Modeled Hip Circumference',
+    visualizationType: VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 79.95,
+      front: {
+        rasterRow: 1200,
+        minXcm: 77.8,
+        maxXcm: 122.1,
+        widthCm: 44.3,
+      },
+      side: {
+        rasterRow: 1200,
+        minUcm: 80.5,
+        maxUcm: 107.9,
+        depthCm: 27.4,
+      },
+    },
+  };
+
+  setMeasurementHighlight(seatVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  // Front slice line and dots rendered, no badge
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(frontLayer.querySelectorAll('.grid2d-highlight-dot').length, 2);
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'No floating badge above Front Seat plane line');
+
+  // Side slice line and dots rendered, no badge
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(sideLayer.querySelectorAll('.grid2d-highlight-dot').length, 2);
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null, 'No floating badge above Side Seat plane line');
+});
+
+test('32. Shoulder Level cross-section overlay renders slice lines and dots with NO numeric text badges (30.80 cm / 11.00 cm absent)', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const shoulderVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_cross_section_evidence_at_shoulder_level',
+    displayName: 'Shoulder Level',
+    visualizationType: VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 132.85,
+      front: {
+        rasterRow: 671,
+        minXcm: 34.6,
+        maxXcm: 65.4,
+        widthCm: 30.8,
+      },
+      side: {
+        rasterRow: 671,
+        minUcm: 44.5,
+        maxUcm: 55.5,
+        depthCm: 11.0,
+      },
+    },
+  };
+
+  setMeasurementHighlight(shoulderVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  // Front verification
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-line'), 'Front slice line rendered');
+  assert.equal(frontLayer.querySelectorAll('.grid2d-highlight-dot').length, 2, 'Front 2 endpoint dots rendered');
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'Front has NO numeric badge (30.80 cm absent)');
+
+  // Side verification
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-line'), 'Side slice line rendered');
+  assert.equal(sideLayer.querySelectorAll('.grid2d-highlight-dot').length, 2, 'Side 2 endpoint dots rendered');
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null, 'Side has NO numeric badge (11.00 cm absent)');
+});
+
+test('33. Hip Level cross-section overlay renders slice lines and dots with NO numeric text badges (42.20 cm / 27.70 cm absent)', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  const hipVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_cross_section_evidence_at_hip_level',
+    displayName: 'Hip Level',
+    visualizationType: VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 86.25,
+      front: {
+        rasterRow: 1137,
+        minXcm: 28.9,
+        maxXcm: 71.1,
+        widthCm: 42.2,
+      },
+      side: {
+        rasterRow: 1137,
+        minUcm: 36.1,
+        maxUcm: 63.8,
+        depthCm: 27.7,
+      },
+    },
+  };
+
+  setMeasurementHighlight(hipVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  // Front verification
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-line'), 'Front slice line rendered');
+  assert.equal(frontLayer.querySelectorAll('.grid2d-highlight-dot').length, 2, 'Front 2 endpoint dots rendered');
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'Front has NO numeric badge (42.20 cm absent)');
+
+  // Side verification
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-line'), 'Side slice line rendered');
+  assert.equal(sideLayer.querySelectorAll('.grid2d-highlight-dot').length, 2, 'Side 2 endpoint dots rendered');
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null, 'Side has NO numeric badge (27.70 cm absent)');
+});
+
+test('34. Natural Waist and Abdominal Apex overlays render guide lines and slice lines with NO numeric badges', () => {
+  const { frontLayer, sideLayer } = setupTestDom();
+
+  // Natural Waist
+  const waistVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_modeled_natural_waist_circumference_at_natural_waist_plane',
+    displayName: 'Modeled Natural Waist Circumference',
+    visualizationType: VISUALIZATION_TYPES.NATURAL_WAIST_PLANE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 107.15,
+      front: { minXcm: 35.5, maxXcm: 64.5, widthCm: 29.0 },
+      side: { minUcm: 38.4, maxUcm: 61.6, depthCm: 23.2 },
+    },
+  };
+  setMeasurementHighlight(waistVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-level-guide'));
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'No waist badge on Front');
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-level-guide'));
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null, 'No waist badge on Side');
+
+  // Abdominal Apex
+  const apexVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane',
+    displayName: 'Modeled Abdominal Circumference',
+    visualizationType: VISUALIZATION_TYPES.ABDOMINAL_APEX_PLANE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 95.75,
+      front: { minXcm: 31.4, maxXcm: 68.6, widthCm: 37.2 },
+      side: { minUcm: 36.85, maxUcm: 63.15, depthCm: 26.3 },
+    },
+  };
+  setMeasurementHighlight(apexVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-level-guide'));
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'No abdominal badge on Front');
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-level-guide'));
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null, 'No abdominal badge on Side');
 });
 

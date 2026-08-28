@@ -25,7 +25,7 @@ export const MODELED_HIP_SEAT_CIRCUMFERENCE_CONTRACT = 'modeled-hip-seat-circumf
 export const MODELED_HIP_SEAT_CIRCUMFERENCE_CONTRACT_VERSION = 'modeled-hip-seat-circumference-v0';
 
 export const MODELED_HIP_SEAT_CIRCUMFERENCE_DEFINITION_ID = 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane';
-export const MODELED_HIP_SEAT_CIRCUMFERENCE_DISPLAY_NAME = 'Modeled Hip / Seat Circumference Estimate';
+export const MODELED_HIP_SEAT_CIRCUMFERENCE_DISPLAY_NAME = 'Modeled Hip Circumference';
 
 /**
  * Authoritative measurement status taxonomy.

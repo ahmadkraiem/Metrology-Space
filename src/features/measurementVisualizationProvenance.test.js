@@ -146,7 +146,7 @@ test('6 & 7. Modeled Hip / Seat Circumference uses stored localization provenanc
   const seatCircumference = {
     contract: 'modeled-hip-seat-circumference-v0',
     id: 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane',
-    name: 'Modeled Hip / Seat Circumference Estimate',
+    name: 'Modeled Hip Circumference',
     status: 'modeled',
     valueCm: 114.1959,
     levelYcm: 79.95,

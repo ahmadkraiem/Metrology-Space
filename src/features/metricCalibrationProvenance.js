@@ -178,8 +178,8 @@ export function evaluateMetricCalibrationProvenance(
   // 3. Isotropic / Uniform Scaling Check
   //
   // Upstream Align stages provide a single scalar scaleFactor per view (uniform scalar scaling).
-  // RVEacity does not take an adapter's "isIsotropic: true" assertion as authoritative truth;
-  // instead, RVEacity independently validates uniform/isotropic scaling consistency in the
+  // TWENTY EIGHT does not take an adapter's "isIsotropic: true" assertion as authoritative truth;
+  // instead, TWENTY EIGHT independently validates uniform/isotropic scaling consistency in the
   // pixel domain against the declared scaleFactor and crop dimensions.
   const declaredIsIsotropic = packageCalibration?.isIsotropic;
   const origW = viewCalibration?.originalImageWidthPx;
@@ -351,16 +351,16 @@ export function evaluateMetricCalibrationProvenance(
 
   // 7. Workspace Scale Matches Upstream Metric Scale
   if (typeof pixelsPerCm === 'number' && pixelsPerCm > 0 && typeof rasterW === 'number' && rasterW > 0) {
-    const rveacityScale = workspaceExtentCm / rasterW; // cm per pixel
+    const workspaceScale = workspaceExtentCm / rasterW; // cm per pixel
     const upstreamScale = 1 / pixelsPerCm;             // cm per pixel
-    const scaleDiff = Math.abs(rveacityScale - upstreamScale);
+    const scaleDiff = Math.abs(workspaceScale - upstreamScale);
 
     if (scaleDiff > SCALE_FACTOR_NUMERIC_TOLERANCE) {
       recordCheck(
         'workspace_scale_matches_upstream',
         'Workspace Scale Ratio Agreement',
         'fail',
-        `Scale ratio mismatch: RVEacity mapping (${rveacityScale} cm/px) does not match upstream (${upstreamScale} cm/px).`,
+        `Scale ratio mismatch: workspace mapping (${workspaceScale} cm/px) does not match upstream (${upstreamScale} cm/px).`,
       );
       isInvalid = true;
     } else {
@@ -368,7 +368,7 @@ export function evaluateMetricCalibrationProvenance(
         'workspace_scale_matches_upstream',
         'Workspace Scale Ratio Agreement',
         'pass',
-        `Scale ratios agree exactly at ${rveacityScale} cm/px (${pixelsPerCm} px/cm).`,
+        `Scale ratios agree exactly at ${workspaceScale} cm/px (${pixelsPerCm} px/cm).`,
       );
     }
   }

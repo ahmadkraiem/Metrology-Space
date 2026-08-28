@@ -2777,7 +2777,7 @@ export function getMeasurementVisualizationProvenance(measurement, context = {})
   const resolvedContext = {
     crossSectionEvidenceReport: getCrossSectionEvidence('hip'),
     directMeasurementsReport: getDirectBodyMeasurements(),
-    anatomicalLevelsReport: getAnatomicalLevelsReport(),
+    anatomicalLevelsReport: computeAnatomicalLevels(getAnnotations()),
     ...context,
   };
   return resolveMeasurementVisualizationProvenance(measurement, resolvedContext);
@@ -2851,7 +2851,7 @@ export function analyzeLoadedBodyEvidence() {
         if (sessionId !== currentAnalysisSessionId) {
           return;
         }
-        console.warn('[RVEacity] Dense Evidence QA evaluation error:', err);
+        console.warn('[TWENTY EIGHT] Dense Evidence QA evaluation error:', err);
       });
     }
 
@@ -2920,7 +2920,7 @@ export async function analyzeLoadedBodyEvidenceAsync() {
       }
     } catch (err) {
       if (sessionId === currentAnalysisSessionId) {
-        console.warn('[RVEacity] Dense Evidence QA async evaluation error:', err);
+        console.warn('[TWENTY EIGHT] Dense Evidence QA async evaluation error:', err);
       }
     }
   }

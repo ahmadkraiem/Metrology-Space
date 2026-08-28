@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   buildDerivedMeasurementCardHtml,
   buildDirectMeasurementsGroupHtml,
+  buildModeledAbdominalCircumferenceCardHtml,
   buildModeledHipSeatCircumferenceCardHtml,
   buildModeledNaturalWaistCircumferenceCardHtml,
   buildModeledPerimeterCardHtml,
@@ -107,7 +108,7 @@ test('derivedMeasurementDeck: slim cards keep results and one status without blo
   assert.equal(html.includes('Front Transverse Width'), true);
   assert.equal(html.includes('Side Profile Span'), false);
   assert.equal(html.includes('38.25 cm') || html.includes('38.3 cm') || html.includes('38.2 cm'), true);
-  assert.equal(html.includes('Y '), true);
+  assert.equal(html.includes('derived-card-level'), false, 'Header Y badge is removed from card header');
   assert.equal(html.includes('Blocked'), true);
 
   assert.equal(html.includes('derived-blocker'), false);
@@ -973,9 +974,9 @@ test('derivedMeasurementDeck: buildModeledPerimeterCardHtml renders Hip Landmark
   // 1. Primary visible title
   assert.equal(html.includes('Hip Landmark Perimeter Estimate'), true);
 
-  // 2. Y level and Modeled badge
-  assert.equal(html.includes('Y 86.25 cm') || html.includes('Y 86.3 cm') || html.includes('Y 86.2 cm'), true);
+  // 2. Modeled badge
   assert.equal(html.includes('Modeled'), true);
+  assert.equal(html.includes('derived-card-level'), false, 'Header Y badge is removed');
 
   // 3. Formatted perimeter value
   assert.equal(html.includes('110.98 cm'), true);
@@ -1151,7 +1152,7 @@ test('derivedMeasurementDeck: Hip/Seat card remains the production-facing modele
   const html = buildModeledHipSeatCircumferenceCardHtml({
     contract: 'modeled-hip-seat-circumference-v0',
     id: 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane',
-    name: 'Modeled Hip / Seat Circumference Estimate',
+    name: 'Modeled Hip Circumference',
     status: 'modeled',
     valueCm: 114.1959,
     levelYcm: 79.95,
@@ -1168,7 +1169,7 @@ test('derivedMeasurementDeck: Hip/Seat card remains the production-facing modele
     },
   });
 
-  assert.equal(html.includes('Modeled Hip / Seat Circumference Estimate'), true);
+  assert.equal(html.includes('Modeled Hip Circumference'), true);
   assert.equal(html.includes('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"'), true);
   assert.equal(html.includes('Circumference Estimate'), true);
   assert.equal(html.includes('114.20 cm'), true);
@@ -1368,7 +1369,7 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
   const container = { innerHTML: '' };
   renderDerivedMeasurementDeck(container);
 
-  // 1. Both cards must be present in the live render output
+  // 1. All three cards must be present in the live render output
   assert.equal(
     container.innerHTML.includes('Modeled Natural Waist Circumference'),
     true,
@@ -1380,9 +1381,19 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
     'Natural Waist card must include measurement ID',
   );
   assert.equal(
-    container.innerHTML.includes('Modeled Hip / Seat Circumference Estimate'),
+    container.innerHTML.includes('Modeled Abdominal Circumference'),
     true,
-    'Live render must include Modeled Hip / Seat Circumference card',
+    'Live render must include Modeled Abdominal Circumference card',
+  );
+  assert.equal(
+    container.innerHTML.includes('data-measurement-id="torso_modeled_abdominal_circumference_at_abdominal_apex_plane"'),
+    true,
+    'Abdominal card must include measurement ID',
+  );
+  assert.equal(
+    container.innerHTML.includes('Modeled Hip Circumference'),
+    true,
+    'Live render must include Modeled Hip Circumference card',
   );
   assert.equal(
     container.innerHTML.includes('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"'),
@@ -1390,14 +1401,16 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
     'Hip/Seat card must include measurement ID',
   );
 
-  // 2. Both cards are inside the Modeled Perimeter Estimates subgroup
+  // 2. All three cards are inside the Modeled Perimeter Estimates subgroup
   const subgroupStart = container.innerHTML.indexOf('data-group-id="modeled_perimeter_estimates"');
   assert.ok(subgroupStart > -1, 'Modeled Perimeter Estimates subgroup must exist');
 
   const waistCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_natural_waist_circumference_at_natural_waist_plane"');
+  const abdominalCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_abdominal_circumference_at_abdominal_apex_plane"');
   const seatCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"');
 
   assert.ok(waistCardIdx > subgroupStart, 'Natural Waist card must be inside perimeter subgroup');
+  assert.ok(abdominalCardIdx > subgroupStart, 'Abdominal card must be inside perimeter subgroup');
   assert.ok(seatCardIdx > subgroupStart, 'Hip/Seat card must be inside perimeter subgroup');
 
   // Clean up
@@ -1405,6 +1418,108 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
   clearBodyEvidence();
   restoreAnnotations([]);
   global.document = origDoc;
+});
+
+test('derivedMeasurementDeck: Modeled Abdominal Circumference card renders exact title, badges, Front width, Side AP depth, and disclaimers', () => {
+  const html = buildModeledAbdominalCircumferenceCardHtml({
+    contract: 'modeled-abdominal-circumference-v0',
+    id: 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane',
+    name: 'Modeled Abdominal Circumference',
+    status: 'modeled',
+    valueCm: 100.4817,
+    levelYcm: 95.75,
+    model: {
+      transverseWidthCm: 37.20,
+      apDepthCm: 26.30,
+    },
+    provenance: {
+      selectedYcm: 95.75,
+      frontTransverseWidthCm: 37.20,
+      sideQualifiedApDepthCm: 26.30,
+    },
+  });
+
+  assert.equal(html.includes('Modeled Abdominal Circumference'), true);
+  assert.equal(html.includes('data-measurement-id="torso_modeled_abdominal_circumference_at_abdominal_apex_plane"'), true);
+  assert.equal(html.includes('Circumference Estimate'), true);
+  assert.equal(html.includes('100.48 cm'), true);
+  assert.equal(html.includes('Apex Plane Y'), true);
+  assert.equal(html.includes('95.75 cm'), true);
+  assert.equal(html.includes('Front Width'), true);
+  assert.equal(html.includes('37.20 cm'), true);
+  assert.equal(html.includes('Side AP Depth'), true);
+  assert.equal(html.includes('26.30 cm'), true);
+  assert.equal(html.includes('Ellipse (Ramanujan II)'), true);
+  assert.equal(html.includes('Evaluated at localized Abdominal Apex Plane.'), true);
+  assert.equal(html.includes('Modeled estimate; not tape-measured ground truth.'), true);
+  assert.equal(html.includes('body-evidence-badge--ok'), true);
+  assert.equal(html.includes('Modeled'), true);
+});
+
+test('derivedMeasurementDeck: Modeled Abdominal Circumference card builder produces dynamic runtime values', () => {
+  const html = buildModeledAbdominalCircumferenceCardHtml({
+    id: 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane',
+    status: 'modeled',
+    valueCm: 92.15,
+    levelYcm: 98.4,
+    model: {
+      transverseWidthCm: 34.5,
+      apDepthCm: 24.1,
+    },
+    provenance: {
+      selectedYcm: 98.4,
+      frontTransverseWidthCm: 34.5,
+      sideQualifiedApDepthCm: 24.1,
+    },
+  });
+
+  assert.equal(html.includes('92.15 cm'), true);
+  assert.equal(html.includes('98.40 cm') || html.includes('98.4 cm'), true);
+  assert.equal(html.includes('34.50 cm'), true);
+  assert.equal(html.includes('24.10 cm'), true);
+  assert.equal(html.includes('100.48 cm'), false);
+});
+
+test('derivedMeasurementDeck: Modeled Abdominal Circumference card handles blocked, unavailable, and invalid states with dash', () => {
+  const blockedHtml = buildModeledAbdominalCircumferenceCardHtml({
+    id: 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane',
+    status: 'blocked',
+    valueCm: null,
+    levelYcm: 95.75,
+  });
+  assert.equal(blockedHtml.includes('Blocked'), true);
+  assert.equal(blockedHtml.includes('Circumference Estimate'), true);
+  assert.equal(blockedHtml.includes('100.48 cm'), false);
+
+  const unavailHtml = buildModeledAbdominalCircumferenceCardHtml({
+    id: 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane',
+    status: 'unavailable',
+    valueCm: null,
+    levelYcm: null,
+  });
+  assert.equal(unavailHtml.includes('Unavailable'), true);
+  assert.equal(unavailHtml.includes('Apex Plane Y'), true);
+  assert.equal(unavailHtml.includes('derived-card-level'), false);
+
+  const invalidHtml = buildModeledAbdominalCircumferenceCardHtml({
+    id: 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane',
+    status: 'invalid',
+    valueCm: null,
+    levelYcm: null,
+  });
+  assert.equal(invalidHtml.includes('Invalid'), true);
+  assert.equal(invalidHtml.includes('Apex Plane Y'), true);
+  assert.equal(invalidHtml.includes('derived-card-level'), false);
+});
+
+test('derivedMeasurementDeck: getMeasurementRecordById routes canonical and legacy IDs cleanly', () => {
+  clearBodyEvidence();
+  assert.equal(getMeasurementRecordById('torso_modeled_abdominal_circumference_at_abdominal_apex_plane'), null);
+  assert.equal(getMeasurementRecordById('modeled_abdominal_circumference'), null);
+  assert.equal(getMeasurementRecordById('abdominal_apex_plane_localization'), null);
+  assert.equal(getMeasurementRecordById('torso_modeled_natural_waist_circumference_at_natural_waist_plane'), null);
+  assert.equal(getMeasurementRecordById('unknown_id'), null);
+  assert.equal(getMeasurementRecordById(null), null);
 });
 
 

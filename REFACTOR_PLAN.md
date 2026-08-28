@@ -1,6 +1,6 @@
 # REFACTOR_PLAN.md — Staged Refactor Plan
 
-**Latent Space / RVEacity Metrology Space**
+**TWENTY EIGHT**
 
 This document is **completed historical refactor documentation** — a planning-only record of the staged maintainability refactor (Phases 0–9). It does not implement any refactor by itself and is **not** an active source of truth for new feature work.
 

@@ -248,7 +248,7 @@ function resolveCrossViewHorizontalSlice(measurement, context = {}) {
       contract: MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT,
       version: MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION,
       measurementId: measurement.id,
-      displayName: measurement.name ?? 'Modeled Hip / Seat Circumference Estimate',
+      displayName: measurement.name ?? 'Modeled Hip Circumference',
       visualizationType: VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE,
       targetViews: ['front', 'side'],
       recommendedWorkspaceMode: 'WORKSPACE_SPLIT',

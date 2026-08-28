@@ -58,7 +58,7 @@ function notifyHighlightChange() {
     try {
       listener(activeVisualization);
     } catch (err) {
-      console.error('[RVEacity] Error in measurement highlight listener:', err);
+      console.error('[TWENTY EIGHT] Error in measurement highlight listener:', err);
     }
   }
   if (typeof refreshFrontNavigatorFn === 'function') {
@@ -187,7 +187,6 @@ function renderFrontHorizontalSlice(fragment, geometry, worldToPlotPx) {
   const yCm = geometry.yCm;
   const minX = geometry.front?.minXcm;
   const maxX = geometry.front?.maxXcm;
-  const width = geometry.front?.widthCm;
 
   if (typeof yCm !== 'number' || typeof minX !== 'number' || typeof maxX !== 'number') {
     return;
@@ -200,17 +199,12 @@ function renderFrontHorizontalSlice(fragment, geometry, worldToPlotPx) {
   if (line) fragment.appendChild(line);
   fragment.appendChild(createHighlightDot(pA));
   fragment.appendChild(createHighlightDot(pB));
-
-  const displaySpan = width ?? Math.abs(maxX - minX);
-  const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py - 14 };
-  fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displaySpan)} cm`));
 }
 
 function renderSideHorizontalSlice(fragment, geometry, worldToPlotPx) {
   const yCm = geometry.yCm;
   const minU = geometry.side?.minUcm;
   const maxU = geometry.side?.maxUcm;
-  const depth = geometry.side?.depthCm;
 
   if (typeof yCm !== 'number' || typeof minU !== 'number' || typeof maxU !== 'number') {
     return;
@@ -223,10 +217,6 @@ function renderSideHorizontalSlice(fragment, geometry, worldToPlotPx) {
   if (line) fragment.appendChild(line);
   fragment.appendChild(createHighlightDot(pA));
   fragment.appendChild(createHighlightDot(pB));
-
-  const displayDepth = depth ?? Math.abs(maxU - minU);
-  const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py - 14 };
-  fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displayDepth)} cm`));
 }
 
 function renderCrossViewHorizontalSlice(fragment, view, geometry, worldToPlotPx) {
@@ -236,7 +226,6 @@ function renderCrossViewHorizontalSlice(fragment, view, geometry, worldToPlotPx)
   if (view === 'front') {
     const minX = geometry.front?.minXcm;
     const maxX = geometry.front?.maxXcm;
-    const width = geometry.front?.widthCm;
 
     if (typeof minX === 'number' && typeof maxX === 'number') {
       const pA = worldToPlotPx(minX, yCm);
@@ -246,15 +235,10 @@ function renderCrossViewHorizontalSlice(fragment, view, geometry, worldToPlotPx)
       if (line) fragment.appendChild(line);
       fragment.appendChild(createHighlightDot(pA));
       fragment.appendChild(createHighlightDot(pB));
-
-      const displaySpan = width ?? Math.abs(maxX - minX);
-      const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py - 14 };
-      fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displaySpan)} cm`));
     }
   } else if (view === 'side') {
     const minU = geometry.side?.minUcm;
     const maxU = geometry.side?.maxUcm;
-    const depth = geometry.side?.depthCm;
 
     if (typeof minU === 'number' && typeof maxU === 'number') {
       const pA = worldToPlotPx(minU, yCm);
@@ -264,10 +248,6 @@ function renderCrossViewHorizontalSlice(fragment, view, geometry, worldToPlotPx)
       if (line) fragment.appendChild(line);
       fragment.appendChild(createHighlightDot(pA));
       fragment.appendChild(createHighlightDot(pB));
-
-      const displayDepth = depth ?? Math.abs(maxU - minU);
-      const midPoint = { px: (pA.px + pB.px) / 2, py: pA.py - 14 };
-      fragment.appendChild(createHighlightBadge(midPoint, `${formatDistance(displayDepth)} cm`));
     }
   }
 }
@@ -276,14 +256,7 @@ function renderNaturalWaistPlane(fragment, view, geometry, worldToPlotPx) {
   const yCm = geometry.yCm;
   if (typeof yCm !== 'number' || !Number.isFinite(yCm)) return;
 
-  // Safe low-obstruction left badge position aligned 14px above canonical Y (fixed 10px inset from plot border)
   const pCenter = worldToPlotPx(100, yCm);
-  const badgePos = {
-    px: 10,
-    py: pCenter.py - 14,
-    transform: 'translateY(-50%)',
-  };
-  const labelText = `Natural Waist · ${formatDistance(yCm)} cm`;
 
   if (view === 'front') {
     const minX = geometry.front?.minXcm;
@@ -302,8 +275,6 @@ function renderNaturalWaistPlane(fragment, view, geometry, worldToPlotPx) {
       fragment.appendChild(createHighlightDot(pA));
       fragment.appendChild(createHighlightDot(pB));
     }
-
-    fragment.appendChild(createHighlightBadge(badgePos, labelText, 'grid2d-highlight-badge grid2d-highlight-badge--left'));
   } else if (view === 'side') {
     const minU = geometry.side?.minUcm;
     const maxU = geometry.side?.maxUcm;
@@ -321,8 +292,6 @@ function renderNaturalWaistPlane(fragment, view, geometry, worldToPlotPx) {
       fragment.appendChild(createHighlightDot(pA));
       fragment.appendChild(createHighlightDot(pB));
     }
-
-    fragment.appendChild(createHighlightBadge(badgePos, labelText, 'grid2d-highlight-badge grid2d-highlight-badge--left'));
   }
 }
 
@@ -330,14 +299,7 @@ function renderAbdominalApexPlane(fragment, view, geometry, worldToPlotPx) {
   const yCm = geometry.yCm;
   if (typeof yCm !== 'number' || !Number.isFinite(yCm)) return;
 
-  // Safe low-obstruction left badge position aligned 14px above canonical Y
   const pCenter = worldToPlotPx(100, yCm);
-  const badgePos = {
-    px: 10,
-    py: pCenter.py - 14,
-    transform: 'translateY(-50%)',
-  };
-  const labelText = `Abdominal Apex · ${formatDistance(yCm)} cm`;
 
   if (view === 'front') {
     const minX = geometry.front?.minXcm;
@@ -356,8 +318,6 @@ function renderAbdominalApexPlane(fragment, view, geometry, worldToPlotPx) {
       fragment.appendChild(createHighlightDot(pA));
       fragment.appendChild(createHighlightDot(pB));
     }
-
-    fragment.appendChild(createHighlightBadge(badgePos, labelText, 'grid2d-highlight-badge grid2d-highlight-badge--left'));
   } else if (view === 'side') {
     const minU = geometry.side?.minUcm;
     const maxU = geometry.side?.maxUcm;
@@ -375,8 +335,6 @@ function renderAbdominalApexPlane(fragment, view, geometry, worldToPlotPx) {
       fragment.appendChild(createHighlightDot(pA));
       fragment.appendChild(createHighlightDot(pB));
     }
-
-    fragment.appendChild(createHighlightBadge(badgePos, labelText, 'grid2d-highlight-badge grid2d-highlight-badge--left'));
   }
 }
 
@@ -572,7 +530,7 @@ export function renderMeasurementHighlight2d({ view = 'front', worldToPlotPx, la
       break;
 
     case VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE:
-      renderCrossViewHorizontalSlice(fragment, view, geometry, worldToPlotPx, displayName);
+      renderCrossViewHorizontalSlice(fragment, view, geometry, worldToPlotPx);
       break;
 
     case VISUALIZATION_TYPES.NATURAL_WAIST_PLANE:

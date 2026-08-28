@@ -519,9 +519,9 @@ export function normalizePointmapEvidence(rawPointmap, {
         },
         viewMatch: { status: 'pass', issues: [] },
         rasterCompatibility: { status: 'pass', issues: [] },
-        coordinateFrame: { status: 'unvalidated', note: 'Pointmap coordinate frame unvalidated by RVEacity v0.' },
-        scaleSemantics: { status: 'unvalidated', note: 'Pointmap scale semantics unvalidated by RVEacity v0.' },
-        canonicalAxisMeaning: { status: 'unvalidated', note: 'Pointmap canonical axis meaning unvalidated by RVEacity v0.' },
+        coordinateFrame: { status: 'unvalidated', note: 'Pointmap coordinate frame unvalidated by TWENTY EIGHT v0.' },
+        scaleSemantics: { status: 'unvalidated', note: 'Pointmap scale semantics unvalidated by TWENTY EIGHT v0.' },
+        canonicalAxisMeaning: { status: 'unvalidated', note: 'Pointmap canonical axis meaning unvalidated by TWENTY EIGHT v0.' },
         issues: [],
         warnings: [],
       },
@@ -642,7 +642,7 @@ export function normalizePointmapEvidence(rawPointmap, {
               decoded = decodeDenseBufferFromBase64(b64, dtype);
             }
           } catch (e) {
-            console.warn('[RVEacity] Failed to lazily decode JSON dense buffer:', e);
+            console.warn('[TWENTY EIGHT] Failed to lazily decode JSON dense buffer:', e);
           }
         } else {
           decoded = decodeDenseBufferFromBase64(
@@ -697,9 +697,9 @@ export function normalizePointmapEvidence(rawPointmap, {
       },
       viewMatch: { status: viewMatchStatus, declaredView: rawView, expectedView },
       rasterCompatibility: { status: rasterCompatStatus, issues: issues.filter((i) => i.includes('raster dimensions')) },
-      coordinateFrame: { status: 'unvalidated', note: 'Pointmap coordinate frame unvalidated by RVEacity v0.' },
-      scaleSemantics: { status: 'unvalidated', note: 'Pointmap scale semantics unvalidated by RVEacity v0.' },
-      canonicalAxisMeaning: { status: 'unvalidated', note: 'Pointmap canonical axis meaning unvalidated by RVEacity v0.' },
+      coordinateFrame: { status: 'unvalidated', note: 'Pointmap coordinate frame unvalidated by TWENTY EIGHT v0.' },
+      scaleSemantics: { status: 'unvalidated', note: 'Pointmap scale semantics unvalidated by TWENTY EIGHT v0.' },
+      canonicalAxisMeaning: { status: 'unvalidated', note: 'Pointmap canonical axis meaning unvalidated by TWENTY EIGHT v0.' },
       issues,
       warnings,
     },
@@ -754,8 +754,8 @@ export function normalizeNormalsEvidence(rawNormals, {
         },
         viewMatch: { status: 'pass', issues: [] },
         rasterCompatibility: { status: 'pass', issues: [] },
-        coordinateFrame: { status: 'unvalidated', note: 'Normal coordinate frame unvalidated by RVEacity v0.' },
-        orientationSemantics: { status: 'unvalidated', note: 'Normal orientation semantics unvalidated by RVEacity v0.' },
+        coordinateFrame: { status: 'unvalidated', note: 'Normal coordinate frame unvalidated by TWENTY EIGHT v0.' },
+        orientationSemantics: { status: 'unvalidated', note: 'Normal orientation semantics unvalidated by TWENTY EIGHT v0.' },
         issues: [],
         warnings: [],
       },
@@ -870,7 +870,7 @@ export function normalizeNormalsEvidence(rawNormals, {
               decoded = decodeDenseBufferFromBase64(b64, dtype);
             }
           } catch (e) {
-            console.warn('[RVEacity] Failed to lazily decode JSON dense buffer:', e);
+            console.warn('[TWENTY EIGHT] Failed to lazily decode JSON dense buffer:', e);
           }
         } else {
           decoded = decodeDenseBufferFromBase64(
@@ -923,8 +923,8 @@ export function normalizeNormalsEvidence(rawNormals, {
       },
       viewMatch: { status: viewMatchStatus, declaredView: rawView, expectedView },
       rasterCompatibility: { status: rasterCompatStatus, issues: issues.filter((i) => i.includes('raster dimensions')) },
-      coordinateFrame: { status: 'unvalidated', note: 'Normal coordinate frame unvalidated by RVEacity v0.' },
-      orientationSemantics: { status: 'unvalidated', note: 'Normal orientation semantics unvalidated by RVEacity v0.' },
+      coordinateFrame: { status: 'unvalidated', note: 'Normal coordinate frame unvalidated by TWENTY EIGHT v0.' },
+      orientationSemantics: { status: 'unvalidated', note: 'Normal orientation semantics unvalidated by TWENTY EIGHT v0.' },
       issues,
       warnings,
     },

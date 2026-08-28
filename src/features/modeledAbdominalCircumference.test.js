@@ -31,6 +31,10 @@ function createMockAbdominalApexLocalization({
   rawAnteriorUcm = 107.90,
   smoothedAnteriorUcm = 107.85,
   baselineUcm = 106.23,
+  frontEncounteredClassIds = [13, 22],
+  sideEncounteredClassIds = [13, 22],
+  supportPolicyId = 'trunk_pelvic_transition_support_v0',
+  targetClassIds = [12, 13, 21, 22, 23],
 } = {}) {
   const selectedPeak = {
     yCm,
@@ -49,6 +53,8 @@ function createMockAbdominalApexLocalization({
     baselineUcm,
     isSideDepthQualified: isSideQualified,
     broadnessScore: 5,
+    encounteredFrontClassIds: [...frontEncounteredClassIds],
+    encounteredSideClassIds: [...sideEncounteredClassIds],
   };
 
   return {
@@ -66,7 +72,7 @@ function createMockAbdominalApexLocalization({
       minXcm: frontMinXcm,
       maxXcm: frontMaxXcm,
       runCount: 1,
-      encounteredClassIds: [22, 23],
+      encounteredClassIds: [...frontEncounteredClassIds],
     },
     sideEvidence: isSideQualified ? {
       status: sideStatus,
@@ -80,6 +86,7 @@ function createMockAbdominalApexLocalization({
       prominenceCm,
       isQualified: true,
       depthQualificationStatus: 'qualified',
+      encounteredClassIds: [...sideEncounteredClassIds],
     } : (sideStatus === 'unavailable' ? {
       status: 'unavailable',
       profileSpanCm: null,
@@ -92,6 +99,7 @@ function createMockAbdominalApexLocalization({
       prominenceCm: null,
       isQualified: false,
       depthQualificationStatus: 'unavailable',
+      encounteredClassIds: [],
     } : {
       status: sideStatus,
       profileSpanCm: sideRawProfileSpanCm,
@@ -104,6 +112,7 @@ function createMockAbdominalApexLocalization({
       prominenceCm,
       isQualified: false,
       depthQualificationStatus: 'unqualified',
+      encounteredClassIds: [...sideEncounteredClassIds],
     }),
     provenance: {
       upperYcm: 107.15,
@@ -116,6 +125,8 @@ function createMockAbdominalApexLocalization({
       minApexProminenceCm: 0.30,
       maxPeakMergeDistanceCm: 5.0,
       maxInterPeakSaddleDropCm: 0.40,
+      supportPolicyId,
+      targetClassIds: [...targetClassIds],
       sourceScanContract: 'torso-arbitrary-y-evidence-scan-v0',
       sourceScanStatus: 'completed',
       sliceHighlightCoordinates: {
@@ -369,5 +380,59 @@ describe('modeledAbdominalCircumference domain contract v0', () => {
     assert.equal(resNeg.status, MODELED_ABDOMINAL_CIRCUMFERENCE_STATUS.MODELED);
     assert.equal(resPos.valueCm, resNeg.valueCm);
     assert.equal(resPos.model.hParameter, resNeg.model.hParameter);
+  });
+
+  it('28. preserves transition support policy ID (trunk_pelvic_transition_support_v0) and target classes in crossSectionEvidence and provenance', () => {
+    const locReport = createMockAbdominalApexLocalization({
+      supportPolicyId: 'trunk_pelvic_transition_support_v0',
+      targetClassIds: [12, 13, 21, 22, 23],
+    });
+    const result = evaluateModeledAbdominalCircumference(locReport);
+
+    assert.equal(result.crossSectionEvidence.supportPolicyId, 'trunk_pelvic_transition_support_v0');
+    assert.deepEqual(result.crossSectionEvidence.targetClassIds, [12, 13, 21, 22, 23]);
+    assert.equal(result.provenance.supportPolicyId, 'trunk_pelvic_transition_support_v0');
+    assert.deepEqual(result.provenance.targetClassIds, [12, 13, 21, 22, 23]);
+  });
+
+  it('29. preserves Front and Side encountered segmentation class IDs from selected candidate without default trunk leak', () => {
+    const locReport = createMockAbdominalApexLocalization({
+      frontEncounteredClassIds: [13, 22],
+      sideEncounteredClassIds: [13, 22],
+    });
+    const result = evaluateModeledAbdominalCircumference(locReport);
+
+    assert.deepEqual(result.crossSectionEvidence.front.encounteredClassIds, [13, 22]);
+    assert.deepEqual(result.crossSectionEvidence.side.encounteredClassIds, [13, 22]);
+    assert.deepEqual(result.provenance.encounteredFrontClassIds, [13, 22]);
+    assert.deepEqual(result.provenance.encounteredSideClassIds, [13, 22]);
+  });
+
+  it('30. ensures numeric values and metadata strictly originate from identical selected candidate record', () => {
+    const locReport = createMockAbdominalApexLocalization({
+      yCm: 95.75,
+      frontWidthCm: 37.20,
+      frontMinXcm: 81.20,
+      frontMaxXcm: 118.40,
+      sideQualifiedApDepthCm: 26.30,
+      sideMinUcm: 81.60,
+      sideMaxUcm: 107.90,
+      frontEncounteredClassIds: [13, 22],
+      sideEncounteredClassIds: [13, 22],
+    });
+    const result = evaluateModeledAbdominalCircumference(locReport);
+
+    assert.equal(result.yCm, 95.75);
+    assert.equal(result.levelYcm, 95.75);
+    assert.equal(result.model.transverseWidthCm, 37.20);
+    assert.equal(result.model.apDepthCm, 26.30);
+    assert.equal(result.crossSectionEvidence.front.transverseWidthCm, 37.20);
+    assert.equal(result.crossSectionEvidence.front.minXcm, 81.20);
+    assert.equal(result.crossSectionEvidence.front.maxXcm, 118.40);
+    assert.equal(result.crossSectionEvidence.side.qualifiedApDepthCm, 26.30);
+    assert.equal(result.crossSectionEvidence.side.minUcm, 81.60);
+    assert.equal(result.crossSectionEvidence.side.maxUcm, 107.90);
+    assert.deepEqual(result.crossSectionEvidence.front.encounteredClassIds, [13, 22]);
+    assert.deepEqual(result.crossSectionEvidence.side.encounteredClassIds, [13, 22]);
   });
 });
