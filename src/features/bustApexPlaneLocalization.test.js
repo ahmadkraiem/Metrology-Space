@@ -1048,4 +1048,332 @@ describe('Bust Apex Plane Localization v0', () => {
     assert.equal(getBustApexPlaneLocalization(), null);
     assert.equal(getBustApexPlaneLocalizationReport(), null);
   });
+
+  it('33. Valid rows separated by a large metric-Y gap: smoothing does NOT cross the gap', () => {
+    // Generate candidates with a 2.0 cm gap in the middle:
+    // Segment 1: Y in [135.0, 130.0] cm (nominal 0.1cm spacing)
+    // Gap: Y from 130.0 down to 128.0 cm (missing)
+    // Segment 2: Y in [128.0, 120.0] cm with peak at 124.0 cm
+    const candidates = [];
+    let row = 650;
+    // Segment 1 (flat slope, no peak)
+    for (let y = 135.0; y >= 130.0; y -= 0.1) {
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: 85.0, maxUcm: 105.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 20.0 },
+      });
+    }
+    // Gap: 130.0 to 128.0 has no valid candidates (or multi-run)
+    // Segment 2 (contains true prominence at 124.0 cm)
+    for (let y = 128.0; y >= 120.0; y -= 0.1) {
+      const dist = Math.abs(y - 124.0);
+      const bulge = Math.max(0, 2.0 - dist * 0.7);
+      const antU = 85.0 - bulge;
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: antU, maxUcm: 105.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 25.0 },
+      });
+    }
+
+    const torsoScan = {
+      contract: 'torso-arbitrary-y-evidence-scan-v0',
+      status: 'completed',
+      candidates,
+      provenance: { sampleSpacingCm: 0.1 },
+    };
+    const waistReport = createSyntheticWaistReport({ superiorCrestY: 120.0 });
+    const orientationReport = createSyntheticOrientationReport({ facingDirection: 'negative_u' });
+    const levelsReport = createSyntheticLevelsReport({ shoulderY: 135.0 });
+
+    const result = evaluateBustApexPlaneLocalization({
+      torsoScanReport: torsoScan,
+      naturalWaistReport: waistReport,
+      sideOrientationReport: orientationReport,
+      levelsReport,
+    });
+
+    assert.equal(result.status, BUST_APEX_PLANE_STATUS.READY);
+    assert.ok(Math.abs(result.yCm - 124.0) < 0.5);
+    // Verify candidates are grouped into 2 continuous segments
+    const segIndices = new Set(result.candidates.map(c => c.segmentIndex));
+    assert.equal(segIndices.size, 2);
+  });
+
+  it('34. Pre-gap boundary sample cannot become a synthetic local peak because of post-gap sample', () => {
+    // Monotonic downward slope before gap: Y in [135.0, 130.0]
+    // Followed by gap, then flat segment Y in [128.0, 120.0]
+    const candidates = [];
+    let row = 650;
+    for (let y = 135.0; y >= 130.0; y -= 0.1) {
+      // Slope: minU goes from 90.0 down to 85.0 (moving anteriorly)
+      const antU = 90.0 - (135.0 - y);
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: antU, maxUcm: 105.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 20.0 },
+      });
+    }
+    // Gap 130.0 to 128.0 missing
+    // Flat segment Y in [128.0, 120.0], antU = 80.0
+    for (let y = 128.0; y >= 120.0; y -= 0.1) {
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: 80.0, maxUcm: 105.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 25.0 },
+      });
+    }
+
+    const torsoScan = {
+      contract: 'torso-arbitrary-y-evidence-scan-v0',
+      status: 'completed',
+      candidates,
+      provenance: { sampleSpacingCm: 0.1 },
+    };
+    const waistReport = createSyntheticWaistReport({ superiorCrestY: 120.0 });
+    const orientationReport = createSyntheticOrientationReport({ facingDirection: 'negative_u' });
+    const levelsReport = createSyntheticLevelsReport({ shoulderY: 135.0 });
+
+    const result = evaluateBustApexPlaneLocalization({
+      torsoScanReport: torsoScan,
+      naturalWaistReport: waistReport,
+      sideOrientationReport: orientationReport,
+      levelsReport,
+    });
+
+    // The pre-gap sample at Y=130.0 cm is a segment edge, NOT an interior peak
+    const preGapPeak = result.peaks.find(p => Math.abs(p.yCm - 130.0) < 0.05);
+    assert.equal(preGapPeak, undefined);
+  });
+
+  it('35. Post-gap boundary sample cannot become a synthetic local peak because of pre-gap sample', () => {
+    // Flat segment Y in [135.0, 130.0], antU = 88.0
+    // Gap 130.0 to 128.0 missing
+    // Sloped segment Y in [128.0, 120.0], antU goes from 80.0 to 86.0
+    const candidates = [];
+    let row = 650;
+    for (let y = 135.0; y >= 130.0; y -= 0.1) {
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: 88.0, maxUcm: 105.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 20.0 },
+      });
+    }
+    for (let y = 128.0; y >= 120.0; y -= 0.1) {
+      const antU = 80.0 + (128.0 - y);
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: antU, maxUcm: 105.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 25.0 },
+      });
+    }
+
+    const torsoScan = {
+      contract: 'torso-arbitrary-y-evidence-scan-v0',
+      status: 'completed',
+      candidates,
+      provenance: { sampleSpacingCm: 0.1 },
+    };
+    const waistReport = createSyntheticWaistReport({ superiorCrestY: 120.0 });
+    const orientationReport = createSyntheticOrientationReport({ facingDirection: 'negative_u' });
+    const levelsReport = createSyntheticLevelsReport({ shoulderY: 135.0 });
+
+    const result = evaluateBustApexPlaneLocalization({
+      torsoScanReport: torsoScan,
+      naturalWaistReport: waistReport,
+      sideOrientationReport: orientationReport,
+      levelsReport,
+    });
+
+    // The post-gap sample at Y=128.0 cm is a segment edge, NOT an interior peak
+    const postGapPeak = result.peaks.find(p => Math.abs(p.yCm - 128.0) < 0.05);
+    assert.equal(postGapPeak, undefined);
+  });
+
+  it('36. Peaks across separate discontinuous segments are not connected by fake saddle evidence', () => {
+    // Peak 1 in Segment 1 at Y=132.0 cm (prominence 1.0 cm)
+    // Gap from 130.0 to 128.0 cm
+    // Peak 2 in Segment 2 at Y=125.0 cm (prominence 0.95 cm)
+    const candidates = [];
+    let row = 650;
+    for (let y = 135.0; y >= 130.0; y -= 0.1) {
+      const dist = Math.abs(y - 132.0);
+      const antU = 85.0 - Math.max(0, 1.5 - dist * 0.8);
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: antU, maxUcm: 105.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 20.0 },
+      });
+    }
+    // Gap 130.0 to 128.0
+    for (let y = 128.0; y >= 120.0; y -= 0.1) {
+      const dist = Math.abs(y - 125.0);
+      const antU = 85.0 - Math.max(0, 1.5 - dist * 0.8);
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: antU, maxUcm: 105.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 20.0 },
+      });
+    }
+
+    const torsoScan = {
+      contract: 'torso-arbitrary-y-evidence-scan-v0',
+      status: 'completed',
+      candidates,
+      provenance: { sampleSpacingCm: 0.1 },
+    };
+    const waistReport = createSyntheticWaistReport({ superiorCrestY: 120.0 });
+    const orientationReport = createSyntheticOrientationReport({ facingDirection: 'negative_u' });
+    const levelsReport = createSyntheticLevelsReport({ shoulderY: 135.0 });
+
+    const result = evaluateBustApexPlaneLocalization({
+      torsoScanReport: torsoScan,
+      naturalWaistReport: waistReport,
+      sideOrientationReport: orientationReport,
+      levelsReport,
+    });
+
+    // Since Peak 1 and Peak 2 are in separate segments, they cannot merge into 1 group via saddle drop
+    assert.equal(result.groups.length, 2);
+    // Since both peaks are of comparable prominence, ambiguity is properly flagged
+    assert.equal(result.status, BUST_APEX_PLANE_STATUS.AMBIGUOUS);
+    assert.ok(result.blockers.includes(BUST_APEX_BLOCKER_CODES.AMBIGUOUS_MULTIPLE_APEX_PROMINENCES));
+  });
+
+  it('37. Broadness/support counts do not cross the metric gap', () => {
+    // Peak at Y=131.0 (Segment 1, only 2 rows below peak before gap at 130.0)
+    const candidates = [];
+    let row = 650;
+    for (let y = 135.0; y >= 130.0; y -= 0.1) {
+      const isPeak = Math.abs(y - 131.0) < 0.05;
+      const antU = isPeak ? 80.0 : 83.0;
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: antU, maxUcm: 105.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 20.0 },
+      });
+    }
+    // Gap 130.0 to 125.0
+    // Segment 2 has low U=80.0 as well, but across the gap
+    for (let y = 125.0; y >= 120.0; y -= 0.1) {
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: 80.0, maxUcm: 105.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 25.0 },
+      });
+    }
+
+    const torsoScan = {
+      contract: 'torso-arbitrary-y-evidence-scan-v0',
+      status: 'completed',
+      candidates,
+      provenance: { sampleSpacingCm: 0.1 },
+    };
+    const waistReport = createSyntheticWaistReport({ superiorCrestY: 120.0 });
+    const orientationReport = createSyntheticOrientationReport({ facingDirection: 'negative_u' });
+    const levelsReport = createSyntheticLevelsReport({ shoulderY: 135.0 });
+
+    const result = evaluateBustApexPlaneLocalization({
+      torsoScanReport: torsoScan,
+      naturalWaistReport: waistReport,
+      sideOrientationReport: orientationReport,
+      levelsReport,
+    });
+
+    const peak131 = result.peaks.find(p => Math.abs(p.yCm - 131.0) < 0.05);
+    if (peak131) {
+      // Support rows inside Segment 1 cannot exceed Segment 1 length (51 rows)
+      assert.ok(peak131.broadnessScore <= 51);
+    }
+  });
+
+  it('38. Regression fixture reproducing the real-package shape: 1.6cm multi-run gap with true lower apex', () => {
+    // Upper Segment: Y in [132.85, 128.65] cm (sloping forward from 88.0 to 85.1)
+    // Multi-run Gap: Y in (128.65, 127.05) cm (rows with runCount=2)
+    // Lower Segment: Y in [127.05, 120.65] cm with true apex at 123.85 cm
+    const candidates = [];
+    let row = 670;
+    for (let y = 132.85; y >= 128.65; y -= 0.1) {
+      const yNorm = (132.85 - y) / (132.85 - 128.65);
+      const antU = 88.0 - yNorm * 2.9; // 88.0 down to 85.1
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: antU, maxUcm: 103.0, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 18.0 },
+      });
+    }
+
+    // Gap rows: runCount = 2 (multi-run)
+    for (let y = 128.55; y >= 127.15; y -= 0.1) {
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.0, isSingleSupportedRun: true },
+        side: { status: 'ambiguous', runCount: 2, minUcm: null, maxUcm: null, isSingleSupportedRun: false, isQualified: false },
+      });
+    }
+
+    // Lower segment: 127.05 down to 120.65 with true breast protrusion at 123.85 cm (antU = 80.1 cm)
+    for (let y = 127.05; y >= 120.65; y -= 0.1) {
+      const distFromApex = Math.abs(y - 123.85);
+      const apexBump = Math.max(0, 1.8 - distFromApex * 0.6);
+      const baseAntU = 83.0 - ((127.05 - y) / (127.05 - 120.65)) * 4.6; // 83.0 to 78.4
+      const antU = baseAntU - apexBump;
+      candidates.push({
+        yCm: Number(y.toFixed(2)),
+        rasterRow: row++,
+        sideRasterRow: row,
+        front: { status: 'valid', runCount: 1, widthCm: 34.4, isSingleSupportedRun: true },
+        side: { status: 'valid', runCount: 1, minUcm: antU, maxUcm: 109.8, isSingleSupportedRun: true, isQualified: true, qualifiedApDepthCm: 29.5 },
+      });
+    }
+
+    const torsoScan = {
+      contract: 'torso-arbitrary-y-evidence-scan-v0',
+      status: 'completed',
+      candidates,
+      provenance: { sampleSpacingCm: 0.1 },
+    };
+    const waistReport = createSyntheticWaistReport({ superiorCrestY: 120.65 });
+    const orientationReport = createSyntheticOrientationReport({ facingDirection: 'negative_u' });
+    const levelsReport = createSyntheticLevelsReport({ shoulderY: 132.85 });
+
+    const result = evaluateBustApexPlaneLocalization({
+      torsoScanReport: torsoScan,
+      naturalWaistReport: waistReport,
+      sideOrientationReport: orientationReport,
+      levelsReport,
+    });
+
+    assert.equal(result.status, BUST_APEX_PLANE_STATUS.READY);
+    assert.ok(Math.abs(result.yCm - 123.85) < 0.5);
+    // Verify no false competing peak at Y=128.65 cm
+    const falsePeak = result.peaks.find(p => Math.abs(p.yCm - 128.65) < 0.1);
+    assert.equal(falsePeak, undefined);
+    assert.equal(result.groups.length, 1);
+  });
 });

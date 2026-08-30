@@ -150,6 +150,11 @@ export function poolBustPeaks(distinctPeaks, enrichedCandidates, options = {}) {
     const prev = currentGroup[currentGroup.length - 1];
     const curr = sortedPeaks[i];
 
+    // Peaks across discontinuous segments cannot be merged via continuous saddle logic
+    const isSameSegment = prev.segmentIndex !== undefined && curr.segmentIndex !== undefined
+      ? prev.segmentIndex === curr.segmentIndex
+      : true;
+
     const verticalDistCm = Math.abs(curr.yCm - prev.yCm);
 
     // Compute minimum intervening prominence between prev and curr (saddle drop)
@@ -168,7 +173,7 @@ export function poolBustPeaks(distinctPeaks, enrichedCandidates, options = {}) {
     const isNearDistance = verticalDistCm <= maxPeakMergeDistanceCm;
     const isShallowSaddle = saddleDropCm <= maxInterPeakSaddleDropCm;
 
-    if (isNearDistance && isShallowSaddle) {
+    if (isSameSegment && isNearDistance && isShallowSaddle) {
       currentGroup.push(curr);
     } else {
       groups.push(currentGroup);
@@ -667,101 +672,134 @@ export function evaluateBustApexPlaneLocalization({
     });
   }
 
-  // 8. Compute Average Sample Spacing & Metric-Scaled Smoothing Radius
-  const totalSpanCm = Math.abs(extractedRows[0].yCm - extractedRows[N - 1].yCm);
-  const sampleSpacingCm = N >= 2 && totalSpanCm > 0 ? totalSpanCm / (N - 1) : 1.0;
+  // 8. Determine Nominal Sample Spacing & Partition into Continuous Metric Segments
+  const nominalSampleSpacingCm = (typeof torsoScanReport?.provenance?.sampleSpacingCm === 'number' && torsoScanReport.provenance.sampleSpacingCm > 0)
+    ? torsoScanReport.provenance.sampleSpacingCm
+    : (N >= 2 ? Math.abs(extractedRows[0].yCm - extractedRows[N - 1].yCm) / (N - 1) : 0.10);
+  const maxContinuousSampleSpacingCm = Math.max(0.35, nominalSampleSpacingCm * 3.0);
+
+  const segments = [];
+  let currentSegment = [];
+  for (let i = 0; i < N; i += 1) {
+    if (i === 0) {
+      currentSegment.push(extractedRows[i]);
+    } else {
+      const stepDeltaY = Math.abs(extractedRows[i - 1].yCm - extractedRows[i].yCm);
+      if (stepDeltaY > maxContinuousSampleSpacingCm) {
+        segments.push(currentSegment);
+        currentSegment = [extractedRows[i]];
+      } else {
+        currentSegment.push(extractedRows[i]);
+      }
+    }
+  }
+  if (currentSegment.length > 0) {
+    segments.push(currentSegment);
+  }
+
+  // 9. Compute Metric-Scaled Smoothing Radius
   const smoothingRadiusSamples = typeof options?.smoothingRadiusRows === 'number' && options.smoothingRadiusRows >= 0
     ? options.smoothingRadiusRows
-    : Math.max(1, Math.round((smoothingWindowCm / 2) / sampleSpacingCm));
-
-  // 9. Apply Metric Symmetric Smoothing to Normalized Anterior Contour
-  const rawAnteriorNormValues = extractedRows.map((r) => r.normalizedAnteriorVal);
-  const smoothedAnteriorNormValues = applySymmetricSmoothing(rawAnteriorNormValues, smoothingRadiusSamples);
+    : Math.max(1, Math.round((smoothingWindowCm / 2) / nominalSampleSpacingCm));
 
   // 10. Compute Shape-Relative Local Baseline B_linear(Y)
   // Linear chord baseline connects superior Shoulder boundary anchor to inferior Waist crest anchor
-  const superiorAnchorNorm = smoothedAnteriorNormValues[0];
+  const superiorAnchorNorm = extractedRows[0].normalizedAnteriorVal;
   const superiorAnchorY = extractedRows[0].yCm;
-  const inferiorAnchorNorm = smoothedAnteriorNormValues[N - 1];
+  const inferiorAnchorNorm = extractedRows[N - 1].normalizedAnteriorVal;
   const inferiorAnchorY = extractedRows[N - 1].yCm;
   const windowYSpan = superiorAnchorY - inferiorAnchorY;
 
-  const enrichedCandidates = extractedRows.map((r, idx) => {
-    const smoothedNorm = smoothedAnteriorNormValues[idx];
-    const smoothedAnteriorU = isPositiveU ? smoothedNorm : -smoothedNorm;
-
-    // Linear baseline value at this Y
-    const t = windowYSpan > 0 ? (superiorAnchorY - r.yCm) / windowYSpan : 0.5;
-    const baselineNorm = superiorAnchorNorm + t * (inferiorAnchorNorm - superiorAnchorNorm);
-    const baselineUcm = isPositiveU ? baselineNorm : -baselineNorm;
-
-    // Prominence: signed displacement outward beyond the straight chord between shoulder and waist crest
-    const prominenceCm = Number((smoothedNorm - baselineNorm).toFixed(4));
-
-    return {
-      ...r,
-      indexInEnriched: idx,
-      smoothedAnteriorUcm: Number(smoothedAnteriorU.toFixed(4)),
-      baselineUcm: Number(baselineUcm.toFixed(4)),
-      prominenceCm,
-    };
-  });
-
-  // 11. Detect Local Maxima (Peaks) in Prominence Profile
+  // 11. Apply Gap-Aware Smoothing & Detect Local Extrema within Continuous Segments
+  const enrichedCandidates = [];
   const rawPeaks = [];
 
-  // Candidate must be strictly inside boundaries (exclude immediate endpoints idx 0 and N-1)
-  for (let i = 1; i < N - 1; i += 1) {
-    const curr = enrichedCandidates[i];
-    const prev = enrichedCandidates[i - 1];
-    const next = enrichedCandidates[i + 1];
+  segments.forEach((seg, segIdx) => {
+    const rawVals = seg.map((r) => r.normalizedAnteriorVal);
+    // Smooth strictly within the continuous segment without crossing gap boundaries
+    const smoothedVals = seg.length >= 3
+      ? applySymmetricSmoothing(rawVals, smoothingRadiusSamples)
+      : [...rawVals];
 
-    const isLocalMax = curr.prominenceCm >= prev.prominenceCm && curr.prominenceCm >= next.prominenceCm;
+    const segEnriched = seg.map((r, inSegIdx) => {
+      const smoothedNorm = smoothedVals[inSegIdx];
+      const smoothedAnteriorU = isPositiveU ? smoothedNorm : -smoothedNorm;
 
-    if (isLocalMax && curr.prominenceCm >= minApexProminenceCm) {
-      // Check single-row spike artifact (raw vs smoothed delta)
-      const rawVsSmoothedDelta = Math.abs(curr.rawAnteriorU - curr.smoothedAnteriorUcm);
-      const isSpike = rawVsSmoothedDelta >= 1.0;
+      // Linear baseline value at this Y
+      const t = windowYSpan > 0 ? (superiorAnchorY - r.yCm) / windowYSpan : 0.5;
+      const baselineNorm = superiorAnchorNorm + t * (inferiorAnchorNorm - superiorAnchorNorm);
+      const baselineUcm = isPositiveU ? baselineNorm : -baselineNorm;
 
-      // Check distance from boundaries
-      const distFromUpper = superiorAnchorY - curr.yCm;
-      const distFromLower = curr.yCm - inferiorAnchorY;
-      const isBoundaryConfounded = distFromUpper < boundaryMarginCm || distFromLower < boundaryMarginCm;
+      // Prominence: signed displacement outward beyond the straight chord between shoulder and waist crest
+      const prominenceCm = Number((smoothedNorm - baselineNorm).toFixed(4));
 
-      // Vertical support: count neighboring rows that maintain at least 50% of peak prominence
-      let supportRows = 1;
-      let leftIdx = i - 1;
-      while (leftIdx >= 0 && enrichedCandidates[leftIdx].prominenceCm >= curr.prominenceCm * 0.5) {
-        supportRows += 1;
-        leftIdx -= 1;
+      return {
+        ...r,
+        segmentIndex: segIdx,
+        indexInSegment: inSegIdx,
+        indexInEnriched: enrichedCandidates.length + inSegIdx,
+        smoothedAnteriorUcm: Number(smoothedAnteriorU.toFixed(4)),
+        baselineUcm: Number(baselineUcm.toFixed(4)),
+        prominenceCm,
+      };
+    });
+
+    enrichedCandidates.push(...segEnriched);
+
+    // Peak detection strictly interior to continuous segment (exclude segment edges 0 and length - 1)
+    for (let j = 1; j < segEnriched.length - 1; j += 1) {
+      const curr = segEnriched[j];
+      const prev = segEnriched[j - 1];
+      const next = segEnriched[j + 1];
+
+      const isLocalMax = curr.prominenceCm >= prev.prominenceCm && curr.prominenceCm >= next.prominenceCm;
+
+      if (isLocalMax && curr.prominenceCm >= minApexProminenceCm) {
+        // Check single-row spike artifact (raw vs smoothed delta)
+        const rawVsSmoothedDelta = Math.abs(curr.rawAnteriorU - curr.smoothedAnteriorUcm);
+        const isSpike = rawVsSmoothedDelta >= 1.0;
+
+        // Check distance from global search boundaries
+        const distFromUpper = superiorAnchorY - curr.yCm;
+        const distFromLower = curr.yCm - inferiorAnchorY;
+        const isBoundaryConfounded = distFromUpper < boundaryMarginCm || distFromLower < boundaryMarginCm;
+
+        // Vertical support: count neighboring rows strictly within the SAME continuous segment
+        let supportRows = 1;
+        let leftIdx = j - 1;
+        while (leftIdx >= 0 && segEnriched[leftIdx].prominenceCm >= curr.prominenceCm * 0.5) {
+          supportRows += 1;
+          leftIdx -= 1;
+        }
+        let rightIdx = j + 1;
+        while (rightIdx < segEnriched.length && segEnriched[rightIdx].prominenceCm >= curr.prominenceCm * 0.5) {
+          supportRows += 1;
+          rightIdx += 1;
+        }
+
+        const isNeighborhoodStable = !isSpike && supportRows >= 3;
+
+        rawPeaks.push({
+          candidateIndex: curr.indexInEnriched,
+          candidate: curr,
+          yCm: curr.yCm,
+          rasterRow: curr.rasterRow,
+          sideRasterRow: curr.sideRasterRow,
+          rawAnteriorUcm: curr.rawAnteriorU,
+          normalizedAnteriorVal: curr.normalizedAnteriorVal,
+          smoothedAnteriorUcm: curr.smoothedAnteriorUcm,
+          baselineUcm: curr.baselineUcm,
+          prominenceCm: curr.prominenceCm,
+          broadnessScore: supportRows,
+          segmentIndex: segIdx,
+          isSpike,
+          isBoundaryConfounded,
+          isNeighborhoodStable,
+          isFrontValid: curr.isFrontValid,
+        });
       }
-      let rightIdx = i + 1;
-      while (rightIdx < N && enrichedCandidates[rightIdx].prominenceCm >= curr.prominenceCm * 0.5) {
-        supportRows += 1;
-        rightIdx += 1;
-      }
-
-      const isNeighborhoodStable = !isSpike && supportRows >= 3;
-
-      rawPeaks.push({
-        candidateIndex: i,
-        candidate: curr,
-        yCm: curr.yCm,
-        rasterRow: curr.rasterRow,
-        sideRasterRow: curr.sideRasterRow,
-        rawAnteriorUcm: curr.rawAnteriorU,
-        normalizedAnteriorVal: curr.normalizedAnteriorVal,
-        smoothedAnteriorUcm: curr.smoothedAnteriorUcm,
-        baselineUcm: curr.baselineUcm,
-        prominenceCm: curr.prominenceCm,
-        broadnessScore: supportRows,
-        isSpike,
-        isBoundaryConfounded,
-        isNeighborhoodStable,
-        isFrontValid: curr.isFrontValid,
-      });
     }
-  }
+  });
 
   // 12. Filter Significant & Stable Peaks
   const stablePeaks = rawPeaks.filter((p) => p.isNeighborhoodStable && !p.isBoundaryConfounded);
@@ -962,7 +1000,7 @@ export function evaluateBustApexPlaneLocalization({
       searchCandidateCount: N,
       smoothingWindowCm,
       smoothingRadiusSamples,
-      sampleSpacingCm: Number(sampleSpacingCm.toFixed(4)),
+      sampleSpacingCm: Number(nominalSampleSpacingCm.toFixed(4)),
       minApexProminenceCm,
       maxPeakMergeDistanceCm,
       maxInterPeakSaddleDropCm,
