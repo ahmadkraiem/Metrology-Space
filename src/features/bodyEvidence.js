@@ -156,6 +156,10 @@ import {
   evaluateModeledAbdominalCircumference,
 } from './modeledAbdominalCircumference.js';
 import {
+  MODELED_BUST_CIRCUMFERENCE_CONTRACT_VERSION,
+  evaluateModeledBustCircumference,
+} from './modeledBustCircumference.js';
+import {
   MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION,
   resolveMeasurementVisualizationProvenance,
 } from './measurementVisualizationProvenance.js';
@@ -2805,6 +2809,29 @@ export function getModeledAbdominalCircumference({ annotations = null, options =
  */
 export function getModeledAbdominalCircumferenceReport(options = {}) {
   return getModeledAbdominalCircumference(options);
+}
+
+/**
+ * Evaluates pure deterministic Modeled Bust Circumference from the
+ * active localized Bust Apex Plane candidate.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} ModeledBustCircumferenceResultV0
+ */
+export function getModeledBustCircumference({ annotations = null, options = {} } = {}) {
+  const localization = getBustApexPlaneLocalization({ annotations, options });
+  if (!localization) return null;
+  return evaluateModeledBustCircumference(localization, options);
+}
+
+/**
+ * Alias for getModeledBustCircumference for uniform reporting convention.
+ */
+export function getModeledBustCircumferenceReport(options = {}) {
+  return getModeledBustCircumference(options);
 }
 
 /**
