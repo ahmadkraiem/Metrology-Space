@@ -1074,5 +1074,30 @@ test('34. Natural Waist and Abdominal Apex overlays render guide lines and slice
   assert.ok(sideLayer.querySelector('.grid2d-highlight-level-guide'));
   assert.ok(sideLayer.querySelector('.grid2d-highlight-line'));
   assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null, 'No abdominal badge on Side');
+
+  // Bust Apex Plane & Modeled Bust Circumference
+  const bustVis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'torso_modeled_bust_circumference_at_bust_apex_plane',
+    displayName: 'Modeled Bust Circumference',
+    visualizationType: VISUALIZATION_TYPES.BUST_APEX_PLANE,
+    targetViews: ['front', 'side'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      yCm: 123.85,
+      front: { minXcm: 82.85, maxXcm: 117.15, widthCm: 34.3 },
+      side: { minUcm: 80.4, maxUcm: 109.8, depthCm: 29.4 },
+    },
+  };
+  setMeasurementHighlight(bustVis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-level-guide'));
+  assert.ok(frontLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'No bust badge on Front');
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-level-guide'));
+  assert.ok(sideLayer.querySelector('.grid2d-highlight-line'));
+  assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null, 'No bust badge on Side');
 });
+
 

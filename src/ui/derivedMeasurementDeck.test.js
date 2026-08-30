@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   buildDerivedMeasurementCardHtml,
   buildDirectMeasurementsGroupHtml,
+  buildModeledBustCircumferenceCardHtml,
   buildModeledAbdominalCircumferenceCardHtml,
   buildModeledHipSeatCircumferenceCardHtml,
   buildModeledNaturalWaistCircumferenceCardHtml,
@@ -1369,7 +1370,17 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
   const container = { innerHTML: '' };
   renderDerivedMeasurementDeck(container);
 
-  // 1. All three cards must be present in the live render output
+  // 1. All four cards must be present in the live render output
+  assert.equal(
+    container.innerHTML.includes('Modeled Bust Circumference'),
+    true,
+    'Live render must include Modeled Bust Circumference card',
+  );
+  assert.equal(
+    container.innerHTML.includes('data-measurement-id="torso_modeled_bust_circumference_at_bust_apex_plane"'),
+    true,
+    'Bust card must include measurement ID',
+  );
   assert.equal(
     container.innerHTML.includes('Modeled Natural Waist Circumference'),
     true,
@@ -1401,17 +1412,19 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
     'Hip/Seat card must include measurement ID',
   );
 
-  // 2. All three cards are inside the Modeled Perimeter Estimates subgroup
+  // 2. All four cards are inside the Modeled Perimeter Estimates subgroup in anatomical top-down order
   const subgroupStart = container.innerHTML.indexOf('data-group-id="modeled_perimeter_estimates"');
   assert.ok(subgroupStart > -1, 'Modeled Perimeter Estimates subgroup must exist');
 
+  const bustCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_bust_circumference_at_bust_apex_plane"');
   const waistCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_natural_waist_circumference_at_natural_waist_plane"');
   const abdominalCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_abdominal_circumference_at_abdominal_apex_plane"');
   const seatCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"');
 
-  assert.ok(waistCardIdx > subgroupStart, 'Natural Waist card must be inside perimeter subgroup');
-  assert.ok(abdominalCardIdx > subgroupStart, 'Abdominal card must be inside perimeter subgroup');
-  assert.ok(seatCardIdx > subgroupStart, 'Hip/Seat card must be inside perimeter subgroup');
+  assert.ok(bustCardIdx > subgroupStart, 'Bust card must be inside perimeter subgroup');
+  assert.ok(waistCardIdx > bustCardIdx, 'Natural Waist card must be below Bust card');
+  assert.ok(abdominalCardIdx > waistCardIdx, 'Abdominal card must be below Natural Waist card');
+  assert.ok(seatCardIdx > abdominalCardIdx, 'Hip/Seat card must be below Abdominal card');
 
   // Clean up
   clearSelectedMeasurement();
@@ -1512,8 +1525,102 @@ test('derivedMeasurementDeck: Modeled Abdominal Circumference card handles block
   assert.equal(invalidHtml.includes('derived-card-level'), false);
 });
 
-test('derivedMeasurementDeck: getMeasurementRecordById routes canonical and legacy IDs cleanly', () => {
+test('derivedMeasurementDeck: Modeled Bust Circumference card renders exact title, badges, Front width, Side AP depth, and disclaimers', () => {
+  const html = buildModeledBustCircumferenceCardHtml({
+    contract: 'modeled-bust-circumference-v0',
+    id: 'torso_modeled_bust_circumference_at_bust_apex_plane',
+    name: 'Modeled Bust Circumference',
+    status: 'modeled',
+    valueCm: 100.2078,
+    levelYcm: 123.85,
+    model: {
+      transverseWidthCm: 34.30,
+      apDepthCm: 29.40,
+    },
+    provenance: {
+      selectedYcm: 123.85,
+      frontTransverseWidthCm: 34.30,
+      sideQualifiedApDepthCm: 29.40,
+    },
+  });
+
+  assert.equal(html.includes('Modeled Bust Circumference'), true);
+  assert.equal(html.includes('data-measurement-id="torso_modeled_bust_circumference_at_bust_apex_plane"'), true);
+  assert.equal(html.includes('Circumference Estimate'), true);
+  assert.equal(html.includes('100.21 cm'), true);
+  assert.equal(html.includes('Bust Apex Plane Y'), true);
+  assert.equal(html.includes('123.85 cm'), true);
+  assert.equal(html.includes('Front Width'), true);
+  assert.equal(html.includes('34.30 cm'), true);
+  assert.equal(html.includes('Side AP Depth'), true);
+  assert.equal(html.includes('29.40 cm'), true);
+  assert.equal(html.includes('Ellipse (Ramanujan II)'), true);
+  assert.equal(html.includes('Evaluated at localized Bust Apex Plane.'), true);
+  assert.equal(html.includes('Modeled estimate; not tape-measured ground truth.'), true);
+  assert.equal(html.includes('body-evidence-badge--ok'), true);
+  assert.equal(html.includes('Modeled'), true);
+});
+
+test('derivedMeasurementDeck: Modeled Bust Circumference card builder produces dynamic runtime values', () => {
+  const html = buildModeledBustCircumferenceCardHtml({
+    id: 'torso_modeled_bust_circumference_at_bust_apex_plane',
+    status: 'modeled',
+    valueCm: 95.50,
+    levelYcm: 125.0,
+    model: {
+      transverseWidthCm: 32.0,
+      apDepthCm: 28.0,
+    },
+    provenance: {
+      selectedYcm: 125.0,
+      frontTransverseWidthCm: 32.0,
+      sideQualifiedApDepthCm: 28.0,
+    },
+  });
+
+  assert.equal(html.includes('95.50 cm'), true);
+  assert.equal(html.includes('125.00 cm') || html.includes('125.0 cm'), true);
+  assert.equal(html.includes('32.00 cm'), true);
+  assert.equal(html.includes('28.00 cm'), true);
+  assert.equal(html.includes('100.21 cm'), false);
+});
+
+test('derivedMeasurementDeck: Modeled Bust Circumference card handles blocked, unavailable, and invalid states with dash', () => {
+  const blockedHtml = buildModeledBustCircumferenceCardHtml({
+    id: 'torso_modeled_bust_circumference_at_bust_apex_plane',
+    status: 'blocked',
+    valueCm: null,
+    levelYcm: 123.85,
+  });
+  assert.equal(blockedHtml.includes('Blocked'), true);
+  assert.equal(blockedHtml.includes('Circumference Estimate'), true);
+  assert.equal(blockedHtml.includes('100.21 cm'), false);
+
+  const unavailHtml = buildModeledBustCircumferenceCardHtml({
+    id: 'torso_modeled_bust_circumference_at_bust_apex_plane',
+    status: 'unavailable',
+    valueCm: null,
+    levelYcm: null,
+  });
+  assert.equal(unavailHtml.includes('Unavailable'), true);
+  assert.equal(unavailHtml.includes('Bust Apex Plane Y'), true);
+
+  const invalidHtml = buildModeledBustCircumferenceCardHtml({
+    id: 'torso_modeled_bust_circumference_at_bust_apex_plane',
+    status: 'invalid',
+    valueCm: null,
+    levelYcm: null,
+  });
+  assert.equal(invalidHtml.includes('Invalid'), true);
+  assert.equal(invalidHtml.includes('Bust Apex Plane Y'), true);
+});
+
+test('derivedMeasurementDeck: getMeasurementRecordById routes canonical and legacy Bust IDs cleanly', () => {
   clearBodyEvidence();
+  assert.equal(getMeasurementRecordById('torso_modeled_bust_circumference_at_bust_apex_plane'), null);
+  assert.equal(getMeasurementRecordById('modeled_bust_circumference'), null);
+  assert.equal(getMeasurementRecordById('bust_apex_plane_localization'), null);
+  assert.equal(getMeasurementRecordById('torso_bust_apex_plane_localization'), null);
   assert.equal(getMeasurementRecordById('torso_modeled_abdominal_circumference_at_abdominal_apex_plane'), null);
   assert.equal(getMeasurementRecordById('modeled_abdominal_circumference'), null);
   assert.equal(getMeasurementRecordById('abdominal_apex_plane_localization'), null);
@@ -1521,6 +1628,7 @@ test('derivedMeasurementDeck: getMeasurementRecordById routes canonical and lega
   assert.equal(getMeasurementRecordById('unknown_id'), null);
   assert.equal(getMeasurementRecordById(null), null);
 });
+
 
 
 

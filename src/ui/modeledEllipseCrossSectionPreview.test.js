@@ -7,6 +7,7 @@ import {
   MODELED_ELLIPSE_PREVIEW_DISCLAIMER,
   MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID,
   MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID,
+  MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID,
   buildModeledEllipsePreviewHtml,
   computeEllipsePreviewLayout,
   renderModeledEllipsePreview,
@@ -45,6 +46,39 @@ function mockWaistRecord(overrides = {}) {
       selectedYcm: 107.15,
       frontTransverseWidthCm: 29.0,
       sideQualifiedApDepthCm: 23.2,
+    },
+    semantics: {
+      isModeled: true,
+      isMeasuredContour: false,
+      is3dReconstruction: false,
+    },
+    ...overrides,
+  };
+}
+
+function mockBustRecord(overrides = {}) {
+  return {
+    contract: 'modeled-bust-circumference-v0',
+    id: MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID,
+    name: 'Modeled Bust Circumference',
+    status: 'modeled',
+    valueCm: 100.2078,
+    levelYcm: 123.85,
+    yCm: 123.85,
+    model: {
+      family: 'ellipse',
+      implementation: 'ellipse_ramanujan_ii',
+      transverseWidthCm: 34.3,
+      apDepthCm: 29.4,
+      semiMajorAxisCm: 17.15,
+      semiMinorAxisCm: 14.7,
+      frontDiameterCm: 34.3,
+      sideDiameterCm: 29.4,
+    },
+    provenance: {
+      selectedYcm: 123.85,
+      frontTransverseWidthCm: 34.3,
+      sideQualifiedApDepthCm: 29.4,
     },
     semantics: {
       isModeled: true,
@@ -294,6 +328,61 @@ test('ellipse preview: render shows preview for Natural Waist highlight', () => 
   assert.equal(container.innerHTML.includes('Modeled Cross-Section'), true);
   assert.equal(container.innerHTML.includes('Waist Plane Y: 107.15 cm'), true);
   assert.equal(container.innerHTML.includes('rx="14.5"'), true);
+});
+
+test('ellipse preview: Modeled Bust record creates modeled ellipse visualization from runtime width/depth and Bust Apex Plane Y label', () => {
+  const model = resolveModeledEllipsePreviewModel(mockBustRecord());
+
+  assert.ok(model);
+  assert.equal(model.measurementId, MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID);
+  assert.equal(model.planeLabel, 'Bust Apex Plane Y');
+  assert.equal(model.widthCm, 34.3);
+  assert.equal(model.depthCm, 29.4);
+  assert.equal(model.perimeterCm, 100.2078);
+  assert.equal(model.levelYcm, 123.85);
+  assert.equal(model.semiAxisACm, 17.15);
+  assert.equal(model.semiAxisBCm, 14.7);
+  assert.equal(model.isModeled, true);
+  assert.equal(model.isMeasuredContour, false);
+  assert.equal(model.is3dReconstruction, false);
+  assert.equal(model.disclaimer, 'Ellipse model — not measured contour');
+
+  const html = buildModeledEllipsePreviewHtml(model);
+  assert.equal(html.includes('Modeled Cross-Section'), true);
+  assert.equal(html.includes('Front Width: 34.30 cm'), true);
+  assert.equal(html.includes('AP Depth: 29.40 cm'), true);
+  assert.equal(html.includes('Modeled Perimeter: 100.21 cm'), true);
+  assert.equal(html.includes('Bust Apex Plane Y: 123.85 cm'), true);
+  assert.equal(html.includes('rx="17.15"'), true);
+  assert.equal(html.includes('ry="14.7"'), true);
+  assert.equal(html.includes('Ellipse model — not measured contour'), true);
+});
+
+test('ellipse preview: render shows preview for Modeled Bust highlight', () => {
+  const container = {
+    innerHTML: '',
+    hidden: true,
+    attributes: {},
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    removeAttribute(name) { delete this.attributes[name]; },
+  };
+
+  global.document = {
+    getElementById: (id) => (id === 'modeled-cross-section-preview' ? container : null),
+  };
+
+  const vis = {
+    measurementId: MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID,
+    visualizationType: VISUALIZATION_TYPES.BUST_APEX_PLANE,
+    status: VISUALIZATION_STATUS.READY,
+  };
+
+  syncModeledEllipsePreviewFromHighlight(vis, mockBustRecord());
+  assert.equal(container.hidden, false);
+  assert.equal(container.attributes['aria-hidden'], 'false');
+  assert.equal(container.innerHTML.includes('Modeled Cross-Section'), true);
+  assert.equal(container.innerHTML.includes('Bust Apex Plane Y: 123.85 cm'), true);
+  assert.equal(container.innerHTML.includes('rx="17.15"'), true);
 });
 
 test('ellipse preview: source contains no Ramanujan math, U→Z, or 3D reconstruction semantics', () => {

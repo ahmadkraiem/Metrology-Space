@@ -560,3 +560,115 @@ test('25. Ambiguous, unavailable, or invalid Abdominal Apex localization returns
   const invalidResult = resolveMeasurementVisualizationProvenance(invalidApex);
   assert.equal(invalidResult.status, VISUALIZATION_STATUS.INVALID);
 });
+
+test('26. Bust Apex Plane localization and Modeled Bust Circumference normalize correctly with Front and Side evidence', () => {
+  const bustLocalization = {
+    contract: 'bust-apex-plane-localization-v0',
+    version: 'bust-apex-plane-localization-v0',
+    id: 'bust_apex_plane_localization',
+    name: 'Bust Apex Plane Localization',
+    status: 'ready',
+    yCm: 123.85,
+    rasterRow: 761,
+    sideRasterRow: 761,
+    selectedPeak: {
+      yCm: 123.85,
+      rasterRow: 761,
+      sideRasterRow: 761,
+      frontWidthCm: 34.3,
+      frontMinXcm: 82.85,
+      frontMaxXcm: 117.15,
+      sideProfileSpanCm: 29.4,
+      sideMinUcm: 80.4,
+      sideMaxUcm: 109.8,
+      qualifiedApDepthCm: 29.4,
+      rawAnteriorUcm: 80.4,
+      prominenceCm: 0.6676,
+    },
+    provenance: {
+      shoulderYcm: 140.0,
+      naturalWaistSuperiorCrestYcm: 114.0,
+      sliceHighlightCoordinates: {
+        yCm: 123.85,
+        frontRasterRow: 761,
+        sideRasterRow: 761,
+        frontBoundsCm: { minX: 82.85, maxX: 117.15 },
+        sideBoundsCm: { minU: 80.4, maxU: 109.8 },
+      },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(bustLocalization);
+
+  assert.equal(result.contract, MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT);
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.BUST_APEX_PLANE);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.deepEqual(result.targetViews, ['front', 'side']);
+  assert.equal(result.geometry.yCm, 123.85);
+  assert.equal(result.geometry.front.minXcm, 82.85);
+  assert.equal(result.geometry.front.maxXcm, 117.15);
+  assert.equal(result.geometry.front.widthCm, 34.3);
+  assert.equal(result.geometry.side.minUcm, 80.4);
+  assert.equal(result.geometry.side.maxUcm, 109.8);
+  assert.equal(result.geometry.side.depthCm, 29.4);
+
+  // Test modeled bust circumference measurement object resolution
+  const modeledBustCircumference = {
+    contract: 'modeled-bust-circumference-v0',
+    version: 'modeled-bust-circumference-v0',
+    id: 'torso_modeled_bust_circumference_at_bust_apex_plane',
+    name: 'Modeled Bust Circumference',
+    status: 'modeled',
+    yCm: 123.85,
+    levelYcm: 123.85,
+    valueCm: 100.2078,
+    model: {
+      transverseWidthCm: 34.3,
+      apDepthCm: 29.4,
+    },
+    provenance: {
+      frontMinXcm: 82.85,
+      frontMaxXcm: 117.15,
+      sideMinUcm: 80.4,
+      sideMaxUcm: 109.8,
+      sliceHighlightCoordinates: {
+        yCm: 123.85,
+        frontRasterRow: 761,
+        sideRasterRow: 761,
+        frontBoundsCm: { minX: 82.85, maxX: 117.15 },
+        sideBoundsCm: { minU: 80.4, maxU: 109.8 },
+      },
+    },
+  };
+
+  const circResult = resolveMeasurementVisualizationProvenance(modeledBustCircumference);
+  assert.equal(circResult.status, VISUALIZATION_STATUS.READY);
+  assert.equal(circResult.visualizationType, VISUALIZATION_TYPES.BUST_APEX_PLANE);
+  assert.equal(circResult.geometry.yCm, 123.85);
+  assert.equal(circResult.geometry.front.widthCm, 34.3);
+  assert.equal(circResult.geometry.side.depthCm, 29.4);
+});
+
+test('27. Ambiguous, unavailable, or invalid Bust Apex localization returns non-ready status', () => {
+  const ambiguousBust = {
+    contract: 'bust-apex-plane-localization-v0',
+    id: 'bust_apex_plane_localization',
+    status: 'ambiguous',
+    yCm: null,
+    blockers: ['ambiguous_multiple_prominences'],
+  };
+  const unavailResult = resolveMeasurementVisualizationProvenance(ambiguousBust);
+  assert.equal(unavailResult.status, VISUALIZATION_STATUS.UNAVAILABLE);
+  assert.ok(unavailResult.blockers.includes('ambiguous_multiple_prominences'));
+
+  const invalidBust = {
+    contract: 'bust-apex-plane-localization-v0',
+    id: 'bust_apex_plane_localization',
+    status: 'invalid',
+    yCm: null,
+    blockers: ['invalid_search_window'],
+  };
+  const invalidResult = resolveMeasurementVisualizationProvenance(invalidBust);
+  assert.equal(invalidResult.status, VISUALIZATION_STATUS.INVALID);
+});
+
