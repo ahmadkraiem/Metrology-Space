@@ -435,4 +435,77 @@ describe('modeledAbdominalCircumference domain contract v0', () => {
     assert.deepEqual(result.crossSectionEvidence.front.encounteredClassIds, [13, 22]);
     assert.deepEqual(result.crossSectionEvidence.side.encounteredClassIds, [13, 22]);
   });
+
+  it('31. accepts abdominal-point-plane-localization-v1 result with selectedPlateau and computes identical modeled circumference', () => {
+    const v1Report = {
+      contract: 'abdominal-point-plane-localization-v1',
+      version: 'abdominal-point-plane-localization-v1',
+      id: 'torso_abdominal_point_plane_localization_v1',
+      name: 'Abdominal Point Plane Localization',
+      status: 'ready',
+      yCm: 95.75,
+      levelYcm: 95.75,
+      rasterRow: 1042,
+      sideRasterRow: 1042,
+      selectedPlateau: {
+        plateauMinYcm: 95.00,
+        plateauMaxYcm: 96.20,
+        plateauYSpanCm: 1.20,
+        midpointYcm: 95.60,
+        representativeYcm: 95.75,
+        memberCount: 13,
+        maxRawAnteriorProjectionCm: -82.20,
+        maxRawAnteriorUcm: 82.20,
+      },
+      frontEvidence: {
+        status: 'valid',
+        minXcm: 31.40,
+        maxXcm: 68.60,
+        widthCm: 37.20,
+        rasterRow: 1042,
+        isSingleSupportedRun: true,
+        runCount: 1,
+        encounteredClassIds: [13, 22],
+      },
+      sideEvidence: {
+        status: 'valid',
+        minUcm: 82.20,
+        maxUcm: 108.50,
+        profileSpanCm: 26.30,
+        qualifiedApDepthCm: 26.30,
+        rasterRow: 1042,
+        rawAnteriorUcm: 82.20,
+        rawPosteriorUcm: 108.50,
+        isSingleSupportedRun: true,
+        runCount: 1,
+        isQualified: true,
+        depthQualificationStatus: 'qualified',
+        encounteredClassIds: [13, 22],
+      },
+      provenance: {
+        supportPolicyId: 'trunk_pelvic_transition_support_v0',
+        targetClassIds: [12, 13, 21, 22, 23],
+        sourceScanContract: 'torso-arbitrary-y-evidence-scan-v0',
+        sourceScanStatus: 'completed',
+        sliceHighlightCoordinates: {
+          yCm: 95.75,
+          frontRasterRow: 1042,
+          sideRasterRow: 1042,
+        },
+      },
+    };
+
+    const result = evaluateModeledAbdominalCircumference(v1Report);
+
+    assert.equal(result.status, 'modeled');
+    assert.equal(result.yCm, 95.75);
+    assert.equal(result.levelYcm, 95.75);
+    assert.equal(result.model.transverseWidthCm, 37.20);
+    assert.equal(result.model.apDepthCm, 26.30);
+    assert.equal(result.valueCm, 100.4817);
+    assert.equal(result.sourcePlane.contract, 'abdominal-point-plane-localization-v1');
+    assert.equal(result.crossSectionEvidence.isQualified, true);
+    assert.equal(result.crossSectionEvidence.front.transverseWidthCm, 37.20);
+    assert.equal(result.crossSectionEvidence.side.qualifiedApDepthCm, 26.30);
+  });
 });

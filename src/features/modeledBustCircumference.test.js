@@ -508,4 +508,68 @@ describe('modeledBustCircumference domain contract v0', () => {
     const resReport = getModeledBustCircumferenceReport();
     assert.equal(resReport, null);
   });
+
+  it('23. consumes bust-point-plane-localization-v1 with selectedPlateau and computes Ramanujan perimeter', () => {
+    const locReportV1 = {
+      contract: 'bust-point-plane-localization-v1',
+      version: 'bust-point-plane-localization-v1',
+      id: 'bust_point_plane_localization',
+      name: 'Bust Point Plane Localization',
+      status: 'ready',
+      yCm: 119.15,
+      rasterRow: 808,
+      sideRasterRow: 808,
+      selectedPlateau: {
+        plateauMinYcm: 118.15,
+        plateauMaxYcm: 120.15,
+        plateauYSpanCm: 2.0,
+        midpointYcm: 119.15,
+        representativeYcm: 119.15,
+        memberCount: 21,
+        maxRawAnteriorUcm: 78.30,
+      },
+      frontEvidence: {
+        status: 'valid',
+        minXcm: 82.40,
+        maxXcm: 117.50,
+        widthCm: 35.10,
+        rasterRow: 808,
+        isSingleSupportedRun: true,
+        runCount: 1,
+      },
+      sideEvidence: {
+        status: 'valid',
+        minUcm: 78.30,
+        maxUcm: 108.50,
+        profileSpanCm: 30.20,
+        qualifiedApDepthCm: 30.20,
+        rasterRow: 808,
+        rawAnteriorUcm: 78.30,
+        rawPosteriorUcm: 108.50,
+        isSingleSupportedRun: true,
+        runCount: 1,
+      },
+      provenance: {
+        shoulderYcm: 132.85,
+        naturalWaistYcm: 107.15,
+        totalCandidates: 200,
+        searchCandidateCount: 120,
+        supportPolicyId: 'trunk_core_support_v0',
+        targetClassIds: [22, 23],
+        sourceScanContract: 'torso-arbitrary-y-evidence-scan-v0',
+      },
+    };
+
+    const result = evaluateModeledBustCircumference(locReportV1);
+
+    assert.equal(result.status, MODELED_BUST_CIRCUMFERENCE_STATUS.MODELED);
+    assert.equal(result.yCm, 119.15);
+    assert.equal(result.levelYcm, 119.15);
+    assert.equal(result.model.transverseWidthCm, 35.10);
+    assert.equal(result.model.apDepthCm, 30.20);
+    assert.equal(result.sourcePlane.contract, 'bust-point-plane-localization-v1');
+
+    const expectedRamanujan = computeRamanujanEllipsePerimeter(35.10, 30.20);
+    assert.equal(result.valueCm, Number(expectedRamanujan.perimeterCm.toFixed(4)));
+  });
 });

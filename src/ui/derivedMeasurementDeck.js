@@ -18,12 +18,16 @@ import {
   getCrossSectionEvidence,
   getModeledCrossSectionPerimeter,
   getModeledHipSeatCircumference,
+  getModeledHipGirth,
   getModeledNaturalWaistCircumference,
   getModeledAbdominalCircumference,
   getModeledBustCircumference,
   getNaturalWaistPlaneLocalization,
   getAbdominalApexPlaneLocalization,
+  getAbdominalPointPlaneLocalization,
   getBustApexPlaneLocalization,
+  getBustPointPlaneLocalization,
+  getButtockPointPlaneLocalization,
   getDirectBodyMeasurements,
   hasAnalyzedBodyEvidence,
   subscribeBodyEvidenceChange,
@@ -692,6 +696,95 @@ export function buildModeledAbdominalCircumferenceCardHtml(abdominalCircumferenc
   `;
 }
 
+export function buildModeledHipGirthCardHtml(hipGirth) {
+  if (!hipGirth) {
+    return '';
+  }
+
+  const isModeled = hipGirth.status === 'modeled' && typeof hipGirth.valueCm === 'number';
+  const valDisplay = isModeled ? `${formatDistance(hipGirth.valueCm)} cm` : '—';
+
+  let statusBadge;
+  if (hipGirth.status === 'modeled') {
+    statusBadge = renderBadge('Modeled', 'ok');
+  } else if (hipGirth.status === 'blocked') {
+    statusBadge = renderBadge('Blocked', 'warn');
+  } else if (hipGirth.status === 'invalid') {
+    statusBadge = renderBadge('Invalid', 'warn');
+  } else {
+    statusBadge = renderBadge('Unavailable', 'muted');
+  }
+
+  const yCm = hipGirth.levelYcm
+    ?? hipGirth.yCm
+    ?? hipGirth.provenance?.selectedYcm;
+  const hipPlaneYDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
+    ? `${formatDistance(yCm)} cm`
+    : '—';
+
+  const frontWidth = hipGirth.model?.transverseWidthCm
+    ?? hipGirth.model?.frontDiameterCm
+    ?? hipGirth.provenance?.frontTransverseWidthCm;
+  const sideDepth = hipGirth.model?.apDepthCm
+    ?? hipGirth.model?.sideDiameterCm
+    ?? hipGirth.provenance?.sideQualifiedApDepthCm;
+
+  const frontDisplay = typeof frontWidth === 'number' ? `${formatDistance(frontWidth)} cm` : '—';
+  const sideDisplay = typeof sideDepth === 'number' ? `${formatDistance(sideDepth)} cm` : '—';
+
+  const isSelected = selectedMeasurementId === 'torso_modeled_hip_girth_at_buttock_point_plane';
+
+  return `
+    <div
+      class="derived-measurement-card modeled-perimeter-card modeled-circumference-card ${isSelected ? 'is-selected' : ''}"
+      data-measurement-id="torso_modeled_hip_girth_at_buttock_point_plane"
+      data-modeled-circumference-id="torso_modeled_hip_girth_at_buttock_point_plane"
+      role="button"
+      tabindex="0"
+      aria-selected="${isSelected ? 'true' : 'false'}"
+    >
+      <div class="derived-card-header">
+        <span class="derived-card-title">Modeled Hip Girth</span>
+        <div class="derived-card-meta">
+          ${statusBadge}
+        </div>
+      </div>
+
+      <div class="derived-card-body">
+        <div class="derived-card-row modeled-perimeter-primary-row">
+          <span class="derived-row-label modeled-perimeter-label">Circumference Estimate</span>
+          <span class="derived-row-value modeled-perimeter-value ${isModeled ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(valDisplay)}</span>
+        </div>
+
+        <div class="derived-card-row">
+          <span class="derived-row-label">Hip Girth Plane Y</span>
+          <span class="derived-row-value ${typeof yCm === 'number' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(hipPlaneYDisplay)}</span>
+        </div>
+
+        <div class="derived-card-row">
+          <span class="derived-row-label">Front Width</span>
+          <span class="derived-row-value ${typeof frontWidth === 'number' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(frontDisplay)}</span>
+        </div>
+
+        <div class="derived-card-row">
+          <span class="derived-row-label">Side AP Depth</span>
+          <span class="derived-row-value ${typeof sideDepth === 'number' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(sideDisplay)}</span>
+        </div>
+
+        <div class="derived-card-row modeled-perimeter-meta-row">
+          <span class="derived-row-label modeled-perimeter-label">Model</span>
+          <span class="derived-row-value modeled-perimeter-value derived-row-value--muted">Ellipse (Ramanujan II)</span>
+        </div>
+
+        <div class="modeled-perimeter-notes">
+          <p class="modeled-perimeter-note">Evaluated at localized Buttock Point Plane.</p>
+          <p class="modeled-perimeter-qualification">Modeled estimate; not tape-measured ground truth.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
   if (!seatCircumference) {
     return '';
@@ -739,7 +832,7 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
       aria-selected="${isSelected ? 'true' : 'false'}"
     >
       <div class="derived-card-header">
-        <span class="derived-card-title">Modeled Hip Circumference</span>
+        <span class="derived-card-title">${escapeHtml(seatCircumference.displayName ?? seatCircumference.name ?? 'Modeled Hip Circumference')}</span>
         <div class="derived-card-meta">
           ${statusBadge}
         </div>
@@ -797,10 +890,12 @@ export function getMeasurementRecordById(measurementId, annotations = getAnnotat
   }
 
   if (
-    measurementId === 'bust_apex_plane_localization'
+    measurementId === 'bust_point_plane_localization'
+    || measurementId === 'torso_bust_point_plane_localization'
+    || measurementId === 'bust_apex_plane_localization'
     || measurementId === 'torso_bust_apex_plane_localization'
   ) {
-    return getBustApexPlaneLocalization({ annotations });
+    return getBustPointPlaneLocalization({ annotations }) ?? getBustApexPlaneLocalization({ annotations });
   }
 
   if (
@@ -822,10 +917,27 @@ export function getMeasurementRecordById(measurementId, annotations = getAnnotat
   }
 
   if (
-    measurementId === 'abdominal_apex_plane_localization'
+    measurementId === 'abdominal_point_plane_localization'
+    || measurementId === 'torso_abdominal_point_plane_localization_v1'
+    || measurementId === 'abdominal_apex_plane_localization'
     || measurementId === 'torso_abdominal_apex_plane_localization'
   ) {
-    return getAbdominalApexPlaneLocalization({ annotations });
+    return getAbdominalPointPlaneLocalization({ annotations }) ?? getAbdominalApexPlaneLocalization({ annotations });
+  }
+
+  if (
+    measurementId === 'torso_modeled_hip_girth_at_buttock_point_plane'
+    || measurementId === 'modeled_hip_girth'
+  ) {
+    return getModeledHipGirth({ annotations });
+  }
+
+  if (
+    measurementId === 'buttock_point_plane_localization'
+    || measurementId === 'torso_buttock_point_plane_localization_v1'
+    || measurementId === 'hip_girth_plane_localization'
+  ) {
+    return getButtockPointPlaneLocalization({ annotations });
   }
 
   if (measurementId === 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane') {
@@ -984,6 +1096,9 @@ export function renderDerivedMeasurementDeck(containerEl) {
   const modeledAbdominalCircumferenceResult = getModeledAbdominalCircumference({
     annotations,
   });
+  const modeledHipGirthResult = getModeledHipGirth({
+    annotations,
+  });
   const modeledSeatCircumferenceResult = getModeledHipSeatCircumference({
     annotations,
   });
@@ -993,6 +1108,7 @@ export function renderDerivedMeasurementDeck(containerEl) {
     modeledBustCircumferenceResult
     || modeledWaistCircumferenceResult
     || modeledAbdominalCircumferenceResult
+    || modeledHipGirthResult
     || modeledSeatCircumferenceResult
   ) {
     const isPerimeterCollapsed = groupCollapseStates.get('modeled_perimeter_estimates') ?? false;
@@ -1001,6 +1117,7 @@ export function renderDerivedMeasurementDeck(containerEl) {
     const bustCardHtml = modeledBustCircumferenceResult ? buildModeledBustCircumferenceCardHtml(modeledBustCircumferenceResult) : '';
     const waistCardHtml = modeledWaistCircumferenceResult ? buildModeledNaturalWaistCircumferenceCardHtml(modeledWaistCircumferenceResult) : '';
     const abdominalCardHtml = modeledAbdominalCircumferenceResult ? buildModeledAbdominalCircumferenceCardHtml(modeledAbdominalCircumferenceResult) : '';
+    const hipGirthCardHtml = modeledHipGirthResult ? buildModeledHipGirthCardHtml(modeledHipGirthResult) : '';
     const seatCardHtml = modeledSeatCircumferenceResult ? buildModeledHipSeatCircumferenceCardHtml(modeledSeatCircumferenceResult) : '';
 
     modeledPerimeterHtml = `
@@ -1017,6 +1134,7 @@ export function renderDerivedMeasurementDeck(containerEl) {
         ${bustCardHtml}
         ${waistCardHtml}
         ${abdominalCardHtml}
+        ${hipGirthCardHtml}
         ${seatCardHtml}
       </div>
     </div>

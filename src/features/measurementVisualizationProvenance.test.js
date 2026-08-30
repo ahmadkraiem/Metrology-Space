@@ -655,11 +655,11 @@ test('27. Ambiguous, unavailable, or invalid Bust Apex localization returns non-
     id: 'bust_apex_plane_localization',
     status: 'ambiguous',
     yCm: null,
-    blockers: ['ambiguous_multiple_prominences'],
+    blockers: ['ambiguous_multiple_apex_prominences'],
   };
   const unavailResult = resolveMeasurementVisualizationProvenance(ambiguousBust);
   assert.equal(unavailResult.status, VISUALIZATION_STATUS.UNAVAILABLE);
-  assert.ok(unavailResult.blockers.includes('ambiguous_multiple_prominences'));
+  assert.ok(unavailResult.blockers.includes('ambiguous_multiple_apex_prominences'));
 
   const invalidBust = {
     contract: 'bust-apex-plane-localization-v0',
@@ -672,3 +672,126 @@ test('27. Ambiguous, unavailable, or invalid Bust Apex localization returns non-
   assert.equal(invalidResult.status, VISUALIZATION_STATUS.INVALID);
 });
 
+test('28. Abdominal Point Plane localization v1 normalizes correctly with Front and Side evidence', () => {
+  const pointLocalization = {
+    contract: 'abdominal-point-plane-localization-v1',
+    version: 'abdominal-point-plane-localization-v1',
+    id: 'torso_abdominal_point_plane_localization_v1',
+    name: 'Abdominal Point Plane Localization',
+    status: 'ready',
+    yCm: 95.75,
+    levelYcm: 95.75,
+    rasterRow: 1042,
+    sideRasterRow: 1042,
+    frontEvidence: {
+      status: 'valid',
+      minXcm: 31.40,
+      maxXcm: 68.60,
+      widthCm: 37.20,
+      rasterRow: 1042,
+      isSingleSupportedRun: true,
+      runCount: 1,
+      encounteredClassIds: [13, 22],
+    },
+    sideEvidence: {
+      status: 'valid',
+      minUcm: 82.20,
+      maxUcm: 108.50,
+      profileSpanCm: 26.30,
+      qualifiedApDepthCm: 26.30,
+      rasterRow: 1042,
+      rawAnteriorUcm: 82.20,
+      rawPosteriorUcm: 108.50,
+      isSingleSupportedRun: true,
+      runCount: 1,
+      isQualified: true,
+      depthQualificationStatus: 'qualified',
+      encounteredClassIds: [13, 22],
+    },
+    provenance: {
+      sliceHighlightCoordinates: {
+        yCm: 95.75,
+        frontRasterRow: 1042,
+        sideRasterRow: 1042,
+        frontBoundsCm: { minX: 31.40, maxX: 68.60 },
+        sideBoundsCm: { minU: 82.20, maxU: 108.50 },
+      },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(pointLocalization);
+
+  assert.equal(result.contract, MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT);
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.ABDOMINAL_APEX_PLANE);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.deepEqual(result.targetViews, ['front', 'side']);
+  assert.equal(result.geometry.yCm, 95.75);
+  assert.equal(result.geometry.front.minXcm, 31.40);
+  assert.equal(result.geometry.front.maxXcm, 68.60);
+  assert.equal(result.geometry.front.widthCm, 37.20);
+  assert.equal(result.geometry.side.minUcm, 82.20);
+  assert.equal(result.geometry.side.maxUcm, 108.50);
+  assert.equal(result.geometry.side.depthCm, 26.30);
+});
+
+test('29. Buttock Point Plane localization v1 normalizes to cross_view_horizontal_slice visualization correctly', () => {
+  const buttockLocalization = {
+    contract: 'buttock-point-plane-localization-v1',
+    version: 'buttock-point-plane-localization-v1',
+    id: 'torso_buttock_point_plane_localization_v1',
+    name: 'Buttock Point / Hip Girth Plane Localization',
+    status: 'ready',
+    yCm: 86.15,
+    levelYcm: 86.15,
+    rasterRow: 1138,
+    sideRasterRow: 1138,
+    frontEvidence: {
+      status: 'valid',
+      minXcm: 78.80,
+      maxXcm: 121.00,
+      widthCm: 42.20,
+      rasterRow: 1138,
+      isSingleSupportedRun: true,
+      runCount: 1,
+      encounteredClassIds: [13, 22],
+    },
+    sideEvidence: {
+      status: 'valid',
+      minUcm: 84.50,
+      maxUcm: 112.30,
+      profileSpanCm: 27.80,
+      qualifiedApDepthCm: 27.80,
+      rasterRow: 1138,
+      rawAnteriorUcm: 84.50,
+      rawPosteriorUcm: 112.30,
+      isSingleSupportedRun: true,
+      runCount: 1,
+      isQualified: true,
+      depthQualificationStatus: 'qualified',
+      encounteredClassIds: [13, 22],
+    },
+    provenance: {
+      sliceHighlightCoordinates: {
+        yCm: 86.15,
+        frontRasterRow: 1138,
+        sideRasterRow: 1138,
+        frontBoundsCm: { minX: 78.80, maxX: 121.00 },
+        sideBoundsCm: { minU: 84.50, maxU: 112.30 },
+      },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(buttockLocalization);
+
+  assert.equal(result.contract, MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT);
+  assert.equal(result.visualizationType, 'cross_view_horizontal_slice');
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.deepEqual(result.targetViews, ['front', 'side']);
+  assert.equal(result.geometry.yCm, 86.15);
+  assert.equal(result.geometry.front.minXcm, 78.80);
+  assert.equal(result.geometry.front.maxXcm, 121.00);
+  assert.equal(result.geometry.front.widthCm, 42.20);
+  assert.equal(result.geometry.side.minUcm, 84.50);
+  assert.equal(result.geometry.side.maxUcm, 112.30);
+  assert.equal(result.geometry.side.depthCm, 27.80);
+});

@@ -151,12 +151,12 @@ export function evaluateModeledAbdominalCircumference(abdominalApexPlaneLocaliza
   }
 
   // Gate 2 — Structural contract validity
-  if (
-    abdominalApexPlaneLocalization.contract
-    && abdominalApexPlaneLocalization.contract !== 'abdominal-apex-plane-localization-v0'
-  ) {
+  const contractId = abdominalApexPlaneLocalization.contract;
+  const isV1Contract = contractId === 'abdominal-point-plane-localization-v1';
+  const isV0Contract = contractId === 'abdominal-apex-plane-localization-v0';
+  if (contractId && !isV1Contract && !isV0Contract) {
     blockers.push(MODELED_ABDOMINAL_CIRCUMFERENCE_BLOCKERS.STRUCTURAL_CONTRACT_INVALID);
-    issues.push(`Invalid localization contract: expected 'abdominal-apex-plane-localization-v0', received '${abdominalApexPlaneLocalization.contract}'.`);
+    issues.push(`Invalid localization contract: expected 'abdominal-point-plane-localization-v1' or 'abdominal-apex-plane-localization-v0', received '${contractId}'.`);
     return buildEmptyModeledAbdominalCircumference({
       status: MODELED_ABDOMINAL_CIRCUMFERENCE_STATUS.INVALID,
       blockers,
@@ -168,10 +168,14 @@ export function evaluateModeledAbdominalCircumference(abdominalApexPlaneLocaliza
   // Gate 3 — Localization state
   const localizationStatus = abdominalApexPlaneLocalization.status;
   const isReady = localizationStatus === 'ready';
+  const selectedFeature = abdominalApexPlaneLocalization.selectedPlateau
+    ?? abdominalApexPlaneLocalization.selectedDome
+    ?? abdominalApexPlaneLocalization.selectedPeak
+    ?? null;
 
   if (localizationStatus === 'ambiguous') {
     blockers.push(MODELED_ABDOMINAL_CIRCUMFERENCE_BLOCKERS.ABDOMINAL_APEX_PLANE_AMBIGUOUS);
-    issues.push('Abdominal Apex Plane localization status is ambiguous; cannot compute modeled circumference without a unique localized plane.');
+    issues.push('Abdominal localization status is ambiguous; cannot compute modeled circumference without a unique localized plane.');
     return buildEmptyModeledAbdominalCircumference({
       status: MODELED_ABDOMINAL_CIRCUMFERENCE_STATUS.BLOCKED,
       blockers,
@@ -179,17 +183,17 @@ export function evaluateModeledAbdominalCircumference(abdominalApexPlaneLocaliza
       issues,
       levelYcm: abdominalApexPlaneLocalization.yCm ?? null,
       sourcePlane: {
-        contract: abdominalApexPlaneLocalization.contract ?? 'abdominal-apex-plane-localization-v0',
+        contract: contractId ?? 'abdominal-point-plane-localization-v1',
         yCm: abdominalApexPlaneLocalization.yCm ?? null,
         status: localizationStatus,
       },
     });
   }
 
-  if (!isReady || !abdominalApexPlaneLocalization.selectedPeak) {
+  if (!isReady || (!selectedFeature && typeof abdominalApexPlaneLocalization.yCm !== 'number')) {
     const isInvalid = localizationStatus === 'invalid';
     blockers.push(MODELED_ABDOMINAL_CIRCUMFERENCE_BLOCKERS.ABDOMINAL_APEX_PLANE_UNAVAILABLE);
-    issues.push(`Abdominal Apex Plane localization status is '${localizationStatus}' (not ready).`);
+    issues.push(`Abdominal localization status is '${localizationStatus}' (not ready).`);
     return buildEmptyModeledAbdominalCircumference({
       status: isInvalid
         ? MODELED_ABDOMINAL_CIRCUMFERENCE_STATUS.INVALID
@@ -199,15 +203,15 @@ export function evaluateModeledAbdominalCircumference(abdominalApexPlaneLocaliza
       issues,
       levelYcm: abdominalApexPlaneLocalization.yCm ?? null,
       sourcePlane: {
-        contract: abdominalApexPlaneLocalization.contract ?? 'abdominal-apex-plane-localization-v0',
+        contract: contractId ?? 'abdominal-point-plane-localization-v1',
         yCm: abdominalApexPlaneLocalization.yCm ?? null,
         status: localizationStatus,
       },
     });
   }
 
-  const selectedPeak = abdominalApexPlaneLocalization.selectedPeak;
-  const levelYcm = selectedPeak.yCm ?? abdominalApexPlaneLocalization.yCm;
+  const selectedPeak = selectedFeature ?? {};
+  const levelYcm = abdominalApexPlaneLocalization.yCm ?? selectedPeak.yCm ?? selectedPeak.representativeYcm;
 
   // Validate Level Y
   if (typeof levelYcm !== 'number' || !Number.isFinite(levelYcm) || levelYcm <= 0) {

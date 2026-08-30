@@ -140,13 +140,29 @@ import {
   evaluateAbdominalApexPlaneLocalization,
 } from './abdominalApexPlaneLocalization.js';
 import {
+  ABDOMINAL_POINT_PLANE_CONTRACT_VERSION,
+  evaluateAbdominalPointPlaneLocalization,
+} from './abdominalPointPlaneLocalization.js';
+import {
   BUST_APEX_PLANE_CONTRACT_VERSION,
   evaluateBustApexPlaneLocalization,
 } from './bustApexPlaneLocalization.js';
 import {
+  BUST_POINT_PLANE_CONTRACT_VERSION,
+  evaluateBustPointPlaneLocalization,
+} from './bustPointPlaneLocalization.js';
+import {
+  BUTTOCK_POINT_PLANE_CONTRACT_VERSION,
+  evaluateButtockPointPlaneLocalization,
+} from './buttockPointPlaneLocalization.js';
+import {
   MODELED_HIP_SEAT_CIRCUMFERENCE_CONTRACT_VERSION,
   evaluateModeledHipSeatCircumference,
 } from './modeledHipSeatCircumference.js';
+import {
+  MODELED_HIP_GIRTH_CONTRACT_VERSION,
+  evaluateModeledHipGirth,
+} from './modeledHipGirth.js';
 import {
   MODELED_NATURAL_WAIST_CIRCUMFERENCE_CONTRACT_VERSION,
   evaluateModeledNaturalWaistCircumference,
@@ -2789,8 +2805,45 @@ export function getModeledNaturalWaistCircumferenceReport(options = {}) {
 }
 
 /**
+ * Evaluates pure deterministic Abdominal Point Plane Localization v1 from active runtime evidence.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} AbdominalPointPlaneLocalizationResultV1
+ */
+export function getAbdominalPointPlaneLocalization({ annotations = null, options = {} } = {}) {
+  const scanOptions = {
+    supportPolicyId: 'trunk_pelvic_transition_support_v0',
+    ...options,
+  };
+  const scanReport = getTorsoArbitraryYEvidenceScan({ annotations, options: scanOptions });
+  if (!scanReport) return null;
+
+  const naturalWaistReport = getNaturalWaistPlaneLocalization({ annotations, options });
+  const sideOrientationReport = getSideAnteriorPosteriorOrientation({ annotations, options });
+  const levelsReport = computeAnatomicalLevels(Array.isArray(annotations) ? annotations : getAnnotations());
+
+  return evaluateAbdominalPointPlaneLocalization({
+    torsoScanReport: scanReport,
+    naturalWaistReport,
+    sideOrientationReport,
+    levelsReport,
+    options,
+  });
+}
+
+/**
+ * Alias for getAbdominalPointPlaneLocalization for uniform reporting convention.
+ */
+export function getAbdominalPointPlaneLocalizationReport(options = {}) {
+  return getAbdominalPointPlaneLocalization(options);
+}
+
+/**
  * Evaluates pure deterministic Modeled Abdominal Circumference from the
- * active localized Abdominal Apex Plane candidate.
+ * active localized Abdominal Point Plane candidate.
  *
  * @param {{
  *   annotations?: Array<object>|null,
@@ -2799,7 +2852,8 @@ export function getModeledNaturalWaistCircumferenceReport(options = {}) {
  * @returns {object|null} ModeledAbdominalCircumferenceResultV0
  */
 export function getModeledAbdominalCircumference({ annotations = null, options = {} } = {}) {
-  const localization = getAbdominalApexPlaneLocalization({ annotations, options });
+  const localization = getAbdominalPointPlaneLocalization({ annotations, options })
+    ?? getAbdominalApexPlaneLocalization({ annotations, options });
   if (!localization) return null;
   return evaluateModeledAbdominalCircumference(localization, options);
 }
@@ -2812,8 +2866,45 @@ export function getModeledAbdominalCircumferenceReport(options = {}) {
 }
 
 /**
+ * Evaluates pure deterministic Bust Point Plane Localization v1 from active runtime evidence.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} BustPointPlaneLocalizationResultV1
+ */
+export function getBustPointPlaneLocalization({ annotations = null, options = {} } = {}) {
+  const scanOptions = {
+    supportPolicyId: 'trunk_core_support_v0',
+    ...options,
+  };
+  const scanReport = getTorsoArbitraryYEvidenceScan({ annotations, options: scanOptions });
+  if (!scanReport) return null;
+
+  const naturalWaistReport = getNaturalWaistPlaneLocalization({ annotations, options });
+  const sideOrientationReport = getSideAnteriorPosteriorOrientation({ annotations, options });
+  const levelsReport = computeAnatomicalLevels(Array.isArray(annotations) ? annotations : getAnnotations());
+
+  return evaluateBustPointPlaneLocalization({
+    torsoScanReport: scanReport,
+    naturalWaistReport,
+    sideOrientationReport,
+    levelsReport,
+    options,
+  });
+}
+
+/**
+ * Alias for getBustPointPlaneLocalization for uniform reporting convention.
+ */
+export function getBustPointPlaneLocalizationReport(options = {}) {
+  return getBustPointPlaneLocalization(options);
+}
+
+/**
  * Evaluates pure deterministic Modeled Bust Circumference from the
- * active localized Bust Apex Plane candidate.
+ * active localized Bust Point Plane candidate.
  *
  * @param {{
  *   annotations?: Array<object>|null,
@@ -2822,7 +2913,7 @@ export function getModeledAbdominalCircumferenceReport(options = {}) {
  * @returns {object|null} ModeledBustCircumferenceResultV0
  */
 export function getModeledBustCircumference({ annotations = null, options = {} } = {}) {
-  const localization = getBustApexPlaneLocalization({ annotations, options });
+  const localization = getBustPointPlaneLocalization({ annotations, options });
   if (!localization) return null;
   return evaluateModeledBustCircumference(localization, options);
 }
@@ -2832,6 +2923,70 @@ export function getModeledBustCircumference({ annotations = null, options = {} }
  */
 export function getModeledBustCircumferenceReport(options = {}) {
   return getModeledBustCircumference(options);
+}
+
+/**
+ * Evaluates pure deterministic Buttock Point Plane Localization v1 from active runtime evidence.
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} ButtockPointPlaneLocalizationResultV1
+ */
+export function getButtockPointPlaneLocalization({ annotations = null, options = {} } = {}) {
+  const scanOptions = {
+    supportPolicyId: 'trunk_pelvic_transition_support_v0',
+    ...options,
+  };
+  const scanReport = getTorsoArbitraryYEvidenceScan({ annotations, options: scanOptions });
+  if (!scanReport) return null;
+
+  const abdomenPointReport = getAbdominalPointPlaneLocalization({ annotations, options });
+  const pelvicScanReport = getPelvicArbitraryYEvidenceScan({ annotations, options });
+  const lowerBoundaryEvidence = scanReport.lowerBoundaryEvidence ?? pelvicScanReport?.lowerBoundaryEvidence ?? null;
+  const sideOrientationReport = getSideAnteriorPosteriorOrientation({ annotations, options });
+  const levelsReport = computeAnatomicalLevels(Array.isArray(annotations) ? annotations : getAnnotations());
+
+  return evaluateButtockPointPlaneLocalization({
+    torsoScanReport: scanReport,
+    pelvicScanReport,
+    abdomenPointReport,
+    lowerBoundaryEvidence,
+    sideOrientationReport,
+    levelsReport,
+    options,
+  });
+}
+
+/**
+ * Alias for getButtockPointPlaneLocalization for uniform reporting convention.
+ */
+export function getButtockPointPlaneLocalizationReport(options = {}) {
+  return getButtockPointPlaneLocalization(options);
+}
+
+/**
+ * Evaluates pure deterministic Modeled Hip Girth from the
+ * active localized Buttock Point Plane candidate (v1).
+ *
+ * @param {{
+ *   annotations?: Array<object>|null,
+ *   options?: object,
+ * }} [param0]
+ * @returns {object|null} ModeledHipGirthResultV1
+ */
+export function getModeledHipGirth({ annotations = null, options = {} } = {}) {
+  const localization = getButtockPointPlaneLocalization({ annotations, options });
+  if (!localization) return null;
+  return evaluateModeledHipGirth(localization, options);
+}
+
+/**
+ * Alias for getModeledHipGirth for uniform reporting convention.
+ */
+export function getModeledHipGirthReport(options = {}) {
+  return getModeledHipGirth(options);
 }
 
 /**

@@ -141,7 +141,7 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
   // Gate 1 — Input availability
   if (!bustApexPlaneLocalization || typeof bustApexPlaneLocalization !== 'object') {
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.BUST_APEX_PLANE_UNAVAILABLE);
-    issues.push('Bust Apex Plane localization report is missing or null.');
+    issues.push('Bust Point Plane localization report is missing or null.');
     return buildEmptyModeledBustCircumference({
       status: MODELED_BUST_CIRCUMFERENCE_STATUS.UNAVAILABLE,
       blockers,
@@ -151,12 +151,13 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
   }
 
   // Gate 2 — Structural contract validity
+  const validContracts = ['bust-point-plane-localization-v1', 'bust-apex-plane-localization-v0'];
   if (
     bustApexPlaneLocalization.contract
-    && bustApexPlaneLocalization.contract !== 'bust-apex-plane-localization-v0'
+    && !validContracts.includes(bustApexPlaneLocalization.contract)
   ) {
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.STRUCTURAL_CONTRACT_INVALID);
-    issues.push(`Invalid localization contract: expected 'bust-apex-plane-localization-v0', received '${bustApexPlaneLocalization.contract}'.`);
+    issues.push(`Invalid localization contract: expected 'bust-point-plane-localization-v1', received '${bustApexPlaneLocalization.contract}'.`);
     return buildEmptyModeledBustCircumference({
       status: MODELED_BUST_CIRCUMFERENCE_STATUS.INVALID,
       blockers,
@@ -171,7 +172,7 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
 
   if (localizationStatus === 'ambiguous') {
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.BUST_APEX_PLANE_AMBIGUOUS);
-    issues.push('Bust Apex Plane localization status is ambiguous; cannot compute modeled circumference without a unique localized plane.');
+    issues.push('Bust Point Plane localization status is ambiguous; cannot compute modeled circumference without a unique localized plane.');
     return buildEmptyModeledBustCircumference({
       status: MODELED_BUST_CIRCUMFERENCE_STATUS.UNAVAILABLE,
       blockers,
@@ -179,17 +180,21 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
       issues,
       levelYcm: bustApexPlaneLocalization.yCm ?? null,
       sourcePlane: {
-        contract: bustApexPlaneLocalization.contract ?? 'bust-apex-plane-localization-v0',
+        contract: bustApexPlaneLocalization.contract ?? 'bust-point-plane-localization-v1',
         yCm: bustApexPlaneLocalization.yCm ?? null,
         status: localizationStatus,
       },
     });
   }
 
-  if (!isReady || !bustApexPlaneLocalization.selectedPeak) {
+  const selectedFeature = bustApexPlaneLocalization.selectedPlateau
+    ?? bustApexPlaneLocalization.selectedDome
+    ?? bustApexPlaneLocalization.selectedPeak;
+
+  if (!isReady || !selectedFeature) {
     const isInvalid = localizationStatus === 'invalid';
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.BUST_APEX_PLANE_UNAVAILABLE);
-    issues.push(`Bust Apex Plane localization status is '${localizationStatus}' (not ready).`);
+    issues.push(`Bust Point Plane localization status is '${localizationStatus}' (not ready).`);
     return buildEmptyModeledBustCircumference({
       status: isInvalid
         ? MODELED_BUST_CIRCUMFERENCE_STATUS.INVALID
@@ -199,20 +204,19 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
       issues,
       levelYcm: bustApexPlaneLocalization.yCm ?? null,
       sourcePlane: {
-        contract: bustApexPlaneLocalization.contract ?? 'bust-apex-plane-localization-v0',
+        contract: bustApexPlaneLocalization.contract ?? 'bust-point-plane-localization-v1',
         yCm: bustApexPlaneLocalization.yCm ?? null,
         status: localizationStatus,
       },
     });
   }
 
-  const selectedPeak = bustApexPlaneLocalization.selectedPeak;
-  const levelYcm = bustApexPlaneLocalization.yCm ?? selectedPeak.yCm;
+  const levelYcm = bustApexPlaneLocalization.yCm ?? selectedFeature.representativeYcm ?? selectedFeature.yCm;
 
   // Validate Level Y
   if (typeof levelYcm !== 'number' || !Number.isFinite(levelYcm) || levelYcm <= 0) {
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.BUST_APEX_PLANE_UNAVAILABLE);
-    issues.push(`Bust Apex Plane level Y is invalid or non-positive (${levelYcm ?? 'null'}).`);
+    issues.push(`Bust Point Plane level Y is invalid or non-positive (${levelYcm ?? 'null'}).`);
     return buildEmptyModeledBustCircumference({
       status: MODELED_BUST_CIRCUMFERENCE_STATUS.INVALID,
       blockers,
@@ -222,26 +226,27 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
     });
   }
 
-  // Cross-validate selectedPeak Y vs localization Y
-  if (typeof selectedPeak.yCm === 'number' && Math.abs(selectedPeak.yCm - levelYcm) > 1e-4) {
+  // Cross-validate selectedFeature Y vs localization Y
+  const featureY = selectedFeature.representativeYcm ?? selectedFeature.yCm;
+  if (typeof featureY === 'number' && Math.abs(featureY - levelYcm) > 1e-4) {
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.SAME_Y_MISMATCH);
-    issues.push(`Same-Y mismatch: localized plane Y (${levelYcm}) does not match selectedPeak Y (${selectedPeak.yCm}).`);
+    issues.push(`Same-Y mismatch: localized plane Y (${levelYcm}) does not match selectedFeature Y (${featureY}).`);
   }
 
   // Gate 4 — Front Width Gate
   const frontEvidence = bustApexPlaneLocalization.frontEvidence;
-  const frontWidthCm = frontEvidence?.widthCm ?? selectedPeak.frontWidthCm ?? null;
-  const frontMinXcm = frontEvidence?.minXcm ?? selectedPeak.frontMinXcm ?? null;
-  const frontMaxXcm = frontEvidence?.maxXcm ?? selectedPeak.frontMaxXcm ?? null;
+  const frontWidthCm = frontEvidence?.widthCm ?? selectedFeature.frontWidthCm ?? null;
+  const frontMinXcm = frontEvidence?.minXcm ?? selectedFeature.frontMinXcm ?? null;
+  const frontMaxXcm = frontEvidence?.maxXcm ?? selectedFeature.frontMaxXcm ?? null;
 
-  // Cross-validate frontEvidence vs selectedPeak duplicate fields if both present
+  // Cross-validate frontEvidence vs selectedFeature duplicate fields if both present
   if (
     typeof frontEvidence?.widthCm === 'number'
-    && typeof selectedPeak.frontWidthCm === 'number'
-    && Math.abs(frontEvidence.widthCm - selectedPeak.frontWidthCm) > 1e-4
+    && typeof selectedFeature.frontWidthCm === 'number'
+    && Math.abs(frontEvidence.widthCm - selectedFeature.frontWidthCm) > 1e-4
   ) {
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.STRUCTURAL_CONTRACT_INVALID);
-    issues.push(`Structural inconsistency: frontEvidence width (${frontEvidence.widthCm}) disagrees with selectedPeak frontWidthCm (${selectedPeak.frontWidthCm}).`);
+    issues.push(`Structural inconsistency: frontEvidence width (${frontEvidence.widthCm}) disagrees with selectedFeature frontWidthCm (${selectedFeature.frontWidthCm}).`);
   }
 
   const hasValidFrontEndpoints = typeof frontMinXcm === 'number' && Number.isFinite(frontMinXcm)
@@ -261,37 +266,37 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
 
   // Gate 5 — Side AP Depth Gate (MANDATORY GATE: Front-only or unqualified depth MUST NOT produce circumference)
   const sideEvidence = bustApexPlaneLocalization.sideEvidence;
-  const rawSideQualifiedApDepth = sideEvidence?.qualifiedApDepthCm ?? selectedPeak.qualifiedApDepthCm ?? null;
+  const rawSideQualifiedApDepth = sideEvidence?.qualifiedApDepthCm ?? selectedFeature.qualifiedApDepthCm ?? null;
 
-  // Cross-validate sideEvidence vs selectedPeak duplicate fields if both present
+  // Cross-validate sideEvidence vs selectedFeature duplicate fields if both present
   if (
     typeof sideEvidence?.qualifiedApDepthCm === 'number'
-    && typeof selectedPeak.qualifiedApDepthCm === 'number'
-    && Math.abs(sideEvidence.qualifiedApDepthCm - selectedPeak.qualifiedApDepthCm) > 1e-4
+    && typeof selectedFeature.qualifiedApDepthCm === 'number'
+    && Math.abs(sideEvidence.qualifiedApDepthCm - selectedFeature.qualifiedApDepthCm) > 1e-4
   ) {
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.STRUCTURAL_CONTRACT_INVALID);
-    issues.push(`Structural inconsistency: sideEvidence qualified depth (${sideEvidence.qualifiedApDepthCm}) disagrees with selectedPeak qualifiedApDepthCm (${selectedPeak.qualifiedApDepthCm}).`);
+    issues.push(`Structural inconsistency: sideEvidence qualified depth (${sideEvidence.qualifiedApDepthCm}) disagrees with selectedFeature qualifiedApDepthCm (${selectedFeature.qualifiedApDepthCm}).`);
   }
 
   const isSideAbsent = !sideEvidence
     || sideEvidence.status === 'unavailable'
-    || (selectedPeak.sideProfileSpanCm === null && selectedPeak.qualifiedApDepthCm === null && (sideEvidence?.qualifiedApDepthCm === null || sideEvidence?.qualifiedApDepthCm === undefined));
+    || (selectedFeature.sideProfileSpanCm === null && selectedFeature.qualifiedApDepthCm === null && (sideEvidence?.qualifiedApDepthCm === null || sideEvidence?.qualifiedApDepthCm === undefined));
 
-  const sideMinUcm = sideEvidence?.minUcm ?? selectedPeak.sideMinUcm ?? null;
-  const sideMaxUcm = sideEvidence?.maxUcm ?? selectedPeak.sideMaxUcm ?? null;
+  const sideMinUcm = sideEvidence?.minUcm ?? selectedFeature.sideMinUcm ?? null;
+  const sideMaxUcm = sideEvidence?.maxUcm ?? selectedFeature.sideMaxUcm ?? null;
 
   let isSideQualified = false;
   let sideQualifiedApDepthCm = null;
 
   if (isSideAbsent) {
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.SIDE_AP_DEPTH_UNAVAILABLE);
-    issues.push('Side evidence is unavailable at Bust Apex Plane. Front-only localization cannot produce a modeled circumference.');
+    issues.push('Side evidence is unavailable at Bust Point Plane. Front-only localization cannot produce a modeled circumference.');
   } else if (
     rawSideQualifiedApDepth !== null
     && (typeof rawSideQualifiedApDepth !== 'number' || !Number.isFinite(rawSideQualifiedApDepth) || rawSideQualifiedApDepth <= 0)
   ) {
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.SIDE_AP_DEPTH_INVALID);
-    issues.push(`Qualified Side AP depth at Bust Apex Plane is malformed or non-positive (${rawSideQualifiedApDepth}).`);
+    issues.push(`Qualified Side AP depth at Bust Point Plane is malformed or non-positive (${rawSideQualifiedApDepth}).`);
   } else if (
     typeof sideMinUcm === 'number'
     && typeof sideMaxUcm === 'number'
@@ -300,7 +305,7 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.SIDE_AP_DEPTH_INVALID);
     issues.push(`Side profile endpoints are malformed (minU: ${sideMinUcm}, maxU: ${sideMaxUcm}).`);
   } else if (
-    (sideEvidence?.isQualified === true || selectedPeak.isSideDepthQualified === true)
+    (sideEvidence?.isQualified === true || sideEvidence?.status === 'valid' || selectedFeature.isSideDepthQualified === true)
     && typeof rawSideQualifiedApDepth === 'number'
     && rawSideQualifiedApDepth > 0
   ) {
@@ -308,7 +313,7 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
     sideQualifiedApDepthCm = rawSideQualifiedApDepth;
   } else {
     blockers.push(MODELED_BUST_CIRCUMFERENCE_BLOCKERS.SIDE_AP_DEPTH_NOT_QUALIFIED);
-    issues.push(`Side physical AP depth at Bust Apex Plane is not qualified (status: '${sideEvidence?.depthQualificationStatus ?? sideEvidence?.status ?? 'unqualified'}'). Raw profile span cannot be used as physical depth.`);
+    issues.push(`Side physical AP depth at Bust Point Plane is not qualified (status: '${sideEvidence?.depthQualificationStatus ?? sideEvidence?.status ?? 'unqualified'}'). Raw profile span cannot be used as physical depth.`);
   }
 
   // Gate 6 — Same-Y Consistency Verification
@@ -319,11 +324,11 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
   }
 
   const sourcePlaneRecord = {
-    contract: bustApexPlaneLocalization.contract ?? 'bust-apex-plane-localization-v0',
+    contract: bustApexPlaneLocalization.contract ?? 'bust-point-plane-localization-v1',
     yCm: levelYcm,
     status: localizationStatus,
-    rasterRow: selectedPeak.rasterRow ?? bustApexPlaneLocalization.rasterRow ?? null,
-    sideRasterRow: selectedPeak.sideRasterRow ?? bustApexPlaneLocalization.sideRasterRow ?? null,
+    rasterRow: selectedFeature.rasterRow ?? bustApexPlaneLocalization.rasterRow ?? null,
+    sideRasterRow: selectedFeature.sideRasterRow ?? bustApexPlaneLocalization.sideRasterRow ?? null,
     selectionMethod: bustApexPlaneLocalization.selectionMethod ?? null,
   };
 
@@ -339,21 +344,21 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
       transverseWidthCm: frontWidthCm,
       minXcm: frontMinXcm,
       maxXcm: frontMaxXcm,
-      rasterRow: selectedPeak.rasterRow ?? bustApexPlaneLocalization.rasterRow ?? null,
+      rasterRow: selectedFeature.rasterRow ?? bustApexPlaneLocalization.rasterRow ?? null,
       status: frontEvidence?.status ?? 'valid',
       runCount: frontEvidence?.runCount ?? 1,
       isSingleSupportedRun: frontEvidence?.isSingleSupportedRun ?? true,
-      encounteredClassIds: [...(frontEvidence?.encounteredClassIds ?? selectedPeak.encounteredFrontClassIds ?? [])],
+      encounteredClassIds: [...(frontEvidence?.encounteredClassIds ?? selectedFeature.encounteredFrontClassIds ?? [])],
     },
     side: {
       qualifiedApDepthCm: typeof sideQualifiedApDepthCm === 'number' && Number.isFinite(sideQualifiedApDepthCm) ? sideQualifiedApDepthCm : null,
-      rawProfileSpanCm: sideEvidence?.profileSpanCm ?? selectedPeak.sideProfileSpanCm ?? null,
+      rawProfileSpanCm: sideEvidence?.profileSpanCm ?? selectedFeature.sideProfileSpanCm ?? null,
       minUcm: sideMinUcm,
       maxUcm: sideMaxUcm,
-      rasterRow: selectedPeak.sideRasterRow ?? bustApexPlaneLocalization.sideRasterRow ?? null,
+      rasterRow: selectedFeature.sideRasterRow ?? bustApexPlaneLocalization.sideRasterRow ?? null,
       depthQualificationStatus: sideEvidence?.depthQualificationStatus ?? (isSideQualified ? 'qualified' : 'unqualified'),
       isQualified: Boolean(isSideQualified),
-      encounteredClassIds: [...(sideEvidence?.encounteredClassIds ?? selectedPeak.encounteredSideClassIds ?? [])],
+      encounteredClassIds: [...(sideEvidence?.encounteredClassIds ?? selectedFeature.encounteredSideClassIds ?? [])],
     },
     sameYConsistency: {
       yCm: levelYcm,
@@ -387,7 +392,7 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
         selectedYcm: levelYcm,
         supportPolicyId: bustApexPlaneLocalization.provenance?.supportPolicyId ?? 'trunk_core_support_v0',
         targetClassIds: [...(bustApexPlaneLocalization.provenance?.targetClassIds ?? [22, 23])],
-        sourceLocalizationContract: bustApexPlaneLocalization.contract ?? 'bust-apex-plane-localization-v0',
+        sourceLocalizationContract: bustApexPlaneLocalization.contract ?? 'bust-point-plane-localization-v1',
         sourceLocalizationStatus: localizationStatus,
       },
     });
@@ -421,30 +426,28 @@ export function evaluateModeledBustCircumference(bustApexPlaneLocalization, opti
   const provenance = {
     measurementDefinitionId: MODELED_BUST_CIRCUMFERENCE_DEFINITION_ID,
     selectedYcm: levelYcm,
-    frontRasterRow: selectedPeak.rasterRow ?? bustApexPlaneLocalization.rasterRow ?? null,
-    sideRasterRow: selectedPeak.sideRasterRow ?? bustApexPlaneLocalization.sideRasterRow ?? null,
+    frontRasterRow: selectedFeature.rasterRow ?? bustApexPlaneLocalization.rasterRow ?? null,
+    sideRasterRow: selectedFeature.sideRasterRow ?? bustApexPlaneLocalization.sideRasterRow ?? null,
     frontTransverseWidthCm: frontWidthCm,
     frontMinXcm,
     frontMaxXcm,
-    sideRawProfileSpanCm: sideEvidence?.profileSpanCm ?? selectedPeak.sideProfileSpanCm ?? null,
+    sideRawProfileSpanCm: sideEvidence?.profileSpanCm ?? selectedFeature.sideProfileSpanCm ?? null,
     sideQualifiedApDepthCm,
     sideMinUcm,
     sideMaxUcm,
-    prominenceCm: selectedPeak.prominenceCm ?? null,
-    rawAnteriorUcm: selectedPeak.rawAnteriorUcm ?? null,
-    smoothedAnteriorUcm: selectedPeak.smoothedAnteriorUcm ?? null,
-    baselineUcm: selectedPeak.baselineUcm ?? null,
+    prominenceCm: selectedFeature.prominenceCm ?? null,
+    rawAnteriorUcm: selectedFeature.rawAnteriorUcm ?? selectedFeature.maxRawAnteriorUcm ?? null,
+    smoothedAnteriorUcm: selectedFeature.smoothedAnteriorUcm ?? null,
+    baselineUcm: selectedFeature.baselineUcm ?? null,
     shoulderAnchorYcm: bustApexPlaneLocalization.provenance?.shoulderYcm ?? null,
-    offsetBelowShoulderCm: bustApexPlaneLocalization.provenance?.offsetBelowShoulderCm ?? null,
-    naturalWaistSuperiorCrestYcm: bustApexPlaneLocalization.provenance?.naturalWaistSuperiorCrestYcm ?? null,
-    elevationAboveWaistCrestCm: bustApexPlaneLocalization.provenance?.elevationAboveWaistCrestCm ?? null,
+    naturalWaistYcm: bustApexPlaneLocalization.provenance?.naturalWaistYcm ?? null,
     supportPolicyId: bustApexPlaneLocalization.provenance?.supportPolicyId ?? 'trunk_core_support_v0',
     targetClassIds: [...(bustApexPlaneLocalization.provenance?.targetClassIds ?? [22, 23])],
     sourceScanContract: bustApexPlaneLocalization.provenance?.sourceScanContract ?? 'torso-arbitrary-y-evidence-scan-v0',
-    sourceLocalizationContract: bustApexPlaneLocalization.contract ?? 'bust-apex-plane-localization-v0',
+    sourceLocalizationContract: bustApexPlaneLocalization.contract ?? 'bust-point-plane-localization-v1',
     sourceLocalizationStatus: localizationStatus,
-    encounteredFrontClassIds: [...(frontEvidence?.encounteredClassIds ?? selectedPeak.encounteredFrontClassIds ?? [])],
-    encounteredSideClassIds: [...(sideEvidence?.encounteredClassIds ?? selectedPeak.encounteredSideClassIds ?? [])],
+    encounteredFrontClassIds: [...(frontEvidence?.encounteredClassIds ?? selectedFeature.encounteredFrontClassIds ?? [])],
+    encounteredSideClassIds: [...(sideEvidence?.encounteredClassIds ?? selectedFeature.encounteredSideClassIds ?? [])],
     sliceHighlightCoordinates: bustApexPlaneLocalization.provenance?.sliceHighlightCoordinates
       ? { ...bustApexPlaneLocalization.provenance.sliceHighlightCoordinates }
       : null,
