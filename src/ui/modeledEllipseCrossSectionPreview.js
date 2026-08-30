@@ -27,6 +27,51 @@ export const MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_abd
 export const MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_bust_circumference_at_bust_apex_plane';
 export const MODELED_ELLIPSE_PREVIEW_DISCLAIMER = 'Ellipse model — not measured contour';
 
+/**
+ * Declarative registry of supported modeled circumference preview definitions.
+ */
+const MODELED_CIRCUMFERENCE_PREVIEW_REGISTRY = Object.freeze([
+  {
+    measurementId: MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID,
+    contract: 'modeled-bust-circumference-v0',
+    planeLabel: 'Bust Point Plane Y',
+    getter: getModeledBustCircumference,
+  },
+  {
+    measurementId: MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID,
+    contract: 'modeled-natural-waist-circumference-v0',
+    planeLabel: 'Waist Plane Y',
+    getter: getModeledNaturalWaistCircumference,
+  },
+  {
+    measurementId: MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID,
+    contract: 'modeled-abdominal-circumference-v0',
+    planeLabel: 'Abdominal Point Plane Y',
+    getter: getModeledAbdominalCircumference,
+  },
+  {
+    measurementId: MODELED_HIP_GIRTH_MEASUREMENT_ID,
+    contract: 'modeled-hip-girth-v1',
+    planeLabel: 'Hip Girth Plane Y',
+    getter: getModeledHipGirth,
+  },
+  {
+    measurementId: MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID,
+    contract: 'modeled-hip-seat-circumference-v0',
+    planeLabel: 'Seat Plane Y',
+    getter: getModeledHipSeatCircumference,
+  },
+]);
+
+function findPreviewDefinition(recordOrId) {
+  if (!recordOrId) return null;
+  const id = typeof recordOrId === 'string' ? recordOrId : recordOrId.id;
+  const contract = typeof recordOrId === 'object' ? recordOrId.contract : null;
+  return MODELED_CIRCUMFERENCE_PREVIEW_REGISTRY.find(
+    (entry) => (id && entry.measurementId === id) || (contract && entry.contract === contract)
+  ) ?? null;
+}
+
 const PREVIEW_CONTAINER_ID = 'modeled-cross-section-preview';
 
 let previewSetupDone = false;
@@ -58,18 +103,8 @@ export function resolveModeledEllipsePreviewModel(record) {
     return null;
   }
 
-  const isHipSeat = record.id === MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID
-    || record.contract === 'modeled-hip-seat-circumference-v0';
-  const isHipGirth = record.id === MODELED_HIP_GIRTH_MEASUREMENT_ID
-    || record.contract === 'modeled-hip-girth-v1';
-  const isNaturalWaist = record.id === MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID
-    || record.contract === 'modeled-natural-waist-circumference-v0';
-  const isAbdominal = record.id === MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID
-    || record.contract === 'modeled-abdominal-circumference-v0';
-  const isBust = record.id === MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID
-    || record.contract === 'modeled-bust-circumference-v0';
-
-  if ((!isHipSeat && !isHipGirth && !isNaturalWaist && !isAbdominal && !isBust) || record.status !== 'modeled') {
+  const def = findPreviewDefinition(record);
+  if (!def || record.status !== 'modeled') {
     return null;
   }
 
@@ -88,25 +123,9 @@ export function resolveModeledEllipsePreviewModel(record) {
     return null;
   }
 
-  let defaultId = MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID;
-  let planeLabel = 'Seat Plane Y';
-  if (isHipGirth) {
-    defaultId = MODELED_HIP_GIRTH_MEASUREMENT_ID;
-    planeLabel = 'Hip Girth Plane Y';
-  } else if (isNaturalWaist) {
-    defaultId = MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID;
-    planeLabel = 'Waist Plane Y';
-  } else if (isAbdominal) {
-    defaultId = MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID;
-    planeLabel = 'Abdominal Point Plane Y';
-  } else if (isBust) {
-    defaultId = MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID;
-    planeLabel = 'Bust Point Plane Y';
-  }
-
   return {
-    measurementId: record.id ?? defaultId,
-    planeLabel,
+    measurementId: record.id ?? def.measurementId,
+    planeLabel: def.planeLabel,
     widthCm,
     depthCm,
     perimeterCm,
@@ -261,46 +280,18 @@ export function syncModeledEllipsePreviewFromHighlight(visualization, record = n
     return;
   }
 
-  const isSelectedHipSeat = visualization
-    && visualization.measurementId === MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID
-    && visualization.status === 'ready';
-
-  const isSelectedHipGirth = visualization
-    && visualization.measurementId === MODELED_HIP_GIRTH_MEASUREMENT_ID
-    && visualization.status === 'ready';
-
-  const isSelectedNaturalWaist = visualization
-    && visualization.measurementId === MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID
-    && visualization.status === 'ready';
-
-  const isSelectedAbdominal = visualization
-    && visualization.measurementId === MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID
-    && visualization.status === 'ready';
-
-  const isSelectedBust = visualization
-    && visualization.measurementId === MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID
-    && visualization.status === 'ready';
-
-  if (!isSelectedHipSeat && !isSelectedHipGirth && !isSelectedNaturalWaist && !isSelectedAbdominal && !isSelectedBust) {
+  if (!visualization || visualization.status !== 'ready') {
     renderModeledEllipsePreview(container, null);
     return;
   }
 
-  let sourceRecord = record;
-  if (!sourceRecord) {
-    if (isSelectedBust) {
-      sourceRecord = getModeledBustCircumference();
-    } else if (isSelectedNaturalWaist) {
-      sourceRecord = getModeledNaturalWaistCircumference();
-    } else if (isSelectedAbdominal) {
-      sourceRecord = getModeledAbdominalCircumference();
-    } else if (isSelectedHipGirth) {
-      sourceRecord = getModeledHipGirth();
-    } else {
-      sourceRecord = getModeledHipSeatCircumference();
-    }
+  const def = findPreviewDefinition(visualization.measurementId);
+  if (!def) {
+    renderModeledEllipsePreview(container, null);
+    return;
   }
 
+  const sourceRecord = record ?? (typeof def.getter === 'function' ? def.getter() : null);
   renderModeledEllipsePreview(container, resolveModeledEllipsePreviewModel(sourceRecord));
 }
 

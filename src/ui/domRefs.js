@@ -72,7 +72,6 @@ export const bodyEvidenceOverlayLayerEl = el('grid2d-body-evidence-markers');
 export const bodyEvidenceOverlayTooltipEl = el('grid2d-body-evidence-tooltip');
 export const bodyMeasurementPreviewLayerEl = el('grid2d-body-measurement-previews');
 export const grid2dMeasurementHighlightLayerEl = el('grid2d-measurement-highlight-layer');
-export const modeledCrossSectionPreviewEl = el('modeled-cross-section-preview');
 export const grid2dSegmentationCanvasEl = el('grid2d-segmentation-canvas');
 export const sideEvidenceInspectEl = el('side-evidence-inspect');
 export const sideEvidenceViewportEl = el('side-evidence-viewport');

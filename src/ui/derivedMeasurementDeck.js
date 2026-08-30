@@ -874,6 +874,50 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
 }
 
 /**
+ * Declarative record resolver registry for measurement records by ID and alias.
+ */
+const MEASUREMENT_RECORD_RESOLVERS = new Map([
+  // Modeled Bust Circumference
+  ['torso_modeled_bust_circumference_at_bust_apex_plane', (annotations) => getModeledBustCircumference({ annotations })],
+  ['modeled_bust_circumference', (annotations) => getModeledBustCircumference({ annotations })],
+  // Bust Point / Apex Plane Localization
+  ['bust_point_plane_localization', (annotations) => getBustPointPlaneLocalization({ annotations }) ?? getBustApexPlaneLocalization({ annotations })],
+  ['torso_bust_point_plane_localization', (annotations) => getBustPointPlaneLocalization({ annotations }) ?? getBustApexPlaneLocalization({ annotations })],
+  ['bust_apex_plane_localization', (annotations) => getBustPointPlaneLocalization({ annotations }) ?? getBustApexPlaneLocalization({ annotations })],
+  ['torso_bust_apex_plane_localization', (annotations) => getBustPointPlaneLocalization({ annotations }) ?? getBustApexPlaneLocalization({ annotations })],
+  // Modeled Natural Waist Circumference
+  ['torso_modeled_natural_waist_circumference_at_natural_waist_plane', (annotations) => getModeledNaturalWaistCircumference({ annotations })],
+  ['modeled_natural_waist_circumference', (annotations) => getModeledNaturalWaistCircumference({ annotations })],
+  // Natural Waist Plane Localization
+  ['natural_waist_plane_localization', (annotations) => getNaturalWaistPlaneLocalization({ annotations })],
+  ['torso_natural_waist_plane_localization', (annotations) => getNaturalWaistPlaneLocalization({ annotations })],
+  // Modeled Abdominal Circumference
+  ['torso_modeled_abdominal_circumference_at_abdominal_apex_plane', (annotations) => getModeledAbdominalCircumference({ annotations })],
+  ['modeled_abdominal_circumference', (annotations) => getModeledAbdominalCircumference({ annotations })],
+  // Abdominal Point / Apex Plane Localization
+  ['abdominal_point_plane_localization', (annotations) => getAbdominalPointPlaneLocalization({ annotations }) ?? getAbdominalApexPlaneLocalization({ annotations })],
+  ['torso_abdominal_point_plane_localization_v1', (annotations) => getAbdominalPointPlaneLocalization({ annotations }) ?? getAbdominalApexPlaneLocalization({ annotations })],
+  ['abdominal_apex_plane_localization', (annotations) => getAbdominalPointPlaneLocalization({ annotations }) ?? getAbdominalApexPlaneLocalization({ annotations })],
+  ['torso_abdominal_apex_plane_localization', (annotations) => getAbdominalPointPlaneLocalization({ annotations }) ?? getAbdominalApexPlaneLocalization({ annotations })],
+  // Modeled Hip Girth
+  ['torso_modeled_hip_girth_at_buttock_point_plane', (annotations) => getModeledHipGirth({ annotations })],
+  ['modeled_hip_girth', (annotations) => getModeledHipGirth({ annotations })],
+  // Buttock Point Plane Localization
+  ['buttock_point_plane_localization', (annotations) => getButtockPointPlaneLocalization({ annotations })],
+  ['torso_buttock_point_plane_localization_v1', (annotations) => getButtockPointPlaneLocalization({ annotations })],
+  ['hip_girth_plane_localization', (annotations) => getButtockPointPlaneLocalization({ annotations })],
+  // Modeled Maximum Seat Circumference
+  ['torso_modeled_hip_seat_circumference_at_maximum_seat_plane', (annotations) => getModeledHipSeatCircumference({ annotations })],
+  // Landmark Level Modeled Perimeter
+  ['torso_modeled_perimeter_at_hip_landmark_level', (annotations) => getModeledCrossSectionPerimeter({ id: 'torso_modeled_perimeter_at_hip_landmark_level', annotations })],
+  // Cross-View Shoulder & Hip Cross-Section Evidence
+  ['torso_shoulder_cross_view_correspondence', (annotations) => getCrossSectionEvidence({ id: 'torso_cross_section_evidence_at_shoulder_level', annotations })],
+  ['torso_cross_section_evidence_at_shoulder_level', (annotations) => getCrossSectionEvidence({ id: 'torso_cross_section_evidence_at_shoulder_level', annotations })],
+  ['torso_hip_cross_view_correspondence', (annotations) => getCrossSectionEvidence({ id: 'torso_cross_section_evidence_at_hip_level', annotations })],
+  ['torso_cross_section_evidence_at_hip_level', (annotations) => getCrossSectionEvidence({ id: 'torso_cross_section_evidence_at_hip_level', annotations })],
+]);
+
+/**
  * Retrieves the raw domain measurement record for a given measurement ID.
  * @param {string} measurementId
  * @param {Array} [annotations]
@@ -882,78 +926,9 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
 export function getMeasurementRecordById(measurementId, annotations = getAnnotations()) {
   if (!measurementId) return null;
 
-  if (
-    measurementId === 'torso_modeled_bust_circumference_at_bust_apex_plane'
-    || measurementId === 'modeled_bust_circumference'
-  ) {
-    return getModeledBustCircumference({ annotations });
-  }
-
-  if (
-    measurementId === 'bust_point_plane_localization'
-    || measurementId === 'torso_bust_point_plane_localization'
-    || measurementId === 'bust_apex_plane_localization'
-    || measurementId === 'torso_bust_apex_plane_localization'
-  ) {
-    return getBustPointPlaneLocalization({ annotations }) ?? getBustApexPlaneLocalization({ annotations });
-  }
-
-  if (
-    measurementId === 'torso_modeled_natural_waist_circumference_at_natural_waist_plane'
-    || measurementId === 'modeled_natural_waist_circumference'
-  ) {
-    return getModeledNaturalWaistCircumference({ annotations });
-  }
-
-  if (measurementId === 'natural_waist_plane_localization' || measurementId === 'torso_natural_waist_plane_localization') {
-    return getNaturalWaistPlaneLocalization({ annotations });
-  }
-
-  if (
-    measurementId === 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane'
-    || measurementId === 'modeled_abdominal_circumference'
-  ) {
-    return getModeledAbdominalCircumference({ annotations });
-  }
-
-  if (
-    measurementId === 'abdominal_point_plane_localization'
-    || measurementId === 'torso_abdominal_point_plane_localization_v1'
-    || measurementId === 'abdominal_apex_plane_localization'
-    || measurementId === 'torso_abdominal_apex_plane_localization'
-  ) {
-    return getAbdominalPointPlaneLocalization({ annotations }) ?? getAbdominalApexPlaneLocalization({ annotations });
-  }
-
-  if (
-    measurementId === 'torso_modeled_hip_girth_at_buttock_point_plane'
-    || measurementId === 'modeled_hip_girth'
-  ) {
-    return getModeledHipGirth({ annotations });
-  }
-
-  if (
-    measurementId === 'buttock_point_plane_localization'
-    || measurementId === 'torso_buttock_point_plane_localization_v1'
-    || measurementId === 'hip_girth_plane_localization'
-  ) {
-    return getButtockPointPlaneLocalization({ annotations });
-  }
-
-  if (measurementId === 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane') {
-    return getModeledHipSeatCircumference({ annotations });
-  }
-
-  if (measurementId === 'torso_modeled_perimeter_at_hip_landmark_level') {
-    return getModeledCrossSectionPerimeter({ id: 'torso_modeled_perimeter_at_hip_landmark_level', annotations });
-  }
-
-  if (measurementId === 'torso_shoulder_cross_view_correspondence' || measurementId === 'torso_cross_section_evidence_at_shoulder_level') {
-    return getCrossSectionEvidence({ id: 'torso_cross_section_evidence_at_shoulder_level', annotations });
-  }
-
-  if (measurementId === 'torso_hip_cross_view_correspondence' || measurementId === 'torso_cross_section_evidence_at_hip_level') {
-    return getCrossSectionEvidence({ id: 'torso_cross_section_evidence_at_hip_level', annotations });
+  const resolver = MEASUREMENT_RECORD_RESOLVERS.get(measurementId);
+  if (resolver) {
+    return resolver(annotations);
   }
 
   const directReport = getDirectBodyMeasurements({ annotations });
