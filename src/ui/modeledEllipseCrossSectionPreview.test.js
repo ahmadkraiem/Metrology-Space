@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   MODELED_ELLIPSE_PREVIEW_DISCLAIMER,
   MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID,
+  MODELED_HIP_GIRTH_MEASUREMENT_ID,
   MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID,
   MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID,
   buildModeledEllipsePreviewHtml,
@@ -22,6 +23,39 @@ import {
   VISUALIZATION_TYPES,
   VISUALIZATION_STATUS,
 } from '../features/measurementVisualizationProvenance.js';
+
+function mockHipGirthRecord(overrides = {}) {
+  return {
+    contract: 'modeled-hip-girth-v1',
+    id: MODELED_HIP_GIRTH_MEASUREMENT_ID,
+    name: 'Modeled Hip Girth',
+    status: 'modeled',
+    valueCm: 111.12,
+    levelYcm: 86.05,
+    yCm: 86.05,
+    model: {
+      family: 'ellipse',
+      implementation: 'ellipse_ramanujan_ii',
+      transverseWidthCm: 42.2,
+      apDepthCm: 27.8,
+      semiMajorAxisCm: 21.1,
+      semiMinorAxisCm: 13.9,
+      frontDiameterCm: 42.2,
+      sideDiameterCm: 27.8,
+    },
+    provenance: {
+      selectedYcm: 86.05,
+      frontTransverseWidthCm: 42.2,
+      sideQualifiedApDepthCm: 27.8,
+    },
+    semantics: {
+      isModeled: true,
+      isMeasuredContour: false,
+      is3dReconstruction: false,
+    },
+    ...overrides,
+  };
+}
 
 function mockWaistRecord(overrides = {}) {
   return {
@@ -330,12 +364,12 @@ test('ellipse preview: render shows preview for Natural Waist highlight', () => 
   assert.equal(container.innerHTML.includes('rx="14.5"'), true);
 });
 
-test('ellipse preview: Modeled Bust record creates modeled ellipse visualization from runtime width/depth and Bust Apex Plane Y label', () => {
+test('ellipse preview: Modeled Bust record creates modeled ellipse visualization from runtime width/depth and Bust Point Plane Y label', () => {
   const model = resolveModeledEllipsePreviewModel(mockBustRecord());
 
   assert.ok(model);
   assert.equal(model.measurementId, MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID);
-  assert.equal(model.planeLabel, 'Bust Apex Plane Y');
+  assert.equal(model.planeLabel, 'Bust Point Plane Y');
   assert.equal(model.widthCm, 34.3);
   assert.equal(model.depthCm, 29.4);
   assert.equal(model.perimeterCm, 100.2078);
@@ -352,7 +386,7 @@ test('ellipse preview: Modeled Bust record creates modeled ellipse visualization
   assert.equal(html.includes('Front Width: 34.30 cm'), true);
   assert.equal(html.includes('AP Depth: 29.40 cm'), true);
   assert.equal(html.includes('Modeled Perimeter: 100.21 cm'), true);
-  assert.equal(html.includes('Bust Apex Plane Y: 123.85 cm'), true);
+  assert.equal(html.includes('Bust Point Plane Y: 123.85 cm'), true);
   assert.equal(html.includes('rx="17.15"'), true);
   assert.equal(html.includes('ry="14.7"'), true);
   assert.equal(html.includes('Ellipse model — not measured contour'), true);
@@ -381,8 +415,63 @@ test('ellipse preview: render shows preview for Modeled Bust highlight', () => {
   assert.equal(container.hidden, false);
   assert.equal(container.attributes['aria-hidden'], 'false');
   assert.equal(container.innerHTML.includes('Modeled Cross-Section'), true);
-  assert.equal(container.innerHTML.includes('Bust Apex Plane Y: 123.85 cm'), true);
+  assert.equal(container.innerHTML.includes('Bust Point Plane Y: 123.85 cm'), true);
   assert.equal(container.innerHTML.includes('rx="17.15"'), true);
+});
+
+test('ellipse preview: Modeled Hip Girth record creates modeled ellipse visualization from runtime width/depth and Hip Girth Plane Y label', () => {
+  const model = resolveModeledEllipsePreviewModel(mockHipGirthRecord());
+
+  assert.ok(model);
+  assert.equal(model.measurementId, MODELED_HIP_GIRTH_MEASUREMENT_ID);
+  assert.equal(model.planeLabel, 'Hip Girth Plane Y');
+  assert.equal(model.widthCm, 42.2);
+  assert.equal(model.depthCm, 27.8);
+  assert.equal(model.perimeterCm, 111.12);
+  assert.equal(model.levelYcm, 86.05);
+  assert.equal(model.semiAxisACm, 21.1);
+  assert.equal(model.semiAxisBCm, 13.9);
+  assert.equal(model.isModeled, true);
+  assert.equal(model.isMeasuredContour, false);
+  assert.equal(model.is3dReconstruction, false);
+  assert.equal(model.disclaimer, 'Ellipse model — not measured contour');
+
+  const html = buildModeledEllipsePreviewHtml(model);
+  assert.equal(html.includes('Modeled Cross-Section'), true);
+  assert.equal(html.includes('Front Width: 42.20 cm'), true);
+  assert.equal(html.includes('AP Depth: 27.80 cm'), true);
+  assert.equal(html.includes('Modeled Perimeter: 111.12 cm'), true);
+  assert.equal(html.includes('Hip Girth Plane Y: 86.05 cm'), true);
+  assert.equal(html.includes('rx="21.1"'), true);
+  assert.equal(html.includes('ry="13.9"'), true);
+  assert.equal(html.includes('Ellipse model — not measured contour'), true);
+});
+
+test('ellipse preview: render shows preview for Modeled Hip Girth highlight', () => {
+  const container = {
+    innerHTML: '',
+    hidden: true,
+    attributes: {},
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    removeAttribute(name) { delete this.attributes[name]; },
+  };
+
+  global.document = {
+    getElementById: (id) => (id === 'modeled-cross-section-preview' ? container : null),
+  };
+
+  const vis = {
+    measurementId: MODELED_HIP_GIRTH_MEASUREMENT_ID,
+    visualizationType: VISUALIZATION_TYPES.BUTTOCK_POINT_PLANE,
+    status: VISUALIZATION_STATUS.READY,
+  };
+
+  syncModeledEllipsePreviewFromHighlight(vis, mockHipGirthRecord());
+  assert.equal(container.hidden, false);
+  assert.equal(container.attributes['aria-hidden'], 'false');
+  assert.equal(container.innerHTML.includes('Modeled Cross-Section'), true);
+  assert.equal(container.innerHTML.includes('Hip Girth Plane Y: 86.05 cm'), true);
+  assert.equal(container.innerHTML.includes('rx="21.1"'), true);
 });
 
 test('ellipse preview: source contains no Ramanujan math, U→Z, or 3D reconstruction semantics', () => {

@@ -415,7 +415,7 @@ test('derivedMeasurementDeck: right sidebar markup places derived-measurement-de
   assert.equal(scrollContent.includes('id="diagnostics-panel"'), true, 'Diagnostics must be inside sidebar-scroll');
 });
 
-test('derivedMeasurementDeck: top-level Results deck collapses, expands, and updates aria-expanded', async () => {
+test('derivedMeasurementDeck: Top-level Results deck is collapsible, collapsed by default, and updates aria-expanded on click', async () => {
   const { initCollapsibleSections } = await import('./collapsibleSections.js');
 
   const headerAttrs = {};
@@ -438,7 +438,7 @@ test('derivedMeasurementDeck: top-level Results deck collapses, expands, and upd
   };
 
   const deckClasses = new Set(['derived-measurement-deck', 'inspector-section']);
-  const deckAttrs = new Set(['data-collapsible']);
+  const deckAttrs = new Set(['data-collapsible', 'data-collapsed']);
   const deckSection = {
     classList: {
       classes: deckClasses,
@@ -461,24 +461,24 @@ test('derivedMeasurementDeck: top-level Results deck collapses, expands, and upd
 
   initCollapsibleSections(deckSection);
 
-  // Starts expanded by default
-  assert.equal(deckSection.classList.contains('is-collapsed'), false);
-  assert.equal(header.getAttribute('aria-expanded'), 'true');
-  assert.equal(header.getAttribute('role'), 'button');
-  assert.equal(header.getAttribute('tabindex'), '0');
-
-  // Click to collapse
-  header.click();
+  // Starts collapsed by default
   assert.equal(deckSection.classList.contains('is-collapsed'), true);
   assert.equal(header.getAttribute('aria-expanded'), 'false');
+  assert.equal(header.getAttribute('role'), 'button');
+  assert.equal(header.getAttribute('tabindex'), '0');
 
   // Click to expand
   header.click();
   assert.equal(deckSection.classList.contains('is-collapsed'), false);
   assert.equal(header.getAttribute('aria-expanded'), 'true');
+
+  // Click to collapse
+  header.click();
+  assert.equal(deckSection.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
 });
 
-test('derivedMeasurementDeck: Cross-Section Evidence is collapsible, expanded by default, and toggles Shoulder and Hip cards together', async () => {
+test('derivedMeasurementDeck: Cross-Section Evidence is collapsible, collapsed by default, and toggles Shoulder and Hip cards together', async () => {
   const { initCollapsibleSections } = await import('./collapsibleSections.js');
 
   const headerAttrs = {};
@@ -501,7 +501,7 @@ test('derivedMeasurementDeck: Cross-Section Evidence is collapsible, expanded by
   };
 
   const sectionClasses = new Set(['results-subgroup', 'results-subgroup--cross-section']);
-  const sectionAttrs = new Set(['data-collapsible']);
+  const sectionAttrs = new Set(['data-collapsible', 'data-collapsed']);
   const csSection = {
     classList: {
       classes: sectionClasses,
@@ -524,21 +524,21 @@ test('derivedMeasurementDeck: Cross-Section Evidence is collapsible, expanded by
 
   initCollapsibleSections(csSection);
 
-  // Starts expanded by default
-  assert.equal(csSection.classList.contains('is-collapsed'), false);
-  assert.equal(header.getAttribute('aria-expanded'), 'true');
-  assert.equal(header.getAttribute('role'), 'button');
-  assert.equal(header.getAttribute('tabindex'), '0');
-
-  // Click to collapse
-  header.click();
+  // Starts collapsed by default
   assert.equal(csSection.classList.contains('is-collapsed'), true);
   assert.equal(header.getAttribute('aria-expanded'), 'false');
+  assert.equal(header.getAttribute('role'), 'button');
+  assert.equal(header.getAttribute('tabindex'), '0');
 
   // Click to expand
   header.click();
   assert.equal(csSection.classList.contains('is-collapsed'), false);
   assert.equal(header.getAttribute('aria-expanded'), 'true');
+
+  // Click to collapse
+  header.click();
+  assert.equal(csSection.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
 });
 
 test('derivedMeasurementDeck: Cross-Section Evidence subgroup structure wraps Shoulder and Hip cards', () => {
@@ -1083,7 +1083,7 @@ test('derivedMeasurementDeck: Modeled Perimeter Estimates subgroup supports coll
   };
 
   const sectionClasses = new Set(['results-subgroup', 'results-subgroup--modeled-perimeter']);
-  const sectionAttrs = new Set(['data-collapsible']);
+  const sectionAttrs = new Set(['data-collapsible', 'data-collapsed']);
   const section = {
     classList: {
       classes: sectionClasses,
@@ -1106,12 +1106,7 @@ test('derivedMeasurementDeck: Modeled Perimeter Estimates subgroup supports coll
 
   initCollapsibleSections(section);
 
-  // Starts expanded by default
-  assert.equal(section.classList.contains('is-collapsed'), false);
-  assert.equal(header.getAttribute('aria-expanded'), 'true');
-
-  // Click to collapse
-  header.click();
+  // Starts collapsed by default
   assert.equal(section.classList.contains('is-collapsed'), true);
   assert.equal(header.getAttribute('aria-expanded'), 'false');
 
@@ -1119,6 +1114,11 @@ test('derivedMeasurementDeck: Modeled Perimeter Estimates subgroup supports coll
   header.click();
   assert.equal(section.classList.contains('is-collapsed'), false);
   assert.equal(header.getAttribute('aria-expanded'), 'true');
+
+  // Click to collapse
+  header.click();
+  assert.equal(section.classList.contains('is-collapsed'), true);
+  assert.equal(header.getAttribute('aria-expanded'), 'false');
 });
 
 test('derivedMeasurementDeck: guardrail verifies no domain formula is duplicated in UI code', () => {
@@ -1170,7 +1170,7 @@ test('derivedMeasurementDeck: Hip/Seat card remains the production-facing modele
     },
   });
 
-  assert.equal(html.includes('Modeled Hip Circumference'), true);
+  assert.equal(html.includes('Modeled Maximum Seat Circumference'), true);
   assert.equal(html.includes('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"'), true);
   assert.equal(html.includes('Circumference Estimate'), true);
   assert.equal(html.includes('114.20 cm'), true);
@@ -1370,7 +1370,7 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
   const container = { innerHTML: '' };
   renderDerivedMeasurementDeck(container);
 
-  // 1. All four cards must be present in the live render output
+  // 1. All five cards must be present in the live render output
   assert.equal(
     container.innerHTML.includes('Modeled Bust Circumference'),
     true,
@@ -1402,9 +1402,19 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
     'Abdominal card must include measurement ID',
   );
   assert.equal(
-    container.innerHTML.includes('Modeled Hip Circumference'),
+    container.innerHTML.includes('Modeled Hip Girth'),
     true,
-    'Live render must include Modeled Hip Circumference card',
+    'Live render must include Modeled Hip Girth card',
+  );
+  assert.equal(
+    container.innerHTML.includes('data-measurement-id="torso_modeled_hip_girth_at_buttock_point_plane"'),
+    true,
+    'Hip Girth card must include measurement ID',
+  );
+  assert.equal(
+    container.innerHTML.includes('Modeled Maximum Seat Circumference'),
+    true,
+    'Live render must include Modeled Maximum Seat Circumference card',
   );
   assert.equal(
     container.innerHTML.includes('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"'),
@@ -1412,19 +1422,21 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
     'Hip/Seat card must include measurement ID',
   );
 
-  // 2. All four cards are inside the Modeled Perimeter Estimates subgroup in anatomical top-down order
+  // 2. All five cards are inside the Modeled Perimeter Estimates subgroup in anatomical top-down order
   const subgroupStart = container.innerHTML.indexOf('data-group-id="modeled_perimeter_estimates"');
   assert.ok(subgroupStart > -1, 'Modeled Perimeter Estimates subgroup must exist');
 
   const bustCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_bust_circumference_at_bust_apex_plane"');
   const waistCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_natural_waist_circumference_at_natural_waist_plane"');
   const abdominalCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_abdominal_circumference_at_abdominal_apex_plane"');
+  const hipGirthCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_hip_girth_at_buttock_point_plane"');
   const seatCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"');
 
   assert.ok(bustCardIdx > subgroupStart, 'Bust card must be inside perimeter subgroup');
   assert.ok(waistCardIdx > bustCardIdx, 'Natural Waist card must be below Bust card');
   assert.ok(abdominalCardIdx > waistCardIdx, 'Abdominal card must be below Natural Waist card');
-  assert.ok(seatCardIdx > abdominalCardIdx, 'Hip/Seat card must be below Abdominal card');
+  assert.ok(hipGirthCardIdx > abdominalCardIdx, 'Hip Girth card must be below Abdominal card');
+  assert.ok(seatCardIdx > hipGirthCardIdx, 'Maximum Seat card must be below Hip Girth card');
 
   // Clean up
   clearSelectedMeasurement();
@@ -1456,14 +1468,14 @@ test('derivedMeasurementDeck: Modeled Abdominal Circumference card renders exact
   assert.equal(html.includes('data-measurement-id="torso_modeled_abdominal_circumference_at_abdominal_apex_plane"'), true);
   assert.equal(html.includes('Circumference Estimate'), true);
   assert.equal(html.includes('100.48 cm'), true);
-  assert.equal(html.includes('Apex Plane Y'), true);
+  assert.equal(html.includes('Abdominal Point Plane Y'), true);
   assert.equal(html.includes('95.75 cm'), true);
   assert.equal(html.includes('Front Width'), true);
   assert.equal(html.includes('37.20 cm'), true);
   assert.equal(html.includes('Side AP Depth'), true);
   assert.equal(html.includes('26.30 cm'), true);
   assert.equal(html.includes('Ellipse (Ramanujan II)'), true);
-  assert.equal(html.includes('Evaluated at localized Abdominal Apex Plane.'), true);
+  assert.equal(html.includes('Evaluated at localized Abdominal Point Plane.'), true);
   assert.equal(html.includes('Modeled estimate; not tape-measured ground truth.'), true);
   assert.equal(html.includes('body-evidence-badge--ok'), true);
   assert.equal(html.includes('Modeled'), true);
@@ -1511,7 +1523,7 @@ test('derivedMeasurementDeck: Modeled Abdominal Circumference card handles block
     levelYcm: null,
   });
   assert.equal(unavailHtml.includes('Unavailable'), true);
-  assert.equal(unavailHtml.includes('Apex Plane Y'), true);
+  assert.equal(unavailHtml.includes('Abdominal Point Plane Y'), true);
   assert.equal(unavailHtml.includes('derived-card-level'), false);
 
   const invalidHtml = buildModeledAbdominalCircumferenceCardHtml({
@@ -1521,7 +1533,7 @@ test('derivedMeasurementDeck: Modeled Abdominal Circumference card handles block
     levelYcm: null,
   });
   assert.equal(invalidHtml.includes('Invalid'), true);
-  assert.equal(invalidHtml.includes('Apex Plane Y'), true);
+  assert.equal(invalidHtml.includes('Abdominal Point Plane Y'), true);
   assert.equal(invalidHtml.includes('derived-card-level'), false);
 });
 
@@ -1548,14 +1560,14 @@ test('derivedMeasurementDeck: Modeled Bust Circumference card renders exact titl
   assert.equal(html.includes('data-measurement-id="torso_modeled_bust_circumference_at_bust_apex_plane"'), true);
   assert.equal(html.includes('Circumference Estimate'), true);
   assert.equal(html.includes('100.21 cm'), true);
-  assert.equal(html.includes('Bust Apex Plane Y'), true);
+  assert.equal(html.includes('Bust Point Plane Y'), true);
   assert.equal(html.includes('123.85 cm'), true);
   assert.equal(html.includes('Front Width'), true);
   assert.equal(html.includes('34.30 cm'), true);
   assert.equal(html.includes('Side AP Depth'), true);
   assert.equal(html.includes('29.40 cm'), true);
   assert.equal(html.includes('Ellipse (Ramanujan II)'), true);
-  assert.equal(html.includes('Evaluated at localized Bust Apex Plane.'), true);
+  assert.equal(html.includes('Evaluated at localized Bust Point Plane.'), true);
   assert.equal(html.includes('Modeled estimate; not tape-measured ground truth.'), true);
   assert.equal(html.includes('body-evidence-badge--ok'), true);
   assert.equal(html.includes('Modeled'), true);
@@ -1603,7 +1615,7 @@ test('derivedMeasurementDeck: Modeled Bust Circumference card handles blocked, u
     levelYcm: null,
   });
   assert.equal(unavailHtml.includes('Unavailable'), true);
-  assert.equal(unavailHtml.includes('Bust Apex Plane Y'), true);
+  assert.equal(unavailHtml.includes('Bust Point Plane Y'), true);
 
   const invalidHtml = buildModeledBustCircumferenceCardHtml({
     id: 'torso_modeled_bust_circumference_at_bust_apex_plane',
@@ -1612,7 +1624,46 @@ test('derivedMeasurementDeck: Modeled Bust Circumference card handles blocked, u
     levelYcm: null,
   });
   assert.equal(invalidHtml.includes('Invalid'), true);
-  assert.equal(invalidHtml.includes('Bust Apex Plane Y'), true);
+  assert.equal(invalidHtml.includes('Bust Point Plane Y'), true);
+});
+
+test('derivedMeasurementDeck: Modeled Hip Girth card renders exact title, badges, Front width, Side AP depth, and disclaimers', async () => {
+  const { buildModeledHipGirthCardHtml } = await import('./derivedMeasurementDeck.js');
+  const html = buildModeledHipGirthCardHtml({
+    contract: 'modeled-hip-girth-v1',
+    id: 'torso_modeled_hip_girth_at_buttock_point_plane',
+    name: 'Modeled Hip Girth',
+    status: 'modeled',
+    valueCm: 111.12,
+    levelYcm: 86.05,
+    model: {
+      family: 'ellipse',
+      implementation: 'ellipse_ramanujan_ii',
+      transverseWidthCm: 42.20,
+      apDepthCm: 27.80,
+    },
+    provenance: {
+      selectedYcm: 86.05,
+      frontTransverseWidthCm: 42.20,
+      sideQualifiedApDepthCm: 27.80,
+    },
+  });
+
+  assert.equal(html.includes('Modeled Hip Girth'), true);
+  assert.equal(html.includes('data-measurement-id="torso_modeled_hip_girth_at_buttock_point_plane"'), true);
+  assert.equal(html.includes('Circumference Estimate'), true);
+  assert.equal(html.includes('111.12 cm'), true);
+  assert.equal(html.includes('Hip Girth Plane Y'), true);
+  assert.equal(html.includes('86.05 cm'), true);
+  assert.equal(html.includes('Front Width'), true);
+  assert.equal(html.includes('42.20 cm'), true);
+  assert.equal(html.includes('Side AP Depth'), true);
+  assert.equal(html.includes('27.80 cm'), true);
+  assert.equal(html.includes('Ellipse (Ramanujan II)'), true);
+  assert.equal(html.includes('Evaluated at localized Buttock Point Plane.'), true);
+  assert.equal(html.includes('Modeled estimate; not tape-measured ground truth.'), true);
+  assert.equal(html.includes('body-evidence-badge--ok'), true);
+  assert.equal(html.includes('Modeled'), true);
 });
 
 test('derivedMeasurementDeck: getMeasurementRecordById routes canonical and legacy Bust IDs cleanly', () => {
@@ -1624,6 +1675,9 @@ test('derivedMeasurementDeck: getMeasurementRecordById routes canonical and lega
   assert.equal(getMeasurementRecordById('torso_modeled_abdominal_circumference_at_abdominal_apex_plane'), null);
   assert.equal(getMeasurementRecordById('modeled_abdominal_circumference'), null);
   assert.equal(getMeasurementRecordById('abdominal_apex_plane_localization'), null);
+  assert.equal(getMeasurementRecordById('torso_modeled_hip_girth_at_buttock_point_plane'), null);
+  assert.equal(getMeasurementRecordById('modeled_hip_girth'), null);
+  assert.equal(getMeasurementRecordById('buttock_point_plane_localization'), null);
   assert.equal(getMeasurementRecordById('torso_modeled_natural_waist_circumference_at_natural_waist_plane'), null);
   assert.equal(getMeasurementRecordById('unknown_id'), null);
   assert.equal(getMeasurementRecordById(null), null);

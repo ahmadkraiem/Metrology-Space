@@ -246,7 +246,7 @@ export function toggleViewSetting(id, deps = viewControlDeps) {
 export function setupViewControls(referenceMarkers, volumeGrid, measurement) {
   viewControlDeps = { referenceMarkers, volumeGrid, measurement };
 
-  applyViewSetting(VIEW_SETTING_IDS.ORIGIN_CENTER, true, viewControlDeps);
+  applyViewSetting(VIEW_SETTING_IDS.ORIGIN_CENTER, false, viewControlDeps);
   applyViewSetting(VIEW_SETTING_IDS.ANNOTATIONS, true, viewControlDeps);
   applyViewSetting(VIEW_SETTING_IDS.LATTICE_3D, true, viewControlDeps);
   applyViewSetting(VIEW_SETTING_IDS.FRONT_GRID, true, viewControlDeps);
@@ -254,5 +254,5 @@ export function setupViewControls(referenceMarkers, volumeGrid, measurement) {
   applyViewSetting(VIEW_SETTING_IDS.MEASUREMENT_LINES, true, viewControlDeps);
   applyViewSetting(VIEW_SETTING_IDS.FRONT_SEGMENTATION, true, viewControlDeps);
   applyViewSetting(VIEW_SETTING_IDS.SIDE_SEGMENTATION, true, viewControlDeps);
-  applyViewSetting(VIEW_SETTING_IDS.BODY_PREVIEWS, true, viewControlDeps);
+  applyViewSetting(VIEW_SETTING_IDS.BODY_PREVIEWS, false, viewControlDeps);
 }

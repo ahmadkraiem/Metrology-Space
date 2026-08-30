@@ -22,7 +22,7 @@ const WORKFLOW_HINTS = Object.freeze({
 /** @type {Set<(workflow: string) => void>} */
 const workflowChangeListeners = new Set();
 
-let currentWorkflow = WORKFLOW_MEASUREMENT;
+let currentWorkflow = WORKFLOW_BODY_EVIDENCE;
 
 export function getWorkflowLabel(workflow = currentWorkflow) {
   return WORKFLOW_LABELS[workflow] ?? '';

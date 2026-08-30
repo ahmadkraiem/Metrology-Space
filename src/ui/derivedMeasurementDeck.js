@@ -65,8 +65,8 @@ const DERIVED_CORRESPONDENCE_PAIRS = Object.freeze([
 ]);
 
 const groupCollapseStates = new Map([
-  ['cross_section_evidence', false],
-  ['modeled_perimeter_estimates', false],
+  ['cross_section_evidence', true],
+  ['modeled_perimeter_estimates', true],
   ['direct_measurements', true],
   ['vertical_measurements', true],
   ['arm_segments', true],
@@ -487,7 +487,7 @@ export function buildModeledBustCircumferenceCardHtml(bustCircumference) {
         </div>
 
         <div class="derived-card-row">
-          <span class="derived-row-label">Bust Apex Plane Y</span>
+          <span class="derived-row-label">Bust Point Plane Y</span>
           <span class="derived-row-value ${typeof yCm === 'number' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(bustPlaneYDisplay)}</span>
         </div>
 
@@ -507,7 +507,7 @@ export function buildModeledBustCircumferenceCardHtml(bustCircumference) {
         </div>
 
         <div class="modeled-perimeter-notes">
-          <p class="modeled-perimeter-note">Evaluated at localized Bust Apex Plane.</p>
+          <p class="modeled-perimeter-note">Evaluated at localized Bust Point Plane.</p>
           <p class="modeled-perimeter-qualification">Modeled estimate; not tape-measured ground truth.</p>
         </div>
       </div>
@@ -668,7 +668,7 @@ export function buildModeledAbdominalCircumferenceCardHtml(abdominalCircumferenc
         </div>
 
         <div class="derived-card-row">
-          <span class="derived-row-label">Apex Plane Y</span>
+          <span class="derived-row-label">Abdominal Point Plane Y</span>
           <span class="derived-row-value ${typeof yCm === 'number' ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(apexPlaneYDisplay)}</span>
         </div>
 
@@ -688,7 +688,7 @@ export function buildModeledAbdominalCircumferenceCardHtml(abdominalCircumferenc
         </div>
 
         <div class="modeled-perimeter-notes">
-          <p class="modeled-perimeter-note">Evaluated at localized Abdominal Apex Plane.</p>
+          <p class="modeled-perimeter-note">Evaluated at localized Abdominal Point Plane.</p>
           <p class="modeled-perimeter-qualification">Modeled estimate; not tape-measured ground truth.</p>
         </div>
       </div>
@@ -832,7 +832,7 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
       aria-selected="${isSelected ? 'true' : 'false'}"
     >
       <div class="derived-card-header">
-        <span class="derived-card-title">${escapeHtml(seatCircumference.displayName ?? seatCircumference.name ?? 'Modeled Hip Circumference')}</span>
+        <span class="derived-card-title">Modeled Maximum Seat Circumference</span>
         <div class="derived-card-meta">
           ${statusBadge}
         </div>

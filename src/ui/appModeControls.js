@@ -12,7 +12,9 @@ import {
   statusModeValueEl,
 } from './domRefs.js';
 import {
+  WORKFLOW_BODY_EVIDENCE,
   focusBodyEvidenceWorkflow,
+  getInspectorWorkflow,
   setInspectorWorkflow,
   workflowForMode,
 } from './inspectorWorkflow.js';
@@ -83,5 +85,9 @@ export function activateBodyEvidenceWorkflow() {
 }
 
 export function setupAppModeControls(measurement, selectionHighlight) {
+  const initialWorkflow = getInspectorWorkflow();
   updateModeUI(getAppMode(), selectionHighlight);
+  if (initialWorkflow === WORKFLOW_BODY_EVIDENCE) {
+    setInspectorWorkflow(WORKFLOW_BODY_EVIDENCE);
+  }
 }

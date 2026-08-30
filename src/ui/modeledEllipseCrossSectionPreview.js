@@ -10,6 +10,7 @@ import { formatDistance } from '../core/formatters.js';
 import { escapeHtml } from './badgeUi.js';
 import {
   getModeledHipSeatCircumference,
+  getModeledHipGirth,
   getModeledNaturalWaistCircumference,
   getModeledAbdominalCircumference,
   getModeledBustCircumference,
@@ -20,6 +21,7 @@ import {
 } from './measurementHighlightOverlay2d.js';
 
 export const MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane';
+export const MODELED_HIP_GIRTH_MEASUREMENT_ID = 'torso_modeled_hip_girth_at_buttock_point_plane';
 export const MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_natural_waist_circumference_at_natural_waist_plane';
 export const MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane';
 export const MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID = 'torso_modeled_bust_circumference_at_bust_apex_plane';
@@ -58,6 +60,8 @@ export function resolveModeledEllipsePreviewModel(record) {
 
   const isHipSeat = record.id === MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID
     || record.contract === 'modeled-hip-seat-circumference-v0';
+  const isHipGirth = record.id === MODELED_HIP_GIRTH_MEASUREMENT_ID
+    || record.contract === 'modeled-hip-girth-v1';
   const isNaturalWaist = record.id === MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID
     || record.contract === 'modeled-natural-waist-circumference-v0';
   const isAbdominal = record.id === MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID
@@ -65,7 +69,7 @@ export function resolveModeledEllipsePreviewModel(record) {
   const isBust = record.id === MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID
     || record.contract === 'modeled-bust-circumference-v0';
 
-  if ((!isHipSeat && !isNaturalWaist && !isAbdominal && !isBust) || record.status !== 'modeled') {
+  if ((!isHipSeat && !isHipGirth && !isNaturalWaist && !isAbdominal && !isBust) || record.status !== 'modeled') {
     return null;
   }
 
@@ -86,15 +90,18 @@ export function resolveModeledEllipsePreviewModel(record) {
 
   let defaultId = MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID;
   let planeLabel = 'Seat Plane Y';
-  if (isNaturalWaist) {
+  if (isHipGirth) {
+    defaultId = MODELED_HIP_GIRTH_MEASUREMENT_ID;
+    planeLabel = 'Hip Girth Plane Y';
+  } else if (isNaturalWaist) {
     defaultId = MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID;
     planeLabel = 'Waist Plane Y';
   } else if (isAbdominal) {
     defaultId = MODELED_ABDOMINAL_CIRCUMFERENCE_MEASUREMENT_ID;
-    planeLabel = 'Apex Plane Y';
+    planeLabel = 'Abdominal Point Plane Y';
   } else if (isBust) {
     defaultId = MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID;
-    planeLabel = 'Bust Apex Plane Y';
+    planeLabel = 'Bust Point Plane Y';
   }
 
   return {
@@ -258,6 +265,10 @@ export function syncModeledEllipsePreviewFromHighlight(visualization, record = n
     && visualization.measurementId === MODELED_HIP_SEAT_CIRCUMFERENCE_MEASUREMENT_ID
     && visualization.status === 'ready';
 
+  const isSelectedHipGirth = visualization
+    && visualization.measurementId === MODELED_HIP_GIRTH_MEASUREMENT_ID
+    && visualization.status === 'ready';
+
   const isSelectedNaturalWaist = visualization
     && visualization.measurementId === MODELED_NATURAL_WAIST_CIRCUMFERENCE_MEASUREMENT_ID
     && visualization.status === 'ready';
@@ -270,7 +281,7 @@ export function syncModeledEllipsePreviewFromHighlight(visualization, record = n
     && visualization.measurementId === MODELED_BUST_CIRCUMFERENCE_MEASUREMENT_ID
     && visualization.status === 'ready';
 
-  if (!isSelectedHipSeat && !isSelectedNaturalWaist && !isSelectedAbdominal && !isSelectedBust) {
+  if (!isSelectedHipSeat && !isSelectedHipGirth && !isSelectedNaturalWaist && !isSelectedAbdominal && !isSelectedBust) {
     renderModeledEllipsePreview(container, null);
     return;
   }
@@ -283,6 +294,8 @@ export function syncModeledEllipsePreviewFromHighlight(visualization, record = n
       sourceRecord = getModeledNaturalWaistCircumference();
     } else if (isSelectedAbdominal) {
       sourceRecord = getModeledAbdominalCircumference();
+    } else if (isSelectedHipGirth) {
+      sourceRecord = getModeledHipGirth();
     } else {
       sourceRecord = getModeledHipSeatCircumference();
     }

@@ -35,7 +35,7 @@
           <div class="app-menu" data-menu="view">
             <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">View</button>
             <ul class="app-menu-dropdown" role="menu" hidden>
-              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="origin-center">Origin / Center</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="origin-center">Origin / Center</button></li>
               <li role="separator" class="app-menu-separator"></li>
               <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="annotations">Annotations</button></li>
               <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="measurement-lines">Measurement Lines</button></li>
@@ -50,15 +50,15 @@
               <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="side-secondary">Side Secondary</button></li>
               <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="front-seg">Front Segmentation</button></li>
               <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="side-seg">Side Segmentation</button></li>
-              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-view-setting="body-previews">Body Measurement Previews</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-view-setting="body-previews">Body Measurement Previews</button></li>
             </ul>
           </div>
           <div class="app-menu" data-menu="workflow">
             <button type="button" class="app-menu-trigger" aria-haspopup="true" aria-expanded="false">Workflow</button>
             <ul class="app-menu-dropdown" role="menu" hidden>
-              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-workflow="measurement">Inspect &amp; Measure</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-workflow="measurement">Inspect &amp; Measure</button></li>
               <li role="none"><button type="button" role="menuitem" aria-checked="false" data-workflow="annotation">Annotate</button></li>
-              <li role="none"><button type="button" role="menuitem" aria-checked="false" data-workflow="body-evidence">Body Evidence</button></li>
+              <li role="none"><button type="button" role="menuitem" aria-checked="true" data-workflow="body-evidence">Body Evidence</button></li>
             </ul>
           </div>
         </nav>
@@ -69,7 +69,7 @@
           </span>
           <span class="status-badge status-badge--points">68,921 POINTS</span>
         </div>
-      </header>      <aside id="left-sidebar" data-workflow="measurement">
+      </header>      <aside id="left-sidebar" data-workflow="body-evidence">
         <div class="sidebar-title">Metrology Inspector</div>
         <div class="sidebar-scroll">
           <input type="file" id="import-body-evidence-package-zip" accept=".zip,application/zip,application/x-zip-compressed" hidden />
@@ -491,14 +491,14 @@
         </div>
 
         <div class="sidebar-scroll">
-          <section id="derived-measurement-deck" class="derived-measurement-deck inspector-section" aria-label="Results" data-collapsible>
-            <div class="deck-header" role="button" tabindex="0" aria-expanded="true">
+          <section id="derived-measurement-deck" class="derived-measurement-deck inspector-section is-collapsed" aria-label="Results" data-collapsible data-collapsed>
+            <div class="deck-header" role="button" tabindex="0" aria-expanded="false">
               <span class="deck-title">Results</span>
             </div>
             <div id="derived-measurement-cards" class="derived-measurement-cards section-body" aria-live="polite"></div>
           </section>
 
-          <section id="session-records-panel" class="inspector-section" data-collapsible>
+          <section id="session-records-panel" class="inspector-section is-collapsed" data-collapsible data-collapsed>
             <h2 class="section-title section-title--collapsible">Session Records</h2>
             <div class="section-body">
               <div class="session-records-block">
@@ -568,9 +568,9 @@
           <span class="status-divider"></span>
           <span class="status-item status-chip"><span class="status-key">Sampling</span> 5 cm</span>
           <span class="status-divider"></span>
-          <span class="status-item"><span class="status-key">Mode</span> <span id="status-mode-value">Inspect &amp; Measure</span></span>
+          <span class="status-item"><span class="status-key">Mode</span> <span id="status-mode-value">Body Evidence</span></span>
         </div>
-        <span class="status-hint" id="status-hint">Hover a point, click two points to measure distance</span>
+        <span class="status-hint" id="status-hint">Load and analyze body evidence, then inspect or promote a landmark</span>
       </footer>
     </div>
     <script type="module" src="/src/main.js"></script>

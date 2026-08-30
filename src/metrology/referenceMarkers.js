@@ -3,7 +3,7 @@ import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { ROOM_SIZE } from '../core/constants.js';
 import { camera } from '../core/scene.js';
 
-let referenceMarkersVisible = true;
+let referenceMarkersVisible = false;
 
 function createReferenceMarker(position, color, labelText, labelClass) {
   const group = new THREE.Group();
@@ -55,6 +55,7 @@ export function createReferenceMarkers() {
   group.add(...markers);
   group.userData.markers = markers;
   group.userData.pickMeshes = markers.map((marker) => marker.userData.pickMesh);
+  group.visible = referenceMarkersVisible;
   return group;
 }
 

@@ -529,7 +529,7 @@ test('Focused Interactivity 1 & 2: Rendered Hip/Seat card and direct measurement
 
   const html = container.innerHTML;
   assert.ok(html.includes('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"'));
-  assert.ok(html.includes('Modeled Hip Circumference'));
+  assert.ok(html.includes('Modeled Maximum Seat Circumference'));
   assert.equal(html.includes('data-measurement-id="torso_modeled_perimeter_at_hip_landmark_level"'), false);
   assert.equal(html.includes('Hip Landmark Perimeter Estimate'), false);
   assert.ok(html.includes('data-measurement-id="left_upper_arm_segment_length_projected"'));
@@ -733,4 +733,58 @@ test('Modeled Natural Waist Circumference: selecting circumference card resolves
   clearMeasurementHighlight();
   assert.equal(getMeasurementHighlight(), null);
 });
+
+test('Modeled Hip Girth: selecting circumference card resolves to Buttock Point plane visualization provenance', () => {
+  const hipGirthResult = {
+    contract: 'modeled-hip-girth-v1',
+    id: 'torso_modeled_hip_girth_at_buttock_point_plane',
+    name: 'Modeled Hip Girth',
+    status: 'modeled',
+    valueCm: 111.12,
+    yCm: 86.05,
+    levelYcm: 86.05,
+    model: {
+      transverseWidthCm: 42.20,
+      apDepthCm: 27.80,
+    },
+    provenance: {
+      selectedYcm: 86.05,
+      frontRasterRow: 450,
+      sideRasterRow: 450,
+      frontTransverseWidthCm: 42.20,
+      frontMinXcm: 78.9,
+      frontMaxXcm: 121.1,
+      sideQualifiedApDepthCm: 27.80,
+      sideMinUcm: 86.1,
+      sideMaxUcm: 113.9,
+      sliceHighlightCoordinates: {
+        yCm: 86.05,
+        frontRasterRow: 450,
+        sideRasterRow: 450,
+        frontBoundsCm: { minX: 78.9, maxX: 121.1 },
+        sideBoundsCm: { minU: 86.1, maxU: 113.9 },
+      },
+    },
+  };
+
+  const vis = resolveMeasurementVisualizationProvenance(hipGirthResult);
+  assert.equal(vis.status, 'ready');
+  assert.equal(vis.visualizationType, VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE);
+  assert.equal(vis.geometry.yCm, 86.05);
+  assert.equal(vis.geometry.front.widthCm, 42.20);
+  assert.equal(vis.geometry.side.depthCm, 27.80);
+
+  setMeasurementHighlight(vis);
+  setWorkspace(WORKSPACE_SPLIT);
+
+  const active = getMeasurementHighlight();
+  assert.ok(active);
+  assert.equal(active.visualizationType, VISUALIZATION_TYPES.CROSS_VIEW_HORIZONTAL_SLICE);
+  assert.equal(active.geometry.yCm, 86.05);
+  assert.equal(getWorkspace(), WORKSPACE_SPLIT);
+
+  clearMeasurementHighlight();
+  assert.equal(getMeasurementHighlight(), null);
+});
+
 

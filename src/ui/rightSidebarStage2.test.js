@@ -256,17 +256,17 @@ test('rightSidebarStage2: Diagnostics accordion starts collapsed and toggles', (
   assert.equal(diagnostics.header.getAttribute('aria-expanded'), 'true');
 });
 
-test('rightSidebarStage2: Session Records markup is one expanded accordion, not History/Annotations', () => {
+test('rightSidebarStage2: Session Records markup is one collapsed accordion, not History/Annotations', () => {
   const records = sliceBetween(markup, 'id="session-records-panel"', 'id="diagnostics-panel"');
   assert.match(records, /data-collapsible/);
-  assert.equal(/data-collapsed/.test(records), false);
-  assert.equal(/is-collapsed/.test(records), false);
+  assert.match(records, /data-collapsed/);
+  assert.match(records, /is-collapsed/);
   assert.match(records, /id="history-list"/);
   assert.match(records, /id="annotation-list"/);
   assert.equal(/session-records-block[^>]*data-collapsible/.test(records), false);
 });
 
-test('rightSidebarStage2: Session Records initializes expanded, toggles, and keeps History + Annotations mounted', () => {
+test('rightSidebarStage2: Session Records initializes collapsed, toggles, and keeps History + Annotations mounted', () => {
   const mounted = {
     historyList: { id: 'history-list' },
     annotationList: { id: 'annotation-list' },
@@ -274,27 +274,29 @@ test('rightSidebarStage2: Session Records initializes expanded, toggles, and kee
   };
   const records = createCollapsibleMock({
     classes: ['inspector-section'],
-    collapsed: false,
+    collapsed: true,
     headerClass: 'section-title',
   });
   records.section.mounted = mounted;
 
   initCollapsibleSections(records.section);
-  assert.equal(records.section.classList.contains('is-collapsed'), false);
-  assert.equal(records.header.getAttribute('aria-expanded'), 'true');
+  assert.equal(records.section.classList.contains('is-collapsed'), true);
+  assert.equal(records.header.getAttribute('aria-expanded'), 'false');
   assert.equal(records.header.getAttribute('role'), 'button');
   assert.equal(records.header.getAttribute('tabindex'), '0');
 
+  // Expand Session Records
   records.header.click();
-  assert.equal(records.section.classList.contains('is-collapsed'), true);
-  assert.equal(records.header.getAttribute('aria-expanded'), 'false');
+  assert.equal(records.section.classList.contains('is-collapsed'), false);
+  assert.equal(records.header.getAttribute('aria-expanded'), 'true');
   assert.equal(records.section.mounted.historyList.id, 'history-list');
   assert.equal(records.section.mounted.annotationList.id, 'annotation-list');
   assert.equal(records.section.mounted.clearHistory.id, 'clear-history');
 
+  // Collapse Session Records
   records.header.click();
-  assert.equal(records.section.classList.contains('is-collapsed'), false);
-  assert.equal(records.header.getAttribute('aria-expanded'), 'true');
+  assert.equal(records.section.classList.contains('is-collapsed'), true);
+  assert.equal(records.header.getAttribute('aria-expanded'), 'false');
   assert.equal(records.section.mounted.historyList.id, 'history-list');
   assert.equal(records.section.mounted.annotationList.id, 'annotation-list');
 });
@@ -503,17 +505,17 @@ test('rightSidebarStage2: live UI no longer references removed Session tab IDs',
   }
 });
 
-test('rightSidebarStage2: Results deck is marked data-collapsible and expanded by default', () => {
+test('rightSidebarStage2: Results deck is marked data-collapsible and collapsed by default', () => {
   const deck = sliceBetween(markup, 'id="derived-measurement-deck"', 'id="session-records-panel"');
   assert.match(deck, /data-collapsible/);
-  assert.equal(/data-collapsed/.test(deck), false);
-  assert.equal(/is-collapsed/.test(deck), false);
+  assert.match(deck, /data-collapsed/);
+  assert.match(deck, /is-collapsed/);
   assert.match(deck, /class="deck-header"/);
   assert.match(deck, /class="deck-title">Results</);
   assert.match(deck, /id="derived-measurement-cards"/);
 });
 
-test('rightSidebarStage2: Results deck initializes expanded, toggles collapse/expand, and keeps measurement cards mounted', () => {
+test('rightSidebarStage2: Results deck initializes collapsed, toggles collapse/expand, and keeps measurement cards mounted', () => {
   const mountedCards = {
     id: 'derived-measurement-cards',
     children: [
@@ -523,28 +525,28 @@ test('rightSidebarStage2: Results deck initializes expanded, toggles collapse/ex
   };
   const resultsDeck = createCollapsibleMock({
     classes: ['derived-measurement-deck'],
-    collapsed: false,
+    collapsed: true,
     headerClass: 'deck-header',
   });
   resultsDeck.section.mounted = mountedCards;
 
   initCollapsibleSections(resultsDeck.section);
-  assert.equal(resultsDeck.section.classList.contains('is-collapsed'), false);
-  assert.equal(resultsDeck.header.getAttribute('aria-expanded'), 'true');
-  assert.equal(resultsDeck.header.getAttribute('role'), 'button');
-  assert.equal(resultsDeck.header.getAttribute('tabindex'), '0');
-
-  // Collapse Results
-  resultsDeck.header.click();
   assert.equal(resultsDeck.section.classList.contains('is-collapsed'), true);
   assert.equal(resultsDeck.header.getAttribute('aria-expanded'), 'false');
-  assert.equal(resultsDeck.section.mounted.id, 'derived-measurement-cards');
-  assert.equal(resultsDeck.section.mounted.children.length, 2);
+  assert.equal(resultsDeck.header.getAttribute('role'), 'button');
+  assert.equal(resultsDeck.header.getAttribute('tabindex'), '0');
 
   // Expand Results
   resultsDeck.header.click();
   assert.equal(resultsDeck.section.classList.contains('is-collapsed'), false);
   assert.equal(resultsDeck.header.getAttribute('aria-expanded'), 'true');
+  assert.equal(resultsDeck.section.mounted.id, 'derived-measurement-cards');
+  assert.equal(resultsDeck.section.mounted.children.length, 2);
+
+  // Collapse Results
+  resultsDeck.header.click();
+  assert.equal(resultsDeck.section.classList.contains('is-collapsed'), true);
+  assert.equal(resultsDeck.header.getAttribute('aria-expanded'), 'false');
   assert.equal(resultsDeck.section.mounted.id, 'derived-measurement-cards');
   assert.equal(resultsDeck.section.mounted.children.length, 2);
 });

@@ -18,7 +18,7 @@ const PREVIEW_LINE_OPACITY = 0.55;
 /** @type {THREE.Group|null} */
 let previewGroup = null;
 
-let previewVisible = true;
+let previewVisible = false;
 
 /** @type {(() => void)|null} */
 let requestGrid2dRefreshFn = null;
