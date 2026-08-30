@@ -1083,10 +1083,55 @@ Pure deterministic domain contracts (`src/features/abdominalApexPlaneLocalizatio
 - **2D Cross-Section Overlay Number Cleanup**: Removed always-visible numeric text badges (e.g. `30.80 cm`, `11.00 cm`, `42.20 cm`, `27.70 cm`, floating plane name badges) rendered over Front/Side cross-section slice lines. Overlays render clean geometric primitives only (horizontal reference guides, slice span lines, endpoint dots, selection highlights). Authoritative numeric values are displayed exclusively in the Results sidebar.
 - **Verified Test & Build Baseline**: 730/730 tests passing across 43 test suites; clean production build.
 
-### 4.16 Deferred Torso Planes & Circumference Workstreams — DEFERRED / NEXT
+### 4.16 Bust Apex Plane Localization v0 (`bust-apex-plane-localization-v0`) — COMPLETED / ACCEPTED
+
+Pure deterministic domain contract (`src/features/bustApexPlaneLocalization.js`) and comprehensive unit verification deriving an evidence-driven Bust Apex Plane localization from upper-torso silhouette evidence:
+
+- **Contract ID**: `bust-apex-plane-localization-v0`
+- **Anatomical Target**:
+  - The canonical horizontal $Y$-plane corresponding to the strongest stable local anterior chest/breast silhouette prominence relative to a shape-relative upper-torso baseline chord.
+- **Search Window**:
+  - Bounded strictly between the Shoulder reference level ($Y_{\text{shoulder}}$) and the selected Natural Waist trough superior crest ($Y_{\text{waist\_crest}}$).
+  - Search condition: $Y_{\text{waist\_crest}} < Y < Y_{\text{shoulder}}$.
+  - Rejects boundary-confounded peaks adjacent to the Shoulder ($Y \ge Y_{\text{shoulder}} - 1.0\text{ cm}$) or Waist ($Y \le Y_{\text{waist\_crest}} + 1.0\text{ cm}$).
+- **Side Anterior Orientation**:
+  - Resolved deterministically via `side-anterior-posterior-orientation-v0` (`positive_u` $\to$ anterior is $\max U$, `negative_u` $\to$ anterior is $\min U$).
+- **Support Policy**:
+  - Strictly `trunk_core_support_v0` (target classes `[22, 23]`: Torso `22` and Upper Clothing `23`).
+  - No transition or lower-body classes (`12, 13, 21`) are required or introduced.
+- **Primary Locator & Prominence Signal**:
+  - Evaluates orientation-normalized anterior Side contour $U_{\text{anterior}}(Y)$ relative to the linear chord baseline $B(Y)$ connecting the search window upper bound ($Y_{\text{shoulder}}$) and lower bound ($Y_{\text{waist\_crest}}$).
+  - Prominence signal: $P(Y) = U_{\text{anterior\_norm\_smooth}}(Y) - B_{\text{norm}}(Y)$.
+  - Minimum candidate prominence threshold: $\text{minApexProminenceCm} = 0.30\text{ cm}$ ($P_{\min} = 0.30\text{ cm}$).
+  - Competing multiple-peak ambiguity prominence-difference threshold: $0.40\text{ cm}$ (ratio threshold: $0.85$).
+- **Front & Side Corroboration Roles**:
+  - **Front Transverse Width**: Corroboration only during localization. Valid single-run Front width at candidate $Y$ corroborates anatomical torso presence; Front width does NOT select or move Bust $Y$.
+  - **Side AP Depth**: Corroboration / downstream circumference evidence only. Qualified Side AP depth does NOT select or move Bust $Y$.
+  - Bust $Y$ is **NOT** selected by: maximum AP depth, maximum Front width, maximum modeled circumference, raw absolute Side-$U$ maximum/minimum, body-height percentage heuristics, or fixed anatomical offsets.
+- **Gap-Aware Metric-$Y$ Continuity**:
+  - Valid candidate rows are partitioned into contiguous metric-$Y$ segments based on $\Delta Y_{\text{gap}} = \max(0.35\text{ cm}, \Delta Y_{\text{nom}} \times 3.0)$.
+  - Symmetric smoothing is applied strictly within each continuous segment; smoothing cannot cross unobserved metric gaps.
+  - Local-extrema detection is constrained to interior candidates of continuous segments; segment-edge samples cannot become synthetic peaks.
+  - Vertical broadness and support counts terminate at segment boundaries and never cross missing evidence intervals.
+  - Peak pooling (`poolBustPeaks`) prevents shallow saddle merging across separate discontinuous segments.
+  - **Zero interpolation or fabrication**: Missing or multi-run Side contour rows are excluded conservatively without fabricating data.
+- **Real-Package Validation Sample (`output.zip`)**:
+  - Bust Apex Plane $Y = 123.85\text{ cm}$ (raster row $761$, side raster row $761$)
+  - Anterior Prominence: $0.6676\text{ cm}$ (smooth peak)
+  - Broadness Score: $55$ (broad stable dome)
+  - Front Transverse Width at Bust Apex $Y$: $34.30\text{ cm}$ (single supported run)
+  - Qualified Side AP Depth at Bust Apex $Y$: $29.40\text{ cm}$ (single supported run, all 6 qualification checks pass)
+  - Side Facing Direction: `negative_u` (anterior endpoint: $\min U = 80.40\text{ cm}$)
+  - Status: `ready` (`blockers: []`, `warnings: []`, `issues: []`)
+  - *(Note: $123.85\text{ cm}$ is an accepted sample-package validation observation, NOT a universal anatomical constant).*
+
+### 4.17 Deferred Torso Planes & Circumference Workstreams — DEFERRED / NEXT
 
 The remaining torso anatomical planes and circumferences:
-- **Chest / Bust Level Localization & Modeled Bust Circumference v0**: **NEXT**. Blocked by missing anatomical landmark anchors and unvalidated chest apex plane localization.
+- **Modeled Bust Circumference v0 (`modeled-bust-circumference-v0`)**: **NEXT**.
+  - Intended boundary:
+    $$\text{Accepted Bust Apex } Y \to \text{Front Width}(Y) + \text{Qualified Side AP Depth}(Y) \to \text{Ellipse Model} \to \text{Ramanujan II} \to \text{Modeled Bust Circumference}$$
+  - **Strict Semantic Definition**: Modeled Bust Circumference is an ellipse-based modeled estimate. It is **NOT** tape-measured ground truth, **NOT** a measured body contour, **NOT** a reconstructed 3D perimeter, and **NOT** pointmap-derived.
 - **Underbust Level Localization & Modeled Underbust Circumference v0**: **DEFERRED**. Blocked by missing inframammary fold localization.
 - **Clear Measurements Batch B (Bilateral Spans & Breadths)**: **DEFERRED** pending horizontal breadth $\Delta X$ vs chord distance semantic decision.
 - **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)**: **DEFERRED**.
@@ -1145,6 +1190,8 @@ Do not silently introduce:
 - equating bilateral hip landmark level with maximum buttock/seat plane
 - describing modeled ellipse as measured contour or tape-measured ground truth
 - inventing Waist skeletal landmarks or hardcoded body-height percentage offsets
+- interpolating or fabricating missing Side contour rows across unobserved metric gaps
+- requiring identical Front and Side raster-row indices (same canonical Y is preserved across independent view rasters)
 
 ## 7. Current Input Strategy
 
@@ -1172,16 +1219,16 @@ Current usage:
 
 ## 8. Verification Baseline
 
-- **727 tests passing**
+- **771 tests passing**
 - **0 failures**
-- **43 test suites**
+- **44 test suites**
 - Clean production Vite build (`npm run build`)
 
 ## 9. Next Milestone Planning
 
-With **Modeled Natural Waist Circumference v0**, **Modeled Hip Circumference v0**, and **Modeled Abdominal Circumference v0** completed and accepted, the next torso-plane work remains available for explicit selection among:
-1. **Chest / Bust Apex Localization & Modeled Bust Circumference v0**
-2. **Underbust / Inframammary Fold Localization & Modeled Underbust Circumference v0**
+With **Natural Waist Plane Localization v0**, **Modeled Natural Waist Circumference v0**, **Maximum Seat Plane Localization v0**, **Modeled Hip Circumference v0**, **Abdominal Apex Plane Localization v0**, **Modeled Abdominal Circumference v0**, and **Bust Apex Plane Localization v0** completed and accepted, the next active milestone is:
+
+1. **Modeled Bust Circumference v0** (`modeled-bust-circumference-v0`) — Deriving the ellipse-modeled Bust circumference estimate at the localized Bust Apex Plane using Ramanujan II from validated Front transverse width ($34.30\text{ cm}$) and qualified Side AP depth ($29.40\text{ cm}$) at canonical $Y = 123.85\text{ cm}$.
 
 ## 10. Roadmap Change Policy
 
@@ -1193,6 +1240,7 @@ When changing direction:
 3. update `PROJECT_CONTEXT.md` and `PROJECT_STRUCTURE.md` where relevant;
 4. keep deferred geometry assumptions explicit;
 5. avoid silently replacing the current source-of-truth architecture.
+
 
 
 
