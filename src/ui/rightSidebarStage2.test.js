@@ -130,7 +130,7 @@ test('rightSidebarStage2: Diagnostics initializes collapsed and hosts remaining 
   assert.match(diagnostics, /Front[\u2013\-]Side Alignment/);
   assert.match(diagnostics, /id="front-side-alignment-qa"/);
   assert.match(diagnostics, /Body \/ Anchor Diagnostics/);
-  assert.match(diagnostics, /Anchor-Based Measurement Previews/);
+  assert.match(diagnostics, /Anchor Health/);
   assert.match(diagnostics, /id="body-measurement-readiness"/);
   assert.match(diagnostics, /id="advanced-qa-panel"/);
   assert.match(diagnostics, /id="advanced-qa-content"/);
