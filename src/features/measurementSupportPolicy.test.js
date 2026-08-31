@@ -17,6 +17,23 @@ test('Measurement Support Policy Contract v0 exports contract metadata and regis
   assert.ok(MEASUREMENT_DEFINITION_SUPPORT_MAPPING_V0);
 });
 
+test('neck_core_support_v0 defines exact minimal face/neck, torso, and upper clothing classes', () => {
+  const neckPolicy = MEASUREMENT_SUPPORT_POLICIES_V0.neck_core_support_v0;
+  assert.ok(neckPolicy);
+  assert.equal(neckPolicy.id, 'neck_core_support_v0');
+  assert.deepEqual(neckPolicy.anatomicalClassIds, [3, 22]);
+  assert.deepEqual(neckPolicy.clothingBridgeClassIds, [23]);
+  assert.deepEqual(neckPolicy.acceptedClassIds, [3, 22, 23]);
+
+  // Explicitly excludes hair (4), upper arms (11, 20), lower arms (7, 16), and background (0)
+  assert.ok(!neckPolicy.acceptedClassIds.includes(0));
+  assert.ok(!neckPolicy.acceptedClassIds.includes(4));
+  assert.ok(!neckPolicy.acceptedClassIds.includes(7));
+  assert.ok(!neckPolicy.acceptedClassIds.includes(11));
+  assert.ok(!neckPolicy.acceptedClassIds.includes(16));
+  assert.ok(!neckPolicy.acceptedClassIds.includes(20));
+});
+
 test('trunk_core_support_v0 defines exact minimal torso and upper clothing classes', () => {
   const trunkPolicy = MEASUREMENT_SUPPORT_POLICIES_V0.trunk_core_support_v0;
   assert.ok(trunkPolicy);
@@ -52,6 +69,10 @@ test('trunk_pelvic_transition_support_v0 defines exact transition upper legs, lo
 });
 
 test('resolveMeasurementSupportPolicy maps supported measurement definitions to expected policies', () => {
+  const neckWidthPolicy = resolveMeasurementSupportPolicy('neck_transverse_width_at_neck_level');
+  assert.ok(neckWidthPolicy);
+  assert.equal(neckWidthPolicy.id, 'neck_core_support_v0');
+
   const shoulderWidthPolicy = resolveMeasurementSupportPolicy('torso_width_at_shoulder_level');
   assert.ok(shoulderWidthPolicy);
   assert.equal(shoulderWidthPolicy.id, 'trunk_core_support_v0');
@@ -73,6 +94,10 @@ test('resolveMeasurementSupportPolicy maps supported measurement definitions to 
 });
 
 test('getMeasurementSupportPolicy looks up by policy ID safely and handles unknown inputs', () => {
+  const neck = getMeasurementSupportPolicy('neck_core_support_v0');
+  assert.ok(neck);
+  assert.equal(neck.id, 'neck_core_support_v0');
+
   const trunk = getMeasurementSupportPolicy('trunk_core_support_v0');
   assert.ok(trunk);
   assert.equal(trunk.id, 'trunk_core_support_v0');
@@ -87,6 +112,12 @@ test('getMeasurementSupportPolicy looks up by policy ID safely and handles unkno
 });
 
 test('policy objects and class arrays are frozen and immutable', () => {
+  const neck = MEASUREMENT_SUPPORT_POLICIES_V0.neck_core_support_v0;
+  assert.ok(Object.isFrozen(neck));
+  assert.ok(Object.isFrozen(neck.anatomicalClassIds));
+  assert.ok(Object.isFrozen(neck.clothingBridgeClassIds));
+  assert.ok(Object.isFrozen(neck.acceptedClassIds));
+
   const trunk = MEASUREMENT_SUPPORT_POLICIES_V0.trunk_core_support_v0;
   assert.ok(Object.isFrozen(trunk));
   assert.ok(Object.isFrozen(trunk.anatomicalClassIds));

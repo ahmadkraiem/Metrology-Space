@@ -61,7 +61,7 @@ export const FRONT_TRANSVERSE_WIDTH_STATUS = Object.freeze({
  * @type {Readonly<Record<string, {
  *   id: string,
  *   name: string,
- *   sourceLevel: 'shoulder'|'hip',
+ *   sourceLevel: 'neck'|'shoulder'|'hip',
  *   targetPolicy: string,
  *   supportPolicyId: string,
  *   targetClassIds: readonly number[],
@@ -69,6 +69,15 @@ export const FRONT_TRANSVERSE_WIDTH_STATUS = Object.freeze({
  * }>>}
  */
 export const SUPPORTED_FRONT_TRANSVERSE_WIDTH_DEFINITIONS_V0 = Object.freeze({
+  neck_transverse_width_at_neck_level: Object.freeze({
+    id: 'neck_transverse_width_at_neck_level',
+    name: 'Neck Transverse Width at Neck Level',
+    sourceLevel: 'neck',
+    targetPolicy: 'neck_core_support_v0',
+    supportPolicyId: 'neck_core_support_v0',
+    targetClassIds: MEASUREMENT_SUPPORT_POLICIES_V0.neck_core_support_v0.acceptedClassIds,
+    runSelectionPolicy: FRONT_RUN_SELECTION_POLICIES.SINGLE_RUN_REQUIRED,
+  }),
   torso_width_at_shoulder_level: Object.freeze({
     id: 'torso_width_at_shoulder_level',
     name: 'Torso Transverse Width at Shoulder Level',

@@ -31,6 +31,14 @@ export const MEASUREMENT_SUPPORT_POLICY_CONTRACT_VERSION = 'measurement-support-
  * }>>}
  */
 export const MEASUREMENT_SUPPORT_POLICIES_V0 = Object.freeze({
+  neck_core_support_v0: Object.freeze({
+    id: 'neck_core_support_v0',
+    name: 'Neck Core Measurement Support Policy',
+    description: 'Observed neck silhouette support spanning exposed face/neck skin (3), upper torso transition skin (22), and upper garments / collars (23), strictly excluding hair (4), arms (11, 20), and background (0).',
+    anatomicalClassIds: Object.freeze([3, 22]),
+    clothingBridgeClassIds: Object.freeze([23]),
+    acceptedClassIds: Object.freeze([3, 22, 23]),
+  }),
   trunk_core_support_v0: Object.freeze({
     id: 'trunk_core_support_v0',
     name: 'Trunk Core Measurement Support Policy',
@@ -62,6 +70,7 @@ export const MEASUREMENT_SUPPORT_POLICIES_V0 = Object.freeze({
  * @type {Readonly<Record<string, string>>}
  */
 export const MEASUREMENT_DEFINITION_SUPPORT_MAPPING_V0 = Object.freeze({
+  neck_transverse_width_at_neck_level: 'neck_core_support_v0',
   torso_width_at_shoulder_level: 'trunk_core_support_v0',
   torso_transverse_width_at_shoulder_level: 'trunk_core_support_v0',
   torso_profile_span_at_shoulder_level: 'trunk_core_support_v0',

@@ -24,6 +24,15 @@ test('Front Transverse Width Contract v0 exports contract metadata and supported
   assert.equal(FRONT_TRANSVERSE_WIDTH_STATUS.INVALID, 'invalid');
 
   const defs = SUPPORTED_FRONT_TRANSVERSE_WIDTH_DEFINITIONS_V0;
+  assert.ok(defs.neck_transverse_width_at_neck_level);
+  assert.equal(defs.neck_transverse_width_at_neck_level.id, 'neck_transverse_width_at_neck_level');
+  assert.equal(defs.neck_transverse_width_at_neck_level.name, 'Neck Transverse Width at Neck Level');
+  assert.equal(defs.neck_transverse_width_at_neck_level.sourceLevel, 'neck');
+  assert.equal(defs.neck_transverse_width_at_neck_level.targetPolicy, 'neck_core_support_v0');
+  assert.equal(defs.neck_transverse_width_at_neck_level.supportPolicyId, 'neck_core_support_v0');
+  assert.deepEqual(defs.neck_transverse_width_at_neck_level.targetClassIds, [3, 22, 23]);
+  assert.equal(defs.neck_transverse_width_at_neck_level.runSelectionPolicy, 'single_run_required');
+
   assert.ok(defs.torso_width_at_shoulder_level);
   assert.equal(defs.torso_width_at_shoulder_level.id, 'torso_width_at_shoulder_level');
   assert.equal(defs.torso_width_at_shoulder_level.name, 'Torso Transverse Width at Shoulder Level');
@@ -41,6 +50,216 @@ test('Front Transverse Width Contract v0 exports contract metadata and supported
   assert.equal(defs.torso_width_at_hip_level.supportPolicyId, 'pelvic_core_support_v0');
   assert.deepEqual(defs.torso_width_at_hip_level.targetClassIds, [12, 13, 21, 22]);
   assert.equal(defs.torso_width_at_hip_level.runSelectionPolicy, 'single_run_required');
+});
+
+test('interprets a valid single Neck Face_Neck (3) run into a valid transverse width with exact metric span', () => {
+  const sliceResult = {
+    contract: 'front-horizontal-raster-slice-v0',
+    version: 'front-horizontal-raster-slice-v0',
+    view: 'front',
+    requestedYcm: 155.0,
+    sampledRow: 450,
+    rowNormalizedV: 0.225,
+    targetClassIds: [3, 22, 23],
+    runs: [
+      {
+        startCol: 900,
+        endCol: 1099,
+        pixelCount: 200,
+        boundsNormalized: { minU: 0.45, maxU: 0.55 },
+        boundsCm: { minX: 90.0, maxX: 110.0 },
+        encounteredClassIds: [3],
+      },
+    ],
+    summary: { runCount: 1, totalMatchedPixels: 200 },
+    issues: [],
+  };
+
+  const level = { id: 'neck', status: 'ready', yCm: 155.0 };
+
+  const result = interpretFrontTransverseWidth(sliceResult, {
+    definition: 'neck_transverse_width_at_neck_level',
+    level,
+  });
+
+  assert.equal(result.contract, 'front-transverse-width-v0');
+  assert.equal(result.version, 'front-transverse-width-v0');
+  assert.equal(result.view, 'front');
+  assert.equal(result.id, 'neck_transverse_width_at_neck_level');
+  assert.equal(result.name, 'Neck Transverse Width at Neck Level');
+  assert.equal(result.type, 'transverse_width');
+  assert.equal(result.status, 'valid');
+  assert.equal(result.valueCm, 20.0); // 110.0 - 90.0
+
+  assert.equal(result.provenance.sourceLevel, 'neck');
+  assert.equal(result.provenance.levelYcm, 155.0);
+  assert.equal(result.provenance.sampledPixelRow, 450);
+  assert.equal(result.provenance.sourceSliceContract, 'front-horizontal-raster-slice-v0');
+  assert.equal(result.provenance.targetPolicy, 'neck_core_support_v0');
+  assert.equal(result.provenance.supportPolicyId, 'neck_core_support_v0');
+  assert.deepEqual(result.provenance.targetClassIds, [3, 22, 23]);
+  assert.deepEqual(result.provenance.actualClassIdsUsed, [3]);
+  assert.deepEqual(result.provenance.clothingClassIdsUsed, []);
+  assert.equal(result.provenance.usedClothingEvidence, false);
+  assert.equal(result.provenance.runSelectionPolicy, 'single_run_required');
+  assert.equal(result.provenance.selectedRunIndex, 0);
+  assert.equal(result.provenance.leftXcm, 90.0);
+  assert.equal(result.provenance.rightXcm, 110.0);
+  assert.equal(result.issues.length, 0);
+});
+
+test('interprets Neck with Class 22 (Torso) support correctly without clothing flag', () => {
+  const sliceResult = {
+    contract: 'front-horizontal-raster-slice-v0',
+    runs: [
+      {
+        startCol: 880,
+        endCol: 1119,
+        boundsCm: { minX: 88.0, maxX: 112.0 },
+        encounteredClassIds: [22],
+      },
+    ],
+  };
+
+  const result = interpretFrontTransverseWidth(sliceResult, {
+    definition: 'neck_transverse_width_at_neck_level',
+    level: { id: 'neck', status: 'ready', yCm: 152.0 },
+  });
+
+  assert.equal(result.status, 'valid');
+  assert.equal(result.valueCm, 24.0);
+  assert.deepEqual(result.provenance.actualClassIdsUsed, [22]);
+  assert.deepEqual(result.provenance.clothingClassIdsUsed, []);
+  assert.equal(result.provenance.usedClothingEvidence, false);
+});
+
+test('interprets Neck with Class 23 (Upper_Clothing) collar support and records clothing provenance', () => {
+  const sliceResult = {
+    contract: 'front-horizontal-raster-slice-v0',
+    runs: [
+      {
+        startCol: 870,
+        endCol: 1129,
+        boundsCm: { minX: 87.0, maxX: 113.0 },
+        encounteredClassIds: [23],
+      },
+    ],
+  };
+
+  const result = interpretFrontTransverseWidth(sliceResult, {
+    definition: 'neck_transverse_width_at_neck_level',
+    level: { id: 'neck', status: 'ready', yCm: 150.0 },
+  });
+
+  assert.equal(result.status, 'valid');
+  assert.equal(result.valueCm, 26.0);
+  assert.deepEqual(result.provenance.actualClassIdsUsed, [23]);
+  assert.deepEqual(result.provenance.clothingClassIdsUsed, [23]);
+  assert.equal(result.provenance.usedClothingEvidence, true);
+});
+
+test('interprets Neck with mixed contiguous classes 3, 22, 23 in one run as valid with complete provenance', () => {
+  const sliceResult = {
+    contract: 'front-horizontal-raster-slice-v0',
+    runs: [
+      {
+        startCol: 850,
+        endCol: 1149,
+        boundsCm: { minX: 85.0, maxX: 115.0 },
+        encounteredClassIds: [3, 22, 23],
+      },
+    ],
+  };
+
+  const result = interpretFrontTransverseWidth(sliceResult, {
+    definition: 'neck_transverse_width_at_neck_level',
+    level: { id: 'neck', status: 'ready', yCm: 153.0 },
+  });
+
+  assert.equal(result.status, 'valid');
+  assert.equal(result.valueCm, 30.0);
+  assert.deepEqual(result.provenance.actualClassIdsUsed, [3, 22, 23]);
+  assert.deepEqual(result.provenance.clothingClassIdsUsed, [23]);
+  assert.equal(result.provenance.usedClothingEvidence, true);
+});
+
+test('returns unavailable for Neck when level is missing or partial', () => {
+  const sliceResult = {
+    contract: 'front-horizontal-raster-slice-v0',
+    runs: [{ boundsCm: { minX: 90.0, maxX: 110.0 } }],
+  };
+
+  // Missing level
+  const resMissing = interpretFrontTransverseWidth(sliceResult, {
+    definition: 'neck_transverse_width_at_neck_level',
+    level: { id: 'neck', status: 'missing', yCm: null },
+  });
+  assert.equal(resMissing.status, 'unavailable');
+  assert.equal(resMissing.valueCm, null);
+
+  // Partial level
+  const resPartial = interpretFrontTransverseWidth(sliceResult, {
+    definition: 'neck_transverse_width_at_neck_level',
+    level: { id: 'neck', status: 'partial', yCm: null },
+  });
+  assert.equal(resPartial.status, 'unavailable');
+  assert.equal(resPartial.valueCm, null);
+});
+
+test('returns unavailable for Neck when zero runs found', () => {
+  const sliceResult = {
+    contract: 'front-horizontal-raster-slice-v0',
+    runs: [],
+    summary: { runCount: 0 },
+  };
+
+  const result = interpretFrontTransverseWidth(sliceResult, {
+    definition: 'neck_transverse_width_at_neck_level',
+    level: { id: 'neck', status: 'ready', yCm: 155.0 },
+  });
+
+  assert.equal(result.status, 'unavailable');
+  assert.equal(result.valueCm, null);
+});
+
+test('returns ambiguous for Neck when multiple separated runs exist under single_run_required', () => {
+  const sliceResult = {
+    contract: 'front-horizontal-raster-slice-v0',
+    runs: [
+      { boundsCm: { minX: 70.0, maxX: 80.0 } },
+      { boundsCm: { minX: 90.0, maxX: 110.0 } },
+    ],
+  };
+
+  const result = interpretFrontTransverseWidth(sliceResult, {
+    definition: 'neck_transverse_width_at_neck_level',
+    level: { id: 'neck', status: 'ready', yCm: 155.0 },
+  });
+
+  assert.equal(result.status, 'ambiguous');
+  assert.equal(result.valueCm, null);
+});
+
+test('returns invalid for Neck when bounds are inverted or non-finite', () => {
+  const resInverted = interpretFrontTransverseWidth(
+    {
+      contract: 'front-horizontal-raster-slice-v0',
+      runs: [{ boundsCm: { minX: 110.0, maxX: 90.0 } }],
+    },
+    { definition: 'neck_transverse_width_at_neck_level', level: { status: 'ready', yCm: 155 } },
+  );
+  assert.equal(resInverted.status, 'invalid');
+  assert.equal(resInverted.valueCm, null);
+
+  const resEqual = interpretFrontTransverseWidth(
+    {
+      contract: 'front-horizontal-raster-slice-v0',
+      runs: [{ boundsCm: { minX: 100.0, maxX: 100.0 } }],
+    },
+    { definition: 'neck_transverse_width_at_neck_level', level: { status: 'ready', yCm: 155 } },
+  );
+  assert.equal(resEqual.status, 'invalid');
+  assert.equal(resEqual.valueCm, null);
 });
 
 test('interprets a valid single Torso run into a valid transverse width with exact metric span', () => {
@@ -224,14 +443,19 @@ test('bodyEvidence.js getFrontTransverseWidth and getFrontTransverseWidths integ
   }
 
   // 10x10 image
+  // Row 1 (yCm = 170 -> row 1.5 clamped to 1): col 4..5 are Face_Neck (3)
   // Row 2 (yCm = 150 -> row 2.5 clamped to 2): col 3..6 are Torso (22)
   const rasterFront = new Uint8Array(100);
+  for (let c = 4; c <= 5; c += 1) {
+    rasterFront[1 * 10 + c] = 3; // Row 1: cols 4, 5 (Face_Neck)
+  }
   for (let c = 3; c <= 6; c += 1) {
-    rasterFront[2 * 10 + c] = 22; // Row 2: cols 3, 4, 5, 6
+    rasterFront[2 * 10 + c] = 22; // Row 2: cols 3, 4, 5, 6 (Torso)
   }
 
   const classNames = Array.from({ length: 29 }, (_, i) => `Class_${i}`);
   classNames[0] = 'Background';
+  classNames[3] = 'Face_Neck';
   classNames[22] = 'Torso';
 
   const pkg = buildBodyEvidencePackage({
@@ -241,7 +465,7 @@ test('bodyEvidence.js getFrontTransverseWidth and getFrontTransverseWidths integ
         view: 'front',
         num_classes: 29,
         class_names: classNames,
-        class_counts: { Background: 96, Torso: 4 },
+        class_counts: { Background: 94, Face_Neck: 2, Torso: 4 },
         labels: { shape: [10, 10], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
       },
     },
@@ -250,12 +474,26 @@ test('bodyEvidence.js getFrontTransverseWidth and getFrontTransverseWidths integ
   setBodyEvidencePackage(pkg);
 
   const mockAnnotations = [
+    { type: 'body_landmark', name: 'neck', point: { x: 50, y: 170, z: 200 } },
     { type: 'body_landmark', name: 'left_shoulder', point: { x: 30, y: 150, z: 200 } },
     { type: 'body_landmark', name: 'right_shoulder', point: { x: 70, y: 150, z: 200 } },
   ];
 
   const res = await analyzeLoadedBodyEvidenceAsync();
   assert.equal(res.ok, true);
+
+  // Neck width getter with ready neck level
+  const neckWidth = getFrontTransverseWidth({
+    id: 'neck_transverse_width_at_neck_level',
+    annotations: mockAnnotations,
+  });
+  assert.ok(neckWidth);
+  assert.equal(neckWidth.contract, 'front-transverse-width-v0');
+  assert.equal(neckWidth.status, 'valid');
+  assert.equal(neckWidth.valueCm, 40.0); // cols 4..5 -> minX = 4/10*200 = 80, maxX = 6/10*200 = 120 -> 40 cm
+  assert.equal(neckWidth.provenance.sourceLevel, 'neck');
+  assert.equal(neckWidth.provenance.levelYcm, 170.0);
+  assert.equal(neckWidth.provenance.targetPolicy, 'neck_core_support_v0');
 
   // Single width getter with ready shoulder level
   const shoulderWidth = getFrontTransverseWidth({
@@ -278,16 +516,47 @@ test('bodyEvidence.js getFrontTransverseWidth and getFrontTransverseWidths integ
   assert.equal(hipWidth.status, 'unavailable');
   assert.equal(hipWidth.valueCm, null);
 
-  // Report getter
+  // Report getter includes all 3 registered front transverse widths (neck, shoulder, hip)
   const report = getFrontTransverseWidths({ annotations: mockAnnotations });
   assert.ok(report);
   assert.equal(report.contract, 'front-transverse-widths-report-v0');
-  assert.equal(report.widths.length, 2);
+  assert.equal(report.widths.length, 3);
+  assert.equal(report.widths[0].id, 'neck_transverse_width_at_neck_level');
   assert.equal(report.widths[0].status, 'valid');
-  assert.equal(report.widths[1].status, 'unavailable');
+  assert.equal(report.widths[1].id, 'torso_width_at_shoulder_level');
+  assert.equal(report.widths[1].status, 'valid');
+  assert.equal(report.widths[2].id, 'torso_width_at_hip_level');
+  assert.equal(report.widths[2].status, 'unavailable');
 
   // Reset
   setBodyEvidencePackage(null);
   assert.equal(getFrontTransverseWidths({ annotations: mockAnnotations }), null);
+});
+
+test('confirms Neck Transverse Width valueCm is strictly rightXcm - leftXcm without landmark or diagonal chord calculation', () => {
+  const sliceResult = {
+    contract: 'front-horizontal-raster-slice-v0',
+    runs: [
+      {
+        startCol: 850,
+        endCol: 1150,
+        boundsCm: { minX: 85.0, maxX: 115.0 },
+        encounteredClassIds: [3],
+      },
+    ],
+  };
+
+  const level = { id: 'neck', status: 'ready', yCm: 155.0 };
+
+  const result = interpretFrontTransverseWidth(sliceResult, {
+    definition: 'neck_transverse_width_at_neck_level',
+    level,
+  });
+
+  assert.equal(result.status, 'valid');
+  assert.equal(result.provenance.leftXcm, 85.0);
+  assert.equal(result.provenance.rightXcm, 115.0);
+  assert.equal(result.valueCm, 115.0 - 85.0); // 30.0
+  assert.equal(result.valueCm, 30.0);
 });
 
