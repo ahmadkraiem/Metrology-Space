@@ -517,6 +517,57 @@ function renderFrontHorizontalLevel(fragment, geometry, worldToPlotPx, displayNa
   fragment.appendChild(createHighlightBadge({ px: pCenter.px, py: pCenter.py - 12 }, labelText));
 }
 
+function renderBilateralTransverseSpan(fragment, geometry, worldToPlotPx) {
+  const spanLeft = geometry.spanLeft;
+  const spanRight = geometry.spanRight;
+  const actualLeft = geometry.actualLeft;
+  const actualRight = geometry.actualRight;
+
+  if (!spanLeft || !spanRight || !actualLeft || !actualRight) {
+    return;
+  }
+
+  // 1. Plot coordinates
+  const pSpanLeft = worldToPlotPx(spanLeft.xCm, spanLeft.yCm);
+  const pSpanRight = worldToPlotPx(spanRight.xCm, spanRight.yCm);
+  const pActualLeft = worldToPlotPx(actualLeft.xCm, actualLeft.yCm);
+  const pActualRight = worldToPlotPx(actualRight.xCm, actualRight.yCm);
+
+  // 2. Drop / helper lines if Y differs from visualization Y
+  if (geometry.leftDropLine) {
+    const pDropFrom = worldToPlotPx(geometry.leftDropLine.from.xCm, geometry.leftDropLine.from.yCm);
+    const pDropTo = worldToPlotPx(geometry.leftDropLine.to.xCm, geometry.leftDropLine.to.yCm);
+    const dropLine = createHighlightLine(pDropFrom, pDropTo, 'grid2d-highlight-drop-line');
+    if (dropLine) fragment.appendChild(dropLine);
+  }
+
+  if (geometry.rightDropLine) {
+    const pDropFrom = worldToPlotPx(geometry.rightDropLine.from.xCm, geometry.rightDropLine.from.yCm);
+    const pDropTo = worldToPlotPx(geometry.rightDropLine.to.xCm, geometry.rightDropLine.to.yCm);
+    const dropLine = createHighlightLine(pDropFrom, pDropTo, 'grid2d-highlight-drop-line');
+    if (dropLine) fragment.appendChild(dropLine);
+  }
+
+  // 3. Measured horizontal span line (dominant)
+  const spanLine = createHighlightLine(pSpanLeft, pSpanRight, 'grid2d-highlight-line');
+  if (spanLine) fragment.appendChild(spanLine);
+
+  // 4. Highlight dots on the horizontal span endpoints
+  fragment.appendChild(createHighlightDot(pSpanLeft));
+  fragment.appendChild(createHighlightDot(pSpanRight));
+
+  // 5. Highlight dots on actual source landmarks (if different from span endpoints)
+  const hasLeftAsymmetry = Math.abs(pActualLeft.py - pSpanLeft.py) > 1;
+  const hasRightAsymmetry = Math.abs(pActualRight.py - pSpanRight.py) > 1;
+
+  if (hasLeftAsymmetry) {
+    fragment.appendChild(createHighlightDot(pActualLeft));
+  }
+  if (hasRightAsymmetry) {
+    fragment.appendChild(createHighlightDot(pActualRight));
+  }
+}
+
 /**
  * Renders declarative 2D measurement highlight primitives onto the target view's overlay layer.
  *
@@ -609,6 +660,12 @@ export function renderMeasurementHighlight2d({ view = 'front', worldToPlotPx, la
     case VISUALIZATION_TYPES.FRONT_HORIZONTAL_LEVEL:
       if (view === 'front') {
         renderFrontHorizontalLevel(fragment, geometry, worldToPlotPx, displayName);
+      }
+      break;
+
+    case VISUALIZATION_TYPES.BILATERAL_TRANSVERSE_SPAN:
+      if (view === 'front') {
+        renderBilateralTransverseSpan(fragment, geometry, worldToPlotPx, displayName);
       }
       break;
 

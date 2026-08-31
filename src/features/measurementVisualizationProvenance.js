@@ -47,6 +47,7 @@ export const VISUALIZATION_TYPES = Object.freeze({
   LANDMARK_CHAIN: 'landmark_chain',
   VERTICAL_LEVEL_INTERVAL: 'vertical_level_interval',
   FRONT_HORIZONTAL_LEVEL: 'front_horizontal_level',
+  BILATERAL_TRANSVERSE_SPAN: 'bilateral_transverse_span',
 });
 
 /**
@@ -597,6 +598,81 @@ function resolveVerticalLevelInterval(measurement) {
 }
 
 /**
+ * Resolves Bilateral Transverse Landmark Span visualization for Batch B direct measurements.
+ * Shows actual source landmarks at (XL, YL) and (XR, YR) with a measured horizontal span
+ * connecting (XL, visY) to (XR, visY), and vertical helper/drop lines when Y differs.
+ */
+function resolveBilateralTransverseSpan(measurement) {
+  const coordLeft = measurement.provenance?.leftCoordinate ?? measurement.provenance?.endpointLeft;
+  const coordRight = measurement.provenance?.rightCoordinate ?? measurement.provenance?.endpointRight;
+
+  const leftLandmarkId = measurement.provenance?.leftLandmarkId ?? coordLeft?.name ?? measurement.requiredLandmarks?.[0] ?? null;
+  const rightLandmarkId = measurement.provenance?.rightLandmarkId ?? coordRight?.name ?? measurement.requiredLandmarks?.[1] ?? null;
+
+  const leftXcm = coordLeft?.x ?? null;
+  const leftYcm = coordLeft?.y ?? null;
+  const rightXcm = coordRight?.x ?? null;
+  const rightYcm = coordRight?.y ?? null;
+  const distanceCm = measurement.valueCm ?? (leftXcm !== null && rightXcm !== null ? Math.abs(rightXcm - leftXcm) : null);
+
+  const hasLeft = coordLeft && typeof leftXcm === 'number' && Number.isFinite(leftXcm) && typeof leftYcm === 'number' && Number.isFinite(leftYcm);
+  const hasRight = coordRight && typeof rightXcm === 'number' && Number.isFinite(rightXcm) && typeof rightYcm === 'number' && Number.isFinite(rightYcm);
+
+  const isGeometryValid = hasLeft && hasRight;
+  const isReady = isGeometryValid && measurement.status === 'valid';
+  const isInvalid = measurement.status === 'invalid' || (coordLeft && !hasLeft) || (coordRight && !hasRight);
+
+  const visualizationYcm = isGeometryValid ? (leftYcm + rightYcm) / 2 : null;
+  const hasAsymmetry = isGeometryValid && Math.abs(leftYcm - rightYcm) > 1e-4;
+
+  const blockers = [];
+  if (!isReady) {
+    blockers.push(isInvalid ? 'bilateral_span_endpoints_invalid' : 'bilateral_span_endpoints_unavailable');
+  }
+
+  return {
+    contract: MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT,
+    version: MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION,
+    measurementId: measurement.id,
+    displayName: measurement.displayName ?? measurement.canonicalName ?? 'Bilateral Transverse Span',
+    visualizationType: VISUALIZATION_TYPES.BILATERAL_TRANSVERSE_SPAN,
+    targetViews: ['front'],
+    recommendedWorkspaceMode: 'WORKSPACE_SPLIT',
+    status: isReady ? VISUALIZATION_STATUS.READY : (isInvalid ? VISUALIZATION_STATUS.INVALID : VISUALIZATION_STATUS.UNAVAILABLE),
+    geometry: {
+      view: 'front',
+      visualizationYcm,
+      spanLeft: isGeometryValid ? { xCm: leftXcm, yCm: visualizationYcm } : null,
+      spanRight: isGeometryValid ? { xCm: rightXcm, yCm: visualizationYcm } : null,
+      actualLeft: hasLeft ? { landmarkId: leftLandmarkId, xCm: leftXcm, yCm: leftYcm } : null,
+      actualRight: hasRight ? { landmarkId: rightLandmarkId, xCm: rightXcm, yCm: rightYcm } : null,
+      leftDropLine: (isGeometryValid && hasAsymmetry) ? {
+        from: { xCm: leftXcm, yCm: leftYcm },
+        to: { xCm: leftXcm, yCm: visualizationYcm },
+      } : null,
+      rightDropLine: (isGeometryValid && hasAsymmetry) ? {
+        from: { xCm: rightXcm, yCm: rightYcm },
+        to: { xCm: rightXcm, yCm: visualizationYcm },
+      } : null,
+      distanceCm,
+    },
+    provenance: {
+      sourceContract: measurement.contract ?? 'direct-body-measurements-v0',
+      geometryType: measurement.geometryType ?? 'bilateral_transverse_landmark_span',
+      anatomicalRegion: measurement.anatomicalRegion ?? null,
+      leftLandmarkId,
+      rightLandmarkId,
+      deltaXCm: measurement.provenance?.deltaXCm ?? (rightXcm !== null && leftXcm !== null ? rightXcm - leftXcm : null),
+      deltaYCm: measurement.provenance?.deltaYCm ?? (rightYcm !== null && leftYcm !== null ? rightYcm - leftYcm : null),
+      elevationDeltaCm: measurement.provenance?.elevationDeltaCm ?? (rightYcm !== null && leftYcm !== null ? Math.abs(rightYcm - leftYcm) : null),
+    },
+    blockers,
+    warnings: measurement.warnings ?? [],
+    issues: measurement.issues ?? [],
+  };
+}
+
+/**
  * Resolves Front Horizontal Level visualization for anatomical reference levels.
  */
 function resolveFrontHorizontalLevel(level) {
@@ -1049,7 +1125,16 @@ export function resolveMeasurementVisualizationProvenance(measurement, context =
     return resolveCrossViewHorizontalSlice(measurement, context);
   }
 
-  // 5. Batch A Direct Body Measurements
+  // 5. Direct Body Measurements — Batch B Bilateral Transverse Landmark Spans
+  if (
+    geometryType === 'bilateral_transverse_landmark_span'
+    || measurement.group === 'bilateral_transverse_landmark_spans'
+    || (typeof id === 'string' && (id.startsWith('inter_') || id.startsWith('bilateral_')))
+  ) {
+    return resolveBilateralTransverseSpan(measurement);
+  }
+
+  // 5b. Direct Body Measurements — Batch A
   if (geometryType === 'vertical_inter_level_delta' || measurement.group === 'vertical_inter_level') {
     return resolveVerticalLevelInterval(measurement);
   }

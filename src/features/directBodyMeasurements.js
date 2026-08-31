@@ -7,7 +7,7 @@
  * Contract: 'direct-body-measurements-v0'
  * View: 'front'
  *
- * Supports strictly Batch A measurements (19 total):
+ * Supports Batch A (19 total) and Batch B (6 total) direct measurements (25 total):
  * 1. Vertical Inter-Level Measurements (5):
  *    - vertical_torso_length_neck_to_hip
  *    - vertical_shoulder_drop_neck_to_shoulder
@@ -30,6 +30,13 @@
  *    - right_total_arm_chain_length_projected
  *    - left_total_leg_chain_length_projected
  *    - right_total_leg_chain_length_projected
+ * 4. Bilateral Transverse Landmark Spans (6):
+ *    - inter_acromion_transverse_breadth_projected
+ *    - inter_hip_landmark_transverse_span
+ *    - bilateral_elbow_landmark_transverse_span
+ *    - bilateral_wrist_landmark_transverse_span
+ *    - bilateral_knee_landmark_transverse_span
+ *    - bilateral_ankle_landmark_transverse_span
  *
  * STRICT GUARDRAILS:
  * - Read-only from promoted Front body landmarks and validated anatomical levels only.
@@ -37,10 +44,11 @@
  * - Does not output Stature as a measured output (declared height is calibration input).
  * - Does not average bilateral left/right limb measurements.
  * - Does not implement circumference or 3D surface geodesics.
+ * - Value for bilateral transverse spans is pure abs(X_right - X_left) (not Euclidean chord).
  * - Status conventions:
  *   - 'valid': all required evidence valid, finite, and metric calibration validated.
  *   - 'unavailable': missing/insufficient evidence (missing landmark, level, or calibration).
- *   - 'invalid': corrupted/non-finite coordinates or negative distance.
+ *   - 'invalid': corrupted/non-finite coordinates or non-positive span.
  */
 
 import { computeAnatomicalLevels } from './anatomicalLevels.js';
@@ -72,6 +80,7 @@ export const DIRECT_MEASUREMENT_SEMANTICS = Object.freeze({
   CALIBRATED_RELATIVE_VERTICAL_DISTANCE: 'calibrated_relative_vertical_distance',
   CALIBRATED_PROJECTED_2D_DISTANCE: 'calibrated_projected_2d_distance',
   CALIBRATED_PROJECTED_2D_CHAIN_LENGTH: 'calibrated_projected_2d_chain_length',
+  CALIBRATED_PROJECTED_2D_TRANSVERSE_SPAN: 'calibrated_projected_2d_transverse_span',
 });
 
 /**
@@ -83,6 +92,7 @@ export const DIRECT_MEASUREMENT_GROUPS = Object.freeze({
   VERTICAL_INTER_LEVEL: 'vertical_inter_level',
   ARM_SEGMENTS: 'arm_segments',
   LEG_SEGMENTS: 'leg_segments',
+  BILATERAL_TRANSVERSE_LANDMARK_SPANS: 'bilateral_transverse_landmark_spans',
 });
 
 /**
@@ -413,6 +423,105 @@ export const SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0 = Object.freeze({
       'right_lower_leg_segment_length_projected',
     ]),
     formulaText: 'd2D(right_hip, right_knee) + d2D(right_knee, right_ankle)',
+  }),
+
+  // =========================================================================
+  // 4. Bilateral Transverse Landmark Spans (6)
+  // =========================================================================
+  inter_acromion_transverse_breadth_projected: Object.freeze({
+    id: 'inter_acromion_transverse_breadth_projected',
+    canonicalName: 'Inter-Acromion Transverse Breadth (Projected)',
+    displayName: 'Inter-Acromion Transverse Breadth (Projected)',
+    anatomicalRegion: 'shoulder',
+    group: DIRECT_MEASUREMENT_GROUPS.BILATERAL_TRANSVERSE_LANDMARK_SPANS,
+    measurementType: 'breadth',
+    geometryType: 'bilateral_transverse_landmark_span',
+    outputSemantics: DIRECT_MEASUREMENT_SEMANTICS.CALIBRATED_PROJECTED_2D_TRANSVERSE_SPAN,
+    sourceView: DIRECT_MEASUREMENTS_VIEW,
+    requiredLevels: Object.freeze([]),
+    requiredLandmarks: Object.freeze(['left_acromion', 'right_acromion']),
+    constituentSegmentIds: Object.freeze([]),
+    formulaText: 'abs(X_right_acromion - X_left_acromion)',
+  }),
+
+  inter_hip_landmark_transverse_span: Object.freeze({
+    id: 'inter_hip_landmark_transverse_span',
+    canonicalName: 'Inter-Hip Landmark Transverse Span (Projected)',
+    displayName: 'Inter-Hip Landmark Transverse Span',
+    anatomicalRegion: 'hip',
+    group: DIRECT_MEASUREMENT_GROUPS.BILATERAL_TRANSVERSE_LANDMARK_SPANS,
+    measurementType: 'span',
+    geometryType: 'bilateral_transverse_landmark_span',
+    outputSemantics: DIRECT_MEASUREMENT_SEMANTICS.CALIBRATED_PROJECTED_2D_TRANSVERSE_SPAN,
+    sourceView: DIRECT_MEASUREMENTS_VIEW,
+    requiredLevels: Object.freeze([]),
+    requiredLandmarks: Object.freeze(['left_hip', 'right_hip']),
+    constituentSegmentIds: Object.freeze([]),
+    formulaText: 'abs(X_right_hip - X_left_hip)',
+  }),
+
+  bilateral_elbow_landmark_transverse_span: Object.freeze({
+    id: 'bilateral_elbow_landmark_transverse_span',
+    canonicalName: 'Bilateral Elbow Landmark Transverse Span (Projected)',
+    displayName: 'Bilateral Elbow Landmark Transverse Span',
+    anatomicalRegion: 'elbow',
+    group: DIRECT_MEASUREMENT_GROUPS.BILATERAL_TRANSVERSE_LANDMARK_SPANS,
+    measurementType: 'span',
+    geometryType: 'bilateral_transverse_landmark_span',
+    outputSemantics: DIRECT_MEASUREMENT_SEMANTICS.CALIBRATED_PROJECTED_2D_TRANSVERSE_SPAN,
+    sourceView: DIRECT_MEASUREMENTS_VIEW,
+    requiredLevels: Object.freeze([]),
+    requiredLandmarks: Object.freeze(['left_elbow', 'right_elbow']),
+    constituentSegmentIds: Object.freeze([]),
+    formulaText: 'abs(X_right_elbow - X_left_elbow)',
+  }),
+
+  bilateral_wrist_landmark_transverse_span: Object.freeze({
+    id: 'bilateral_wrist_landmark_transverse_span',
+    canonicalName: 'Bilateral Wrist Landmark Transverse Span (Projected)',
+    displayName: 'Bilateral Wrist Landmark Transverse Span',
+    anatomicalRegion: 'wrist',
+    group: DIRECT_MEASUREMENT_GROUPS.BILATERAL_TRANSVERSE_LANDMARK_SPANS,
+    measurementType: 'span',
+    geometryType: 'bilateral_transverse_landmark_span',
+    outputSemantics: DIRECT_MEASUREMENT_SEMANTICS.CALIBRATED_PROJECTED_2D_TRANSVERSE_SPAN,
+    sourceView: DIRECT_MEASUREMENTS_VIEW,
+    requiredLevels: Object.freeze([]),
+    requiredLandmarks: Object.freeze(['left_wrist', 'right_wrist']),
+    constituentSegmentIds: Object.freeze([]),
+    formulaText: 'abs(X_right_wrist - X_left_wrist)',
+  }),
+
+  bilateral_knee_landmark_transverse_span: Object.freeze({
+    id: 'bilateral_knee_landmark_transverse_span',
+    canonicalName: 'Bilateral Knee Landmark Transverse Span (Projected)',
+    displayName: 'Bilateral Knee Landmark Transverse Span',
+    anatomicalRegion: 'knee',
+    group: DIRECT_MEASUREMENT_GROUPS.BILATERAL_TRANSVERSE_LANDMARK_SPANS,
+    measurementType: 'span',
+    geometryType: 'bilateral_transverse_landmark_span',
+    outputSemantics: DIRECT_MEASUREMENT_SEMANTICS.CALIBRATED_PROJECTED_2D_TRANSVERSE_SPAN,
+    sourceView: DIRECT_MEASUREMENTS_VIEW,
+    requiredLevels: Object.freeze([]),
+    requiredLandmarks: Object.freeze(['left_knee', 'right_knee']),
+    constituentSegmentIds: Object.freeze([]),
+    formulaText: 'abs(X_right_knee - X_left_knee)',
+  }),
+
+  bilateral_ankle_landmark_transverse_span: Object.freeze({
+    id: 'bilateral_ankle_landmark_transverse_span',
+    canonicalName: 'Bilateral Ankle Landmark Transverse Span (Projected)',
+    displayName: 'Bilateral Ankle Landmark Transverse Span',
+    anatomicalRegion: 'ankle',
+    group: DIRECT_MEASUREMENT_GROUPS.BILATERAL_TRANSVERSE_LANDMARK_SPANS,
+    measurementType: 'span',
+    geometryType: 'bilateral_transverse_landmark_span',
+    outputSemantics: DIRECT_MEASUREMENT_SEMANTICS.CALIBRATED_PROJECTED_2D_TRANSVERSE_SPAN,
+    sourceView: DIRECT_MEASUREMENTS_VIEW,
+    requiredLevels: Object.freeze([]),
+    requiredLandmarks: Object.freeze(['left_ankle', 'right_ankle']),
+    constituentSegmentIds: Object.freeze([]),
+    formulaText: 'abs(X_right_ankle - X_left_ankle)',
   }),
 });
 
@@ -780,7 +889,125 @@ function evaluateKinematicChainMeasurement(def, { evaluatedMap }) {
 }
 
 /**
- * Evaluates all 19 supported Batch A direct body measurements.
+ * Evaluates a bilateral transverse landmark span measurement (Batch B).
+ * Authoritative value: valueCm = abs(X_right - X_left).
+ * Preserves elevationDeltaCm = abs(Y_right - Y_left) as asymmetry/provenance evidence.
+ */
+function evaluateBilateralTransverseLandmarkSpanMeasurement(def, { landmarkIndex, metricCalibrationFront }) {
+  const [nameLeft, nameRight] = def.requiredLandmarks;
+
+  if (!isCalibrationValidated(metricCalibrationFront)) {
+    return buildEmptyMeasurementResult(def, {
+      status: DIRECT_MEASUREMENT_STATUS.UNAVAILABLE,
+      reason: 'Metric calibration unvalidated or unavailable for Front view.',
+      issues: ['Front metric calibration is required for calibrated bilateral transverse landmark measurements.'],
+      provenance: {
+        leftLandmarkId: nameLeft,
+        rightLandmarkId: nameRight,
+        calibrationStatus: metricCalibrationFront?.status ?? 'unavailable',
+      },
+    });
+  }
+
+  const candidatesLeft = landmarkIndex.get(nameLeft) ?? [];
+  const candidatesRight = landmarkIndex.get(nameRight) ?? [];
+
+  // Check corruption
+  const hasCorruptedLeft = candidatesLeft.some((c) => c.isCorrupted);
+  const hasCorruptedRight = candidatesRight.some((c) => c.isCorrupted);
+  if (hasCorruptedLeft || hasCorruptedRight) {
+    return buildEmptyMeasurementResult(def, {
+      status: DIRECT_MEASUREMENT_STATUS.INVALID,
+      reason: 'Non-finite or corrupted coordinates found in promoted landmark annotations.',
+      issues: ['Promoted landmark annotation contains invalid/corrupted coordinate payload.'],
+      provenance: { leftLandmarkId: nameLeft, rightLandmarkId: nameRight },
+    });
+  }
+
+  const missing = [];
+  if (candidatesLeft.length === 0 || !candidatesLeft[0].point) missing.push(nameLeft);
+  if (candidatesRight.length === 0 || !candidatesRight[0].point) missing.push(nameRight);
+
+  if (missing.length > 0) {
+    return buildEmptyMeasurementResult(def, {
+      status: DIRECT_MEASUREMENT_STATUS.UNAVAILABLE,
+      reason: `Required body landmark(s) missing: ${missing.join(', ')}`,
+      issues: missing.map((name) => `Promoted body landmark "${name}" is absent.`),
+      provenance: {
+        leftLandmarkId: nameLeft,
+        rightLandmarkId: nameRight,
+        hasLeft: candidatesLeft.length > 0,
+        hasRight: candidatesRight.length > 0,
+      },
+    });
+  }
+
+  const pointLeft = candidatesLeft[0].point;
+  const pointRight = candidatesRight[0].point;
+
+  if (!hasFiniteXY(pointLeft) || !hasFiniteXY(pointRight)) {
+    return buildEmptyMeasurementResult(def, {
+      status: DIRECT_MEASUREMENT_STATUS.INVALID,
+      reason: 'Non-finite coordinate values encountered during distance evaluation.',
+      issues: ['Endpoint coordinates are not finite numbers.'],
+      provenance: {
+        leftLandmarkId: nameLeft,
+        rightLandmarkId: nameRight,
+        pointLeft,
+        pointRight,
+      },
+    });
+  }
+
+  const deltaXCm = pointRight.x - pointLeft.x;
+  const deltaYCm = pointRight.y - pointLeft.y;
+  const elevationDeltaCm = Math.abs(deltaYCm);
+  const rawSpanCm = Math.abs(deltaXCm);
+
+  if (rawSpanCm <= 0) {
+    return buildEmptyMeasurementResult(def, {
+      status: DIRECT_MEASUREMENT_STATUS.INVALID,
+      reason: 'Non-positive or zero transverse span between bilateral landmarks.',
+      issues: ['Bilateral landmark X coordinates yield zero transverse span.'],
+      provenance: {
+        leftLandmarkId: nameLeft,
+        rightLandmarkId: nameRight,
+        leftCoordinate: { name: nameLeft, x: pointLeft.x, y: pointLeft.y },
+        rightCoordinate: { name: nameRight, x: pointRight.x, y: pointRight.y },
+        deltaXCm,
+        deltaYCm,
+        elevationDeltaCm,
+        rawSpanCm,
+        sourceView: DIRECT_MEASUREMENTS_VIEW,
+        calibrationStatus: metricCalibrationFront?.status ?? 'validated',
+      },
+    });
+  }
+
+  const roundedValueCm = Math.round(rawSpanCm * 100) / 100;
+
+  return buildEmptyMeasurementResult(def, {
+    status: DIRECT_MEASUREMENT_STATUS.VALID,
+    valueCm: roundedValueCm,
+    reason: null,
+    issues: [],
+    provenance: {
+      leftLandmarkId: nameLeft,
+      rightLandmarkId: nameRight,
+      leftCoordinate: { name: nameLeft, x: pointLeft.x, y: pointLeft.y },
+      rightCoordinate: { name: nameRight, x: pointRight.x, y: pointRight.y },
+      deltaXCm,
+      deltaYCm,
+      elevationDeltaCm,
+      rawSpanCm,
+      sourceView: DIRECT_MEASUREMENTS_VIEW,
+      calibrationStatus: metricCalibrationFront?.status ?? 'validated',
+    },
+  });
+}
+
+/**
+ * Evaluates all supported direct body measurements.
  *
  * @param {{
  *   annotations?: Array<object>|null,
@@ -813,7 +1040,7 @@ export function evaluateDirectBodyMeasurements({
   const evaluatedMap = new Map();
   const allDefinitions = Object.values(SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0);
 
-  // Pass 1: Vertical inter-level & Projected landmark segments
+  // Pass 1: Vertical inter-level, Projected landmark segments & Bilateral transverse landmark spans
   for (const def of allDefinitions) {
     if (def.geometryType === 'vertical_inter_level_delta') {
       const result = evaluateVerticalInterLevelMeasurement(def, {
@@ -823,6 +1050,12 @@ export function evaluateDirectBodyMeasurements({
       evaluatedMap.set(def.id, result);
     } else if (def.geometryType === 'linear_projected_distance') {
       const result = evaluateProjectedLandmarkMeasurement(def, {
+        landmarkIndex,
+        metricCalibrationFront,
+      });
+      evaluatedMap.set(def.id, result);
+    } else if (def.geometryType === 'bilateral_transverse_landmark_span') {
+      const result = evaluateBilateralTransverseLandmarkSpanMeasurement(def, {
         landmarkIndex,
         metricCalibrationFront,
       });
@@ -850,6 +1083,9 @@ export function evaluateDirectBodyMeasurements({
     ),
     [DIRECT_MEASUREMENT_GROUPS.LEG_SEGMENTS]: measurements.filter(
       (m) => m.group === DIRECT_MEASUREMENT_GROUPS.LEG_SEGMENTS,
+    ),
+    [DIRECT_MEASUREMENT_GROUPS.BILATERAL_TRANSVERSE_LANDMARK_SPANS]: measurements.filter(
+      (m) => m.group === DIRECT_MEASUREMENT_GROUPS.BILATERAL_TRANSVERSE_LANDMARK_SPANS,
     ),
   };
 

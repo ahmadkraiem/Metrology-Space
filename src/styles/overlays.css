@@ -1401,6 +1401,19 @@
   border-radius: 1px;
 }
 
+.grid2d-highlight-drop-line {
+  position: absolute;
+  height: 1px;
+  background: repeating-linear-gradient(90deg,
+      rgba(56, 189, 248, 0.75) 0,
+      rgba(56, 189, 248, 0.75) 3px,
+      transparent 3px,
+      transparent 6px);
+  transform-origin: 0 50%;
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.4);
+}
+
 .grid2d-highlight-dot {
   position: absolute;
   width: 7px;

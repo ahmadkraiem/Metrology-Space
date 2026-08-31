@@ -1683,6 +1683,147 @@ test('derivedMeasurementDeck: getMeasurementRecordById routes canonical and lega
   assert.equal(getMeasurementRecordById(null), null);
 });
 
+// ===========================================================================
+// BATCH B: BILATERAL SPANS & BREADTHS UI TESTS
+// ===========================================================================
+
+test('derivedMeasurementDeck: Batch B renders "Bilateral Spans & Breadths" subgroup with exactly 6 rows', () => {
+  const sampleMeasurements = [
+    { id: 'inter_acromion_transverse_breadth_projected', displayName: 'Inter-Acromion Transverse Breadth (Projected)', status: 'valid', valueCm: 40.0 },
+    { id: 'inter_hip_landmark_transverse_span', displayName: 'Inter-Hip Landmark Transverse Span', status: 'valid', valueCm: 20.0 },
+    { id: 'bilateral_elbow_landmark_transverse_span', displayName: 'Bilateral Elbow Landmark Transverse Span', status: 'valid', valueCm: 50.0 },
+    { id: 'bilateral_wrist_landmark_transverse_span', displayName: 'Bilateral Wrist Landmark Transverse Span', status: 'valid', valueCm: 60.0 },
+    { id: 'bilateral_knee_landmark_transverse_span', displayName: 'Bilateral Knee Landmark Transverse Span', status: 'valid', valueCm: 20.0 },
+    { id: 'bilateral_ankle_landmark_transverse_span', displayName: 'Bilateral Ankle Landmark Transverse Span', status: 'valid', valueCm: 20.0 },
+  ];
+
+  const html = buildDirectMeasurementsGroupHtml(
+    'bilateral_transverse_landmark_spans',
+    'Bilateral Spans & Breadths',
+    sampleMeasurements,
+    true,
+  );
+
+  assert.ok(html.includes('Bilateral Spans &amp; Breadths') || html.includes('Bilateral Spans & Breadths'));
+  assert.equal(html.includes('data-group-id="bilateral_transverse_landmark_spans"'), true);
+
+  for (const m of sampleMeasurements) {
+    assert.equal(html.includes(`data-measurement-id="${m.id}"`), true, `Expected row for ${m.id}`);
+    assert.equal(html.includes(m.displayName), true, `Expected displayName for ${m.id}`);
+    assert.equal(html.includes(`${m.valueCm.toFixed(2)} cm`), true, `Expected formatted value for ${m.id}`);
+    assert.equal(html.includes('role="button"'), true);
+    assert.equal(html.includes('tabindex="0"'), true);
+    assert.equal(html.includes('aria-selected="false"'), true);
+  }
+});
+
+test('derivedMeasurementDeck: Full deck includes all 4 Direct Measurements categories (Vertical, Arms, Legs, Bilateral)', () => {
+  const pkg = buildBodyEvidencePackage({
+    frontMetricCalibration: { status: 'validated', metricProjectedEligibility: true, scaleCmPerPx: 0.1 },
+    sideMetricCalibration: { status: 'validated', metricProjectedEligibility: true, scaleCmPerPx: 0.1 },
+  });
+  setBodyEvidencePackage(pkg);
+  analyzeLoadedBodyEvidence();
+
+  const container = { innerHTML: '' };
+  renderDerivedMeasurementDeck(container);
+
+  assert.equal(container.innerHTML.includes('data-group-id="direct_measurements"'), true);
+  assert.equal(container.innerHTML.includes('data-group-id="vertical_measurements"'), true);
+  assert.equal(container.innerHTML.includes('data-group-id="arm_segments"'), true);
+  assert.equal(container.innerHTML.includes('data-group-id="leg_segments"'), true);
+  assert.equal(container.innerHTML.includes('data-group-id="bilateral_transverse_landmark_spans"'), true);
+  assert.ok(container.innerHTML.includes('Bilateral Spans &amp; Breadths') || container.innerHTML.includes('Bilateral Spans & Breadths'));
+
+  clearBodyEvidence();
+});
+
+test('derivedMeasurementDeck: Batch B selectMeasurement routes to Front 2D highlight and toggles off on re-click', () => {
+  const origDoc = global.document;
+  global.document = {
+    getElementById: () => null,
+    createElement: () => ({ setAttribute: () => {}, style: {}, appendChild: () => {} }),
+  };
+
+  const annotations = [
+    { id: 1, type: 'body_landmark', name: 'left_acromion', position: { x: 120, y: 142, z: 200 } },
+    { id: 2, type: 'body_landmark', name: 'right_acromion', position: { x: 80, y: 142, z: 200 } },
+  ];
+  restoreAnnotations(annotations);
+
+  const width = 100;
+  const height = 100;
+  const frontSeg = new Uint8Array(width * height);
+  const sideSeg = new Uint8Array(width * height);
+
+  const pkg = buildBodyEvidencePackage({
+    calibration: {
+      declaredIsCalibrated: true,
+      metricScaleSource: 'known_subject_height',
+      subjectHeightCm: 175.0,
+      pixelsPerCm: 10.0,
+      standardizedCanvasWidthPx: 2000,
+      standardizedCanvasHeightPx: 2000,
+      isIsotropic: true,
+      standardizationSource: 'body-pipeline-standardization-v0',
+      canvasSizePx: 2000,
+      coordinateSpace: 'pixel',
+      origin: 'bottom_left',
+      workspaceExtentCm: 200,
+    },
+    front: {
+      image: { widthPx: 2000, heightPx: 2000, dataUrl: 'data:image/png;base64,' },
+      segmentation: { widthPx: 2000, heightPx: 2000, classIndices: frontSeg },
+      calibration: {
+        view: 'front',
+        originalImageWidthPx: 1000,
+        originalImageHeightPx: 1000,
+        scaledWidthPx: 2000,
+        scaledHeightPx: 2000,
+        scaleFactor: 2.0,
+        padLeftPx: 0,
+        padTopPx: 0,
+        croppedWidthPx: 2000,
+        croppedHeightPx: 2000,
+      },
+      pose: { score: 0.95, keypoints: [] },
+    },
+    side: {
+      image: { widthPx: 2000, heightPx: 2000, dataUrl: 'data:image/png;base64,' },
+      segmentation: { widthPx: 2000, heightPx: 2000, classIndices: sideSeg },
+      calibration: {
+        view: 'side',
+        originalImageWidthPx: 1000,
+        originalImageHeightPx: 1000,
+        scaledWidthPx: 2000,
+        scaledHeightPx: 2000,
+        scaleFactor: 2.0,
+        padLeftPx: 0,
+        padTopPx: 0,
+        croppedWidthPx: 2000,
+        croppedHeightPx: 2000,
+      },
+      pose: { score: 0.90, keypoints: [] },
+    },
+  });
+  setBodyEvidencePackage(pkg);
+  analyzeLoadedBodyEvidence();
+
+  // Select Batch B measurement
+  selectMeasurement('inter_acromion_transverse_breadth_projected');
+  assert.equal(getSelectedMeasurementId(), 'inter_acromion_transverse_breadth_projected');
+
+  // Toggle off
+  selectMeasurement('inter_acromion_transverse_breadth_projected');
+  assert.equal(getSelectedMeasurementId(), null);
+
+  clearBodyEvidence();
+  clearSelectedMeasurement();
+  restoreAnnotations([]);
+  global.document = origDoc;
+});
+
+
 
 
 

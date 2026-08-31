@@ -795,3 +795,248 @@ test('29. Buttock Point Plane localization v1 normalizes to cross_view_horizonta
   assert.equal(result.geometry.side.maxUcm, 112.30);
   assert.equal(result.geometry.side.depthCm, 27.80);
 });
+
+// ===========================================================================
+// BATCH B: BILATERAL TRANSVERSE LANDMARK SPANS VISUALIZATION TESTS
+// ===========================================================================
+
+test('30. Batch B: Exact horizontal bilateral transverse span normalizes correctly (same Y)', () => {
+  const hipSpan = {
+    contract: 'direct-body-measurements-v0',
+    id: 'inter_hip_landmark_transverse_span',
+    displayName: 'Inter-Hip Landmark Transverse Span',
+    status: 'valid',
+    valueCm: 20.0,
+    geometryType: 'bilateral_transverse_landmark_span',
+    group: 'bilateral_transverse_landmark_spans',
+    provenance: {
+      leftLandmarkId: 'left_hip',
+      rightLandmarkId: 'right_hip',
+      leftCoordinate: { name: 'left_hip', x: 110, y: 90 },
+      rightCoordinate: { name: 'right_hip', x: 90, y: 90 },
+      deltaXCm: -20,
+      deltaYCm: 0,
+      elevationDeltaCm: 0,
+      rawSpanCm: 20,
+      sourceView: 'front',
+      calibrationStatus: 'validated',
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(hipSpan);
+
+  assert.equal(result.contract, MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT);
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.BILATERAL_TRANSVERSE_SPAN);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.deepEqual(result.targetViews, ['front']);
+  assert.equal(result.geometry.view, 'front');
+  assert.equal(result.geometry.visualizationYcm, 90.0);
+  assert.deepEqual(result.geometry.spanLeft, { xCm: 110, yCm: 90 });
+  assert.deepEqual(result.geometry.spanRight, { xCm: 90, yCm: 90 });
+  assert.deepEqual(result.geometry.actualLeft, { landmarkId: 'left_hip', xCm: 110, yCm: 90 });
+  assert.deepEqual(result.geometry.actualRight, { landmarkId: 'right_hip', xCm: 90, yCm: 90 });
+  assert.equal(result.geometry.leftDropLine, null, 'No drop line when Y is identical');
+  assert.equal(result.geometry.rightDropLine, null, 'No drop line when Y is identical');
+  assert.equal(result.geometry.distanceCm, 20.0);
+  assert.equal(result.provenance.deltaXCm, -20);
+  assert.equal(result.provenance.deltaYCm, 0);
+  assert.equal(result.provenance.elevationDeltaCm, 0);
+});
+
+test('31. Batch B: Asymmetric bilateral landmarks preserve actual coordinates, horizontal span, and drop lines', () => {
+  // Left acromion at (120, 146), Right acromion at (80, 138)
+  // deltaX = 80 - 120 = -40, deltaY = 138 - 146 = -8, elevationDelta = 8
+  // visualizationY = (146 + 138) / 2 = 142
+  const acromionBreadth = {
+    contract: 'direct-body-measurements-v0',
+    id: 'inter_acromion_transverse_breadth_projected',
+    displayName: 'Inter-Acromion Transverse Breadth (Projected)',
+    status: 'valid',
+    valueCm: 40.0,
+    geometryType: 'bilateral_transverse_landmark_span',
+    group: 'bilateral_transverse_landmark_spans',
+    provenance: {
+      leftLandmarkId: 'left_acromion',
+      rightLandmarkId: 'right_acromion',
+      leftCoordinate: { name: 'left_acromion', x: 120, y: 146 },
+      rightCoordinate: { name: 'right_acromion', x: 80, y: 138 },
+      deltaXCm: -40,
+      deltaYCm: -8,
+      elevationDeltaCm: 8,
+      rawSpanCm: 40,
+      sourceView: 'front',
+      calibrationStatus: 'validated',
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(acromionBreadth);
+
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.BILATERAL_TRANSVERSE_SPAN);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.equal(result.geometry.visualizationYcm, 142.0);
+  // Actual landmarks must NOT be mutated
+  assert.deepEqual(result.geometry.actualLeft, { landmarkId: 'left_acromion', xCm: 120, yCm: 146 });
+  assert.deepEqual(result.geometry.actualRight, { landmarkId: 'right_acromion', xCm: 80, yCm: 138 });
+  // Horizontal span is horizontal at visualizationY
+  assert.deepEqual(result.geometry.spanLeft, { xCm: 120, yCm: 142.0 });
+  assert.deepEqual(result.geometry.spanRight, { xCm: 80, yCm: 142.0 });
+  // Drop lines connect actual landmark to horizontal span endpoint
+  assert.deepEqual(result.geometry.leftDropLine, {
+    from: { xCm: 120, yCm: 146 },
+    to: { xCm: 120, yCm: 142.0 },
+  });
+  assert.deepEqual(result.geometry.rightDropLine, {
+    from: { xCm: 80, yCm: 138 },
+    to: { xCm: 80, yCm: 142.0 },
+  });
+  // Span distance equals authoritative horizontal deltaX, NOT Euclidean chord
+  assert.equal(result.geometry.distanceCm, 40.0);
+  assert.notEqual(result.geometry.distanceCm, Math.hypot(40, 8), 'Must NOT use diagonal chord length');
+  assert.equal(result.provenance.elevationDeltaCm, 8);
+});
+
+test('32. Batch B: Swapped left/right X ordering normalizes correctly with positive distance', () => {
+  const elbowSpan = {
+    contract: 'direct-body-measurements-v0',
+    id: 'bilateral_elbow_landmark_transverse_span',
+    displayName: 'Bilateral Elbow Landmark Transverse Span',
+    status: 'valid',
+    valueCm: 50.0,
+    geometryType: 'bilateral_transverse_landmark_span',
+    group: 'bilateral_transverse_landmark_spans',
+    provenance: {
+      leftLandmarkId: 'left_elbow',
+      rightLandmarkId: 'right_elbow',
+      leftCoordinate: { name: 'left_elbow', x: 75, y: 115 },
+      rightCoordinate: { name: 'right_elbow', x: 125, y: 115 },
+      deltaXCm: 50,
+      deltaYCm: 0,
+      elevationDeltaCm: 0,
+      rawSpanCm: 50,
+      sourceView: 'front',
+      calibrationStatus: 'validated',
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(elbowSpan);
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.BILATERAL_TRANSVERSE_SPAN);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.equal(result.geometry.distanceCm, 50.0);
+  assert.deepEqual(result.geometry.spanLeft, { xCm: 75, yCm: 115 });
+  assert.deepEqual(result.geometry.spanRight, { xCm: 125, yCm: 115 });
+});
+
+test('33. Batch B: Acromion breadth visualization uses acromion landmarks and NOT shoulder landmarks', () => {
+  const acromionBreadth = {
+    contract: 'direct-body-measurements-v0',
+    id: 'inter_acromion_transverse_breadth_projected',
+    displayName: 'Inter-Acromion Transverse Breadth (Projected)',
+    status: 'valid',
+    valueCm: 44.0,
+    geometryType: 'bilateral_transverse_landmark_span',
+    group: 'bilateral_transverse_landmark_spans',
+    provenance: {
+      leftLandmarkId: 'left_acromion',
+      rightLandmarkId: 'right_acromion',
+      leftCoordinate: { name: 'left_acromion', x: 122, y: 143 },
+      rightCoordinate: { name: 'right_acromion', x: 78, y: 143 },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(acromionBreadth);
+  assert.equal(result.geometry.actualLeft.landmarkId, 'left_acromion');
+  assert.equal(result.geometry.actualRight.landmarkId, 'right_acromion');
+  assert.notEqual(result.geometry.actualLeft.landmarkId, 'left_shoulder');
+  assert.notEqual(result.geometry.actualRight.landmarkId, 'right_shoulder');
+});
+
+test('34. Batch B: Hip transverse span uses hip landmarks and does NOT resolve to silhouette slice', () => {
+  const hipSpan = {
+    contract: 'direct-body-measurements-v0',
+    id: 'inter_hip_landmark_transverse_span',
+    displayName: 'Inter-Hip Landmark Transverse Span',
+    status: 'valid',
+    valueCm: 20.0,
+    geometryType: 'bilateral_transverse_landmark_span',
+    group: 'bilateral_transverse_landmark_spans',
+    provenance: {
+      leftLandmarkId: 'left_hip',
+      rightLandmarkId: 'right_hip',
+      leftCoordinate: { name: 'left_hip', x: 110, y: 90 },
+      rightCoordinate: { name: 'right_hip', x: 90, y: 90 },
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(hipSpan);
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.BILATERAL_TRANSVERSE_SPAN);
+  assert.notEqual(result.visualizationType, VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE);
+  assert.equal(result.geometry.actualLeft.landmarkId, 'left_hip');
+  assert.equal(result.geometry.actualRight.landmarkId, 'right_hip');
+});
+
+test('35. Batch B: Missing or invalid endpoints resolve to unavailable / invalid', () => {
+  const unavailableSpan = {
+    contract: 'direct-body-measurements-v0',
+    id: 'bilateral_wrist_landmark_transverse_span',
+    status: 'unavailable',
+    geometryType: 'bilateral_transverse_landmark_span',
+    group: 'bilateral_transverse_landmark_spans',
+    provenance: {
+      leftLandmarkId: 'left_wrist',
+      rightLandmarkId: 'right_wrist',
+      leftCoordinate: { name: 'left_wrist', x: 130, y: 90 },
+      rightCoordinate: null,
+    },
+  };
+
+  const resUnavail = resolveMeasurementVisualizationProvenance(unavailableSpan);
+  assert.equal(resUnavail.status, VISUALIZATION_STATUS.UNAVAILABLE);
+  assert.equal(resUnavail.geometry.spanLeft, null);
+
+  const invalidSpan = {
+    contract: 'direct-body-measurements-v0',
+    id: 'bilateral_knee_landmark_transverse_span',
+    status: 'invalid',
+    geometryType: 'bilateral_transverse_landmark_span',
+    group: 'bilateral_transverse_landmark_spans',
+    provenance: {
+      leftLandmarkId: 'left_knee',
+      rightLandmarkId: 'right_knee',
+      leftCoordinate: { name: 'left_knee', x: NaN, y: 50 },
+      rightCoordinate: { name: 'right_knee', x: 90, y: 50 },
+    },
+  };
+
+  const resInvalid = resolveMeasurementVisualizationProvenance(invalidSpan);
+  assert.equal(resInvalid.status, VISUALIZATION_STATUS.INVALID);
+});
+
+test('36. Batch B: All 6 Batch B definitions resolve to BILATERAL_TRANSVERSE_SPAN', () => {
+  const batchBIds = [
+    'inter_acromion_transverse_breadth_projected',
+    'inter_hip_landmark_transverse_span',
+    'bilateral_elbow_landmark_transverse_span',
+    'bilateral_wrist_landmark_transverse_span',
+    'bilateral_knee_landmark_transverse_span',
+    'bilateral_ankle_landmark_transverse_span',
+  ];
+
+  for (const id of batchBIds) {
+    const item = {
+      contract: 'direct-body-measurements-v0',
+      id,
+      status: 'valid',
+      valueCm: 25.0,
+      geometryType: 'bilateral_transverse_landmark_span',
+      group: 'bilateral_transverse_landmark_spans',
+      provenance: {
+        leftCoordinate: { name: 'left', x: 112.5, y: 100 },
+        rightCoordinate: { name: 'right', x: 87.5, y: 100 },
+      },
+    };
+    const res = resolveMeasurementVisualizationProvenance(item);
+    assert.equal(res.visualizationType, VISUALIZATION_TYPES.BILATERAL_TRANSVERSE_SPAN, `Expected ${id} to resolve to BILATERAL_TRANSVERSE_SPAN`);
+    assert.equal(res.status, VISUALIZATION_STATUS.READY);
+  }
+});
+

@@ -1100,4 +1100,107 @@ test('34. Natural Waist and Abdominal Apex overlays render guide lines and slice
   assert.equal(sideLayer.querySelector('.grid2d-highlight-badge'), null, 'No bust badge on Side');
 });
 
+// ===========================================================================
+// BATCH B: BILATERAL TRANSVERSE LANDMARK SPANS RENDERING TESTS
+// ===========================================================================
+
+test('Batch B: Symmetric bilateral transverse span renders horizontal line and dots without drop lines or badges', () => {
+  const frontLayer = new MockElement('div');
+  const sideLayer = new MockElement('div');
+
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'inter_hip_landmark_transverse_span',
+    displayName: 'Inter-Hip Landmark Transverse Span',
+    visualizationType: VISUALIZATION_TYPES.BILATERAL_TRANSVERSE_SPAN,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      view: 'front',
+      visualizationYcm: 90.0,
+      spanLeft: { xCm: 110, yCm: 90.0 },
+      spanRight: { xCm: 90, yCm: 90.0 },
+      actualLeft: { landmarkId: 'left_hip', xCm: 110, yCm: 90.0 },
+      actualRight: { landmarkId: 'right_hip', xCm: 90, yCm: 90.0 },
+      leftDropLine: null,
+      rightDropLine: null,
+      distanceCm: 20.0,
+    },
+  };
+
+  setMeasurementHighlight(vis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  // Front overlay checks
+  const spanLine = frontLayer.querySelector('.grid2d-highlight-line');
+  assert.ok(spanLine, 'Measured horizontal span line rendered');
+  const dropLines = frontLayer.querySelectorAll('.grid2d-highlight-drop-line');
+  assert.equal(dropLines.length, 0, 'No drop lines rendered when landmarks have same Y');
+  const dots = frontLayer.querySelectorAll('.grid2d-highlight-dot');
+  assert.equal(dots.length, 2, 'Two dots at horizontal span endpoints');
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'No permanent numeric badge rendered');
+
+  // Side view must remain empty for Front-only Batch B measurements
+  assert.equal(sideLayer.children.length, 0, 'Side view layer must be empty');
+});
+
+test('Batch B: Asymmetric bilateral landmarks render horizontal span, landmark dots, and subtle drop lines', () => {
+  const frontLayer = new MockElement('div');
+
+  const vis = {
+    contract: 'measurement-visualization-provenance-v0',
+    measurementId: 'inter_acromion_transverse_breadth_projected',
+    displayName: 'Inter-Acromion Transverse Breadth (Projected)',
+    visualizationType: VISUALIZATION_TYPES.BILATERAL_TRANSVERSE_SPAN,
+    targetViews: ['front'],
+    status: VISUALIZATION_STATUS.READY,
+    geometry: {
+      view: 'front',
+      visualizationYcm: 142.0,
+      spanLeft: { xCm: 120, yCm: 142.0 },
+      spanRight: { xCm: 80, yCm: 142.0 },
+      actualLeft: { landmarkId: 'left_acromion', xCm: 120, yCm: 146.0 },
+      actualRight: { landmarkId: 'right_acromion', xCm: 80, yCm: 138.0 },
+      leftDropLine: {
+        from: { xCm: 120, yCm: 146.0 },
+        to: { xCm: 120, yCm: 142.0 },
+      },
+      rightDropLine: {
+        from: { xCm: 80, yCm: 138.0 },
+        to: { xCm: 80, yCm: 142.0 },
+      },
+      distanceCm: 40.0,
+    },
+  };
+
+  setMeasurementHighlight(vis);
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+
+  const spanLine = frontLayer.querySelector('.grid2d-highlight-line');
+  assert.ok(spanLine, 'Measured horizontal span line rendered');
+
+  const dropLines = frontLayer.querySelectorAll('.grid2d-highlight-drop-line');
+  assert.equal(dropLines.length, 2, 'Two helper/drop lines rendered for asymmetric bilateral landmarks');
+
+  const dots = frontLayer.querySelectorAll('.grid2d-highlight-dot');
+  assert.equal(dots.length, 4, 'Four dots: two at horizontal span endpoints + two at actual source landmarks');
+
+  assert.equal(frontLayer.querySelector('.grid2d-highlight-badge'), null, 'No permanent numeric badge rendered');
+
+  // Verify clear removes highlight
+  clearMeasurementHighlight();
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  assert.equal(frontLayer.children.length, 0, 'Clear removes all highlight primitives');
+});
+
+test('Batch B: CSS stylesheet defines .grid2d-highlight-drop-line rule', () => {
+  const cssPath = fileURLToPath(new URL('../styles/overlays.css', import.meta.url));
+  const css = readFileSync(cssPath, 'utf8');
+
+  assert.match(css, /\.grid2d-highlight-drop-line\s*\{/);
+  assert.match(css, /\.grid2d-highlight-drop-line\s*\{[^}]*position:\s*absolute/);
+});
+
+
 

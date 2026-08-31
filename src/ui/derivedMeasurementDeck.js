@@ -71,6 +71,7 @@ const groupCollapseStates = new Map([
   ['vertical_measurements', true],
   ['arm_segments', true],
   ['leg_segments', true],
+  ['bilateral_transverse_landmark_spans', true],
 ]);
 
 /** @type {string|null} */
@@ -1126,6 +1127,7 @@ export function renderDerivedMeasurementDeck(containerEl) {
     const isVerticalExpanded = !(groupCollapseStates.get('vertical_measurements') ?? true);
     const isArmsExpanded = !(groupCollapseStates.get('arm_segments') ?? true);
     const isLegsExpanded = !(groupCollapseStates.get('leg_segments') ?? true);
+    const isBilateralExpanded = !(groupCollapseStates.get('bilateral_transverse_landmark_spans') ?? true);
 
     const verticalHtml = buildDirectMeasurementsGroupHtml(
       'vertical_measurements',
@@ -1145,6 +1147,12 @@ export function renderDerivedMeasurementDeck(containerEl) {
       directReport.byGroup.leg_segments ?? [],
       isLegsExpanded,
     );
+    const bilateralHtml = buildDirectMeasurementsGroupHtml(
+      'bilateral_transverse_landmark_spans',
+      'Bilateral Spans & Breadths',
+      directReport.byGroup.bilateral_transverse_landmark_spans ?? [],
+      isBilateralExpanded,
+    );
     directHtml = `
       <div
         class="results-subgroup results-subgroup--direct ${directCollapsedClass}"
@@ -1159,6 +1167,7 @@ export function renderDerivedMeasurementDeck(containerEl) {
           ${verticalHtml}
           ${armsHtml}
           ${legsHtml}
+          ${bilateralHtml}
         </div>
       </div>
     `;

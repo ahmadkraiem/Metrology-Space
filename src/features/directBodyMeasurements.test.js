@@ -26,10 +26,13 @@ const UNVALIDATED_FRONT_CALIBRATION = Object.freeze({
 
 /**
  * Standard complete promoted body landmark annotation fixture (Front view, cm coordinates).
+ * Includes both Core 13 body landmarks and Secondary acromion landmarks.
  */
 function createStandardPromotedAnnotationsFixture({ yOffset = 0 } = {}) {
   return [
     { type: 'body_landmark', name: 'neck', point: { x: 100, y: 150 + yOffset, z: 200 } },
+    { type: 'body_landmark', name: 'left_acromion', point: { x: 120, y: 142 + yOffset, z: 200 } },
+    { type: 'body_landmark', name: 'right_acromion', point: { x: 80, y: 142 + yOffset, z: 200 } },
     { type: 'body_landmark', name: 'left_shoulder', point: { x: 115, y: 140 + yOffset, z: 200 } },
     { type: 'body_landmark', name: 'right_shoulder', point: { x: 85, y: 140 + yOffset, z: 200 } },
     { type: 'body_landmark', name: 'left_elbow', point: { x: 125, y: 115 + yOffset, z: 200 } },
@@ -45,12 +48,38 @@ function createStandardPromotedAnnotationsFixture({ yOffset = 0 } = {}) {
   ];
 }
 
-test('directBodyMeasurements: supports exactly 19 Batch A definitions in registry', () => {
-  assert.equal(DIRECT_MEASUREMENT_IDS_V0.length, 19);
-  assert.equal(Object.keys(SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0).length, 19);
+test('directBodyMeasurements: supports exactly 25 definitions in registry (19 Batch A + 6 Batch B)', () => {
+  assert.equal(DIRECT_MEASUREMENT_IDS_V0.length, 25);
+  assert.equal(Object.keys(SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0).length, 25);
+
+  const batchBIds = [
+    'inter_acromion_transverse_breadth_projected',
+    'inter_hip_landmark_transverse_span',
+    'bilateral_elbow_landmark_transverse_span',
+    'bilateral_wrist_landmark_transverse_span',
+    'bilateral_knee_landmark_transverse_span',
+    'bilateral_ankle_landmark_transverse_span',
+  ];
+
+  for (const id of batchBIds) {
+    assert.ok(DIRECT_MEASUREMENT_IDS_V0.includes(id), `Expected ${id} in DIRECT_MEASUREMENT_IDS_V0`);
+    assert.ok(SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0[id], `Expected definition for ${id}`);
+    assert.equal(
+      SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0[id].group,
+      DIRECT_MEASUREMENT_GROUPS.BILATERAL_TRANSVERSE_LANDMARK_SPANS,
+    );
+    assert.equal(
+      SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0[id].geometryType,
+      'bilateral_transverse_landmark_span',
+    );
+    assert.equal(
+      SUPPORTED_DIRECT_MEASUREMENT_DEFINITIONS_V0[id].outputSemantics,
+      DIRECT_MEASUREMENT_SEMANTICS.CALIBRATED_PROJECTED_2D_TRANSVERSE_SPAN,
+    );
+  }
 });
 
-test('directBodyMeasurements: calculates all 5 vertical inter-level distances correctly', () => {
+test('directBodyMeasurements: calculates all 5 vertical inter-level distances correctly (Batch A)', () => {
   const annotations = createStandardPromotedAnnotationsFixture();
   const report = evaluateDirectBodyMeasurements({
     annotations,
@@ -58,8 +87,8 @@ test('directBodyMeasurements: calculates all 5 vertical inter-level distances co
   });
 
   assert.equal(report.contract, 'direct-body-measurements-report-v0');
-  assert.equal(report.summary.total, 19);
-  assert.equal(report.summary.valid, 19);
+  assert.equal(report.summary.total, 25);
+  assert.equal(report.summary.valid, 25);
   assert.equal(report.summary.unavailable, 0);
   assert.equal(report.summary.invalid, 0);
 
@@ -268,7 +297,7 @@ test('directBodyMeasurements: unvalidated calibration makes all measurements una
   });
 
   assert.equal(report.summary.valid, 0);
-  assert.equal(report.summary.unavailable, 19);
+  assert.equal(report.summary.unavailable, 25);
 
   for (const m of report.measurements) {
     assert.equal(m.status, DIRECT_MEASUREMENT_STATUS.UNAVAILABLE);
@@ -329,4 +358,307 @@ test('directBodyMeasurements: canonical naming and display naming are strictly f
       assert.equal(def.outputSemantics, DIRECT_MEASUREMENT_SEMANTICS.CALIBRATED_RELATIVE_VERTICAL_DISTANCE);
     }
   }
+});
+
+// ===========================================================================
+// BATCH B: BILATERAL TRANSVERSE LANDMARK SPANS TESTS
+// ===========================================================================
+
+test('Batch B: 1. Exact horizontal pair calculates valueCm = abs(deltaX)', () => {
+  const annotations = [
+    { type: 'body_landmark', name: 'left_hip', point: { x: 110, y: 90, z: 200 } },
+    { type: 'body_landmark', name: 'right_hip', point: { x: 70, y: 90, z: 200 } },
+  ];
+
+  const report = evaluateDirectBodyMeasurements({
+    annotations,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  const hipSpan = report.measurementsById.inter_hip_landmark_transverse_span;
+  assert.equal(hipSpan.status, DIRECT_MEASUREMENT_STATUS.VALID);
+  assert.equal(hipSpan.valueCm, 40.0);
+  assert.equal(hipSpan.outputSemantics, DIRECT_MEASUREMENT_SEMANTICS.CALIBRATED_PROJECTED_2D_TRANSVERSE_SPAN);
+  assert.equal(hipSpan.provenance.deltaXCm, -40);
+  assert.equal(hipSpan.provenance.deltaYCm, 0);
+  assert.equal(hipSpan.provenance.elevationDeltaCm, 0);
+  assert.equal(hipSpan.provenance.rawSpanCm, 40);
+});
+
+test('Batch B: 2. Bilateral vertical asymmetry preserves valueCm = abs(deltaX) and NOT Euclidean chord', () => {
+  // Left acromion at (120, 145), Right acromion at (80, 137)
+  // deltaX = 80 - 120 = -40 -> valueCm = 40.0
+  // deltaY = 137 - 145 = -8 -> elevationDeltaCm = 8.0
+  // Euclidean chord would be sqrt(40^2 + 8^2) = sqrt(1664) ≈ 40.79 cm
+  const annotations = [
+    { type: 'body_landmark', name: 'left_acromion', point: { x: 120, y: 145, z: 200 } },
+    { type: 'body_landmark', name: 'right_acromion', point: { x: 80, y: 137, z: 200 } },
+  ];
+
+  const report = evaluateDirectBodyMeasurements({
+    annotations,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  const acromionBreadth = report.measurementsById.inter_acromion_transverse_breadth_projected;
+  assert.equal(acromionBreadth.status, DIRECT_MEASUREMENT_STATUS.VALID);
+  assert.equal(acromionBreadth.valueCm, 40.0);
+  assert.notEqual(acromionBreadth.valueCm, 40.79, 'Must NOT use Euclidean chord as valueCm');
+  assert.equal(acromionBreadth.provenance.deltaXCm, -40);
+  assert.equal(acromionBreadth.provenance.deltaYCm, -8);
+  assert.equal(acromionBreadth.provenance.elevationDeltaCm, 8.0);
+  assert.equal(acromionBreadth.provenance.leftCoordinate.x, 120);
+  assert.equal(acromionBreadth.provenance.leftCoordinate.y, 145);
+  assert.equal(acromionBreadth.provenance.rightCoordinate.x, 80);
+  assert.equal(acromionBreadth.provenance.rightCoordinate.y, 137);
+});
+
+test('Batch B: 3. Swapped left/right X ordering yields strictly positive valueCm = abs(deltaX)', () => {
+  // If X_right > X_left or X_right < X_left, valueCm is always positive
+  const annotationsOrdered = [
+    { type: 'body_landmark', name: 'left_elbow', point: { x: 125, y: 115, z: 200 } },
+    { type: 'body_landmark', name: 'right_elbow', point: { x: 75, y: 115, z: 200 } },
+  ];
+
+  const reportOrdered = evaluateDirectBodyMeasurements({
+    annotations: annotationsOrdered,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  assert.equal(reportOrdered.measurementsById.bilateral_elbow_landmark_transverse_span.valueCm, 50.0);
+
+  const annotationsSwapped = [
+    { type: 'body_landmark', name: 'left_elbow', point: { x: 75, y: 115, z: 200 } },
+    { type: 'body_landmark', name: 'right_elbow', point: { x: 125, y: 115, z: 200 } },
+  ];
+
+  const reportSwapped = evaluateDirectBodyMeasurements({
+    annotations: annotationsSwapped,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  assert.equal(reportSwapped.measurementsById.bilateral_elbow_landmark_transverse_span.valueCm, 50.0);
+});
+
+test('Batch B: 4 & 5. Missing left or right landmark resolves to unavailable', () => {
+  // Missing right_wrist
+  const annotationsMissingRight = [
+    { type: 'body_landmark', name: 'left_wrist', point: { x: 130, y: 90, z: 200 } },
+  ];
+
+  const report1 = evaluateDirectBodyMeasurements({
+    annotations: annotationsMissingRight,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  const wristSpan1 = report1.measurementsById.bilateral_wrist_landmark_transverse_span;
+  assert.equal(wristSpan1.status, DIRECT_MEASUREMENT_STATUS.UNAVAILABLE);
+  assert.equal(wristSpan1.valueCm, null);
+  assert.match(wristSpan1.reason, /missing: right_wrist/);
+
+  // Missing left_wrist
+  const annotationsMissingLeft = [
+    { type: 'body_landmark', name: 'right_wrist', point: { x: 70, y: 90, z: 200 } },
+  ];
+
+  const report2 = evaluateDirectBodyMeasurements({
+    annotations: annotationsMissingLeft,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  const wristSpan2 = report2.measurementsById.bilateral_wrist_landmark_transverse_span;
+  assert.equal(wristSpan2.status, DIRECT_MEASUREMENT_STATUS.UNAVAILABLE);
+  assert.equal(wristSpan2.valueCm, null);
+  assert.match(wristSpan2.reason, /missing: left_wrist/);
+});
+
+test('Batch B: 6. Non-finite or corrupted coordinates resolve to invalid', () => {
+  const corruptedAnnotations = [
+    { type: 'body_landmark', name: 'left_knee', point: { x: 110, y: 50, z: 200 } },
+    { type: 'body_landmark', name: 'right_knee', point: { x: NaN, y: 50, z: 200 } },
+  ];
+
+  const report = evaluateDirectBodyMeasurements({
+    annotations: corruptedAnnotations,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  const kneeSpan = report.measurementsById.bilateral_knee_landmark_transverse_span;
+  assert.equal(kneeSpan.status, DIRECT_MEASUREMENT_STATUS.INVALID);
+  assert.equal(kneeSpan.valueCm, null);
+  assert.match(kneeSpan.reason, /corrupted|non-finite/i);
+});
+
+test('Batch B: 7. Unvalidated calibration resolves to unavailable', () => {
+  const annotations = [
+    { type: 'body_landmark', name: 'left_ankle', point: { x: 110, y: 10, z: 200 } },
+    { type: 'body_landmark', name: 'right_ankle', point: { x: 90, y: 10, z: 200 } },
+  ];
+
+  const report = evaluateDirectBodyMeasurements({
+    annotations,
+    metricCalibrationFront: UNVALIDATED_FRONT_CALIBRATION,
+  });
+
+  const ankleSpan = report.measurementsById.bilateral_ankle_landmark_transverse_span;
+  assert.equal(ankleSpan.status, DIRECT_MEASUREMENT_STATUS.UNAVAILABLE);
+  assert.equal(ankleSpan.valueCm, null);
+  assert.match(ankleSpan.reason, /calibration/i);
+});
+
+test('Batch B: 8. Acromion measurement strictly uses left_acromion/right_acromion and NOT left_shoulder/right_shoulder', () => {
+  // Only shoulder landmarks provided, no acromion
+  const annotationsShoulderOnly = [
+    { type: 'body_landmark', name: 'left_shoulder', point: { x: 115, y: 140, z: 200 } },
+    { type: 'body_landmark', name: 'right_shoulder', point: { x: 85, y: 140, z: 200 } },
+  ];
+
+  const reportShoulderOnly = evaluateDirectBodyMeasurements({
+    annotations: annotationsShoulderOnly,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  const acromionBreadth = reportShoulderOnly.measurementsById.inter_acromion_transverse_breadth_projected;
+  assert.equal(
+    acromionBreadth.status,
+    DIRECT_MEASUREMENT_STATUS.UNAVAILABLE,
+    'Acromion measurement must be UNAVAILABLE when only generic shoulder landmarks exist',
+  );
+  assert.match(acromionBreadth.reason, /missing: left_acromion, right_acromion/);
+
+  // When acromion landmarks are provided distinct from shoulder landmarks
+  const annotationsDistinct = [
+    { type: 'body_landmark', name: 'left_shoulder', point: { x: 115, y: 140, z: 200 } },
+    { type: 'body_landmark', name: 'right_shoulder', point: { x: 85, y: 140, z: 200 } },
+    { type: 'body_landmark', name: 'left_acromion', point: { x: 122, y: 143, z: 200 } },
+    { type: 'body_landmark', name: 'right_acromion', point: { x: 78, y: 143, z: 200 } },
+  ];
+
+  const reportDistinct = evaluateDirectBodyMeasurements({
+    annotations: annotationsDistinct,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  // Inter-acromion: abs(78 - 122) = 44.0 cm (NOT abs(85 - 115) = 30.0 cm)
+  const acromionDistinct = reportDistinct.measurementsById.inter_acromion_transverse_breadth_projected;
+  assert.equal(acromionDistinct.status, DIRECT_MEASUREMENT_STATUS.VALID);
+  assert.equal(acromionDistinct.valueCm, 44.0);
+  assert.equal(acromionDistinct.provenance.leftLandmarkId, 'left_acromion');
+  assert.equal(acromionDistinct.provenance.rightLandmarkId, 'right_acromion');
+});
+
+test('Batch B: 9. Existing 19 Batch A measurements remain semantically unchanged', () => {
+  const annotations = createStandardPromotedAnnotationsFixture();
+  const report = evaluateDirectBodyMeasurements({
+    annotations,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  const expectedBatchAValues = {
+    vertical_torso_length_neck_to_hip: 60.0,
+    vertical_shoulder_drop_neck_to_shoulder: 10.0,
+    vertical_thigh_length_hip_to_knee: 40.0,
+    vertical_lower_leg_length_knee_to_ankle: 40.0,
+    vertical_total_leg_length_hip_to_ankle: 80.0,
+    left_upper_arm_segment_length_projected: 26.93,
+    right_upper_arm_segment_length_projected: 26.93,
+    left_forearm_segment_length_projected: 25.50,
+    right_forearm_segment_length_projected: 25.50,
+    left_direct_arm_chord_projected: 52.20,
+    right_direct_arm_chord_projected: 52.20,
+    left_thigh_segment_length_projected: 40.0,
+    right_thigh_segment_length_projected: 40.0,
+    left_lower_leg_segment_length_projected: 40.0,
+    right_lower_leg_segment_length_projected: 40.0,
+    left_total_arm_chain_length_projected: 52.43,
+    right_total_arm_chain_length_projected: 52.43,
+    left_total_leg_chain_length_projected: 80.0,
+    right_total_leg_chain_length_projected: 80.0,
+  };
+
+  for (const [id, expectedVal] of Object.entries(expectedBatchAValues)) {
+    const m = report.measurementsById[id];
+    assert.ok(m, `Expected Batch A measurement ${id} in report`);
+    assert.equal(m.status, DIRECT_MEASUREMENT_STATUS.VALID, `Batch A measurement ${id} should be valid`);
+    assert.equal(m.valueCm, expectedVal, `Batch A measurement ${id} valueCm should match expected`);
+  }
+});
+
+test('Batch B: 10. All 6 Batch B measurements calculate accurately in full report and are grouped properly', () => {
+  const annotations = createStandardPromotedAnnotationsFixture();
+  const report = evaluateDirectBodyMeasurements({
+    annotations,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  assert.equal(report.summary.total, 25);
+  assert.equal(report.summary.valid, 25);
+
+  const expectedBatchB = {
+    inter_acromion_transverse_breadth_projected: 40.0,
+    inter_hip_landmark_transverse_span: 20.0,
+    bilateral_elbow_landmark_transverse_span: 50.0,
+    bilateral_wrist_landmark_transverse_span: 60.0,
+    bilateral_knee_landmark_transverse_span: 20.0,
+    bilateral_ankle_landmark_transverse_span: 20.0,
+  };
+
+  for (const [id, expectedVal] of Object.entries(expectedBatchB)) {
+    const m = report.measurementsById[id];
+    assert.ok(m, `Expected Batch B measurement ${id}`);
+    assert.equal(m.status, DIRECT_MEASUREMENT_STATUS.VALID);
+    assert.equal(m.valueCm, expectedVal);
+  }
+
+  // Check byGroup grouping
+  const transverseGroup = report.byGroup[DIRECT_MEASUREMENT_GROUPS.BILATERAL_TRANSVERSE_LANDMARK_SPANS];
+  assert.ok(Array.isArray(transverseGroup));
+  assert.equal(transverseGroup.length, 6);
+  assert.deepEqual(
+    transverseGroup.map((m) => m.id),
+    Object.keys(expectedBatchB),
+  );
+});
+
+test('Batch B: 11. Zero transverse span (identical X coordinates) resolves to invalid', () => {
+  const annotationsZeroSpan = [
+    { type: 'body_landmark', name: 'left_ankle', point: { x: 100, y: 10, z: 200 } },
+    { type: 'body_landmark', name: 'right_ankle', point: { x: 100, y: 12, z: 200 } },
+  ];
+
+  const report = evaluateDirectBodyMeasurements({
+    annotations: annotationsZeroSpan,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  const ankleSpan = report.measurementsById.bilateral_ankle_landmark_transverse_span;
+  assert.equal(ankleSpan.status, DIRECT_MEASUREMENT_STATUS.INVALID);
+  assert.equal(ankleSpan.valueCm, null);
+  assert.match(ankleSpan.reason, /zero transverse span/i);
+});
+
+test('Batch B: 12. evaluateDirectBodyMeasurement retrieves individual Batch B measurements', () => {
+  const annotations = createStandardPromotedAnnotationsFixture();
+
+  const singleAcromion = evaluateDirectBodyMeasurement('inter_acromion_transverse_breadth_projected', {
+    annotations,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  assert.ok(singleAcromion);
+  assert.equal(singleAcromion.id, 'inter_acromion_transverse_breadth_projected');
+  assert.equal(singleAcromion.status, DIRECT_MEASUREMENT_STATUS.VALID);
+  assert.equal(singleAcromion.valueCm, 40.0);
+  assert.equal(singleAcromion.displayName, 'Inter-Acromion Transverse Breadth (Projected)');
+
+  const singleHip = evaluateDirectBodyMeasurement('inter_hip_landmark_transverse_span', {
+    annotations,
+    metricCalibrationFront: VALID_FRONT_CALIBRATION,
+  });
+
+  assert.ok(singleHip);
+  assert.equal(singleHip.id, 'inter_hip_landmark_transverse_span');
+  assert.equal(singleHip.status, DIRECT_MEASUREMENT_STATUS.VALID);
+  assert.equal(singleHip.valueCm, 20.0);
+  assert.equal(singleHip.displayName, 'Inter-Hip Landmark Transverse Span');
 });
