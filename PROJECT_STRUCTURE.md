@@ -346,7 +346,7 @@ latent-space/
 | `frontSideAlignmentPanel.js` | Read-only Diagnostics → Front–Side Alignment presentation. Derives the alignment report on demand; renders top summary card and collapsible Core Pairs, Secondary Pairs, and Issues groups. |
 | `bodyGraphWorkspace.js` | Renders the read-only Core 13 Body Graph topology workspace and summary statistics. |
 | `bodyTabConsolidatedPanel.js` | Wires Diagnostics Front–Side Alignment, Body / Anchor readiness, and Natural Waist Plane diagnostic inspection card with click-to-highlight / keyboard focus integration. Does not remount the old Package QA card or anchors table. |
-| `derivedMeasurementDeck.js` | Right Sidebar Results deck rendering collapsible Shoulder / Hip Cross-Section Evidence cards, Front Transverse Widths card (Neck Transverse Width with responsive stacked metadata), Modeled Circumferences (Bust, Natural Waist, Abdominal, Hip Girth, Maximum Seat), and collapsible parent Direct Measurements cards (with Bilateral Spans & Breadths subgroup) with click-to-highlight integration. |
+| `derivedMeasurementDeck.js` | Right Sidebar Results deck rendering collapsible Shoulder / Hip Cross-Section Evidence cards, Front Transverse Widths card (Neck Transverse Width with responsive stacked metadata), Modeled Circumferences (Bust, Natural Waist, Abdominal, Hip Girth, Maximum Seat), and collapsible parent Direct Measurements cards (with Bilateral Spans & Breadths subgroup) with click-to-highlight integration. *(Architectural Note: Currently organized by implementation-family groups; planned for future transition to an Anatomy-First Results hierarchy).* |
 | `measurementHighlightOverlay2d.js` | Pure declarative 2D measurement highlight overlay renderer consuming normalized visualization provenance instructions on dedicated SVG/canvas layers across Front and Side navigators. Displays clean geometry (horizontal guides, localized slice lines, endpoint dots, bilateral transverse spans with asymmetry drop lines, selection highlights) with no always-visible text labels over measurement lines. |
 | `modeledEllipseCrossSectionPreview.js` | Visual-only companion cross-section preview SVG renderer for all 5 Modeled Circumferences (Bust, Natural Waist, Abdominal, Hip Girth, Maximum Seat) displaying Front width $\times$ Side AP depth ellipse with aspect ratio preservation, accurate plane labels, and disclaimer `"Ellipse model — not measured contour"`. |
 | `advancedQaPanel.js` | Diagnostics Why This Result Is Blocked plus Advanced QA intake/calibration. |
@@ -371,3 +371,93 @@ latent-space/
 - `components.css`: Component-level styles for menus, workflow-driven left inspector, Results / Session Records / Diagnostics, candidate lists, inspect cards, badges, action buttons, Front–Side Alignment, Advanced QA, responsive stacked metadata rows (`.derived-card-row--meta`, `.front-transverse-meta-row`), and the unmounted Package QA helper classes (`.body-evidence-package-qa-card`, `.body-package-qa-*`, `.body-evidence-qa-pill*`).
 - `overlays.css`: Styles for 2D plot areas, lattices, markers, measurement overlays, legend items, and tooltips.
 - `style.css`: Entry point combining the stylesheet modules via `@import`.
+
+---
+
+## 4. Master Measurement Coverage Architecture & Future Results UI Organization
+
+### Existing Module Families Relevant to Master Measurement Program
+
+The TWENTY EIGHT codebase partitions measurement computation, qualification, visualization, and presentation into strict, single-responsibility module families:
+
+1. **Reference Level Infrastructure**:
+   - `src/features/anatomicalLevels.js`: Pure derivation of 7 anatomical reference Y levels (`neck`, `shoulder`, `elbow`, `wrist`, `hip`, `knee`, `ankle`) from promoted Front landmarks.
+2. **Direct Body Measurements**:
+   - `src/features/directBodyMeasurements.js`: Evaluates 25 calibrated direct measurements across Vertical Inter-Level, Projected Landmark Segments, Kinematic Chains, and Bilateral Transverse Landmark Spans.
+3. **Transverse Width & Raster Slicing**:
+   - `src/features/frontRasterSlice.js`: Pure single-row $O(W)$ streaming scan returning contiguous horizontal runs.
+   - `src/features/frontTransverseWidth.js`: Interprets slice runs into calibrated Front transverse silhouette widths under measurement support policies and `single_run_required` policy (`neck_transverse_width_at_neck_level`, `torso_width_at_shoulder_level`, `torso_width_at_hip_level`).
+4. **Side Profile & AP Depth Qualification**:
+   - `src/features/sideRasterSlice.js` & `src/features/sideProfileSpan.js`: Extracts Side-U profile spans.
+   - `src/features/sidePhysicalDepthQualification.js`: Qualifies Side profile spans into physical AP depth estimates against stance and orientation criteria.
+5. **Continuous Torso & Pelvic Arbitrary-Y Scanning**:
+   - `src/features/torsoArbitraryYEvidenceScan.js`: Continuous Front width and Side qualified AP depth scanning across the shoulder-to-hip column under resolution-independent mapping.
+   - `src/features/pelvicArbitraryYEvidenceScan.js` & `src/features/arbitraryYSidePhysicalDepthQualification.js`: Continuous scanning across the pelvic domain.
+6. **Evidence-Driven Plane Localization**:
+   - `src/features/bustPointPlaneLocalization.js` (Bust Point Plane v1)
+   - `src/features/naturalWaistPlaneLocalization.js` (Natural Waist Plane v0)
+   - `src/features/abdominalPointPlaneLocalization.js` (Abdominal Point Plane v1)
+   - `src/features/buttockPointPlaneLocalization.js` (Buttock Point Plane v1)
+   - `src/features/maximumSeatPlaneLocalization.js` (Maximum Seat Plane v0)
+7. **Modeled Perimeter Computation**:
+   - `src/features/modeledCrossSectionPerimeter.js`: Owns the core `computeRamanujanEllipsePerimeter` engine.
+   - `src/features/modeledBustCircumference.js`, `src/features/modeledNaturalWaistCircumference.js`, `src/features/modeledAbdominalCircumference.js`, `src/features/modeledHipGirth.js`, `src/features/modeledHipSeatCircumference.js`: Dedicated domain contracts deriving production modeled circumferences at their respective localized planes.
+8. **Measurement Support & Boundary Policies**:
+   - `src/features/measurementSupportPolicy.js`: Centralized definitions of observed supported silhouettes (`neck_core_support_v0`, `trunk_core_support_v0`, `pelvic_core_support_v0`, `trunk_pelvic_transition_support_v0`).
+9. **Visualization Normalization & Overlay Rendering**:
+   - `src/features/measurementVisualizationProvenance.js`: Pure declarative normalizer converting domain measurement and plane records into standardized 2D visualization instructions.
+   - `src/ui/measurementHighlightOverlay2d.js`: Pure rendering layer on dedicated SVG/canvas layers across Front and Side navigators.
+   - `src/ui/modeledEllipseCrossSectionPreview.js`: Aspect-ratio-preserving SVG ellipse cross-section preview dock.
+10. **Presentation & Deck Composition**:
+    - `src/ui/derivedMeasurementDeck.js`: Results sidebar deck rendering measurement cards and dispatching click-to-highlight selection.
+
+### Architectural Separation: Computation vs Normalization vs Presentation vs Diagnostics
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ DOMAIN COMPUTATION LAYER                                         │
+│ (anatomicalLevels, directBodyMeasurements, frontTransverseWidth, │
+│  plane localizers, modeled circumferences)                       │
+└─────────────────────────────────┬────────────────────────────────┘
+                                  │ produces domain observation
+                                  ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ VISUALIZATION PROVENANCE LAYER                                   │
+│ (measurementVisualizationProvenance)                             │
+└─────────────────────────────────┬────────────────────────────────┘
+                                  │ produces declarative geometry
+                                  ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ PRESENTATION & INTERACTION LAYER                                 │
+│ (derivedMeasurementDeck, measurementHighlightOverlay2d,          │
+│  modeledEllipseCrossSectionPreview)                              │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+- **Zero Recomputation in UI**: UI renderers (`derivedMeasurementDeck.js`, `measurementHighlightOverlay2d.js`, `modeledEllipseCrossSectionPreview.js`) read precomputed values and metadata from domain records. They never perform raster scanning, trigonometric transforms, or domain formula recomputation.
+- **Diagnostics Isolation**: The Diagnostics panel (`advancedQaPanel.js`, `frontSideAlignmentPanel.js`, `bodyTabConsolidatedPanel.js`) answers *why* results are qualified or blocked, strictly isolated from the primary Results deck.
+
+### Planned Results Information Architecture Reorganization
+
+The current Results deck in `derivedMeasurementDeck.js` is structured around implementation-family groupings (`Cross-Section Evidence`, `Front Transverse Widths`, `Modeled Perimeter Estimates`, `Direct Measurements`). As the measurement catalogue expands toward full coverage, the Results UI is planned to transition to an **Anatomy-First Hierarchy**:
+
+- **Planned Anatomical Groups**:
+  1. `Head & Neck`
+  2. `Shoulder & Upper Torso`
+  3. `Arms`
+  4. `Bust & Chest`
+  5. `Waist & Abdomen`
+  6. `Hip & Seat / Pelvis`
+  7. `Thigh / Knee / Calf / Ankle`
+  8. `Crotch / Rise / Leg Length`
+  9. `Foot`
+  10. `Body Lengths & Heights`
+- **Context-Sensitive Selected Measurement Details**: Clicking any measurement card exposes reference plane elevation, orthogonal diameters, algorithm/formula, and qualification notes in a dedicated detail area rather than repeating evidence fields across every card row.
+- **Architectural Scope Note**: This future information architecture is a planned reorganization. The current implementation in `derivedMeasurementDeck.js` preserves its established implementation-family layout until the next UI reorganization milestone.
+
+### Why Cross-Section Evidence & Side AP Depth Currently Feature Shoulder + Hip
+
+- The static `cross-section-evidence-v0` registry (`src/features/crossSectionEvidence.js`) was designed around validated shared anatomical reference levels (`shoulder` and `hip`).
+- Subsequent localized torso measurements (Bust, Natural Waist, Abdomen, Hip Girth, Maximum Seat) possess continuous, evidence-driven plane localizers and embed their own dedicated same-Y Front width + Side AP depth cross-section records.
+- Similarly, `src/features/sidePhysicalDepthQualification.js` exposes static observations at Shoulder and Hip reference levels, while arbitrary-Y continuous scanning evaluates AP depth dynamically across the torso and pelvic columns.
+

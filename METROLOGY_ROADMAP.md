@@ -1308,6 +1308,189 @@ Established the deterministic Neck Transverse Width implementation at Neck Level
 - **Underbust**: Separate workstream, untouched.
 - **Verified Baseline**: **905 / 905 tests passing across 47 test suites, 0 failures, clean production Vite build**.
 
+### 4.27 Master Measurement Coverage Program — ACTIVE PLANNING FRAMEWORK
+
+TWENTY EIGHT formally establishes the **Master Measurement Coverage Program** as a durable source-of-truth planning framework to systematically cover the complete target female-body measurement catalogue while preserving correct metrological semantics, anatomical placement, and rigorous evidence qualification.
+
+#### Current Verified Implementation Baseline
+- **905 / 905 tests passing across 47 test suites, 0 failures, clean production Vite build**.
+- **7 Anatomical Reference Levels** (`anatomical-levels-v0`): `neck`, `shoulder`, `elbow`, `wrist`, `hip`, `knee`, `ankle`.
+- **Direct Body Measurements v0 (25 measurements total)** (`direct-body-measurements-v0`):
+  - **Batch A (19 measurements)**: 5 Vertical Inter-Level Distances, 10 Projected Landmark Segments, 4 Kinematic Chains.
+  - **Batch B (6 Bilateral Transverse Landmark Spans)**: Inter-Acromion Transverse Breadth, Inter-Hip Landmark Transverse Span, Bilateral Elbow Landmark Transverse Span, Bilateral Wrist Landmark Transverse Span, Bilateral Knee Landmark Transverse Span, Bilateral Ankle Landmark Transverse Span.
+- **Front Transverse Widths (3 measurements)** (`front-transverse-width-v0`): Neck Transverse Width (`neck_core_support_v0`), Torso Transverse Width at Shoulder Level (`trunk_core_support_v0`), Torso Transverse Width at Hip Level (`pelvic_core_support_v0`).
+- **Qualified Side AP Depth (2 reference levels)** (`side-physical-depth-qualification-v0`): Shoulder Level, Hip Level.
+- **Cross-Section Evidence (2 reference levels)** (`cross-section-evidence-v0`): Shoulder Level, Hip Level.
+- **5 Active Modeled Torso Circumferences** (Ellipse Ramanujan II):
+  1. Modeled Bust Circumference ($102.72\text{ cm}$ at localized Bust Point Plane $Y = 119.15\text{ cm}$).
+  2. Modeled Natural Waist Circumference ($82.25\text{ cm}$ at localized Natural Waist Plane $Y = 107.15\text{ cm}$).
+  3. Modeled Abdominal Circumference ($99.26\text{ cm}$ at localized Abdominal Point Plane $Y = 96.85\text{ cm}$).
+  4. Modeled Hip Girth ($111.12\text{ cm}$ at localized Buttock Point / Hip Girth Plane $Y = 86.05\text{ cm}$).
+  5. Modeled Maximum Seat Circumference ($114.20\text{ cm}$ at localized Maximum Seat Plane $Y = 79.95\text{ cm}$).
+- **Evidence-Driven Plane Localization Infrastructure**: Bust Point Plane v1, Natural Waist Plane v0, Abdominal Point Plane v1, Buttock Point Plane v1, Maximum Seat Plane v0.
+- **Underbust**: Separate active/deferred workstream, strictly preserved without mixing into unrelated batches.
+
+#### Target Catalogue Scope & Role of Historical 104 List
+The target female-body measurement catalogue is based on the union of:
+1. The historical **104 Female Landmark Measurements** catalogue.
+2. The original **Metrology Engine** measurement scope.
+3. Additional valid measurements already introduced by **TWENTY EIGHT**.
+4. Future measurements approved through empirical evidence and source verification.
+
+> [!IMPORTANT]
+> The historical 104 list is a **REFERENCE CATALOGUE**, not an unquestioned geometric specification. Fields such as `Connected_Landmarks`, `Calculation_Method`, and `ISO_2025_Compliant` must **NOT** automatically be treated as authoritative definitions. Historical definitions are frequently ambiguous or geometrically insufficient (e.g. *"Circular interpolation through 2 points"* cannot uniquely define a circumference without a 3D model/surface; *"3D curved/straight distance"* fails to specify whether a quantity is a Euclidean chord, projected distance, surface arc, or geodesic path). Every measurement must pass TWENTY EIGHT semantic and source verification before implementation.
+
+#### Master Body Category Organization
+All target measurements are organized into **10 canonical planning categories**:
+
+1. **HEAD & NECK**: Head Circumference, Neck Circumference, Neck Length, Chin to Shoulder, Front Neck Drop, Back Neck Drop, Neck Base Width, Neck Transverse Width, Face Length, Face Width, Jaw Width, Neck-to-Waist Front / Back.
+2. **SHOULDER & UPPER TORSO**: Inter-Acromion / Shoulder Breadth, Shoulder Slope, Across Front, Across Back, Shoulder Drop, Armhole Depth, Armhole Circumference, Shoulder-related torso widths.
+3. **ARMS**: Arm Length, Upper Arm Length, Forearm Length, Shoulder-to-Elbow, Shoulder-to-Wrist, Arm Kinematic Chain Length, Arm Span, Upper Arm Circumference, Elbow Circumference, Forearm Circumference, Wrist Circumference, Sleeve Cap Height, Bicep Height.
+4. **BUST & CHEST**: Bust Circumference, Underbust Circumference, Over Bust Circumference, Bust Point-to-Bust Point, Bust Point Height, Bust Prominence, Chest Width, Chest Depth, Upper Chest Width, Back Width at Bust, Side Bust Arc, Front Bust Arc, Bust-to-Waist Front / Side, Shoulder-to-Bust Point.
+5. **WAIST & ABDOMEN**: Natural Waist Circumference, High Waist Circumference, Low Waist Circumference, Waist Front Width, Waist Back Width, Waist Height, Waist-to-Hip, Waist-to-Knee, Waist-to-Floor, Natural Waist Arc Front, Natural Waist Arc Back, Side Waist Length, Abdominal Circumference, localized abdominal widths/depths where justified.
+6. **HIP & SEAT / PELVIS**: Hip Circumference / Hip Girth, Maximum Seat Circumference, High Hip Circumference, Hip Landmark Span, Hip Silhouette Width, Hip AP Depth, Waist-to-Hip Length, Hip Height, Hip-to-Knee, Hip-to-Floor, Front Hip Arc, Back Hip Arc, Side Hip Length, Hip Drop, Buttock Prominence, Buttock Height.
+7. **THIGH / KNEE / CALF / ANKLE**: Thigh Circumference, Mid-Thigh Circumference, Thigh Length, Knee Circumference, Knee Height, Calf Circumference, Lower Leg Length, Ankle Circumference, Ankle Height, Knee Landmark Span, Ankle Landmark Span.
+8. **CROTCH / RISE / LEG LENGTH**: Inseam, Outseam, Crotch Height, Crotch Length Total, Front Rise, Back Rise, Body Rise, Side Seam Length.
+9. **FOOT**: Foot Length, Foot Width, Heel-to-Toe, Instep Circumference, Leg Opening where semantically appropriate.
+10. **BODY / GLOBAL**: Total Height / Optical Stature, Sitting Height, Cervical Height, Torso Length, Center Front Length, Center Back Length, Weight, BMI, Posture Angle.
+
+#### Geometry Family Classification
+Every target measurement is classified using the 12 formal TWENTY EIGHT geometry families:
+- `Transverse Width` (calibrated image-plane horizontal silhouette span)
+- `AP Depth / Projection` (calibrated side-view sagittal depth span)
+- `Vertical Height` (floor-to-level absolute elevation; requires ground reference)
+- `Vertical Inter-Level Distance` (vertical delta $|Y_1 - Y_2|$ between two anatomical planes)
+- `Landmark-to-Landmark Projected Distance` (calibrated 2D projected Euclidean segment between 2 landmarks)
+- `Bilateral Transverse Landmark Span` (calibrated horizontal span $|X_R - X_L|$ between bilateral landmarks)
+- `Segment / Kinematic Chain Length` (sum of sequential projected segment lengths along a kinematic chain)
+- `Circumference / Girth` (modeled or surface-measured closed perimeter around an anatomical plane)
+- `Partial Surface Arc / Surface Path` (continuous body surface curve / geodesic distance)
+- `Coordinate / Semantic Location` (localized canonical anatomical coordinate or plane elevation)
+- `Angular Measurement` (true geometric angle in degrees between vectors or planes)
+- `Non-geometric / Derived Metric` (external metadata, index, or non-spatial scalar e.g. BMI, weight)
+
+#### Critical Semantic Separation Rules
+Measurements sharing similar names or anatomical regions must remain strictly distinct:
+- $\text{Bilateral Knee Landmark Span} \ne \text{Knee Silhouette Width} \ne \text{Knee Circumference}$
+- $\text{Inter-Hip Landmark Span} \ne \text{Torso Transverse Width at Hip Level} \ne \text{Hip Girth} \ne \text{Maximum Seat Circumference}$
+- $\text{Inter-Acromion Breadth} \ne \text{Torso Transverse Width at Shoulder Level}$
+- $\text{Neck Transverse Width} \ne \text{Neck Base Landmark Breadth} \ne \text{Neck Circumference}$
+- $\text{Thigh Segment Length} \ne \text{Thigh Width} \ne \text{Thigh Circumference}$
+
+No measurement implementation may proceed until the exact mathematical quantity, target geometry family, and anatomical placement are explicit and unambiguous.
+
+#### Master Coverage Status Taxonomy
+All measurements across the target catalogue are classified using one of the following 13 canonical status states:
+- `DONE — EXACT`: Current implementation matches the intended geometry and anatomical definition.
+- `DONE — EQUIVALENT / RENAMED`: Current implementation strongly corresponds but uses a more precise TWENTY EIGHT name or semantics.
+- `PARTIAL`: Some required components exist, but the complete intended measurement does not.
+- `READY NOW`: Current evidence and architecture appear sufficient; read-only source verification precedes implementation.
+- `NEEDS LOCALIZATION`: Measurement geometry is feasible, but the correct anatomical Y/plane must first be localized.
+- `NEEDS GROUND REFERENCE`: Absolute floor-referenced quantity cannot be computed until subject ground/contact reference exists.
+- `NEEDS NEW LANDMARK / EVIDENCE`: Required anatomical anchors are not available in current promoted evidence.
+- `NEEDS CROSS-VIEW QUALIFICATION`: Requires corresponding Front width + Side AP/depth evidence or additional view qualification.
+- `NEEDS SURFACE / 3D GEOMETRY`: Requires actual surface path, contour, geodesic, 3D body geometry, or equivalent evidence not currently authoritative.
+- `DEFINITION REQUIRED`: Historical measurement definition is ambiguous, internally inconsistent, or insufficient.
+- `NON-GEOMETRIC / EXTERNAL INPUT`: Non-spatial or external quantity (e.g. Weight, BMI).
+- `DUPLICATE / SUPERSEDED`: Another canonical TWENTY EIGHT measurement already represents the intended quantity more clearly.
+- `OUT OF CURRENT SCOPE`: Retained in catalogue for reference but not currently prioritized.
+
+#### Important Known Catalogue Issues
+Historical catalogue definitions contain documented inconsistencies that must be preserved as source references rather than silently corrected:
+- **Weight**: Non-geometric mass input (kg/lbs), not a cm coordinate measurement.
+- **BMI**: Non-geometric derived ratio ($\text{kg}/\text{m}^2$), not measured in cm.
+- **Posture Angle**: Named as an angle, but historically categorized or calculated as a linear displacement.
+- **Shoulder Slope**: Ambiguous between angular slope (degrees), vertical drop ($\Delta Y$), or anatomical surface path.
+- **2-Point Circumferences**: Historical "circular interpolation through 2 points" is geometrically insufficient without an explicit model or surface reconstruction.
+- **"3D Curved / Straight Distance"**: Ambiguous phrasing conflating 3D chords, 2D projected distances, and surface arcs.
+- **Historical ISO Compliance**: Fields marked `ISO_2025_Compliant` must be treated as unverified source metadata until explicitly mapped to a verified standard definition.
+
+#### High-Priority Quick-Win Implementation Waves
+The Master Measurement Program prioritizes measurements supported by the existing deterministic evidence architecture before introducing major new geometry systems:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        IMPLEMENTATION WAVES                            │
+├────────────────────────────────────────────────────────────────────────┤
+│ WAVE 1: Knee + Ankle Expansion (Silhouette Width, AP Depth, Perimeter) │
+│ WAVE 2: Thigh + Calf Coverage (Evidence-Driven Localization Required)  │
+│ WAVE 3: Additional Torso Coverage (Chest, Upper Chest, High Waist/Hip)  │
+│ WAVE 4: Relative Lengths using Localized Planes (Inter-Level Intervals)│
+│ WAVE 5: Ground-Referenced Heights (Requires Ground Reference Contract) │
+│ WAVE 6: Surface Arcs & Curved Body Paths (Geodesic / Surface Systems)  │
+│ LATER:  Specialized Evidence (Head / Face, Foot Contracts)             │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+- **WAVE 1 — KNEE + ANKLE EXPANSION (High Priority Candidate)**:
+  - *Candidate Targets*: Knee Silhouette Width, Knee Side AP/Profile Depth, Modeled Knee Circumference; Ankle Silhouette Width, Ankle Side AP/Profile Depth, Modeled Ankle Circumference.
+  - *Readiness Rationale*: Validated Knee and Ankle anatomical levels already exist (`anatomical-levels-v0`), Front/Side raster slicing exists, bilateral landmark spans exist, metric calibration exists, and Ramanujan II perimeter infrastructure exists.
+  - *Requirement*: Perform a strict read-only source audit of support classes, silhouette stability, and paired-run semantics before implementation.
+  - *Boundary*: Knee Height and Ankle Height remain `NEEDS_GROUND_REFERENCE`.
+- **WAVE 2 — THIGH + CALF**:
+  - *Candidate Targets*: Thigh Circumference, Mid-Thigh Circumference, Calf Circumference, associated Front widths and Side AP depths.
+  - *Requirement*: Evidence-driven or source-defined plane localization. Do **NOT** assume Thigh Plane = Hip Y, Mid-Thigh = arbitrary 50% point, or Calf Plane = midpoint between Knee and Ankle without source/evidence justification. Maximum-girth localization concepts from Maximum Seat may potentially be adapted after auditing.
+- **WAVE 3 — ADDITIONAL TORSO COVERAGE**:
+  - *Candidate Targets*: Chest Width, Chest Depth, Upper Chest Width, Over Bust Circumference, High Waist Circumference, Low Waist Circumference, Waist Front/Back Width, High Hip Circumference.
+  - *Requirement*: Explicit anatomical plane definitions and evidence-driven localization. No arbitrary fixed percentages or offsets without justification.
+- **WAVE 4 — RELATIVE LENGTHS USING EXISTING LOCALIZED PLANES**:
+  - *Candidate Targets*: Waist-to-Hip, Bust-to-Waist, Hip Drop, Shoulder-to-Bust Point, and other plane-to-plane vertical intervals.
+  - *Requirement*: Formally classify each candidate as vertical inter-level distance ($|Y_1 - Y_2|$), projected landmark distance, or surface path. Do not convert historically curved/tape paths into vertical deltas without explicit semantic approval.
+- **WAVE 5 — GROUND-REFERENCED HEIGHTS**:
+  - *Candidate Targets*: Bust Point Height, Chest Height, Waist Height, Waist-to-Floor, Hip Height, Hip-to-Floor, Buttock Height, Crotch Height, Knee Height, Ankle Height, Cervical Height, Total Height / Optical Stature, Outseam / Side Seam.
+  - *Requirement*: Requires formal **Ground Reference Contract** establishing subject ground contact plane. Canvas $Y = 0$ is **NOT** subject ground.
+- **WAVE 6 — SURFACE ARCS / CURVED BODY PATHS**:
+  - *Candidate Targets*: Neck-to-Waist Front/Back, Front/Side Bust Arc, Natural Waist Arc Front/Back, Front/Back Hip Arc, Center Front/Back Length, Crotch Length Total, Front/Back Rise.
+  - *Requirement*: Requires future surface-path / contour / geodesic evidence architecture. Must **NOT** be implemented as simple projected Euclidean chords unless explicitly specified.
+- **LATER / SPECIALIZED EVIDENCE**:
+  - *Head / Face*: Head Circumference, Face Length, Face Width, Jaw Width.
+  - *Foot*: Foot Length, Foot Width, Instep Circumference, Heel-to-Toe.
+  - *Requirement*: Requires specialized evidence/landmark contracts beyond Core 13.
+
+#### Underbust Workstream Status
+- **Target**: Under Bust Circumference at Inframammary Fold Plane.
+- **Dependency**: Robust inframammary fold / underbust plane localization from Side contour inflection / Front underbust landmark evidence.
+- **Strict Rule**: Underbust remains an independent, isolated workstream. Do **NOT** mix Underbust implementation into Knee/Ankle, torso coverage, Ground Reference, or other batch implementations.
+
+#### Ground Reference & Measured Optical Stature
+- **Ground Reference Dependency**: Absolute vertical heights require an authoritative ground reference contract.
+- **Measured Optical Stature**: Must come strictly **AFTER** verified subject Ground Reference and verified Top-of-Head evidence are established. Declared subject height used for metric calibration ($169.0\text{ cm}$) is intake calibration provenance, **NOT** measured optical stature.
+
+#### Future Results Information Architecture Reorganization
+Before adding large additional measurement batches, the Right Sidebar Results architecture must be reorganized from implementation-history groupings to an intuitive **Anatomy-First Information Architecture**:
+
+- **Current Implementation Groupings**: `Cross-Section Evidence`, `Front Transverse Widths`, `Modeled Perimeter Estimates`, `Direct Measurements`. While effective during incremental development, these groupings scatter measurements from the same anatomical region (e.g. Shoulder appears under Widths, Spans, Cross-Section, and Side AP Depth) and do not scale as the catalogue grows.
+- **Planned Anatomical Results Hierarchy**:
+  - `Head & Neck`
+  - `Shoulder & Upper Torso`
+  - `Arms`
+  - `Bust & Chest`
+  - `Waist & Abdomen`
+  - `Hip & Seat / Pelvis`
+  - `Thigh / Knee / Calf / Ankle`
+  - `Crotch / Rise / Leg Length`
+  - `Foot`
+  - `Body Lengths & Heights`
+- **Primary Results vs Supporting Evidence vs Diagnostics**:
+  - **RESULTS** answers: *"What measurement did we obtain and what is its value?"*
+  - **SELECTED MEASUREMENT DETAILS** answers: *"Where and how was this measurement obtained?"* (Context-sensitive area displaying reference plane Y, Front width, Side AP depth, method/formula, and qualification without cluttering cards).
+  - **DIAGNOSTICS** answers: *"Why is this result qualified, blocked, ambiguous, or unavailable?"*
+- **Cross-Section Evidence & Side AP Depth Registries**:
+  - The static `cross-section-evidence-v0` registry currently supports only `shoulder` and `hip` because it was built around validated shared anatomical reference levels. Localized torso circumferences (Bust, Natural Waist, Abdomen, Hip Girth, Maximum Seat) use their own localized same-Y evidence paths.
+  - The static `side-physical-depth-qualification-v0` report similarly exposes registered reference-level observations at Shoulder and Hip, while arbitrary-Y Side AP qualification operates across torso and pelvic continuous scans.
+
+#### Documentation Maintenance Rule
+After every accepted measurement implementation, the following 9-step synchronization must be executed:
+1. Update its Master Catalogue coverage status.
+2. Record the exact canonical TWENTY EIGHT definition and display name.
+3. Record anatomical placement and plane localization source.
+4. Record geometry family and mathematical formula.
+5. Record evidence dependencies (segmentation classes, landmarks, calibrations).
+6. Record 2D/3D visualization provenance behavior.
+7. Record explicit semantic non-claims.
+8. Update completed and remaining measurement counts.
+9. Re-prioritize remaining waves if newly implemented infrastructure unlocks additional measurements.
+
 ---
 
 ## 5. Canonical / Latent Layer — LATER
@@ -1393,12 +1576,17 @@ Current usage:
 
 ## 9. Next Milestone Planning
 
-With the **Five Active Modeled Circumference Pipelines** (Bust Point v1, Natural Waist v0, Abdominal Point v1, Buttock Point / Hip Girth v1, Maximum Seat v0), **Direct Body Measurements Batch A & Batch B v0 (25 measurements)**, **Neck Transverse Width v0**, **Results UI Integration**, **Startup Defaults Modernization**, and **Code / Architecture Cleanup** fully completed and accepted, the remaining deferred workstreams are:
+With the **Master Measurement Coverage Program** established, **Five Active Modeled Circumference Pipelines** (Bust Point v1, Natural Waist v0, Abdominal Point v1, Buttock Point / Hip Girth v1, Maximum Seat v0), **Direct Body Measurements Batch A & Batch B v0 (25 measurements)**, **Neck Transverse Width v0**, **Results UI Integration**, **Startup Defaults Modernization**, and **Code / Architecture Cleanup** fully completed and accepted, the forward implementation pipeline is organized as follows:
 
-1. **Underbust Level Localization & Modeled Underbust Circumference** (deferred pending inframammary fold localization).
-2. **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)** (deferred pending verified floor plane).
-3. **Measured optical stature** (deferred).
-4. **Canonical Body Evidence Graph & Latent Conditioning Package** (Milestone 5.1 / 5.2).
+1. **Wave 1 — Knee + Ankle Expansion**: Read-only source audit and prospective implementation of Knee/Ankle silhouette widths, Side AP depths, and Ramanujan II modeled perimeters.
+2. **Wave 2 — Thigh + Calf Coverage**: Evidence-driven plane localization and circumference modeling.
+3. **Wave 3 — Additional Torso Coverage**: Localized chest, overbust, high/low waist, and high hip widths/depths/girths.
+4. **Wave 4 — Relative Lengths**: Localized plane-to-plane vertical intervals ($|Y_1 - Y_2|$).
+5. **Underbust Workstream**: Independent localization of the inframammary fold plane and modeled underbust circumference.
+6. **Wave 5 — Ground Reference & Vertical Heights**: Subject ground plane contract unlocking floor-referenced heights and optical stature.
+7. **Wave 6 — Surface Arcs & Geodesics**: Non-chord body surface contours and partial arcs.
+8. **Results UI Reorganization**: Transition from implementation-family groupings to Anatomy-First Results hierarchy with context-sensitive Selected Measurement Details.
+9. **Canonical Body Evidence Graph & Latent Conditioning Package** (Milestones 5.1 / 5.2).
 
 ---
 
@@ -1412,6 +1600,7 @@ When changing direction:
 3. update `PROJECT_CONTEXT.md` and `PROJECT_STRUCTURE.md` where relevant;
 4. keep deferred geometry assumptions explicit;
 5. avoid silently replacing the current source-of-truth architecture.
+
 
 
 
