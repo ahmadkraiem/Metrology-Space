@@ -4,7 +4,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import {
+  MEASUREMENT_TYPE_RESULT_CATEGORY_IDS,
+  MEASUREMENT_TYPE_RESULT_CATEGORIES,
+  buildCompactMeasurementRowHtml,
   buildDerivedMeasurementCardHtml,
+  buildDirectMeasurementRowHtml,
   buildDirectMeasurementsGroupHtml,
   buildFrontTransverseWidthCardHtml,
   buildModeledBustCircumferenceCardHtml,
@@ -1216,7 +1220,8 @@ test('derivedMeasurementDeck: standard Results renderer keeps Hip/Seat card and 
   assert.ok(renderStart > -1 && setupStart > renderStart);
   const renderFn = uiSource.slice(renderStart, setupStart);
 
-  assert.equal(renderFn.includes('buildModeledHipSeatCircumferenceCardHtml'), true);
+  assert.equal(renderFn.includes('torso_modeled_hip_seat_circumference_at_maximum_seat_plane'), true);
+  assert.equal(renderFn.includes('getModeledHipSeatCircumference'), true);
   assert.equal(renderFn.includes('buildModeledPerimeterCardHtml'), false);
   assert.equal(renderFn.includes('Hip Landmark Perimeter Estimate'), false);
   assert.equal(uiSource.includes('export function buildModeledPerimeterCardHtml'), true);
@@ -1423,9 +1428,10 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
     'Hip/Seat card must include measurement ID',
   );
 
-  // 2. All five cards are inside the Modeled Perimeter Estimates subgroup in anatomical top-down order
-  const subgroupStart = container.innerHTML.indexOf('data-group-id="modeled_perimeter_estimates"');
-  assert.ok(subgroupStart > -1, 'Modeled Perimeter Estimates subgroup must exist');
+  // 2. All five cards are inside the Circumferences & Girths category (circumferences_girths)
+  const circCategoryIdx = container.innerHTML.indexOf('data-group-id="circumferences_girths"');
+
+  assert.ok(circCategoryIdx > -1, 'Circumferences & Girths category must exist');
 
   const bustCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_bust_circumference_at_bust_apex_plane"');
   const waistCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_natural_waist_circumference_at_natural_waist_plane"');
@@ -1433,11 +1439,17 @@ test('derivedMeasurementDeck: full live render path includes BOTH Hip/Seat and N
   const hipGirthCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_hip_girth_at_buttock_point_plane"');
   const seatCardIdx = container.innerHTML.indexOf('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"');
 
-  assert.ok(bustCardIdx > subgroupStart, 'Bust card must be inside perimeter subgroup');
-  assert.ok(waistCardIdx > bustCardIdx, 'Natural Waist card must be below Bust card');
-  assert.ok(abdominalCardIdx > waistCardIdx, 'Abdominal card must be below Natural Waist card');
-  assert.ok(hipGirthCardIdx > abdominalCardIdx, 'Hip Girth card must be below Abdominal card');
-  assert.ok(seatCardIdx > hipGirthCardIdx, 'Maximum Seat card must be below Hip Girth card');
+  assert.ok(bustCardIdx > circCategoryIdx, 'Bust card must be inside Circumferences category');
+  assert.ok(waistCardIdx > bustCardIdx, 'Natural Waist card must be inside Circumferences category');
+  assert.ok(abdominalCardIdx > waistCardIdx, 'Abdominal card must be inside Circumferences category');
+  assert.ok(hipGirthCardIdx > abdominalCardIdx, 'Hip Girth card must be inside Circumferences category');
+  assert.ok(seatCardIdx > hipGirthCardIdx, 'Maximum Seat card must be inside Circumferences category');
+
+  // Verify old modeled_perimeter_estimates group and anatomy groups are NOT present
+  assert.equal(container.innerHTML.includes('data-group-id="modeled_perimeter_estimates"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="bust_chest"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="waist_abdomen"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="hip_seat"'), false);
 
   // Clean up
   clearSelectedMeasurement();
@@ -1718,7 +1730,7 @@ test('derivedMeasurementDeck: Batch B renders "Bilateral Spans & Breadths" subgr
   }
 });
 
-test('derivedMeasurementDeck: Full deck includes all 4 Direct Measurements categories (Vertical, Arms, Legs, Bilateral)', () => {
+test('derivedMeasurementDeck: Full deck includes all Direct Measurements under measurement-type categories (Widths & Spans, Lengths & Distances)', () => {
   const pkg = buildBodyEvidencePackage({
     frontMetricCalibration: { status: 'validated', metricProjectedEligibility: true, scaleCmPerPx: 0.1 },
     sideMetricCalibration: { status: 'validated', metricProjectedEligibility: true, scaleCmPerPx: 0.1 },
@@ -1729,12 +1741,11 @@ test('derivedMeasurementDeck: Full deck includes all 4 Direct Measurements categ
   const container = { innerHTML: '' };
   renderDerivedMeasurementDeck(container);
 
-  assert.equal(container.innerHTML.includes('data-group-id="direct_measurements"'), true);
-  assert.equal(container.innerHTML.includes('data-group-id="vertical_measurements"'), true);
-  assert.equal(container.innerHTML.includes('data-group-id="arm_segments"'), true);
-  assert.equal(container.innerHTML.includes('data-group-id="leg_segments"'), true);
-  assert.equal(container.innerHTML.includes('data-group-id="bilateral_transverse_landmark_spans"'), true);
-  assert.ok(container.innerHTML.includes('Bilateral Spans &amp; Breadths') || container.innerHTML.includes('Bilateral Spans & Breadths'));
+  assert.equal(container.innerHTML.includes('data-group-id="direct_measurements"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="widths_spans"'), true);
+  assert.equal(container.innerHTML.includes('data-group-id="lengths_distances"'), true);
+  assert.equal(container.innerHTML.includes('data-group-id="arms"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="lower_limb"'), false);
 
   clearBodyEvidence();
 });
@@ -1961,7 +1972,7 @@ test('derivedMeasurementDeck: selectMeasurement for Neck Transverse Width routes
   global.document = origDoc;
 });
 
-test('derivedMeasurementDeck: renderDerivedMeasurementDeck renders Front Transverse Widths subgroup containing Neck card', () => {
+test('derivedMeasurementDeck: renderDerivedMeasurementDeck renders Head & Neck category containing Neck card', () => {
   const origDoc = global.document;
   global.document = {
     getElementById: () => null,
@@ -2008,17 +2019,388 @@ test('derivedMeasurementDeck: renderDerivedMeasurementDeck renders Front Transve
   const container = { innerHTML: '', querySelectorAll: () => [] };
   renderDerivedMeasurementDeck(container);
 
-  assert.equal(container.innerHTML.includes('data-group-id="front_transverse_widths"'), true);
-  assert.equal(container.innerHTML.includes('Front Transverse Widths'), true);
+  assert.equal(container.innerHTML.includes('data-group-id="widths_spans"'), true);
+  assert.equal(container.innerHTML.includes('Widths &amp; Transverse Spans') || container.innerHTML.includes('Widths & Transverse Spans'), true);
   assert.equal(container.innerHTML.includes('data-measurement-id="neck_transverse_width_at_neck_level"'), true);
   assert.equal(container.innerHTML.includes('Neck Transverse Width'), true);
+  assert.equal(container.innerHTML.includes('data-group-id="front_transverse_widths"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="head_neck"'), false);
 
   clearBodyEvidence();
   restoreAnnotations([]);
   global.document = origDoc;
 });
 
+test('derivedMeasurementDeck: MEASUREMENT_TYPE_RESULT_CATEGORY_IDS and MEASUREMENT_TYPE_RESULT_CATEGORIES taxonomy verification', () => {
+  assert.equal(MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.WIDTHS_SPANS, 'widths_spans');
+  assert.equal(MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.LENGTHS_DISTANCES, 'lengths_distances');
+  assert.equal(MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.CIRCUMFERENCES_GIRTHS, 'circumferences_girths');
+  assert.equal(MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.DEPTHS_AP, 'depths_ap');
+  assert.equal(MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.HEIGHTS_GROUND, 'heights_ground');
+  assert.equal(MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.SURFACE_ARCS, 'surface_arcs');
+  assert.equal(MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.ANGLES_POSTURE, 'angles_posture');
 
+  assert.equal(MEASUREMENT_TYPE_RESULT_CATEGORIES.length, 7);
 
+  const widthsCat = MEASUREMENT_TYPE_RESULT_CATEGORIES.find((c) => c.id === 'widths_spans');
+  assert.ok(widthsCat);
+  assert.equal(widthsCat.measurementIds.length, 9);
+
+  const lengthsCat = MEASUREMENT_TYPE_RESULT_CATEGORIES.find((c) => c.id === 'lengths_distances');
+  assert.ok(lengthsCat);
+  assert.equal(lengthsCat.measurementIds.length, 19);
+
+  const circCat = MEASUREMENT_TYPE_RESULT_CATEGORIES.find((c) => c.id === 'circumferences_girths');
+  assert.ok(circCat);
+  assert.equal(circCat.measurementIds.length, 5);
+
+  const depthsCat = MEASUREMENT_TYPE_RESULT_CATEGORIES.find((c) => c.id === 'depths_ap');
+  assert.ok(depthsCat);
+  assert.equal(depthsCat.measurementIds.length, 0);
+
+  const heightsCat = MEASUREMENT_TYPE_RESULT_CATEGORIES.find((c) => c.id === 'heights_ground');
+  assert.ok(heightsCat);
+  assert.equal(heightsCat.measurementIds.length, 0);
+
+  const arcsCat = MEASUREMENT_TYPE_RESULT_CATEGORIES.find((c) => c.id === 'surface_arcs');
+  assert.ok(arcsCat);
+  assert.equal(arcsCat.measurementIds.length, 0);
+
+  const anglesCat = MEASUREMENT_TYPE_RESULT_CATEGORIES.find((c) => c.id === 'angles_posture');
+  assert.ok(anglesCat);
+  assert.equal(anglesCat.measurementIds.length, 0);
+});
+
+test('derivedMeasurementDeck: Measurement-Type-First live render structure and complete category inventory', () => {
+  const origDoc = global.document;
+  global.document = {
+    getElementById: () => null,
+    createElement: () => ({ setAttribute: () => {}, style: {}, appendChild: () => {} }),
+  };
+
+  function encodeUint8ArrayToBase64(uint8) {
+    let binary = '';
+    for (let i = 0; i < uint8.length; i += 1) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    return btoa(binary);
+  }
+
+  // 10x10 image
+  // Row 1 (yCm = 170): Neck (3)
+  // Row 2 (yCm = 150): Torso (22)
+  // Row 6 (yCm = 70): Torso (22)
+  const rasterFront = new Uint8Array(100);
+  for (let c = 4; c <= 5; c += 1) {
+    rasterFront[1 * 10 + c] = 3; // Face_Neck
+  }
+  for (let c = 3; c <= 6; c += 1) {
+    rasterFront[2 * 10 + c] = 22; // Torso at shoulder
+    rasterFront[6 * 10 + c] = 22; // Torso at hip
+  }
+
+  const classNames = Array.from({ length: 29 }, (_, i) => `Class_${i}`);
+  classNames[0] = 'Background';
+  classNames[3] = 'Face_Neck';
+  classNames[22] = 'Torso';
+
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 29,
+        class_names: classNames,
+        class_counts: { Background: 90, Face_Neck: 2, Torso: 8 },
+        labels: { shape: [10, 10], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+      },
+    },
+  });
+
+  setBodyEvidencePackage(pkg);
+  analyzeLoadedBodyEvidence();
+
+  const annotations = [
+    { id: 1, type: 'body_landmark', name: 'neck', position: { x: 50, y: 170, z: 200 } },
+    { id: 2, type: 'body_landmark', name: 'left_shoulder', position: { x: 30, y: 150, z: 200 } },
+    { id: 3, type: 'body_landmark', name: 'right_shoulder', position: { x: 70, y: 150, z: 200 } },
+    { id: 4, type: 'body_landmark', name: 'left_acromion', position: { x: 25, y: 150, z: 200 } },
+    { id: 5, type: 'body_landmark', name: 'right_acromion', position: { x: 75, y: 150, z: 200 } },
+    { id: 6, type: 'body_landmark', name: 'left_elbow', position: { x: 20, y: 120, z: 200 } },
+    { id: 7, type: 'body_landmark', name: 'right_elbow', position: { x: 80, y: 120, z: 200 } },
+    { id: 8, type: 'body_landmark', name: 'left_wrist', position: { x: 15, y: 90, z: 200 } },
+    { id: 9, type: 'body_landmark', name: 'right_wrist', position: { x: 85, y: 90, z: 200 } },
+    { id: 10, type: 'body_landmark', name: 'left_hip', position: { x: 30, y: 70, z: 200 } },
+    { id: 11, type: 'body_landmark', name: 'right_hip', position: { x: 70, y: 70, z: 200 } },
+    { id: 12, type: 'body_landmark', name: 'left_knee', position: { x: 35, y: 40, z: 200 } },
+    { id: 13, type: 'body_landmark', name: 'right_knee', position: { x: 65, y: 40, z: 200 } },
+    { id: 14, type: 'body_landmark', name: 'left_ankle', position: { x: 35, y: 10, z: 200 } },
+    { id: 15, type: 'body_landmark', name: 'right_ankle', position: { x: 65, y: 10, z: 200 } },
+  ];
+  restoreAnnotations(annotations);
+
+  const container = { innerHTML: '', querySelectorAll: () => [] };
+  renderDerivedMeasurementDeck(container);
+
+  // 1. Verify old top-level groups and old anatomy groups are removed
+  assert.equal(container.innerHTML.includes('data-group-id="cross_section_evidence"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="front_transverse_widths"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="modeled_perimeter_estimates"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="direct_measurements"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="head_neck"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="shoulder_upper_torso"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="arms"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="bust_chest"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="waist_abdomen"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="hip_seat"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="lower_limb"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="crotch_leg_length"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="body_lengths_heights"'), false);
+
+  // 2. Verify all 3 populated measurement-type categories appear in exact order
+  const catWidths = container.innerHTML.indexOf('data-group-id="widths_spans"');
+  const catLengths = container.innerHTML.indexOf('data-group-id="lengths_distances"');
+  const catCircs = container.innerHTML.indexOf('data-group-id="circumferences_girths"');
+
+  assert.ok(catWidths > -1, 'widths_spans category rendered');
+  assert.ok(catLengths > catWidths, 'lengths_distances category follows widths_spans');
+  assert.ok(catCircs > catLengths, 'circumferences_girths category follows lengths_distances');
+
+  // 3. Verify empty categories are NOT rendered
+  assert.equal(container.innerHTML.includes('data-group-id="depths_ap"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="heights_ground"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="surface_arcs"'), false);
+  assert.equal(container.innerHTML.includes('data-group-id="angles_posture"'), false);
+
+  // 4. Verify all 9 measurements in WIDTHS & TRANSVERSE SPANS
+  assert.ok(container.innerHTML.includes('data-measurement-id="neck_transverse_width_at_neck_level"'));
+  assert.ok(container.innerHTML.includes('Neck Transverse Width'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="torso_width_at_shoulder_level"'));
+  assert.ok(container.innerHTML.includes('Torso Transverse Width at Shoulder Level'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="inter_acromion_transverse_breadth_projected"'));
+  assert.ok(container.innerHTML.includes('Inter-Acromion Transverse Breadth (Projected)'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="torso_width_at_hip_level"'));
+  assert.ok(container.innerHTML.includes('Torso Transverse Width at Hip Level'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="inter_hip_landmark_transverse_span"'));
+  assert.ok(container.innerHTML.includes('Inter-Hip Landmark Transverse Span'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="bilateral_elbow_landmark_transverse_span"'));
+  assert.ok(container.innerHTML.includes('Bilateral Elbow Landmark Transverse Span'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="bilateral_wrist_landmark_transverse_span"'));
+  assert.ok(container.innerHTML.includes('Bilateral Wrist Landmark Transverse Span'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="bilateral_knee_landmark_transverse_span"'));
+  assert.ok(container.innerHTML.includes('Bilateral Knee Landmark Transverse Span'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="bilateral_ankle_landmark_transverse_span"'));
+  assert.ok(container.innerHTML.includes('Bilateral Ankle Landmark Transverse Span'));
+
+  // 5. Verify all 19 measurements in LENGTHS & DISTANCES
+  assert.ok(container.innerHTML.includes('data-measurement-id="vertical_torso_length_neck_to_hip"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="vertical_shoulder_drop_neck_to_shoulder"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="vertical_thigh_length_hip_to_knee"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="vertical_lower_leg_length_knee_to_ankle"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="vertical_total_leg_length_hip_to_ankle"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="left_upper_arm_segment_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="right_upper_arm_segment_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="left_forearm_segment_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="right_forearm_segment_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="left_direct_arm_chord_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="right_direct_arm_chord_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="left_total_arm_chain_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="right_total_arm_chain_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="left_thigh_segment_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="right_thigh_segment_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="left_lower_leg_segment_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="right_lower_leg_segment_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="left_total_leg_chain_length_projected"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="right_total_leg_chain_length_projected"'));
+
+  // 6. Verify all 5 modeled circumferences in CIRCUMFERENCES & GIRTHS
+  assert.ok(container.innerHTML.includes('data-measurement-id="torso_modeled_bust_circumference_at_bust_apex_plane"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="torso_modeled_natural_waist_circumference_at_natural_waist_plane"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="torso_modeled_abdominal_circumference_at_abdominal_apex_plane"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="torso_modeled_hip_girth_at_buttock_point_plane"'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"'));
+
+  // 7. Verify cross-section evidence records remain resolvable internally
+  const shoulderCsRecord = getMeasurementRecordById('torso_cross_section_evidence_at_shoulder_level', annotations);
+  assert.ok(shoulderCsRecord);
+  assert.equal(shoulderCsRecord.contract, 'cross-section-evidence-v0');
+
+  const hipCsRecord = getMeasurementRecordById('torso_cross_section_evidence_at_hip_level', annotations);
+  assert.ok(hipCsRecord);
+  assert.equal(hipCsRecord.contract, 'cross-section-evidence-v0');
+
+  // 8. Verify independent selection of Shoulder and Hip torso width
+  const shoulderWidthRec = getMeasurementRecordById('torso_width_at_shoulder_level', annotations);
+  assert.ok(shoulderWidthRec, 'shoulder width record resolved');
+  assert.equal(shoulderWidthRec.status, 'valid', `shoulder width status was ${shoulderWidthRec.status}`);
+
+  selectMeasurement('torso_width_at_shoulder_level');
+  assert.equal(getSelectedMeasurementId(), 'torso_width_at_shoulder_level');
+  selectMeasurement('torso_width_at_shoulder_level');
+  assert.equal(getSelectedMeasurementId(), null);
+
+  selectMeasurement('torso_width_at_hip_level');
+  assert.equal(getSelectedMeasurementId(), 'torso_width_at_hip_level');
+  selectMeasurement('torso_width_at_hip_level');
+  assert.equal(getSelectedMeasurementId(), null);
+
+  clearBodyEvidence();
+  clearSelectedMeasurement();
+  restoreAnnotations([]);
+  global.document = origDoc;
+});
+
+test('derivedMeasurementDeck: buildCompactMeasurementRowHtml renders valid, modeled, blocked, unavailable, and selected states cleanly', () => {
+  // 1. Valid numeric row
+  const validHtml = buildCompactMeasurementRowHtml({
+    id: 'test_width',
+    label: 'Test Width',
+    valueCm: 42.5,
+    status: 'valid',
+  });
+  assert.ok(validHtml.includes('data-measurement-id="test_width"'));
+  assert.ok(validHtml.includes('Test Width'));
+  assert.ok(validHtml.includes('42.50 cm'));
+  assert.ok(validHtml.includes('role="button"'));
+  assert.ok(validHtml.includes('tabindex="0"'));
+  assert.ok(validHtml.includes('aria-selected="false"'));
+  assert.ok(!validHtml.includes('badge-ok')); // No redundant "Valid" badge
+
+  // 2. Modeled row
+  const modeledHtml = buildCompactMeasurementRowHtml({
+    id: 'test_modeled',
+    label: 'Modeled Circumference',
+    valueCm: 85.0,
+    status: 'modeled',
+  });
+  assert.ok(modeledHtml.includes('Modeled Circumference'));
+  assert.ok(modeledHtml.includes('85.00 cm'));
+  assert.ok(modeledHtml.includes('Modeled'));
+
+  // 3. Blocked row
+  const blockedHtml = buildCompactMeasurementRowHtml({
+    id: 'test_blocked',
+    label: 'Blocked Measurement',
+    status: 'blocked',
+  });
+  assert.ok(blockedHtml.includes('Blocked Measurement'));
+  assert.ok(blockedHtml.includes('—'));
+  assert.ok(blockedHtml.includes('Blocked'));
+
+  // 4. Unavailable row
+  const unavailHtml = buildCompactMeasurementRowHtml({
+    id: 'test_unavail',
+    label: 'Unavailable Measurement',
+    status: 'unavailable',
+  });
+  assert.ok(unavailHtml.includes('Unavailable Measurement'));
+  assert.ok(unavailHtml.includes('—'));
+  assert.ok(unavailHtml.includes('Unavailable'));
+
+  // 5. Selected state
+  const selectedHtml = buildCompactMeasurementRowHtml({
+    id: 'test_selected',
+    label: 'Selected Measurement',
+    valueCm: 30.0,
+    status: 'valid',
+    isSelected: true,
+  });
+  assert.ok(selectedHtml.includes('is-selected'));
+  assert.ok(selectedHtml.includes('aria-selected="true"'));
+});
+
+test('derivedMeasurementDeck: Stage 3 Compact Rows omit large multi-line evidence and maintain dynamic counts', () => {
+  const origDoc = global.document;
+  global.document = {
+    getElementById: () => null,
+    createElement: () => ({ setAttribute: () => {}, style: {}, appendChild: () => {} }),
+  };
+
+  function encodeUint8ArrayToBase64(uint8) {
+    let binary = '';
+    for (let i = 0; i < uint8.length; i += 1) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    return btoa(binary);
+  }
+
+  const rasterFront = new Uint8Array(100);
+  for (let c = 4; c <= 5; c += 1) {
+    rasterFront[1 * 10 + c] = 3;
+  }
+  for (let c = 3; c <= 6; c += 1) {
+    rasterFront[2 * 10 + c] = 22;
+    rasterFront[6 * 10 + c] = 22;
+  }
+
+  const classNames = Array.from({ length: 29 }, (_, i) => `Class_${i}`);
+  classNames[0] = 'Background';
+  classNames[3] = 'Face_Neck';
+  classNames[22] = 'Torso';
+
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 29,
+        class_names: classNames,
+        class_counts: { Background: 90, Face_Neck: 2, Torso: 8 },
+        labels: { shape: [10, 10], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+      },
+    },
+  });
+
+  setBodyEvidencePackage(pkg);
+  analyzeLoadedBodyEvidence();
+
+  const annotations = [
+    { id: 1, type: 'body_landmark', name: 'neck', position: { x: 50, y: 170, z: 200 } },
+    { id: 2, type: 'body_landmark', name: 'left_shoulder', position: { x: 30, y: 150, z: 200 } },
+    { id: 3, type: 'body_landmark', name: 'right_shoulder', position: { x: 70, y: 150, z: 200 } },
+    { id: 4, type: 'body_landmark', name: 'left_acromion', position: { x: 25, y: 150, z: 200 } },
+    { id: 5, type: 'body_landmark', name: 'right_acromion', position: { x: 75, y: 150, z: 200 } },
+    { id: 6, type: 'body_landmark', name: 'left_elbow', position: { x: 20, y: 120, z: 200 } },
+    { id: 7, type: 'body_landmark', name: 'right_elbow', position: { x: 80, y: 120, z: 200 } },
+    { id: 8, type: 'body_landmark', name: 'left_wrist', position: { x: 15, y: 90, z: 200 } },
+    { id: 9, type: 'body_landmark', name: 'right_wrist', position: { x: 85, y: 90, z: 200 } },
+    { id: 10, type: 'body_landmark', name: 'left_hip', position: { x: 30, y: 70, z: 200 } },
+    { id: 11, type: 'body_landmark', name: 'right_hip', position: { x: 70, y: 70, z: 200 } },
+    { id: 12, type: 'body_landmark', name: 'left_knee', position: { x: 35, y: 40, z: 200 } },
+    { id: 13, type: 'body_landmark', name: 'right_knee', position: { x: 65, y: 40, z: 200 } },
+    { id: 14, type: 'body_landmark', name: 'left_ankle', position: { x: 35, y: 10, z: 200 } },
+    { id: 15, type: 'body_landmark', name: 'right_ankle', position: { x: 65, y: 10, z: 200 } },
+  ];
+  restoreAnnotations(annotations);
+
+  const container = { innerHTML: '', querySelectorAll: () => [] };
+  renderDerivedMeasurementDeck(container);
+
+  // 1. Verify large multi-line evidence and notes are NOT in always-visible Results deck
+  assert.equal(container.innerHTML.includes('Circumference Estimate'), false);
+  assert.equal(container.innerHTML.includes('Seat Plane Y'), false);
+  assert.equal(container.innerHTML.includes('Front Width'), false);
+  assert.equal(container.innerHTML.includes('Side AP Depth'), false);
+  assert.equal(container.innerHTML.includes('Ellipse (Ramanujan II)'), false);
+  assert.equal(container.innerHTML.includes('Evaluated at deterministic'), false);
+  assert.equal(container.innerHTML.includes('Modeled estimate; not tape-measured'), false);
+
+  // 2. Verify all categories use compact rows and have correct dynamic counts
+  assert.ok(container.innerHTML.includes('Widths &amp; Transverse Spans') || container.innerHTML.includes('Widths & Transverse Spans'));
+  assert.ok(container.innerHTML.includes('>(9)<')); // 9 widths
+  assert.ok(container.innerHTML.includes('Lengths &amp; Distances') || container.innerHTML.includes('Lengths & Distances'));
+  assert.ok(container.innerHTML.includes('>(19)<')); // 19 lengths
+  assert.ok(container.innerHTML.includes('Circumferences &amp; Girths') || container.innerHTML.includes('Circumferences & Girths'));
+  assert.ok(container.innerHTML.includes('>(5)<')); // 5 circumferences
+
+  // 3. Verify compact classes are present
+  assert.ok(container.innerHTML.includes('compact-measurement-row'));
+  assert.ok(container.innerHTML.includes('compact-measurement-label'));
+  assert.ok(container.innerHTML.includes('compact-measurement-value'));
+
+  clearBodyEvidence();
+  restoreAnnotations([]);
+  global.document = origDoc;
+});
 
 

@@ -565,7 +565,8 @@ test('Focused Interactivity 4, 5, 6, 7 & 8: Card click reaches setMeasurementHig
 
   // 2. Re-render preserves is-selected class in generated HTML
   renderDerivedMeasurementDeck(container);
-  assert.ok(container.innerHTML.includes('modeled-circumference-card is-selected'));
+  assert.ok(container.innerHTML.includes('data-measurement-id="torso_modeled_hip_seat_circumference_at_maximum_seat_plane"'));
+  assert.ok(container.innerHTML.includes('is-selected'));
   assert.ok(container.innerHTML.includes('aria-selected="true"'));
 
   // 3. Re-click toggles selection off
@@ -575,7 +576,8 @@ test('Focused Interactivity 4, 5, 6, 7 & 8: Card click reaches setMeasurementHig
 
   // 4. Re-render after deselect reflects unselected state
   renderDerivedMeasurementDeck(container);
-  assert.ok(!container.innerHTML.includes('modeled-circumference-card is-selected'));
+  assert.ok(!container.innerHTML.includes('is-selected'));
+  assert.ok(!container.innerHTML.includes('aria-selected="true"'));
 });
 
 test('Focused Interactivity 9 & 10: Collapsible subgroup headers remain distinct from measurement card clicks and no overlay intercepts', async () => {
@@ -587,7 +589,6 @@ test('Focused Interactivity 9 & 10: Collapsible subgroup headers remain distinct
 
   // Subgroup headers have collapsible class, distinct from selectable rows
   assert.ok(container.innerHTML.includes('results-subgroup-header--collapsible'));
-  assert.ok(container.innerHTML.includes('derived-card-header--collapsible'));
 
   // Direct rows inside groups retain data-measurement-id and role="button"
   assert.ok(container.innerHTML.includes('direct-measurement-row'));

@@ -50,6 +50,97 @@ import { escapeHtml, renderBadge } from './badgeUi.js';
 import { formatDistance } from '../core/formatters.js';
 import { initCollapsibleSections } from './collapsibleSections.js';
 
+export const MEASUREMENT_TYPE_RESULT_CATEGORY_IDS = Object.freeze({
+  WIDTHS_SPANS: 'widths_spans',
+  LENGTHS_DISTANCES: 'lengths_distances',
+  CIRCUMFERENCES_GIRTHS: 'circumferences_girths',
+  DEPTHS_AP: 'depths_ap',
+  HEIGHTS_GROUND: 'heights_ground',
+  SURFACE_ARCS: 'surface_arcs',
+  ANGLES_POSTURE: 'angles_posture',
+});
+
+export const MEASUREMENT_TYPE_RESULT_CATEGORIES = Object.freeze([
+  {
+    id: MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.WIDTHS_SPANS,
+    label: 'Widths & Transverse Spans',
+    order: 1,
+    measurementIds: Object.freeze([
+      'neck_transverse_width_at_neck_level',
+      'torso_width_at_shoulder_level',
+      'inter_acromion_transverse_breadth_projected',
+      'torso_width_at_hip_level',
+      'inter_hip_landmark_transverse_span',
+      'bilateral_elbow_landmark_transverse_span',
+      'bilateral_wrist_landmark_transverse_span',
+      'bilateral_knee_landmark_transverse_span',
+      'bilateral_ankle_landmark_transverse_span',
+    ]),
+  },
+  {
+    id: MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.LENGTHS_DISTANCES,
+    label: 'Lengths & Distances',
+    order: 2,
+    measurementIds: Object.freeze([
+      'vertical_torso_length_neck_to_hip',
+      'vertical_shoulder_drop_neck_to_shoulder',
+      'vertical_thigh_length_hip_to_knee',
+      'vertical_lower_leg_length_knee_to_ankle',
+      'vertical_total_leg_length_hip_to_ankle',
+      'left_upper_arm_segment_length_projected',
+      'right_upper_arm_segment_length_projected',
+      'left_forearm_segment_length_projected',
+      'right_forearm_segment_length_projected',
+      'left_direct_arm_chord_projected',
+      'right_direct_arm_chord_projected',
+      'left_total_arm_chain_length_projected',
+      'right_total_arm_chain_length_projected',
+      'left_thigh_segment_length_projected',
+      'right_thigh_segment_length_projected',
+      'left_lower_leg_segment_length_projected',
+      'right_lower_leg_segment_length_projected',
+      'left_total_leg_chain_length_projected',
+      'right_total_leg_chain_length_projected',
+    ]),
+  },
+  {
+    id: MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.CIRCUMFERENCES_GIRTHS,
+    label: 'Circumferences & Girths',
+    order: 3,
+    measurementIds: Object.freeze([
+      'torso_modeled_bust_circumference_at_bust_apex_plane',
+      'torso_modeled_natural_waist_circumference_at_natural_waist_plane',
+      'torso_modeled_abdominal_circumference_at_abdominal_apex_plane',
+      'torso_modeled_hip_girth_at_buttock_point_plane',
+      'torso_modeled_hip_seat_circumference_at_maximum_seat_plane',
+    ]),
+  },
+  {
+    id: MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.DEPTHS_AP,
+    label: 'Depths / AP Measurements',
+    order: 4,
+    measurementIds: Object.freeze([]),
+  },
+  {
+    id: MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.HEIGHTS_GROUND,
+    label: 'Heights / Ground-Referenced',
+    order: 5,
+    measurementIds: Object.freeze([]),
+  },
+  {
+    id: MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.SURFACE_ARCS,
+    label: 'Surface Arcs / Curved Paths',
+    order: 6,
+    measurementIds: Object.freeze([]),
+  },
+  {
+    id: MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.ANGLES_POSTURE,
+    label: 'Angles / Posture',
+    order: 7,
+    measurementIds: Object.freeze([]),
+  },
+]);
+
 const DERIVED_CORRESPONDENCE_PAIRS = Object.freeze([
   {
     id: 'torso_shoulder_cross_view_correspondence',
@@ -66,14 +157,9 @@ const DERIVED_CORRESPONDENCE_PAIRS = Object.freeze([
 ]);
 
 const groupCollapseStates = new Map([
-  ['cross_section_evidence', true],
-  ['front_transverse_widths', true],
-  ['modeled_perimeter_estimates', true],
-  ['direct_measurements', true],
-  ['vertical_measurements', true],
-  ['arm_segments', true],
-  ['leg_segments', true],
-  ['bilateral_transverse_landmark_spans', true],
+  [MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.WIDTHS_SPANS, true],
+  [MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.LENGTHS_DISTANCES, true],
+  [MEASUREMENT_TYPE_RESULT_CATEGORY_IDS.CIRCUMFERENCES_GIRTHS, true],
 ]);
 
 /** @type {string|null} */
@@ -293,6 +379,104 @@ function renderMeasurementCard({ id, name, levelKey, crossSectionDefId }, annota
   return buildDerivedMeasurementCardHtml({ id, name, levelKey, crossSectionDefId: csDefId }, correspondence, eligibility, depthQual, crossSectionEvidence);
 }
 
+/**
+ * Renders a single compact primary measurement row for the Results deck.
+ *
+ * @param {{
+ *   id: string,
+ *   label: string,
+ *   valueText?: string|null,
+ *   valueCm?: number|null,
+ *   status?: string,
+ *   statusBadge?: string|null,
+ *   isSelected?: boolean,
+ *   extraClasses?: string,
+ * }} options
+ * @returns {string}
+ */
+export function buildCompactMeasurementRowHtml({
+  id,
+  label,
+  valueText = null,
+  valueCm = null,
+  status = 'valid',
+  statusBadge = null,
+  isSelected = false,
+  extraClasses = '',
+} = {}) {
+  if (!id) return '';
+  const isSelectedState = selectedMeasurementId === id || isSelected;
+  const isNumeric = typeof valueCm === 'number' && Number.isFinite(valueCm);
+  let valDisplay = valueText ?? (isNumeric ? `${formatDistance(valueCm)} cm` : '—');
+  let isVal = isNumeric || (valueText !== null && valueText !== '—');
+
+  // Status badge resolution: only show badge when it adds non-redundant information
+  let badgeHtml = '';
+  if (statusBadge) {
+    badgeHtml = statusBadge;
+  } else if (status === 'modeled') {
+    badgeHtml = renderBadge('Modeled', 'ok');
+  } else if (status === 'blocked') {
+    isVal = false;
+    valDisplay = '—';
+    badgeHtml = renderBadge('Blocked', 'warn');
+  } else if (status === 'ambiguous') {
+    isVal = false;
+    valDisplay = '—';
+    badgeHtml = renderBadge('Ambiguous', 'warn');
+  } else if (status === 'invalid' || status === 'disqualified') {
+    isVal = false;
+    valDisplay = '—';
+    badgeHtml = renderBadge('Invalid', 'warn');
+  } else if (status === 'unavailable' || status === 'missing') {
+    isVal = false;
+    valDisplay = '—';
+    badgeHtml = renderBadge('Unavailable', 'muted');
+  } else if (status === 'partial') {
+    badgeHtml = renderBadge('Partial', 'warn');
+  }
+
+  return `
+    <div
+      class="compact-measurement-row direct-measurement-row derived-card-row ${isSelectedState ? 'is-selected' : ''} ${extraClasses}"
+      data-measurement-id="${escapeHtml(id)}"
+      role="button"
+      tabindex="0"
+      aria-selected="${isSelectedState ? 'true' : 'false'}"
+    >
+      <span class="compact-measurement-label derived-row-label">${escapeHtml(label || id)}</span>
+      <div class="compact-measurement-value-wrap direct-measurement-value-wrap">
+        <span class="compact-measurement-value derived-row-value ${isVal ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(valDisplay)}</span>
+        ${badgeHtml}
+      </div>
+    </div>
+  `;
+}
+
+export function buildDirectMeasurementRowHtml(m) {
+  if (!m) return '';
+  const isVal = m.status === 'valid' && typeof m.valueCm === 'number';
+  const valDisplay = isVal ? `${formatDistance(m.valueCm)} cm` : '—';
+  const badge = isVal ? renderBadge('Valid', 'ok') : renderBadge('Unavailable', 'muted');
+  const isSelected = selectedMeasurementId === m.id;
+  return `
+    <div
+      class="derived-card-row direct-measurement-row compact-measurement-row ${isSelected ? 'is-selected' : ''}"
+      data-measurement-id="${escapeHtml(m.id)}"
+      data-direct-measurement-id="${escapeHtml(m.id)}"
+      role="button"
+      tabindex="0"
+      aria-selected="${isSelected ? 'true' : 'false'}"
+    >
+      <span class="compact-measurement-label derived-row-label">${escapeHtml(m.displayName ?? m.canonicalName ?? m.id)}</span>
+      <div class="compact-measurement-value-wrap direct-measurement-value-wrap">
+        <span class="compact-measurement-value derived-row-value ${isVal ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(valDisplay)}</span>
+        ${badge}
+      </div>
+    </div>
+  `;
+}
+
 export function buildDirectMeasurementsGroupHtml(groupIdOrTitle, groupTitleOrMeasurements, measurementsOrExpanded = [], isExpanded = false) {
   let groupId;
   let groupTitle;
@@ -315,28 +499,7 @@ export function buildDirectMeasurementsGroupHtml(groupIdOrTitle, groupTitleOrMea
     return '';
   }
 
-  const rowsHtml = measurements.map((m) => {
-    const isVal = m.status === 'valid' && typeof m.valueCm === 'number';
-    const valDisplay = isVal ? `${formatDistance(m.valueCm)} cm` : '—';
-    const badge = isVal ? renderBadge('Valid', 'ok') : renderBadge('Unavailable', 'muted');
-    const isSelected = selectedMeasurementId === m.id;
-    return `
-      <div
-        class="derived-card-row direct-measurement-row ${isSelected ? 'is-selected' : ''}"
-        data-measurement-id="${escapeHtml(m.id)}"
-        data-direct-measurement-id="${escapeHtml(m.id)}"
-        role="button"
-        tabindex="0"
-        aria-selected="${isSelected ? 'true' : 'false'}"
-      >
-        <span class="derived-row-label">${escapeHtml(m.displayName)}</span>
-        <div class="direct-measurement-value-wrap">
-          <span class="derived-row-value ${isVal ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(valDisplay)}</span>
-          ${badge}
-        </div>
-      </div>
-    `;
-  }).join('');
+  const rowsHtml = measurements.map((m) => buildDirectMeasurementRowHtml(m)).join('');
 
   const readyCount = measurements.filter((m) => m.status === 'valid').length;
   const collapsedAttr = expanded ? '' : 'data-collapsed';
@@ -380,11 +543,6 @@ export function buildModeledPerimeterCardHtml(modeledPerimeter) {
   } else {
     statusBadge = renderBadge('Unavailable', 'muted');
   }
-
-  const yCm = modeledPerimeter.levelYcm;
-  const yDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
-    ? `Y ${formatDistance(yCm)} cm`
-    : 'Y —';
 
   const isSelected = selectedMeasurementId === 'torso_modeled_perimeter_at_hip_landmark_level';
 
@@ -540,9 +698,6 @@ export function buildModeledNaturalWaistCircumferenceCardHtml(waistCircumference
   const yCm = waistCircumference.levelYcm
     ?? waistCircumference.yCm
     ?? waistCircumference.provenance?.selectedYcm;
-  const yDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
-    ? `Y ${formatDistance(yCm)} cm`
-    : 'Y —';
   const waistPlaneYDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
     ? `${formatDistance(yCm)} cm`
     : '—';
@@ -900,7 +1055,21 @@ export function buildFrontTransverseWidthCardHtml(measurement) {
     ? `Y ${formatDistance(yCm)} cm`
     : 'Y —';
 
-  const isSelected = selectedMeasurementId === 'neck_transverse_width_at_neck_level' || selectedMeasurementId === measurement.id;
+  const isSelected = selectedMeasurementId === measurement.id || (measurement.id === 'neck_transverse_width_at_neck_level' && selectedMeasurementId === 'neck_transverse_width_at_neck_level');
+
+  let title = measurement.name ?? 'Front Transverse Width';
+  if (measurement.id === 'neck_transverse_width_at_neck_level') {
+    title = 'Neck Transverse Width';
+  } else if (measurement.id === 'torso_width_at_shoulder_level') {
+    title = 'Torso Transverse Width at Shoulder Level';
+  } else if (measurement.id === 'torso_width_at_hip_level') {
+    title = 'Torso Transverse Width at Hip Level';
+  }
+
+  const sourceLevel = measurement.provenance?.sourceLevel;
+  const levelLabel = sourceLevel
+    ? `${sourceLevel.charAt(0).toUpperCase() + sourceLevel.slice(1)} Level (${escapeHtml(yDisplay)})`
+    : escapeHtml(yDisplay);
 
   return `
     <div
@@ -911,7 +1080,7 @@ export function buildFrontTransverseWidthCardHtml(measurement) {
       aria-selected="${isSelected ? 'true' : 'false'}"
     >
       <div class="derived-card-header">
-        <span class="derived-card-title">Neck Transverse Width</span>
+        <span class="derived-card-title">${escapeHtml(title)}</span>
         <div class="derived-card-meta">
           ${statusBadge}
         </div>
@@ -924,7 +1093,7 @@ export function buildFrontTransverseWidthCardHtml(measurement) {
         </div>
         <div class="derived-card-row derived-card-row--meta front-transverse-meta-row">
           <span class="derived-row-label front-transverse-label">Reference Level</span>
-          <span class="derived-row-value front-transverse-value derived-row-value--muted">Neck Level (${escapeHtml(yDisplay)})</span>
+          <span class="derived-row-value front-transverse-value derived-row-value--muted">${levelLabel}</span>
         </div>
       </div>
     </div>
@@ -939,6 +1108,8 @@ const MEASUREMENT_RECORD_RESOLVERS = new Map([
   ['neck_transverse_width_at_neck_level', (annotations) => getFrontTransverseWidth({ id: 'neck_transverse_width_at_neck_level', annotations })],
   ['neck_width_at_neck_level', (annotations) => getFrontTransverseWidth({ id: 'neck_transverse_width_at_neck_level', annotations })],
   ['torso_width_at_neck_level', (annotations) => getFrontTransverseWidth({ id: 'neck_transverse_width_at_neck_level', annotations })],
+  ['torso_width_at_shoulder_level', (annotations) => getFrontTransverseWidth({ id: 'torso_width_at_shoulder_level', annotations })],
+  ['torso_width_at_hip_level', (annotations) => getFrontTransverseWidth({ id: 'torso_width_at_hip_level', annotations })],
   // Modeled Bust Circumference
   ['torso_modeled_bust_circumference_at_bust_apex_plane', (annotations) => getModeledBustCircumference({ annotations })],
   ['modeled_bust_circumference', (annotations) => getModeledBustCircumference({ annotations })],
@@ -1100,170 +1271,161 @@ export function renderDerivedMeasurementDeck(containerEl) {
   }
 
   const annotations = getAnnotations();
-  const pairedCardsHtml = DERIVED_CORRESPONDENCE_PAIRS.map((pair) =>
-    renderMeasurementCard(pair, annotations)
-  ).join('');
-
-  const isCsCollapsed = groupCollapseStates.get('cross_section_evidence') ?? false;
-  const csCollapsedAttr = isCsCollapsed ? 'data-collapsed' : '';
-  const csCollapsedClass = isCsCollapsed ? 'is-collapsed' : '';
-
-  const crossSectionHtml = `
-    <div
-      class="results-subgroup results-subgroup--cross-section ${csCollapsedClass}"
-      data-collapsible
-      ${csCollapsedAttr}
-      data-group-id="cross_section_evidence"
-    >
-      <div class="results-subgroup-header results-subgroup-header--collapsible">
-        <span class="results-subgroup-label">Cross-Section Evidence</span>
-      </div>
-      <div class="results-subgroup-body">
-        ${pairedCardsHtml}
-      </div>
-    </div>
-  `;
-
-  const neckWidthResult = getFrontTransverseWidth({
-    id: 'neck_transverse_width_at_neck_level',
-    annotations,
-  });
-
-  let frontTransverseHtml = '';
-  if (neckWidthResult) {
-    const isFrontCollapsed = groupCollapseStates.get('front_transverse_widths') ?? false;
-    const frontCollapsedAttr = isFrontCollapsed ? 'data-collapsed' : '';
-    const frontCollapsedClass = isFrontCollapsed ? 'is-collapsed' : '';
-    const neckCardHtml = buildFrontTransverseWidthCardHtml(neckWidthResult);
-
-    frontTransverseHtml = `
-    <div
-      class="results-subgroup results-subgroup--front-transverse ${frontCollapsedClass}"
-      data-collapsible
-      ${frontCollapsedAttr}
-      data-group-id="front_transverse_widths"
-    >
-      <div class="results-subgroup-header results-subgroup-header--collapsible">
-        <span class="results-subgroup-label">Front Transverse Widths</span>
-      </div>
-      <div class="results-subgroup-body">
-        ${neckCardHtml}
-      </div>
-    </div>
-  `;
-  }
-
-  const modeledBustCircumferenceResult = getModeledBustCircumference({
-    annotations,
-  });
-  const modeledWaistCircumferenceResult = getModeledNaturalWaistCircumference({
-    annotations,
-  });
-  const modeledAbdominalCircumferenceResult = getModeledAbdominalCircumference({
-    annotations,
-  });
-  const modeledHipGirthResult = getModeledHipGirth({
-    annotations,
-  });
-  const modeledSeatCircumferenceResult = getModeledHipSeatCircumference({
-    annotations,
-  });
-
-  let modeledPerimeterHtml = '';
-  if (
-    modeledBustCircumferenceResult
-    || modeledWaistCircumferenceResult
-    || modeledAbdominalCircumferenceResult
-    || modeledHipGirthResult
-    || modeledSeatCircumferenceResult
-  ) {
-    const isPerimeterCollapsed = groupCollapseStates.get('modeled_perimeter_estimates') ?? false;
-    const perimeterCollapsedAttr = isPerimeterCollapsed ? 'data-collapsed' : '';
-    const perimeterCollapsedClass = isPerimeterCollapsed ? 'is-collapsed' : '';
-    const bustCardHtml = modeledBustCircumferenceResult ? buildModeledBustCircumferenceCardHtml(modeledBustCircumferenceResult) : '';
-    const waistCardHtml = modeledWaistCircumferenceResult ? buildModeledNaturalWaistCircumferenceCardHtml(modeledWaistCircumferenceResult) : '';
-    const abdominalCardHtml = modeledAbdominalCircumferenceResult ? buildModeledAbdominalCircumferenceCardHtml(modeledAbdominalCircumferenceResult) : '';
-    const hipGirthCardHtml = modeledHipGirthResult ? buildModeledHipGirthCardHtml(modeledHipGirthResult) : '';
-    const seatCardHtml = modeledSeatCircumferenceResult ? buildModeledHipSeatCircumferenceCardHtml(modeledSeatCircumferenceResult) : '';
-
-    modeledPerimeterHtml = `
-    <div
-      class="results-subgroup results-subgroup--modeled-perimeter ${perimeterCollapsedClass}"
-      data-collapsible
-      ${perimeterCollapsedAttr}
-      data-group-id="modeled_perimeter_estimates"
-    >
-      <div class="results-subgroup-header results-subgroup-header--collapsible">
-        <span class="results-subgroup-label">Modeled Perimeter Estimates</span>
-      </div>
-      <div class="results-subgroup-body">
-        ${bustCardHtml}
-        ${waistCardHtml}
-        ${abdominalCardHtml}
-        ${hipGirthCardHtml}
-        ${seatCardHtml}
-      </div>
-    </div>
-  `;
-  }
-
   const directReport = getDirectBodyMeasurements({ annotations });
-  let directHtml = '';
-  if (directReport && directReport.byGroup) {
-    const isDirectCollapsed = groupCollapseStates.get('direct_measurements') ?? true;
-    const directCollapsedAttr = isDirectCollapsed ? 'data-collapsed' : '';
-    const directCollapsedClass = isDirectCollapsed ? 'is-collapsed' : '';
+  const directMap = new Map();
+  if (directReport && Array.isArray(directReport.measurements)) {
+    for (const m of directReport.measurements) {
+      directMap.set(m.id, m);
+    }
+  }
 
-    const isVerticalExpanded = !(groupCollapseStates.get('vertical_measurements') ?? true);
-    const isArmsExpanded = !(groupCollapseStates.get('arm_segments') ?? true);
-    const isLegsExpanded = !(groupCollapseStates.get('leg_segments') ?? true);
-    const isBilateralExpanded = !(groupCollapseStates.get('bilateral_transverse_landmark_spans') ?? true);
+  let categoriesHtml = '';
 
-    const verticalHtml = buildDirectMeasurementsGroupHtml(
-      'vertical_measurements',
-      'Vertical Measurements',
-      directReport.byGroup.vertical_inter_level ?? [],
-      isVerticalExpanded,
-    );
-    const armsHtml = buildDirectMeasurementsGroupHtml(
-      'arm_segments',
-      'Arm Segments',
-      directReport.byGroup.arm_segments ?? [],
-      isArmsExpanded,
-    );
-    const legsHtml = buildDirectMeasurementsGroupHtml(
-      'leg_segments',
-      'Leg Segments',
-      directReport.byGroup.leg_segments ?? [],
-      isLegsExpanded,
-    );
-    const bilateralHtml = buildDirectMeasurementsGroupHtml(
-      'bilateral_transverse_landmark_spans',
-      'Bilateral Spans & Breadths',
-      directReport.byGroup.bilateral_transverse_landmark_spans ?? [],
-      isBilateralExpanded,
-    );
-    directHtml = `
+  for (const category of MEASUREMENT_TYPE_RESULT_CATEGORIES) {
+    if (!category.measurementIds || category.measurementIds.length === 0) {
+      continue;
+    }
+
+    const isCollapsed = groupCollapseStates.get(category.id) ?? true;
+    const collapsedAttr = isCollapsed ? 'data-collapsed' : '';
+    const collapsedClass = isCollapsed ? 'is-collapsed' : '';
+
+    const rowsHtml = [];
+
+    for (const mId of category.measurementIds) {
+      // 1. Front Transverse Widths
+      if (
+        mId === 'neck_transverse_width_at_neck_level'
+        || mId === 'torso_width_at_shoulder_level'
+        || mId === 'torso_width_at_hip_level'
+      ) {
+        const widthResult = getFrontTransverseWidth({ id: mId, annotations });
+        let title = 'Front Transverse Width';
+        if (mId === 'neck_transverse_width_at_neck_level') {
+          title = 'Neck Transverse Width';
+        } else if (mId === 'torso_width_at_shoulder_level') {
+          title = 'Torso Transverse Width at Shoulder Level';
+        } else if (mId === 'torso_width_at_hip_level') {
+          title = 'Torso Transverse Width at Hip Level';
+        }
+        const isVal = widthResult?.status === 'valid' && typeof widthResult?.valueCm === 'number';
+        const valDisplay = isVal ? `${formatDistance(widthResult.valueCm)} cm` : '—';
+        rowsHtml.push(buildCompactMeasurementRowHtml({
+          id: mId,
+          label: title,
+          valueText: valDisplay,
+          status: widthResult?.status ?? 'unavailable',
+        }));
+        continue;
+      }
+
+      // 2. Modeled Circumferences
+      if (mId === 'torso_modeled_bust_circumference_at_bust_apex_plane') {
+        const bustResult = getModeledBustCircumference({ annotations });
+        const isModeled = bustResult?.status === 'modeled' && typeof bustResult?.modeledCircumferenceCm === 'number';
+        const valDisplay = isModeled ? `${formatDistance(bustResult.modeledCircumferenceCm)} cm` : '—';
+        rowsHtml.push(buildCompactMeasurementRowHtml({
+          id: mId,
+          label: 'Modeled Bust Circumference',
+          valueText: valDisplay,
+          status: bustResult?.status ?? 'unavailable',
+        }));
+        continue;
+      }
+
+      if (mId === 'torso_modeled_natural_waist_circumference_at_natural_waist_plane') {
+        const waistResult = getModeledNaturalWaistCircumference({ annotations });
+        const isModeled = waistResult?.status === 'modeled' && typeof waistResult?.modeledCircumferenceCm === 'number';
+        const valDisplay = isModeled ? `${formatDistance(waistResult.modeledCircumferenceCm)} cm` : '—';
+        rowsHtml.push(buildCompactMeasurementRowHtml({
+          id: mId,
+          label: 'Modeled Natural Waist Circumference',
+          valueText: valDisplay,
+          status: waistResult?.status ?? 'unavailable',
+        }));
+        continue;
+      }
+
+      if (mId === 'torso_modeled_abdominal_circumference_at_abdominal_apex_plane') {
+        const abResult = getModeledAbdominalCircumference({ annotations });
+        const isModeled = abResult?.status === 'modeled' && typeof abResult?.modeledCircumferenceCm === 'number';
+        const valDisplay = isModeled ? `${formatDistance(abResult.modeledCircumferenceCm)} cm` : '—';
+        rowsHtml.push(buildCompactMeasurementRowHtml({
+          id: mId,
+          label: 'Modeled Abdominal Circumference',
+          valueText: valDisplay,
+          status: abResult?.status ?? 'unavailable',
+        }));
+        continue;
+      }
+
+      if (mId === 'torso_modeled_hip_girth_at_buttock_point_plane') {
+        const hipGirthResult = getModeledHipGirth({ annotations });
+        const isModeled = hipGirthResult?.status === 'modeled' && typeof hipGirthResult?.modeledCircumferenceCm === 'number';
+        const valDisplay = isModeled ? `${formatDistance(hipGirthResult.modeledCircumferenceCm)} cm` : '—';
+        rowsHtml.push(buildCompactMeasurementRowHtml({
+          id: mId,
+          label: 'Modeled Hip Girth',
+          valueText: valDisplay,
+          status: hipGirthResult?.status ?? 'unavailable',
+        }));
+        continue;
+      }
+
+      if (mId === 'torso_modeled_hip_seat_circumference_at_maximum_seat_plane') {
+        const seatResult = getModeledHipSeatCircumference({ annotations });
+        const isModeled = seatResult?.status === 'modeled' && typeof seatResult?.circumferenceCm === 'number';
+        const valDisplay = isModeled ? `${formatDistance(seatResult.circumferenceCm)} cm` : '—';
+        rowsHtml.push(buildCompactMeasurementRowHtml({
+          id: mId,
+          label: 'Modeled Maximum Seat Circumference',
+          valueText: valDisplay,
+          status: seatResult?.status ?? 'unavailable',
+        }));
+        continue;
+      }
+
+      // 3. Direct Measurements
+      const directItem = directMap.get(mId);
+      if (directItem) {
+        const isVal = directItem.status === 'valid' && typeof directItem.valueCm === 'number';
+        const valDisplay = isVal ? `${formatDistance(directItem.valueCm)} cm` : '—';
+        rowsHtml.push(buildCompactMeasurementRowHtml({
+          id: mId,
+          label: directItem.displayName ?? directItem.canonicalName ?? directItem.id,
+          valueText: valDisplay,
+          status: directItem.status,
+        }));
+      }
+    }
+
+    if (rowsHtml.length === 0) {
+      continue;
+    }
+
+    categoriesHtml += `
       <div
-        class="results-subgroup results-subgroup--direct ${directCollapsedClass}"
+        class="results-subgroup results-subgroup--${escapeHtml(category.id)} ${collapsedClass}"
         data-collapsible
-        ${directCollapsedAttr}
-        data-group-id="direct_measurements"
+        ${collapsedAttr}
+        data-group-id="${escapeHtml(category.id)}"
       >
         <div class="results-subgroup-header results-subgroup-header--collapsible">
-          <span class="results-subgroup-label">Direct Measurements</span>
+          <span class="results-subgroup-label">${escapeHtml(category.label)}</span>
+          <span class="results-subgroup-count">(${rowsHtml.length})</span>
         </div>
         <div class="results-subgroup-body">
-          ${verticalHtml}
-          ${armsHtml}
-          ${legsHtml}
-          ${bilateralHtml}
+          <div class="derived-measurement-card compact-measurement-card">
+            <div class="derived-card-body">
+              ${rowsHtml.join('')}
+            </div>
+          </div>
         </div>
       </div>
     `;
   }
 
-  containerEl.innerHTML = crossSectionHtml + frontTransverseHtml + modeledPerimeterHtml + directHtml;
+  containerEl.innerHTML = categoriesHtml;
 }
 
 export function setupDerivedMeasurementDeck() {
