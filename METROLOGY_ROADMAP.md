@@ -1172,21 +1172,51 @@ Standardized application startup state across HTML markup, runtime state, and me
   - Origin / Center = **OFF** (`aria-checked="false"`, hidden from 3D scene on fresh load)
   - Body Measurement Previews = **OFF** (`aria-checked="false"`, hidden from scene on fresh load)
 
-### 4.24 Code / Architecture Cleanup — COMPLETED / VERIFIED
+### 4.25 Direct Body Measurements Batch A & Batch B v0 — COMPLETED / VERIFIED
 
-Executed a two-batch cleanup pass eliminating dead code and consolidating internal routers with zero regressions:
-- **Batch A (Dead Code & Stale Label Cleanup)**:
-  - Removed unconsumed DOM ref export `modeledCrossSectionPreviewEl` from `src/ui/domRefs.js`.
-  - Removed dead CSS rule `.grid2d-highlight-badge--left` from `src/styles/overlays.css`.
-  - Corrected stale fallback label in `src/features/measurementVisualizationProvenance.js` from `'Modeled Hip Circumference'` to `'Modeled Maximum Seat Circumference'`.
-- **Batch B (Internal UI Routing Consolidation)**:
-  - Consolidated repeated 5-branch conditional routing in `src/ui/modeledEllipseCrossSectionPreview.js` into `MODELED_CIRCUMFERENCE_PREVIEW_REGISTRY`.
-  - Consolidated repeated ID-specific routing in `src/ui/derivedMeasurementDeck.js` (`getMeasurementRecordById`) into `MEASUREMENT_RECORD_RESOLVERS` Map.
-- **Intentionally Retained for Compatibility**:
-  - `bodyEvidence.js` public export surface and `*Report` aliases.
-  - Legacy `bustApexPlaneLocalization.js` and `abdominalApexPlaneLocalization.js` (and their test suites).
-  - Historical measurement IDs (`_at_bust_apex_plane`, `_at_abdominal_apex_plane`, `hip_seat`) and app name aliases in `sceneImport.js`.
-- **Verified Baseline**: **865 / 865 tests passing across 47 test suites, 0 failures, clean production build**.
+Established the deterministic Direct Body Measurements Contract v0 (`direct-body-measurements-v0`) providing **25 total direct body measurements** across four distinct anatomical categories:
+
+- **Batch A (19 measurements)**:
+  - **5 Vertical Inter-Level Distances** (`vertical_inter_level_delta`): `vertical_neck_to_shoulder_distance`, `vertical_shoulder_to_elbow_distance`, `vertical_elbow_to_wrist_distance`, `vertical_hip_to_knee_distance`, `vertical_knee_to_ankle_distance`.
+  - **10 Projected Landmark Segments** (`linear_projected_distance`): Left/Right Clavicle Span, Left/Right Upper Arm Segment Length, Left/Right Forearm Segment Length, Left/Right Thigh Segment Length, Left/Right Lower Leg Segment Length.
+  - **4 Projected Kinematic Chains** (`segment_chain_length`): Left/Right Total Arm Length (Shoulder $\to$ Elbow $\to$ Wrist), Left/Right Total Leg Length (Hip $\to$ Knee $\to$ Ankle).
+- **Batch B (6 Bilateral Transverse Landmark Spans)** (`calibrated_projected_2d_transverse_span`):
+  1. `inter_acromion_transverse_breadth_projected`: `Inter-Acromion Transverse Breadth (Projected)` (`left_acromion` ↔ `right_acromion`)
+  2. `inter_hip_landmark_transverse_span`: `Inter-Hip Landmark Transverse Span` (`left_hip` ↔ `right_hip`)
+  3. `bilateral_elbow_landmark_transverse_span`: `Bilateral Elbow Landmark Transverse Span` (`left_elbow` ↔ `right_elbow`)
+  4. `bilateral_wrist_landmark_transverse_span`: `Bilateral Wrist Landmark Transverse Span` (`left_wrist` ↔ `right_wrist`)
+  5. `bilateral_knee_landmark_transverse_span`: `Bilateral Knee Landmark Transverse Span` (`left_knee` ↔ `right_knee`)
+  6. `bilateral_ankle_landmark_transverse_span`: `Bilateral Ankle Landmark Transverse Span` (`left_ankle` ↔ `right_ankle`)
+
+#### Authoritative Batch B Geometry & Asymmetry Semantics
+- **Authoritative Transverse Span**: For bilateral Front landmarks $(X_L, Y_L)$ and $(X_R, Y_R)$, $\text{valueCm} = |X_R - X_L| = |\Delta X_{\text{cm}}|$.
+- **Strict Guardrail**: $\text{valueCm}$ is a pure Front-plane horizontal transverse breadth; it is **NOT** a diagonal Euclidean chord $\sqrt{\Delta X^2 + \Delta Y^2}$.
+- **Asymmetry Evidence**: $\Delta Y_{\text{cm}} = Y_R - Y_L$ and $\text{elevationDeltaCm} = |\Delta Y_{\text{cm}}|$ are retained strictly as provenance/evidence; vertical asymmetry does **NOT** alter $\text{valueCm}$.
+
+#### Semantic & Anatomical Distinctions
+- **Acromion vs Shoulder**: `inter_acromion_transverse_breadth_projected` uses Secondary Front landmarks `left_acromion` ↔ `right_acromion`. It is strictly distinct from `left_shoulder` ↔ `right_shoulder`, Shoulder Anatomical Level ($Y_{\text{shoulder}}$), and Torso Transverse Width at Shoulder Level (silhouette width). Core 13 landmark taxonomy and reference levels remain unaltered.
+- **Hip Landmark Span vs Silhouette & Circumference**: `inter_hip_landmark_transverse_span` uses `left_hip` ↔ `right_hip`. It is strictly distinct from Torso Transverse Width at Hip Level, Modeled Hip Girth (Buttock Point Plane), Modeled Maximum Seat Circumference (Maximum Seat Plane), and bi-trochanteric breadth.
+- **Pose/Stance-Dependent Bilateral Spans**: Elbow, wrist, knee, and ankle spans are pose- and stance-dependent projected landmark spans; they are not intrinsic skeletal or surface body breadths.
+
+#### Visualization Provenance & 2D Overlay Rendering
+- Extended `measurement-visualization-provenance-v0` with `bilateral_transverse_span`.
+- Target view: Front view (`targetViews: ['front']`).
+- Preserves actual source landmarks at true coordinates $(X_L, Y_L)$ and $(X_R, Y_R)$.
+- Displays horizontal measured span at display-only $Y_{\text{vis}} = (Y_L + Y_R) / 2$ with endpoints $(X_L, Y_{\text{vis}}) \to (X_R, Y_{\text{vis}})$. $Y_{\text{vis}}$ is display-only and is never a measurement input.
+- Renders subtle dashed helper/drop lines (`.grid2d-highlight-drop-line`) connecting actual landmarks to horizontal span endpoints when $Y_L \ne Y_R$.
+- Diagonal Euclidean chord is **never** rendered as the measurement span.
+- UI does not recalculate $\text{valueCm}$.
+- No permanent numeric text badges are rendered over 2D overlay highlights.
+
+#### Results UI Integration
+- Added collapsible subgroup **`Bilateral Spans & Breadths`** (`bilateral_transverse_landmark_spans`) under `Results` $\to$ `Direct Measurements` rendering all 6 Batch B cards.
+- Wired into unified click-to-highlight flow: clicking a card focuses the 2D split workspace (`WORKSPACE_SPLIT`), renders the 2D highlight, and re-clicking toggles off.
+
+#### Deferred Items
+- **Neck Transverse Width**: Explicitly deferred. Current neck evidence is a single central reference landmark; no bilateral neck landmark pair exists. Formal Neck Transverse Width requires segmentation-derived boundary evidence and a neck-specific support policy.
+- **Underbust**: Separate track, not modified.
+
+- **Verified Baseline**: **889 / 889 tests passing across 47 test suites, 0 failures, clean production build**.
 
 ---
 
@@ -1262,7 +1292,7 @@ Current usage:
 
 ## 8. Verification Baseline
 
-- **865 tests passing**
+- **889 tests passing**
 - **0 failures**
 - **0 skipped**
 - **0 cancelled**
@@ -1273,10 +1303,10 @@ Current usage:
 
 ## 9. Next Milestone Planning
 
-With the **Five Active Modeled Circumference Pipelines** (Bust Point v1, Natural Waist v0, Abdominal Point v1, Buttock Point / Hip Girth v1, Maximum Seat v0), **Results UI Integration**, **Startup Defaults Modernization**, and **Code / Architecture Cleanup** fully completed and accepted, the remaining deferred workstreams are:
+With the **Five Active Modeled Circumference Pipelines** (Bust Point v1, Natural Waist v0, Abdominal Point v1, Buttock Point / Hip Girth v1, Maximum Seat v0), **Direct Body Measurements Batch A & Batch B v0 (25 measurements)**, **Results UI Integration**, **Startup Defaults Modernization**, and **Code / Architecture Cleanup** fully completed and accepted, the remaining deferred workstreams are:
 
 1. **Underbust Level Localization & Modeled Underbust Circumference** (deferred pending inframammary fold localization).
-2. **Clear Measurements Batch B (Bilateral Spans & Breadths)** (deferred pending horizontal breadth $\Delta X$ vs chord distance semantic decision).
+2. **Neck Transverse Width** (deferred pending segmentation-derived bilateral neck boundaries and support policy).
 3. **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)** (deferred pending verified floor plane).
 4. **Measured optical stature** (deferred).
 5. **Canonical Body Evidence Graph & Latent Conditioning Package** (Milestone 5.1 / 5.2).

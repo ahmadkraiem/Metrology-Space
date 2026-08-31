@@ -852,9 +852,10 @@ When modifying this project, preserve the following unless explicitly instructed
 12. **Absolute Height from Floor:** Absolute heights from floor deferred under `NEEDS_GROUND_REFERENCE` (canvas $Y = 0$ is not a verified ground contact plane).
 13. **Measured Optical Stature:** Declared stature ($169.0\text{ cm}$) is `known_subject_height` calibration input provenance, not measured optical stature.
 14. **Bilateral Limb Averaging:** Bilateral left and right limb measurements are evaluated independently without averaging.
-15. **Clear Measurements Batch B:** Bilateral spans and breadths remain deferred pending horizontal vs chord geometry resolution.
-16. **Torso Sub-Levels:** Underbust, inframammary fold, and crotch levels remain deferred.
-17. **VTON Relevance Mapping:** Virtual try-on mapping is an application-layer consumer and not part of core measurement geometry.
+15. **Bilateral Transverse Spans vs Chord Distance:** Batch B bilateral spans are evaluated strictly as calibrated horizontal breadths $\text{valueCm} = |X_R - X_L|$; they are not diagonal Euclidean chords $\sqrt{\Delta X^2 + \Delta Y^2}$. Vertical elevation asymmetry is preserved as evidence only.
+16. **Neck Transverse Width:** Deferred pending segmentation-derived bilateral boundary evidence and a neck-specific support policy.
+17. **Torso Sub-Levels:** Underbust, inframammary fold, and crotch levels remain deferred.
+18. **VTON Relevance Mapping:** Virtual try-on mapping is an application-layer consumer and not part of core measurement geometry.
 
 ---
 
@@ -919,10 +920,11 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Milestone 4.22: Five-Measurement Results UI & Ellipse Preview Integration — COMPLETED (all 5 active modeled perimeters rendered in canonical sequence in Results deck with dedicated 2D slice highlights and SVG ellipse preview)**
 - **Milestone 4.23: Application Startup Defaults Modernization — COMPLETED (Results, Session Records, Diagnostics all collapsed at startup; Workflow = Body Evidence default; View Origin/Center and Body Measurement Previews = OFF default)**
 - **Milestone 4.24: Code / Architecture Cleanup — COMPLETED (dead exports and CSS removed in Batch A; internal preview/deck routing consolidated into declarative registries in Batch B; 865/865 tests passing)**
+- **Milestone 4.25: Direct Body Measurements Batch B v0 — Bilateral Spans & Breadths — COMPLETED (`direct-body-measurements-v0` — pure deterministic derivation of 6 bilateral transverse landmark spans bringing Direct Measurements total to 25; authoritative value $\text{valueCm} = |X_R - X_L|$; asymmetry preserved as $\text{elevationDeltaCm} = |\Delta Y|$; Secondary acromion landmarks distinct from Core 13 shoulders; pure horizontal 2D overlay highlight with asymmetry drop lines; Results subgroup `Bilateral Spans & Breadths` with click-to-highlight flow; Neck Transverse Width deferred; 889/889 tests passing)**
 
 ### Deferred Milestones & Workstreams
 - **Underbust Level Localization & Underbust Circumference** (blocked by missing inframammary fold localization)
-- **Clear Measurements Batch B (Bilateral Spans & Breadths)**
+- **Neck Transverse Width** (deferred pending segmentation-derived bilateral neck boundaries and support policy)
 - **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)**
 - **Measured optical stature**
 - **Surface arcs / geodesic measurements**
@@ -942,7 +944,7 @@ When modifying this project, preserve the following unless explicitly instructed
   - Modeled Abdominal Circumference v0 evaluated: Localized at Abdominal Point Plane $Y = 96.85\text{ cm}$ (plateau $96.15 - 97.45\text{ cm}$) from Front width $36.90\text{ cm}$ and qualified Side AP depth $25.80\text{ cm}$ under `trunk_pelvic_transition_support_v0` (`[12, 13, 21, 22, 23]`). Evaluates to `status: 'modeled'`, `valueCm: 99.2561` (UI: `99.26 cm`).
   - Modeled Hip Girth v1 evaluated: Localized at Buttock Point Plane $Y = 86.05\text{ cm}$ (plateau $86.05 - 86.15\text{ cm}$) from Front width $42.20\text{ cm}$ and qualified Side AP depth $27.80\text{ cm}$ under `pelvic_core_support_v0`. Evaluates to `status: 'modeled'`, `valueCm: 111.1168` (UI: `111.12 cm`).
   - Modeled Maximum Seat Circumference v0 evaluated: Localized at Maximum Seat Plane $Y = 79.95\text{ cm}$ from Front width $44.30\text{ cm}$ and qualified Side AP depth $27.40\text{ cm}$ (global maximum pelvic Ramanujan II score). Evaluates to `status: 'modeled'`, `valueCm: 114.1959` (UI: `114.20 cm`).
-  - Batch A Direct Measurements evaluated: 19 calibrated measurements evaluated under `direct-body-measurements-v0`.
+  - Batch A & Batch B Direct Measurements evaluated: 25 calibrated measurements evaluated under `direct-body-measurements-v0` (19 Batch A + 6 Batch B).
   - Accepted Real-Package Modeled Circumference Summary:
     1. **Modeled Bust Circumference**: Plane Y = $119.15\text{ cm}$, Width = $35.10\text{ cm}$, Depth = $30.20\text{ cm}$, Circumference = **$102.72\text{ cm}$**
     2. **Modeled Natural Waist Circumference**: Plane Y = $107.15\text{ cm}$, Width = $29.00\text{ cm}$, Depth = $23.20\text{ cm}$, Circumference = **$82.25\text{ cm}$**
@@ -954,7 +956,7 @@ When modifying this project, preserve the following unless explicitly instructed
 - **Strict Guardrails**: Zero coordinate fusion, no Side $U \to Z$ conversion, no pointmap $Z \to$ TWENTY EIGHT canonical $Z$, no Front/Side pointmap fusion, no physical depth promotion beyond qualified 4.5H AP depth, no 3D contour reconstruction, no body volume, no 3D reconstruction, no physical authority from `"meters"`, no physical authority from Sapiens `scale`, no invented skeletal landmarks, no interpolation across missing Side contour rows, and no requirement for identical Front and Side raster rows (canonical Y is preserved across independent view rasters).
 
 ### Verification Baseline
-- **865 tests passing**
+- **889 tests passing**
 - **0 failures**
 - **0 skipped**
 - **0 cancelled**
@@ -989,7 +991,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/bodyEvidenceZipAdapter.test.js` | ZIP Import Adapter unit tests |
 | `src/features/bodyEvidenceAdapter.js` | Landmark classification (Core 13 / Secondary allowlist / face rejection) and segmentation normalization |
 | `src/features/bodyEvidenceAdapter.test.js` | Body Evidence adapter unit tests |
-| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics / clothing body-surface semantics / authoritative physical evidence semantics / direct body measurements / modeled circumference getters (Bust, Natural Waist, Abdominal, Hip Girth, Maximum Seat), sanitized diagnostic export, batch landmark promotion |
+| `src/features/bodyEvidence.js` | Body Evidence runtime store: active package, derived dense QA runtime state, change notifications, anatomical region evidence & horizontal raster slice / transverse width / profile span / cross-view correspondence / comparability QA / metric calibration / physical semantics / physical eligibility / view pose semantics / clothing body-surface semantics / authoritative physical evidence semantics / direct body measurements (Batch A & Batch B) / modeled circumference getters (Bust, Natural Waist, Abdominal, Hip Girth, Maximum Seat), sanitized diagnostic export, batch landmark promotion |
 | `src/features/bustPointPlaneLocalization.js` | Bust Point Plane Localization Contract v1 (`bust-point-plane-localization-v1`) — pure deterministic raw Side contour anterior breast extrema localization with trunk core support [ACTIVE PRODUCTION] |
 | `src/features/bustPointPlaneLocalization.test.js` | Bust Point Plane Localization Contract v1 unit tests |
 | `src/features/bustApexPlaneLocalization.js` | Bust Apex Plane Localization Contract v0 (`bust-apex-plane-localization-v0`) — legacy baseline-relative bust prominence localization [LEGACY — RETAINED FOR REGRESSION PROTECTION] |
@@ -1022,7 +1024,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/arbitraryYSidePhysicalDepthQualification.test.js` | Arbitrary-Y Side Physical Depth Qualification unit tests |
 | `src/features/torsoArbitraryYEvidenceScan.js` | Torso Arbitrary-Y Evidence Scan Contract v0 (`torso-arbitrary-y-evidence-scan-v0`) — pure deterministic continuous row scanner across torso region segmentation under resolution-independent mapping |
 | `src/features/torsoArbitraryYEvidenceScan.test.js` | Torso Arbitrary-Y Evidence Scan unit tests |
-| `src/features/directBodyMeasurements.js` | Direct Body Measurements Contract v0 (`direct-body-measurements-v0`) — pure deterministic derivation of 19 direct Batch A body measurements across Vertical Inter-Level, Projected Landmark Segments, and Kinematic Chains |
+| `src/features/directBodyMeasurements.js` | Direct Body Measurements Contract v0 (`direct-body-measurements-v0`) — pure deterministic derivation of 25 direct Batch A & Batch B body measurements across Vertical Inter-Level, Projected Landmark Segments, Kinematic Chains, and Bilateral Transverse Landmark Spans |
 | `src/features/directBodyMeasurements.test.js` | Direct Body Measurements Contract v0 unit tests |
 | `src/features/anatomicalRegions.js` | Anatomical Region Contract v0 — deterministic 29-class observed region mapping with metric boundsCm, canonical laterality, and authoritative `BODY_ANATOMICAL_CLASS_IDS` |
 | `src/features/anatomicalRegions.test.js` | Anatomical Region Contract v0 unit tests |
@@ -1066,7 +1068,7 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/features/sidePhysicalDepthQualification.test.js` | Side Physical Depth Qualification Contract v0 unit tests |
 | `src/features/crossSectionEvidence.js` | Cross-Section Evidence Contract v0 (`cross-section-evidence-v0`) — pure deterministic compositional layer pairing qualified Front transverse width and Side AP depth observations at validated reference levels (`shoulder`, `hip`) |
 | `src/features/crossSectionEvidence.test.js` | Cross-Section Evidence Contract v0 unit tests |
-| `src/features/measurementVisualizationProvenance.js` | Measurement Visualization Provenance Contract v0 (`measurement-visualization-provenance-v0`) — pure declarative normalizer converting domain measurement and plane localization records into standardized 2D visualization instructions |
+| `src/features/measurementVisualizationProvenance.js` | Measurement Visualization Provenance Contract v0 (`measurement-visualization-provenance-v0`) — pure declarative normalizer converting domain measurement, plane localization, and bilateral transverse span records into standardized 2D visualization instructions |
 | `src/features/measurementVisualizationProvenance.test.js` | Measurement Visualization Provenance Contract v0 unit tests |
 | `src/features/appMode.js` | App mode state (Inspect & Measure vs Annotate) |
 | `src/features/selection.js` | Selected point state and highlight (Annotate mode) |
@@ -1097,9 +1099,9 @@ When modifying this project, preserve the following unless explicitly instructed
 | `src/ui/domRefs.js` | Safe cached DOM element references |
 | `src/ui/workspaceLayout.js` | Workspace tab management (3D / 2D / Body Graph), split divider, and right sidebar rail collapse |
 | `src/ui/leftPanel.js` | Anatomical Levels card renderer for the left inspector |
-| `src/ui/derivedMeasurementDeck.js` | Right Sidebar Results deck rendering collapsible Shoulder / Hip Cross-Section Evidence cards, Modeled Circumferences (Bust, Natural Waist, Abdominal, Hip Girth, Maximum Seat), and collapsible parent Direct Measurements cards with click-to-highlight integration |
+| `src/ui/derivedMeasurementDeck.js` | Right Sidebar Results deck rendering collapsible Shoulder / Hip Cross-Section Evidence cards, Modeled Circumferences (Bust, Natural Waist, Abdominal, Hip Girth, Maximum Seat), and collapsible parent Direct Measurements cards (with Bilateral Spans & Breadths subgroup) with click-to-highlight integration |
 | `src/ui/derivedMeasurementDeck.test.js` | Results deck unit tests |
-| `src/ui/measurementHighlightOverlay2d.js` | 2D Measurement Highlight Overlay renderer — renders clean geometry (guides, lines, dots, highlights) on dedicated Front/Side highlight layers with no floating text over slice lines |
+| `src/ui/measurementHighlightOverlay2d.js` | 2D Measurement Highlight Overlay renderer — renders clean geometry (guides, lines, dots, highlights, bilateral transverse spans with asymmetry drop lines) on dedicated Front/Side highlight layers with no floating text over slice lines |
 | `src/ui/measurementHighlightOverlay2d.test.js` | 2D Measurement Highlight Overlay unit tests |
 | `src/ui/modeledEllipseCrossSectionPreview.js` | Modeled Ellipse Cross-Section Preview — companion SVG display in 2D workspace for all 5 Modeled Circumferences with aspect ratio scaling and disclaimer |
 | `src/ui/modeledEllipseCrossSectionPreview.test.js` | Modeled Ellipse Cross-Section Preview unit tests |
