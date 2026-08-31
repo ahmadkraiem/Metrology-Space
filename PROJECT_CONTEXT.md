@@ -171,28 +171,24 @@ Three workspace tabs (`workspaceLayout.js`):
 No Hist / Annos / Body / Graph tab strip. Composition:
 
 1. **Results** (`#derived-measurement-deck`, collapsible, collapsed by default at startup) — `derivedMeasurementDeck.js`:
-   - **Cross-Section Evidence** (collapsed by default): Subgroup containing Shoulder and Hip paired orthogonal measurement cards.
-   - **Modeled Perimeter Estimates** (collapsed by default): Subgroup containing the five active production modeled circumferences in canonical sequence:
-     1. **Modeled Bust Circumference** (`torso_modeled_bust_circumference_at_bust_apex_plane`, Bust Point Plane $119.15\text{ cm}$, $102.72\text{ cm}$)
-     2. **Modeled Natural Waist Circumference** (`torso_modeled_natural_waist_circumference_at_natural_waist_plane`, Waist Plane $107.15\text{ cm}$, $82.25\text{ cm}$)
-     3. **Modeled Abdominal Circumference** (`torso_modeled_abdominal_circumference_at_abdominal_apex_plane`, Abdominal Point Plane $96.85\text{ cm}$, $99.26\text{ cm}$)
-     4. **Modeled Hip Girth** (`torso_modeled_hip_girth_at_buttock_point_plane`, Hip Girth Plane $86.05\text{ cm}$, $111.12\text{ cm}$)
-     5. **Modeled Maximum Seat Circumference** (`torso_modeled_hip_seat_circumference_at_maximum_seat_plane`, Seat Plane $79.95\text{ cm}$, $114.20\text{ cm}$)
-   - **Direct Measurements** (collapsed by default): Parent subgroup containing three collapsible category groups:
-     - *Vertical Measurements* (5 inter-level metrics)
-     - *Arm Segments* (6 segment/chord metrics + 2 kinematic chains)
-     - *Leg Segments* (4 segment metrics + 2 kinematic chains)
-   - **Click-to-Highlight & Workspace Focus**: Clicking any measurement card or row (`[data-measurement-id]`) calls `selectMeasurement(id)` $\to$ resolves visualization provenance $\to$ sets active 2D measurement highlight $\to$ focuses the 2D workspace (`WORKSPACE_SPLIT`) $\to$ marks card `.is-selected` with `aria-selected="true"`. Clicking an active card deselects and clears the highlight.
+   - **Measurement-Type-First Hierarchy**: Results are organized by geometric measurement type (independent of the 10-category anatomical planning taxonomy):
+     1. **Widths & Transverse Spans** (`widths_spans`, 9 items): Neck Transverse Width, Torso Transverse Width at Shoulder Level, Inter-Acromion Transverse Breadth (Projected), Torso Transverse Width at Hip Level, Inter-Hip Landmark Transverse Span, Bilateral Elbow Landmark Transverse Span, Bilateral Wrist Landmark Transverse Span, Bilateral Knee Landmark Transverse Span, Bilateral Ankle Landmark Transverse Span.
+     2. **Lengths & Distances** (`lengths_distances`, 19 items): Vertical Torso Length, Vertical Shoulder Drop, Vertical Thigh Length, Vertical Lower Leg Length, Vertical Total Leg Length, Left/Right Upper Arm Length (Projected), Left/Right Forearm Length (Projected), Left/Right Direct Arm Chord (Projected), Left/Right Total Arm Chain Length (Projected), Left/Right Thigh Length (Projected), Left/Right Lower Leg Length (Projected), Left/Right Total Leg Chain Length (Projected).
+     3. **Circumferences & Girths** (`circumferences_girths`, 5 items): Modeled Bust Circumference, Modeled Natural Waist Circumference, Modeled Abdominal Circumference, Modeled Hip Girth, Modeled Maximum Seat Circumference.
+   - **Registered Future Categories (Hidden while empty)**: *Depths / AP Measurements* (`depths_ap`), *Heights / Ground-Referenced* (`heights_ground`), *Surface Arcs / Curved Paths* (`surface_arcs`), *Angles / Posture* (`angles_posture`). Empty categories do not render.
+   - **Compact Measurement Rows**: All 33 primary Results use compact selectable rows answering *"What measurement do we have, and what is its value?"*. Normal valid rows omit redundant "Valid" badges; modeled circumferences show a concise "Modeled" badge. Verbose formula/geometry blocks (Ramanujan details, Front width, Side AP depth, plane elevation, endpoints, long disclaimers) were removed from the main Results list and are preserved in domain records.
+   - **Click-to-Highlight & Workspace Focus**: Clicking any measurement row (`[data-measurement-id]`) calls `selectMeasurement(id)` $\to$ resolves visualization provenance $\to$ sets active 2D measurement highlight $\to$ focuses the 2D workspace (`WORKSPACE_SPLIT`) $\to$ marks row `.is-selected` with `aria-selected="true"`. Clicking an active row deselects and clears the highlight.
    - **Modeled Ellipse Cross-Section Preview** (`modeledEllipseCrossSectionPreview.js`): When any modeled circumference is selected, a companion SVG cross-section preview appears in the 2D workspace displaying the ellipse implied by Front transverse width $\times$ Side AP depth with accurate plane label (`"Bust Point Plane Y"`, `"Waist Plane Y"`, `"Abdominal Point Plane Y"`, `"Hip Girth Plane Y"`, `"Seat Plane Y"`) and disclaimer `"Ellipse model — not measured contour"`.
+   - **Selected Measurement Details (Stage 4)**: **DEFERRED** as an optional future UX enhancement; main Results list remains compact.
 2. **Session Records** (`#session-records-panel`, collapsible, collapsed by default at startup):
    - **Annotations**: Promoted body landmarks and custom annotations with per-item Delete actions.
    - **History**: Canonical Point A/B measurement log with embedded `Clear History` action (`#clear-history`).
 3. **Diagnostics** (`#diagnostics-panel`, collapsible, collapsed by default at startup) — independently collapsible subsections (all collapsed by default):
-   - Why This Result Is Blocked (`#why-result-blocked`)
-   - Front–Side Alignment (`#front-side-alignment-qa`)
-   - Body / Anchor Diagnostics (`#body-measurement-readiness`)
-   - Advanced QA (`#advanced-qa-content`) — intake identity + metric calibration only
-   - Origin / Center projection utility (`#reference-projection-utility`)
+   - **Why This Result Is Blocked** (`#why-result-blocked`): Synthesizes discrete actionable eligibility blockers for unavailable measurements.
+   - **Front–Side Alignment** (`#front-side-alignment-qa`): Multi-view vertical Y registration and landmark pairing checks within calibrated tolerance.
+   - **Body / Anchor Diagnostics** (`#body-measurement-readiness`): Refocused on **Anchor Health** (Overall readiness badge, Missing core anchors, Duplicate body anchor names, Out of bounds, Front-surface Z warnings; subtitle: *"Promoted anchor integrity, completeness, and bounds checks"*). Legacy pre-contract anchor previews and visible Natural Waist plane card were removed from the UI, while underlying domain contracts (`getNaturalWaistPlaneLocalization`, `natural-waist-plane-localization-v0`) remain fully intact as internal/supporting evidence.
+   - **Advanced QA** (`#advanced-qa-content`): Deep technical telemetry including Intake & Package identity, Calibration (px/cm, isotropic scaling), Side T-Pose Stance qualification, Side Lateral Orientation collapse ratio, and Side AP Depth qualification.
+   - **Reference Projections utility** (`#reference-projection-utility`): Origin / Center raycast verification actions.
 
 The whole right sidebar can collapse to a vertical rail (`#right-sidebar-toggle`). Section accordions are wired by `initCollapsibleSections()` on `#left-sidebar` and `#right-sidebar`. Diagnostics remains strictly separated from primary measurement Results.
 

@@ -172,9 +172,10 @@ latent-space/
 │       ├── bodyEvidencePackageQaUi.test.js # Package QA summary UI unit tests
 │       ├── bodyEvidencePanel.js     # Body Evidence left workflow panel (Front / Side / Landmark tabs, promote, Promote All Front Core)
 │       ├── bodyGraphWorkspace.js    # Body Graph Workspace v0 — Core 13 topological diagram
-│       ├── bodyTabConsolidatedPanel.js # Diagnostics: Front–Side Alignment + Body / Anchor readiness
+│       ├── bodyTabConsolidatedPanel.js # Diagnostics: Anchor Health (missing core anchors, duplicate names, out-of-bounds, front-surface Z) + Front–Side Alignment
+│       ├── bodyTabConsolidatedPanel.test.js # Body / Anchor Diagnostics and Anchor Health unit tests
 │       ├── collapsibleSections.js   # Shared [data-collapsible] accordion wiring (left + right)
-│       ├── derivedMeasurementDeck.js # Right Sidebar Results cards (Cross-Section Evidence, Modeled Circumferences [Bust, Natural Waist, Abdominal, Hip Girth, Maximum Seat], and Direct Measurements with Bilateral Spans & Breadths subgroup) with click-to-highlight integration
+│       ├── derivedMeasurementDeck.js # Right Sidebar Results deck organized by Measurement Type (Widths & Transverse Spans, Lengths & Distances, Circumferences & Girths) with compact rows and click-to-highlight integration
 │       ├── derivedMeasurementDeck.test.js # Results deck tests
 │       ├── domRefs.js               # Safe cached DOM element references
 │       ├── finalAccessibilityVisualPolish.test.js # Accessibility & visual polish tests
@@ -437,27 +438,37 @@ The TWENTY EIGHT codebase partitions measurement computation, qualification, vis
 - **Zero Recomputation in UI**: UI renderers (`derivedMeasurementDeck.js`, `measurementHighlightOverlay2d.js`, `modeledEllipseCrossSectionPreview.js`) read precomputed values and metadata from domain records. They never perform raster scanning, trigonometric transforms, or domain formula recomputation.
 - **Diagnostics Isolation**: The Diagnostics panel (`advancedQaPanel.js`, `frontSideAlignmentPanel.js`, `bodyTabConsolidatedPanel.js`) answers *why* results are qualified or blocked, strictly isolated from the primary Results deck.
 
-### Planned Results Information Architecture Reorganization
+### Results Information Architecture (Measurement-Type-First) — COMPLETED
 
-The current Results deck in `derivedMeasurementDeck.js` is structured around implementation-family groupings (`Cross-Section Evidence`, `Front Transverse Widths`, `Modeled Perimeter Estimates`, `Direct Measurements`). As the measurement catalogue expands toward full coverage, the Results UI is planned to transition to an **Anatomy-First Hierarchy**:
+The Results deck in `derivedMeasurementDeck.js` is organized by **MEASUREMENT TYPE** (distinct from the 10-category anatomical planning taxonomy):
 
-- **Planned Anatomical Groups**:
-  1. `Head & Neck`
-  2. `Shoulder & Upper Torso`
-  3. `Arms`
-  4. `Bust & Chest`
-  5. `Waist & Abdomen`
-  6. `Hip & Seat / Pelvis`
-  7. `Thigh / Knee / Calf / Ankle`
-  8. `Crotch / Rise / Leg Length`
-  9. `Foot`
-  10. `Body Lengths & Heights`
-- **Context-Sensitive Selected Measurement Details**: Clicking any measurement card exposes reference plane elevation, orthogonal diameters, algorithm/formula, and qualification notes in a dedicated detail area rather than repeating evidence fields across every card row.
-- **Architectural Scope Note**: This future information architecture is a planned reorganization. The current implementation in `derivedMeasurementDeck.js` preserves its established implementation-family layout until the next UI reorganization milestone.
+- **Visible Populated Categories (33 Primary Results Total)**:
+  1. `Widths & Transverse Spans` (`widths_spans`, 9 items)
+  2. `Lengths & Distances` (`lengths_distances`, 19 items)
+  3. `Circumferences & Girths` (`circumferences_girths`, 5 items)
+- **Registered Future Categories (Hidden while empty)**:
+  4. `Depths / AP Measurements` (`depths_ap`)
+  5. `Heights / Ground-Referenced` (`heights_ground`)
+  6. `Surface Arcs / Curved Paths` (`surface_arcs`)
+  7. `Angles / Posture` (`angles_posture`)
+- **Compact Results Rows Baseline**: All 33 primary Results use compact selectable rows answering *"What measurement do we have, and what is its value?"*. Normal valid rows omit redundant "Valid" badges; modeled circumferences display a concise "Modeled" badge. Verbose formula/geometry blocks (Ramanujan details, Front width, Side AP depth, plane elevation, endpoints, long disclaimers) were removed from the main Results list and are preserved in domain records.
+- **Stage 4: Selected Measurement Details — DEFERRED**:
+  - Exposing context-sensitive technical details upon card selection is **DEFERRED** as an optional future UX enhancement.
+  - The main Results list must remain compact even if Stage 4 is implemented later. Stage 4 is NOT active next work.
 
-### Why Cross-Section Evidence & Side AP Depth Currently Feature Shoulder + Hip
+### Diagnostics Architecture & Stage D1 Cleanup — COMPLETED
+
+Diagnostics answers *"Why is a measurement unavailable, unreliable, misaligned, or structurally questionable?"* and does NOT duplicate measurements inspectable through Results:
+
+- **Why This Result Is Blocked** (`advancedQaPanel.js`): Synthesizes discrete actionable eligibility blockers.
+- **Front–Side Alignment** (`frontSideAlignmentPanel.js`): Multi-view vertical Y registration and landmark pairing checks.
+- **Body / Anchor Diagnostics** (`bodyTabConsolidatedPanel.js`): Refocused on **Anchor Health** (Overall readiness badge, Missing core anchors, Duplicate body anchor names, Out of bounds, Front-surface Z warnings). The 6 legacy pre-contract anchor previews and visible Natural Waist card were removed from the UI, while underlying domain contracts (`getNaturalWaistPlaneLocalization`, `natural-waist-plane-localization-v0`) remain intact as internal/supporting evidence.
+- **Advanced QA** (`advancedQaPanel.js`): Deep technical telemetry (Intake, Calibration, Side Pose Stance, Side Lateral Orientation, Side AP Depth).
+- **Reference Projections utility** (`sceneGraphPanel.js`): Origin / Center raycast verification actions.
+
+### Cross-Section Evidence & Side AP Depth Role
 
 - The static `cross-section-evidence-v0` registry (`src/features/crossSectionEvidence.js`) was designed around validated shared anatomical reference levels (`shoulder` and `hip`).
 - Subsequent localized torso measurements (Bust, Natural Waist, Abdomen, Hip Girth, Maximum Seat) possess continuous, evidence-driven plane localizers and embed their own dedicated same-Y Front width + Side AP depth cross-section records.
-- Similarly, `src/features/sidePhysicalDepthQualification.js` exposes static observations at Shoulder and Hip reference levels, while arbitrary-Y continuous scanning evaluates AP depth dynamically across the torso and pelvic columns.
+- Similarly, `src/features/sidePhysicalDepthQualification.js` exposes static observations at Shoulder and Hip reference levels, while arbitrary-Y continuous scanning evaluates AP depth dynamically across the torso and pelvic columns. Neither is a standalone primary Results category.
 

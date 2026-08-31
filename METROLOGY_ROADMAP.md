@@ -1456,31 +1456,81 @@ The Master Measurement Program prioritizes measurements supported by the existin
 - **Ground Reference Dependency**: Absolute vertical heights require an authoritative ground reference contract.
 - **Measured Optical Stature**: Must come strictly **AFTER** verified subject Ground Reference and verified Top-of-Head evidence are established. Declared subject height used for metric calibration ($169.0\text{ cm}$) is intake calibration provenance, **NOT** measured optical stature.
 
-#### Future Results Information Architecture Reorganization
-Before adding large additional measurement batches, the Right Sidebar Results architecture must be reorganized from implementation-history groupings to an intuitive **Anatomy-First Information Architecture**:
+#### Results Organization & Information Architecture — COMPLETED (Measurement-Type-First)
+The Right Sidebar Results deck is organized by **MEASUREMENT TYPE** (not by anatomical body region and not by implementation-history families) to optimize measurement scanning and exploration:
 
-- **Current Implementation Groupings**: `Cross-Section Evidence`, `Front Transverse Widths`, `Modeled Perimeter Estimates`, `Direct Measurements`. While effective during incremental development, these groupings scatter measurements from the same anatomical region (e.g. Shoulder appears under Widths, Spans, Cross-Section, and Side AP Depth) and do not scale as the catalogue grows.
-- **Planned Anatomical Results Hierarchy**:
-  - `Head & Neck`
-  - `Shoulder & Upper Torso`
-  - `Arms`
-  - `Bust & Chest`
-  - `Waist & Abdomen`
-  - `Hip & Seat / Pelvis`
-  - `Thigh / Knee / Calf / Ankle`
-  - `Crotch / Rise / Leg Length`
-  - `Foot`
-  - `Body Lengths & Heights`
-- **Primary Results vs Supporting Evidence vs Diagnostics**:
-  - **RESULTS** answers: *"What measurement did we obtain and what is its value?"*
-  - **SELECTED MEASUREMENT DETAILS** answers: *"Where and how was this measurement obtained?"* (Context-sensitive area displaying reference plane Y, Front width, Side AP depth, method/formula, and qualification without cluttering cards).
-  - **DIAGNOSTICS** answers: *"Why is this result qualified, blocked, ambiguous, or unavailable?"*
-- **Cross-Section Evidence & Side AP Depth Registries**:
-  - The static `cross-section-evidence-v0` registry currently supports only `shoulder` and `hip` because it was built around validated shared anatomical reference levels. Localized torso circumferences (Bust, Natural Waist, Abdomen, Hip Girth, Maximum Seat) use their own localized same-Y evidence paths.
-  - The static `side-physical-depth-qualification-v0` report similarly exposes registered reference-level observations at Shoulder and Hip, while arbitrary-Y Side AP qualification operates across torso and pelvic continuous scans.
+- **Visible Populated Categories (33 Primary Results Total)**:
+  1. **Widths & Transverse Spans** (`widths_spans`, 9 items):
+     - Neck Transverse Width
+     - Torso Transverse Width at Shoulder Level
+     - Inter-Acromion Transverse Breadth (Projected)
+     - Torso Transverse Width at Hip Level
+     - Inter-Hip Landmark Transverse Span
+     - Bilateral Elbow Landmark Transverse Span
+     - Bilateral Wrist Landmark Transverse Span
+     - Bilateral Knee Landmark Transverse Span
+     - Bilateral Ankle Landmark Transverse Span
+  2. **Lengths & Distances** (`lengths_distances`, 19 items):
+     - Vertical Torso Length
+     - Vertical Shoulder Drop
+     - Vertical Thigh Length
+     - Vertical Lower Leg Length
+     - Vertical Total Leg Length
+     - Left Upper Arm Length (Projected)
+     - Right Upper Arm Length (Projected)
+     - Left Forearm Length (Projected)
+     - Right Forearm Length (Projected)
+     - Left Direct Arm Chord (Projected)
+     - Right Direct Arm Chord (Projected)
+     - Left Total Arm Chain Length (Projected)
+     - Right Total Arm Chain Length (Projected)
+     - Left Thigh Length (Projected)
+     - Right Thigh Length (Projected)
+     - Left Lower Leg Length (Projected)
+     - Right Lower Leg Length (Projected)
+     - Left Total Leg Chain Length (Projected)
+     - Right Total Leg Chain Length (Projected)
+  3. **Circumferences & Girths** (`circumferences_girths`, 5 items):
+     - Modeled Bust Circumference
+     - Modeled Natural Waist Circumference
+     - Modeled Abdominal Circumference
+     - Modeled Hip Girth
+     - Modeled Maximum Seat Circumference
+- **Registered Future Categories (Hidden while empty)**:
+  4. *Depths / AP Measurements* (`depths_ap`)
+  5. *Heights / Ground-Referenced* (`heights_ground`)
+  6. *Surface Arcs / Curved Paths* (`surface_arcs`)
+  7. *Angles / Posture* (`angles_posture`)
+- **Compact Results Rows Baseline**: All 33 primary Results render as compact selectable rows answering *"What measurement do we have, and what is its value?"*. Normal valid rows omit redundant "Valid" badges; modeled circumferences display a concise "Modeled" badge. Large always-visible detail blocks (reference plane Y, Front width, Side AP depth, endpoints, ellipse parameters, Ramanujan formula details, long disclaimers) were removed from the main Results list and remain preserved in underlying domain records.
+- **Results Interaction**: `[data-measurement-id]` $\to$ `selectMeasurement(id)` $\to$ `getMeasurementRecordById(id)` $\to$ `resolveMeasurementVisualizationProvenance(...)` $\to$ `setMeasurementHighlight(...)` $\to$ `WORKSPACE_SPLIT`. Includes click-to-highlight, re-click-to-clear, keyboard Enter / Space, selected-row state, and companion modeled ellipse preview for all five modeled circumferences.
+- **Planning Taxonomy vs. Results Taxonomy**:
+  - The **Master Measurement Coverage Program** remains organized **anatomically (10 categories)** for planning (*"What body area / catalogue coverage remains?"*).
+  - The **Results UI** is organized by **measurement type (7 categories)** for browsing (*"What kind of measurement do I want to inspect?"*).
+  - These are intentionally distinct, complementary taxonomies.
+- **Stage 4: Selected Measurement Details — DEFERRED**:
+  - Exposing context-sensitive technical details (plane elevation Y, Front width, Side AP depth, endpoints, model metadata, ellipse parameters) upon card selection is **DEFERRED** as an optional future UX enhancement.
+  - The main Results list must remain compact even if Stage 4 is implemented later. Stage 4 is NOT active next work.
+
+#### Diagnostics Role & Stage D1 Cleanup — COMPLETED
+Diagnostics answers: *"Why is a measurement unavailable, unreliable, misaligned, or structurally questionable?"* and does NOT duplicate measurements inspectable through Results.
+
+- **High-Level Diagnostics Sections**:
+  1. *Why This Result Is Blocked* (`#why-result-blocked`): Synthesizes discrete actionable eligibility blockers.
+  2. *Front–Side Alignment* (`#front-side-alignment-qa`): Authoritative vertical Y agreement and multi-view landmark registration check.
+  3. *Body / Anchor Diagnostics* (`#body-measurement-readiness`): Refocused strictly on **Anchor Health** (Overall readiness badge, Missing core anchors count, Duplicate anchor names count, Out of bounds count, Front-surface Z warnings count; subtitle: *"Promoted anchor integrity, completeness, and bounds checks"*).
+  4. *Advanced QA* (`#advanced-qa-content`, collapsed by default): Deep technical telemetry including Intake & Package, Calibration (px/cm, isotropic model), Side T-Pose Stance qualification, Side Lateral Orientation collapse ratio, and Side AP Depth qualification.
+  5. *Reference Projections Utility* (`#reference-projection-utility`): Origin / Center raycast verification actions.
+- **Stage D1 Cleanup Actions**:
+  - **Removed Legacy Anchor Previews**: The 6 legacy pre-contract anchor preview candidate lines (`shoulder_width`, `elbow_span`, `wrist_span`, `hip_width`, `knee_span`, `ankle_span`) were removed from visible UI. Safe description: *"Legacy pre-contract anchor measurement previews superseded in the UI by canonical Results measurements."*
+  - **Removed Redundant Natural Waist Plane Card**: Audited and removed from visible Diagnostics because `torso_modeled_natural_waist_circumference_at_natural_waist_plane` in Results already uses the exact same localized Natural Waist plane Y, highlights the same Front/Side cross-view slice, and triggers the same modeled ellipse preview, with zero unique troubleshooting data on the card.
+  - **Preserved Localization Domain Contracts**: `getNaturalWaistPlaneLocalization(...)`, `natural-waist-plane-localization-v0`, candidate search logic, and downstream modeled circumference dependencies remain fully intact as internal/supporting domain evidence.
+- **Cross-Section & Side AP Depth Evidence**:
+  - Static Cross-Section Evidence at Shoulder/Hip remains a domain/supporting-evidence contract.
+  - Static Side AP Depth Qualification at Shoulder/Hip remains a qualification/QA contract.
+  - Neither is a standalone primary Results section. Localized torso circumference workflows use arbitrary-Y Front width + Side AP evidence internally.
 
 #### Documentation Maintenance Rule
-After every accepted measurement implementation, the following 9-step synchronization must be executed:
+After every accepted measurement implementation, the following 10-step synchronization must be executed:
 1. Update its Master Catalogue coverage status.
 2. Record the exact canonical TWENTY EIGHT definition and display name.
 3. Record anatomical placement and plane localization source.
@@ -1489,7 +1539,8 @@ After every accepted measurement implementation, the following 9-step synchroniz
 6. Record 2D/3D visualization provenance behavior.
 7. Record explicit semantic non-claims.
 8. Update completed and remaining measurement counts.
-9. Re-prioritize remaining waves if newly implemented infrastructure unlocks additional measurements.
+9. Place the Result in the correct measurement-type UI category.
+10. Re-prioritize remaining waves if newly implemented infrastructure unlocks additional measurements.
 
 ---
 
@@ -1565,7 +1616,7 @@ Current usage:
 
 ## 8. Verification Baseline
 
-- **905 tests passing**
+- **912 tests passing**
 - **0 failures**
 - **0 skipped**
 - **0 cancelled**
@@ -1576,16 +1627,19 @@ Current usage:
 
 ## 9. Next Milestone Planning
 
-With the **Master Measurement Coverage Program** established, **Five Active Modeled Circumference Pipelines** (Bust Point v1, Natural Waist v0, Abdominal Point v1, Buttock Point / Hip Girth v1, Maximum Seat v0), **Direct Body Measurements Batch A & Batch B v0 (25 measurements)**, **Neck Transverse Width v0**, **Results UI Integration**, **Startup Defaults Modernization**, and **Code / Architecture Cleanup** fully completed and accepted, the forward implementation pipeline is organized as follows:
+With the **Master Measurement Coverage Program** established, **Results Reorganized by Measurement Type (33 compact primary results across 3 visible categories: 9 Widths/Spans, 19 Lengths/Distances, 5 Circumferences/Girths)**, **Compact Results Rows Baseline**, **Diagnostics Cleanup Stage D1 (Anchor Health refocused, legacy previews & waist card removed)**, and **Architecture Documentation Synchronized**, the forward implementation pipeline is organized as follows:
 
-1. **Wave 1 — Knee + Ankle Expansion**: Read-only source audit and prospective implementation of Knee/Ankle silhouette widths, Side AP depths, and Ramanujan II modeled perimeters.
+1. **Wave 1 — Knee + Ankle Expansion (ACTIVE NEXT WORKSTREAM — READ-ONLY AUDIT FIRST)**:
+   - Read-only source audit of support classes, silhouette stability, and paired-run semantics for Knee/Ankle levels.
+   - Prospective candidate targets: Knee Silhouette Width, Knee Side AP/Profile Depth, Modeled Knee Circumference; Ankle Silhouette Width, Ankle Side AP/Profile Depth, Modeled Ankle Circumference.
+   - Ground-referenced Knee Height and Ankle Height remain blocked by future Ground Reference.
 2. **Wave 2 — Thigh + Calf Coverage**: Evidence-driven plane localization and circumference modeling.
 3. **Wave 3 — Additional Torso Coverage**: Localized chest, overbust, high/low waist, and high hip widths/depths/girths.
 4. **Wave 4 — Relative Lengths**: Localized plane-to-plane vertical intervals ($|Y_1 - Y_2|$).
-5. **Underbust Workstream**: Independent localization of the inframammary fold plane and modeled underbust circumference.
+5. **Underbust Workstream**: Independent localization of the inframammary fold plane and modeled underbust circumference (isolated workstream).
 6. **Wave 5 — Ground Reference & Vertical Heights**: Subject ground plane contract unlocking floor-referenced heights and optical stature.
 7. **Wave 6 — Surface Arcs & Geodesics**: Non-chord body surface contours and partial arcs.
-8. **Results UI Reorganization**: Transition from implementation-family groupings to Anatomy-First Results hierarchy with context-sensitive Selected Measurement Details.
+8. **Stage 4 — Selected Measurement Details (DEFERRED)**: Optional future UX enhancement to expose supporting evidence docks upon card selection.
 9. **Canonical Body Evidence Graph & Latent Conditioning Package** (Milestones 5.1 / 5.2).
 
 ---
@@ -1600,6 +1654,7 @@ When changing direction:
 3. update `PROJECT_CONTEXT.md` and `PROJECT_STRUCTURE.md` where relevant;
 4. keep deferred geometry assumptions explicit;
 5. avoid silently replacing the current source-of-truth architecture.
+
 
 
 
