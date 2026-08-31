@@ -2251,7 +2251,7 @@ select:focus-visible {
   line-height: 1.35;
   letter-spacing: 0.01em;
   overflow-wrap: break-word;
-  word-break: break-word;
+  word-break: normal;
   white-space: normal;
   min-width: 0;
 }
@@ -2339,6 +2339,33 @@ select:focus-visible {
 }
 
 .modeled-perimeter-meta-row .modeled-perimeter-value {
+  text-align: left;
+}
+
+.derived-card-row--meta,
+.front-transverse-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+.derived-card-row--meta .derived-row-label,
+.derived-card-row--meta .derived-row-value,
+.front-transverse-meta-row .derived-row-label,
+.front-transverse-meta-row .derived-row-value,
+.front-transverse-meta-row .front-transverse-label,
+.front-transverse-meta-row .front-transverse-value {
+  width: 100%;
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: normal;
+}
+
+.derived-card-row--meta .derived-row-value,
+.front-transverse-meta-row .derived-row-value,
+.front-transverse-meta-row .front-transverse-value {
   text-align: left;
 }
 

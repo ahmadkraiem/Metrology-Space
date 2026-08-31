@@ -787,4 +787,82 @@ test('Modeled Hip Girth: selecting circumference card resolves to Buttock Point 
   assert.equal(getMeasurementHighlight(), null);
 });
 
+test('Neck Transverse Width selection resolves to Front horizontal slice highlight without landmark-to-landmark line or bilateral span', () => {
+  const { frontLayer, sideLayer } = setupMockEnvironment();
+
+  function encodeUint8ArrayToBase64(uint8) {
+    let binary = '';
+    for (let i = 0; i < uint8.length; i += 1) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    return btoa(binary);
+  }
+
+  // 10x10 image
+  // Row 1 (yCm = 170 -> row 1.5 clamped to 1): col 4..5 are Face_Neck (3)
+  const rasterFront = new Uint8Array(100);
+  for (let c = 4; c <= 5; c += 1) {
+    rasterFront[1 * 10 + c] = 3;
+  }
+
+  const classNames = Array.from({ length: 29 }, (_, i) => `Class_${i}`);
+  classNames[0] = 'Background';
+  classNames[3] = 'Face_Neck';
+
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 29,
+        class_names: classNames,
+        class_counts: { Background: 98, Face_Neck: 2 },
+        labels: { shape: [10, 10], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+      },
+    },
+  });
+  setBodyEvidencePackage(pkg);
+  analyzeLoadedBodyEvidence();
+
+  const annotations = [
+    { id: 1, type: 'body_landmark', name: 'neck', position: { x: 50, y: 170, z: 200 } },
+  ];
+  restoreAnnotations(annotations);
+
+  // 1. Select Neck
+  selectMeasurement('neck_transverse_width_at_neck_level');
+  assert.equal(getSelectedMeasurementId(), 'neck_transverse_width_at_neck_level');
+
+  const vis = getMeasurementHighlight();
+  assert.ok(vis);
+  assert.equal(vis.visualizationType, VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE);
+  assert.deepEqual(vis.targetViews, ['front']);
+  assert.equal(vis.geometry.yCm, 170.0);
+  assert.equal(vis.geometry.front.minXcm, 80.0);
+  assert.equal(vis.geometry.front.maxXcm, 120.0);
+  assert.equal(vis.geometry.front.widthCm, 40.0);
+
+  // 2. Render 2D Highlights
+  renderFrontMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: frontLayer });
+  renderSideMeasurementHighlight({ worldToPlotPx: mockWorldToPlotPx, layerEl: sideLayer });
+
+  // Front layer has line + 2 dots (3 children)
+  assert.equal(frontLayer.children.length, 3);
+  assert.equal(frontLayer.children[0].className, 'grid2d-highlight-line');
+  assert.equal(frontLayer.children[1].className, 'grid2d-highlight-dot');
+  assert.equal(frontLayer.children[2].className, 'grid2d-highlight-dot');
+
+  // Side layer has 0 children (front only)
+  assert.equal(sideLayer.children.length, 0);
+
+  // 3. Deselect on re-click
+  selectMeasurement('neck_transverse_width_at_neck_level');
+  assert.equal(getSelectedMeasurementId(), null);
+  assert.equal(getMeasurementHighlight(), null);
+
+  clearBodyEvidence();
+  clearSelectedMeasurement();
+  restoreAnnotations([]);
+});
+
 

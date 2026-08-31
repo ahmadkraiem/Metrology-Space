@@ -41,6 +41,41 @@ test('1. Front horizontal width normalizes correctly', () => {
   assert.equal(result.geometry.front.widthCm, 30.8);
 });
 
+test('1b. Neck horizontal width normalizes to Front horizontal slice correctly', () => {
+  const neckWidth = {
+    contract: 'front-transverse-width-v0',
+    id: 'neck_transverse_width_at_neck_level',
+    name: 'Neck Transverse Width at Neck Level',
+    status: 'valid',
+    valueCm: 20.0,
+    provenance: {
+      sourceLevel: 'neck',
+      levelYcm: 155.0,
+      sampledPixelRow: 450,
+      leftXcm: 90.0,
+      rightXcm: 110.0,
+      targetPolicy: 'neck_core_support_v0',
+    },
+  };
+
+  const result = resolveMeasurementVisualizationProvenance(neckWidth);
+
+  assert.equal(result.contract, MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT);
+  assert.equal(result.version, MEASUREMENT_VISUALIZATION_PROVENANCE_CONTRACT_VERSION);
+  assert.equal(result.measurementId, 'neck_transverse_width_at_neck_level');
+  assert.equal(result.displayName, 'Neck Transverse Width at Neck Level');
+  assert.equal(result.visualizationType, VISUALIZATION_TYPES.FRONT_HORIZONTAL_SLICE);
+  assert.equal(result.status, VISUALIZATION_STATUS.READY);
+  assert.deepEqual(result.targetViews, ['front']);
+  assert.equal(result.geometry.yCm, 155.0);
+  assert.equal(result.geometry.front.rasterRow, 450);
+  assert.equal(result.geometry.front.minXcm, 90.0);
+  assert.equal(result.geometry.front.maxXcm, 110.0);
+  assert.equal(result.geometry.front.widthCm, 20.0);
+  assert.equal(result.provenance.sourceLevel, 'neck');
+  assert.equal(result.provenance.targetPolicy, 'neck_core_support_v0');
+});
+
 test('2. Side horizontal span normalizes correctly', () => {
   const sideSpan = {
     contract: 'side-profile-span-v0',

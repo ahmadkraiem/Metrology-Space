@@ -16,6 +16,7 @@ import {
   getPairedCrossViewEligibility,
   getSidePhysicalDepthQualification,
   getCrossSectionEvidence,
+  getFrontTransverseWidth,
   getModeledCrossSectionPerimeter,
   getModeledHipSeatCircumference,
   getModeledHipGirth,
@@ -66,6 +67,7 @@ const DERIVED_CORRESPONDENCE_PAIRS = Object.freeze([
 
 const groupCollapseStates = new Map([
   ['cross_section_evidence', true],
+  ['front_transverse_widths', true],
   ['modeled_perimeter_estimates', true],
   ['direct_measurements', true],
   ['vertical_measurements', true],
@@ -874,10 +876,69 @@ export function buildModeledHipSeatCircumferenceCardHtml(seatCircumference) {
   `;
 }
 
+export function buildFrontTransverseWidthCardHtml(measurement) {
+  if (!measurement) {
+    return '';
+  }
+
+  const isVal = measurement.status === 'valid' && typeof measurement.valueCm === 'number';
+  const valDisplay = isVal ? `${formatDistance(measurement.valueCm)} cm` : '—';
+
+  let statusBadge;
+  if (measurement.status === 'valid') {
+    statusBadge = renderBadge('Valid', 'ok');
+  } else if (measurement.status === 'ambiguous') {
+    statusBadge = renderBadge('Ambiguous', 'warn');
+  } else if (measurement.status === 'invalid') {
+    statusBadge = renderBadge('Invalid', 'warn');
+  } else {
+    statusBadge = renderBadge('Unavailable', 'muted');
+  }
+
+  const yCm = measurement.provenance?.levelYcm;
+  const yDisplay = typeof yCm === 'number' && Number.isFinite(yCm)
+    ? `Y ${formatDistance(yCm)} cm`
+    : 'Y —';
+
+  const isSelected = selectedMeasurementId === 'neck_transverse_width_at_neck_level' || selectedMeasurementId === measurement.id;
+
+  return `
+    <div
+      class="derived-measurement-card front-transverse-card ${isSelected ? 'is-selected' : ''}"
+      data-measurement-id="${escapeHtml(measurement.id || 'neck_transverse_width_at_neck_level')}"
+      role="button"
+      tabindex="0"
+      aria-selected="${isSelected ? 'true' : 'false'}"
+    >
+      <div class="derived-card-header">
+        <span class="derived-card-title">Neck Transverse Width</span>
+        <div class="derived-card-meta">
+          ${statusBadge}
+        </div>
+      </div>
+
+      <div class="derived-card-body">
+        <div class="derived-card-row">
+          <span class="derived-row-label">Front Transverse Width</span>
+          <span class="derived-row-value ${isVal ? 'derived-row-value--qualified' : 'derived-row-value--muted'}">${escapeHtml(valDisplay)}</span>
+        </div>
+        <div class="derived-card-row derived-card-row--meta front-transverse-meta-row">
+          <span class="derived-row-label front-transverse-label">Reference Level</span>
+          <span class="derived-row-value front-transverse-value derived-row-value--muted">Neck Level (${escapeHtml(yDisplay)})</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 /**
  * Declarative record resolver registry for measurement records by ID and alias.
  */
 const MEASUREMENT_RECORD_RESOLVERS = new Map([
+  // Front Transverse Widths
+  ['neck_transverse_width_at_neck_level', (annotations) => getFrontTransverseWidth({ id: 'neck_transverse_width_at_neck_level', annotations })],
+  ['neck_width_at_neck_level', (annotations) => getFrontTransverseWidth({ id: 'neck_transverse_width_at_neck_level', annotations })],
+  ['torso_width_at_neck_level', (annotations) => getFrontTransverseWidth({ id: 'neck_transverse_width_at_neck_level', annotations })],
   // Modeled Bust Circumference
   ['torso_modeled_bust_circumference_at_bust_apex_plane', (annotations) => getModeledBustCircumference({ annotations })],
   ['modeled_bust_circumference', (annotations) => getModeledBustCircumference({ annotations })],
@@ -1063,6 +1124,35 @@ export function renderDerivedMeasurementDeck(containerEl) {
     </div>
   `;
 
+  const neckWidthResult = getFrontTransverseWidth({
+    id: 'neck_transverse_width_at_neck_level',
+    annotations,
+  });
+
+  let frontTransverseHtml = '';
+  if (neckWidthResult) {
+    const isFrontCollapsed = groupCollapseStates.get('front_transverse_widths') ?? false;
+    const frontCollapsedAttr = isFrontCollapsed ? 'data-collapsed' : '';
+    const frontCollapsedClass = isFrontCollapsed ? 'is-collapsed' : '';
+    const neckCardHtml = buildFrontTransverseWidthCardHtml(neckWidthResult);
+
+    frontTransverseHtml = `
+    <div
+      class="results-subgroup results-subgroup--front-transverse ${frontCollapsedClass}"
+      data-collapsible
+      ${frontCollapsedAttr}
+      data-group-id="front_transverse_widths"
+    >
+      <div class="results-subgroup-header results-subgroup-header--collapsible">
+        <span class="results-subgroup-label">Front Transverse Widths</span>
+      </div>
+      <div class="results-subgroup-body">
+        ${neckCardHtml}
+      </div>
+    </div>
+  `;
+  }
+
   const modeledBustCircumferenceResult = getModeledBustCircumference({
     annotations,
   });
@@ -1173,7 +1263,7 @@ export function renderDerivedMeasurementDeck(containerEl) {
     `;
   }
 
-  containerEl.innerHTML = crossSectionHtml + modeledPerimeterHtml + directHtml;
+  containerEl.innerHTML = crossSectionHtml + frontTransverseHtml + modeledPerimeterHtml + directHtml;
 }
 
 export function setupDerivedMeasurementDeck() {

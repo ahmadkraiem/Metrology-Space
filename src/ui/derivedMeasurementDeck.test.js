@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   buildDerivedMeasurementCardHtml,
   buildDirectMeasurementsGroupHtml,
+  buildFrontTransverseWidthCardHtml,
   buildModeledBustCircumferenceCardHtml,
   buildModeledAbdominalCircumferenceCardHtml,
   buildModeledHipSeatCircumferenceCardHtml,
@@ -1819,6 +1820,200 @@ test('derivedMeasurementDeck: Batch B selectMeasurement routes to Front 2D highl
 
   clearBodyEvidence();
   clearSelectedMeasurement();
+  restoreAnnotations([]);
+  global.document = origDoc;
+});
+
+test('derivedMeasurementDeck: buildFrontTransverseWidthCardHtml renders Neck Transverse Width card correctly across statuses', () => {
+  // 1. Valid measurement
+  const validNeck = {
+    contract: 'front-transverse-width-v0',
+    id: 'neck_transverse_width_at_neck_level',
+    name: 'Neck Transverse Width at Neck Level',
+    status: 'valid',
+    valueCm: 20.0,
+    provenance: {
+      sourceLevel: 'neck',
+      levelYcm: 155.0,
+      leftXcm: 90.0,
+      rightXcm: 110.0,
+    },
+  };
+
+  const validHtml = buildFrontTransverseWidthCardHtml(validNeck);
+  assert.equal(validHtml.includes('data-measurement-id="neck_transverse_width_at_neck_level"'), true);
+  assert.equal(validHtml.includes('Neck Transverse Width'), true);
+  assert.equal(validHtml.includes('Front Transverse Width'), true);
+  assert.equal(validHtml.includes('20.00 cm') || validHtml.includes('20.0 cm'), true);
+  assert.equal(validHtml.includes('Valid'), true);
+  assert.equal(validHtml.includes('derived-card-row--meta'), true);
+  assert.equal(validHtml.includes('front-transverse-meta-row'), true);
+  assert.equal(validHtml.includes('Reference Level'), true);
+  assert.equal(validHtml.includes('Neck Level (Y 155.00 cm)') || validHtml.includes('Neck Level (Y 155.0 cm)'), true);
+
+  // 2. Unavailable measurement
+  const unavailNeck = {
+    contract: 'front-transverse-width-v0',
+    id: 'neck_transverse_width_at_neck_level',
+    status: 'unavailable',
+    valueCm: null,
+    provenance: { levelYcm: null },
+  };
+  const unavailHtml = buildFrontTransverseWidthCardHtml(unavailNeck);
+  assert.equal(unavailHtml.includes('Unavailable'), true);
+  assert.equal(unavailHtml.includes('—'), true);
+
+  // 3. Ambiguous measurement
+  const ambigNeck = {
+    contract: 'front-transverse-width-v0',
+    id: 'neck_transverse_width_at_neck_level',
+    status: 'ambiguous',
+    valueCm: null,
+    provenance: { levelYcm: 155.0 },
+  };
+  const ambigHtml = buildFrontTransverseWidthCardHtml(ambigNeck);
+  assert.equal(ambigHtml.includes('Ambiguous'), true);
+
+  // 4. Invalid measurement
+  const invalidNeck = {
+    contract: 'front-transverse-width-v0',
+    id: 'neck_transverse_width_at_neck_level',
+    status: 'invalid',
+    valueCm: null,
+    provenance: { levelYcm: 155.0 },
+  };
+  const invalidHtml = buildFrontTransverseWidthCardHtml(invalidNeck);
+  assert.equal(invalidHtml.includes('Invalid'), true);
+
+  // Null input
+  assert.equal(buildFrontTransverseWidthCardHtml(null), '');
+});
+
+test('derivedMeasurementDeck: getMeasurementRecordById resolves neck_transverse_width_at_neck_level', () => {
+  const annotations = [
+    { type: 'body_landmark', name: 'neck', point: { x: 50, y: 170, z: 200 } },
+  ];
+
+  const record = getMeasurementRecordById('neck_transverse_width_at_neck_level', annotations);
+  assert.ok(record);
+  assert.equal(record.contract, 'front-transverse-width-v0');
+  assert.equal(record.id, 'neck_transverse_width_at_neck_level');
+  assert.equal(record.name, 'Neck Transverse Width at Neck Level');
+});
+
+test('derivedMeasurementDeck: selectMeasurement for Neck Transverse Width routes to Front 2D highlight and toggles off on re-click', () => {
+  const origDoc = global.document;
+  global.document = {
+    getElementById: () => null,
+    createElement: () => ({ setAttribute: () => {}, style: {}, appendChild: () => {} }),
+  };
+
+  function encodeUint8ArrayToBase64(uint8) {
+    let binary = '';
+    for (let i = 0; i < uint8.length; i += 1) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    return btoa(binary);
+  }
+
+  // 10x10 image
+  // Row 1 (yCm = 170 -> row 1.5 clamped to 1): col 4..5 are Face_Neck (3)
+  const rasterFront = new Uint8Array(100);
+  for (let c = 4; c <= 5; c += 1) {
+    rasterFront[1 * 10 + c] = 3;
+  }
+
+  const classNames = Array.from({ length: 29 }, (_, i) => `Class_${i}`);
+  classNames[0] = 'Background';
+  classNames[3] = 'Face_Neck';
+
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 29,
+        class_names: classNames,
+        class_counts: { Background: 98, Face_Neck: 2 },
+        labels: { shape: [10, 10], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+      },
+    },
+  });
+  setBodyEvidencePackage(pkg);
+  analyzeLoadedBodyEvidence();
+
+  const annotations = [
+    { id: 1, type: 'body_landmark', name: 'neck', position: { x: 50, y: 170, z: 200 } },
+  ];
+  restoreAnnotations(annotations);
+
+  // Select Neck Transverse Width
+  selectMeasurement('neck_transverse_width_at_neck_level');
+  assert.equal(getSelectedMeasurementId(), 'neck_transverse_width_at_neck_level');
+
+  // Toggle off
+  selectMeasurement('neck_transverse_width_at_neck_level');
+  assert.equal(getSelectedMeasurementId(), null);
+
+  clearBodyEvidence();
+  clearSelectedMeasurement();
+  restoreAnnotations([]);
+  global.document = origDoc;
+});
+
+test('derivedMeasurementDeck: renderDerivedMeasurementDeck renders Front Transverse Widths subgroup containing Neck card', () => {
+  const origDoc = global.document;
+  global.document = {
+    getElementById: () => null,
+    createElement: () => ({ setAttribute: () => {}, style: {}, appendChild: () => {} }),
+  };
+
+  function encodeUint8ArrayToBase64(uint8) {
+    let binary = '';
+    for (let i = 0; i < uint8.length; i += 1) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    return btoa(binary);
+  }
+
+  const rasterFront = new Uint8Array(100);
+  for (let c = 4; c <= 5; c += 1) {
+    rasterFront[1 * 10 + c] = 3;
+  }
+
+  const classNames = Array.from({ length: 29 }, (_, i) => `Class_${i}`);
+  classNames[0] = 'Background';
+  classNames[3] = 'Face_Neck';
+
+  const pkg = buildBodyEvidencePackage({
+    front: {
+      segmentation: {
+        model: 'schp',
+        view: 'front',
+        num_classes: 29,
+        class_names: classNames,
+        class_counts: { Background: 98, Face_Neck: 2 },
+        labels: { shape: [10, 10], dtype: 'uint8', base64: encodeUint8ArrayToBase64(rasterFront) },
+      },
+    },
+  });
+  setBodyEvidencePackage(pkg);
+  analyzeLoadedBodyEvidence();
+
+  const annotations = [
+    { id: 1, type: 'body_landmark', name: 'neck', position: { x: 50, y: 170, z: 200 } },
+  ];
+  restoreAnnotations(annotations);
+
+  const container = { innerHTML: '', querySelectorAll: () => [] };
+  renderDerivedMeasurementDeck(container);
+
+  assert.equal(container.innerHTML.includes('data-group-id="front_transverse_widths"'), true);
+  assert.equal(container.innerHTML.includes('Front Transverse Widths'), true);
+  assert.equal(container.innerHTML.includes('data-measurement-id="neck_transverse_width_at_neck_level"'), true);
+  assert.equal(container.innerHTML.includes('Neck Transverse Width'), true);
+
+  clearBodyEvidence();
   restoreAnnotations([]);
   global.document = origDoc;
 });
