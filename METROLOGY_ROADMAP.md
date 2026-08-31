@@ -1213,10 +1213,100 @@ Established the deterministic Direct Body Measurements Contract v0 (`direct-body
 - Wired into unified click-to-highlight flow: clicking a card focuses the 2D split workspace (`WORKSPACE_SPLIT`), renders the 2D highlight, and re-clicking toggles off.
 
 #### Deferred Items
-- **Neck Transverse Width**: Explicitly deferred. Current neck evidence is a single central reference landmark; no bilateral neck landmark pair exists. Formal Neck Transverse Width requires segmentation-derived boundary evidence and a neck-specific support policy.
 - **Underbust**: Separate track, not modified.
 
-- **Verified Baseline**: **889 / 889 tests passing across 47 test suites, 0 failures, clean production build**.
+- **Verified Baseline**: **889 / 889 tests passing across 47 test suites, 0 failures, clean production build** (updated to 905/905 in Milestone 4.26).
+
+### 4.26 Neck Transverse Width v0 — COMPLETED / VERIFIED
+
+Established the deterministic Neck Transverse Width implementation at Neck Level (`front-transverse-width-v0`):
+
+- **Contract**: `front-transverse-width-v0` (`src/features/frontTransverseWidth.js`)
+- **Measurement ID**: `neck_transverse_width_at_neck_level`
+- **Canonical Name**: `Neck Transverse Width at Neck Level`
+- **Display Label**: `Neck Transverse Width`
+- **Source Anatomical Level**: `neck` (`anatomical-levels-v0`)
+- **Reference Plane**: $Y = Y_{\text{neck}}$ ($y_{\text{cm}} = \text{anatomicalLevels.neck.yCm}$)
+
+#### Authoritative Geometry
+- Metric horizontal bounds:
+  $$\text{leftXcm} = \text{selectedRun.boundsCm.minX}$$
+  $$\text{rightXcm} = \text{selectedRun.boundsCm.maxX}$$
+  $$\text{valueCm} = \text{rightXcm} - \text{leftXcm}$$
+- **Metrological Identity**: Calibrated projected Front-plane transverse silhouette width at Neck Level.
+- **Explicit Non-Claims**: It is strictly NOT a landmark-to-landmark distance, bilateral landmark span, diagonal Euclidean chord, neck circumference, 3D neck diameter, skeletal neck breadth, or standardized anthropometric caliper breadth.
+
+#### Role of the Neck Landmark
+- The promoted Front `neck` landmark authoritatively provides $Y_{\text{neck}}$ and source anatomical level provenance.
+- It does **NOT** define `leftXcm` or `rightXcm`, does **NOT** define width directly, and does **NOT** act as either measurement endpoint.
+- Zero synthetic neck landmarks (`left_neck`, `right_neck`) exist or were created.
+
+#### Measurement Support Policy (`neck_core_support_v0`)
+- **Policy ID**: `neck_core_support_v0` (`src/features/measurementSupportPolicy.js`)
+- **Accepted Classes**: `[3, 22, 23]`
+- **Partitions**:
+  - `anatomicalClassIds`: `[3, 22]` (`Face_Neck`, `Torso`)
+  - `clothingBridgeClassIds`: `[23]` (`Upper_Clothing`)
+- **Verified Taxonomy Meanings**: `3 = Face_Neck`, `22 = Torso`, `23 = Upper_Clothing`.
+- **Explicit Exclusions**: Background (0), Hair (4), Upper Arms (11, 20), and all other non-target classes.
+- **Why Generic Policies Are Not Used**:
+  - `BODY_ANATOMICAL` excludes `Face_Neck` class 3.
+  - `TORSO_ONLY` excludes `Face_Neck` class 3 and `Upper_Clothing` class 23.
+  - `FOREGROUND` is overly permissive and captures hair/arms.
+
+#### Semantic Qualifier
+- The segmentation ontology does not contain a dedicated Neck-only class; this measurement is an **observed supported neck silhouette width at Neck Level** derived from the accepted support classes. It makes no naked-body or standardized anthropometric claim.
+
+#### Clothing / Body Surface Semantics
+- If Class 23 `Upper_Clothing` contributes to the selected run:
+  $$\text{usedClothingEvidence} = \text{true}, \quad \text{clothingClassIdsUsed} = [23]$$
+- If clothing does not contribute:
+  $$\text{usedClothingEvidence} = \text{false}, \quad \text{clothingClassIdsUsed} = []$$
+- No clothing-removal algorithm exists; no garment-thickness compensation is performed.
+- Retains full compatibility with downstream physical measurement eligibility (`physicalMeasurementEligibility.js`).
+
+#### Raster Slicing & Run Selection
+- **Raster Slice**: Reuses `front-horizontal-raster-slice-v0` ($Y_{\text{cm}} \to$ raster row $\to$ accepted-class scan $\to$ contiguous runs $\to$ metric bounds) without modifying the raster engine.
+- **Run Selection Policy**: `single_run_required`
+  - Exactly 1 accepted run: $\to$ `valid`
+  - 0 accepted runs: $\to$ `unavailable`
+  - $> 1$ separated accepted runs: $\to$ `ambiguous`
+  - Malformed/non-finite/inverted metric bounds: $\to$ `invalid`
+- Zero silent run merging, zero widest-run selection, zero heuristic central-run selection, and neck landmark $X$ is never used to arbitrate multiple runs.
+
+#### Provenance Fields
+- Full domain provenance recorded in observation: `sourceLevel: 'neck'`, `levelYcm`, `sampledPixelRow`, `sourceSliceContract: 'front-horizontal-raster-slice-v0'`, `targetPolicy: 'neck_core_support_v0'`, `supportPolicyId: 'neck_core_support_v0'`, `targetClassIds: [3, 22, 23]`, `actualClassIdsUsed`, `clothingClassIdsUsed`, `usedClothingEvidence`, `runSelectionPolicy: 'single_run_required'`, `selectedRunIndex`, `leftXcm`, `rightXcm`.
+
+#### Runtime Integration
+- Domain getters in `src/features/bodyEvidence.js`:
+  - `getFrontTransverseWidth({ id: 'neck_transverse_width_at_neck_level' })`
+  - `getFrontTransverseWidths()` now evaluates three Front transverse-width definitions:
+    1. `neck_transverse_width_at_neck_level`
+    2. `torso_width_at_shoulder_level`
+    3. `torso_width_at_hip_level`
+- Shoulder and Hip transverse width definitions and behaviors remain 100% unchanged.
+
+#### Results UI & Click-to-Highlight Integration
+- **Results Subgroup**: Rendered in a dedicated collapsible subgroup **`Front Transverse Widths`** (`data-group-id="front_transverse_widths"`) in `src/ui/derivedMeasurementDeck.js`.
+  - Intentionally separate from `Cross-Section Evidence` (Neck has no paired Side AP depth/cross-view correspondence).
+  - Intentionally separate from `Direct Measurements` (Neck Width is segmentation-derived, not landmark-to-landmark/inter-level geometry).
+  - Shoulder and Hip paired cards remain in `Cross-Section Evidence`.
+- **Card Presentation & Layout Fix**:
+  - Primary Row: `Front Transverse Width` (left) ........... `<value> cm` (right)
+  - Metadata Row: `Reference Level` stacked above `Neck Level (Y <value> cm)` using `.derived-card-row--meta` and `.front-transverse-meta-row` in `components.css` to prevent character-by-character wrapping on narrow sidebars.
+  - Status Badge: Displays uncollapsed domain status (`Valid`, `Unavailable`, `Ambiguous`, `Invalid`).
+  - Value Source: Strictly reads `measurement.valueCm` from domain evidence; zero recomputation in UI.
+- **Click-to-Highlight Flow**:
+  - Selection: `data-measurement-id="neck_transverse_width_at_neck_level"` $\to$ `selectMeasurement(id)` $\to$ `resolveMeasurementVisualizationProvenance` $\to$ `setMeasurementHighlight` $\to$ `WORKSPACE_SPLIT` $\to$ Front 2D highlight. Re-click deselects and clears highlight.
+- **Visualization Overlay (`measurementHighlightOverlay2d.js`)**:
+  - Reused generic `FRONT_HORIZONTAL_SLICE` renderer on Front view only (`targetViews: ['front']`).
+  - Geometry: horizontal line $(\text{leftXcm}, Y_{\text{neck}}) \to (\text{rightXcm}, Y_{\text{neck}})$ with endpoint dots.
+  - Guardrails: No Yvis midpoint, no drop lines, no landmark pair line, no diagonal line, no synthetic landmarks, no permanent numeric canvas badge.
+
+#### Invariants & Preservations
+- **Direct Body Measurements**: Remains strictly **25 direct measurements** (Batch A 19 + Batch B 6).
+- **Underbust**: Separate workstream, untouched.
+- **Verified Baseline**: **905 / 905 tests passing across 47 test suites, 0 failures, clean production Vite build**.
 
 ---
 
@@ -1292,7 +1382,7 @@ Current usage:
 
 ## 8. Verification Baseline
 
-- **889 tests passing**
+- **905 tests passing**
 - **0 failures**
 - **0 skipped**
 - **0 cancelled**
@@ -1303,13 +1393,12 @@ Current usage:
 
 ## 9. Next Milestone Planning
 
-With the **Five Active Modeled Circumference Pipelines** (Bust Point v1, Natural Waist v0, Abdominal Point v1, Buttock Point / Hip Girth v1, Maximum Seat v0), **Direct Body Measurements Batch A & Batch B v0 (25 measurements)**, **Results UI Integration**, **Startup Defaults Modernization**, and **Code / Architecture Cleanup** fully completed and accepted, the remaining deferred workstreams are:
+With the **Five Active Modeled Circumference Pipelines** (Bust Point v1, Natural Waist v0, Abdominal Point v1, Buttock Point / Hip Girth v1, Maximum Seat v0), **Direct Body Measurements Batch A & Batch B v0 (25 measurements)**, **Neck Transverse Width v0**, **Results UI Integration**, **Startup Defaults Modernization**, and **Code / Architecture Cleanup** fully completed and accepted, the remaining deferred workstreams are:
 
 1. **Underbust Level Localization & Modeled Underbust Circumference** (deferred pending inframammary fold localization).
-2. **Neck Transverse Width** (deferred pending segmentation-derived bilateral neck boundaries and support policy).
-3. **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)** (deferred pending verified floor plane).
-4. **Measured optical stature** (deferred).
-5. **Canonical Body Evidence Graph & Latent Conditioning Package** (Milestone 5.1 / 5.2).
+2. **Absolute height-from-floor measurements (`NEEDS_GROUND_REFERENCE`)** (deferred pending verified floor plane).
+3. **Measured optical stature** (deferred).
+4. **Canonical Body Evidence Graph & Latent Conditioning Package** (Milestone 5.1 / 5.2).
 
 ---
 
